@@ -1,0 +1,23 @@
+# All gameplay tunables (D-005). Shared by every target.
+# Values are converted once to fixed-point at load time and hashed after conversion (D-011).
+# Only the values fixed by the spec are here. Model coefficients are added during M0.
+
+[sim]
+tick_hz = 10             # §4 fixed tick
+flora_every_ticks = 5    # §5.3: flora fields at 2 Hz
+env_every_ticks = 10     # §5.3: nutrients / water at 1 Hz
+grid_size = 512          # §5.1: 256 low-end, 1024 stretch
+chunk_size = 32          # §5.3 chunk sleeping, hashing
+
+[match]
+players = 2
+victory_territory = 0.60 # §2.3, Q-013
+time_limit_s = 1200      # §2.3: 20 min, Q-013
+
+[agents]
+max_agents = 2000        # §5.4 budget
+
+[net]
+input_delay_ticks = 2    # §10: 200 ms at 10 Hz
+stall_timeout_s = 10     # §10
+hash_every_ticks = 10    # §10: desync check once per second

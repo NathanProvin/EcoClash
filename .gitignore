@@ -1,0 +1,29 @@
+# Rust
+target/
+
+# Node / client
+node_modules/
+dist/
+pkg/
+
+# Python
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+.pytest_cache/
+.ruff_cache/
+
+# Generated data (regenerate from seeds)
+*.parquet
+tools/**/out/
+
+# Env / secrets (INSTRUCTIONS §14)
+.env*
+!.env.example
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/

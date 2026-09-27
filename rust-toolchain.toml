@@ -1,0 +1,7 @@
+# Pinned Rust toolchain (D-013). Bumping it can change codegen: re-run the determinism tests
+# and add a DECISIONS entry.
+[toolchain]
+channel = "1.98.1"
+components = ["rustfmt", "clippy"]
+targets = ["wasm32-unknown-unknown"]
+profile = "minimal"

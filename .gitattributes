@@ -1,0 +1,10 @@
+# LF everywhere: the balance hash and snapshots must not depend on the OS (D-011).
+* text=auto eol=lf
+
+*.png  binary
+*.jpg  binary
+*.ktx2 binary
+*.glb  binary
+*.blend binary
+*.wasm binary
+*.parquet binary

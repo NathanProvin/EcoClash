@@ -25,3 +25,10 @@
 - **Blockers:**
   - Design questions Q-001…Q-008 (user thinking in parallel, not blocking flora work).
   - Rust is not installed yet (user action).
+
+## 2026-09-27 · Review and completion of `data/gamerules.md`
+- **Goal:** Review the author's first gameplay draft and fill its missing sections.
+- **Done:** Strata table (4 levels), flora/fauna tech tree, species tables §5.1–5.2, food web mermaid, fire card, numbering and typo fixes. All additions tagged [Proposed].
+- **Decisions:** None final. New author questions added to gamerules §12 (7, 9–11).
+- **Next:** Author validates §12; then reconcile gamerules with INSTRUCTIONS §2 and OPEN_QUESTIONS (Q-001, Q-002, Q-006, Q-012 overlap). `data/species.toml` when species reach code (M0.5+).
+- **Blockers:** None for M0.1–M0.4 (flora-only).

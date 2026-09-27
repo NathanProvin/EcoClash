@@ -86,3 +86,11 @@
 - **Done:** Gauge per species per cell (neighbour pressure × suitability), seed rain, continuous smothering, soft succession ramp, terrain fields (soil type, water, light) with neutral V1 hooks. Fix: arrivals start established (a conquered seedling was re-smothered at once). 19 tests green.
 - **Findings (seed 1, 128², 20 min, old rates):** round fronts; the shrub belt keeps pace with the meadow; territory 14.7 % / 18.2 % (was 40 / 45), because front pressure is ~1/5.
 - **Next:** M0.7 tuning pass with frontier metrics.
+
+## 2026-09-27 · M0.7 tuning pass 1 (D-025)
+- **Goal:** Shrubs/trees reach the frontier in the mid phase so frozen frontiers break.
+- **Done:** Frontier metrics in `run()` (`front`, `front_hi`, `taken`). Three parallel tuning rounds (throwaway scratch harness). Applied pioneers ×8, L2/L3 ×24 spread, soil ×3; forward planting in the forest build; offsets scale with map size.
+- **Bugs found and fixed:** 1-biomass seedlings promoted to established on arrival (quant grew 2× the oak); float ghosts of 1e-57; own_spread switch obsolete under the gauge (removed).
+- **Result:** contact 8.1 min, L2 at front 10.4/11.5 min, first take 10.8 min, 50/50 at 20 min; quant matches float in timing and territory within 1 %.
+- **Next:** M0.4 fauna agents (D-023), then M0.6 100-seed sweep.
+- **Notes:** a 128² 20-min run takes about 2 min; the 19 tests take about 25 s.

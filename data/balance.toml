@@ -44,8 +44,8 @@ plant_gauge = 0.5         # colonization gauge of a freshly planted species (D-0
 succession = true
 shade = true
 contested_cells = true
-own_spread = true
 
+# Rates and soil gains: M0.7 tuning pass 1 (frontier contact ~8 min, shrubs at the front ~10-12 min).
 # One table per species, in tech-tree order (gamerules §4.2). The table order sets the species id.
 # growth_rate: logistic r (1/s). spread_rate: colonization gauge speed at full pressure (1/s). soil_gain: soil development
 # per second at full cover. shade_cast / shade_tolerance: 0..1.
@@ -54,117 +54,117 @@ level = 1
 pioneer = true
 growth_rate = 0.03
 k_max = 2000
-spread_rate = 0.03
+spread_rate = 0.24
 shade_cast = 0.0
 shade_tolerance = 0.3
-soil_gain = 0.0015
+soil_gain = 0.0045
 
 [flora.moss]
 level = 1
 pioneer = true
 growth_rate = 0.05
 k_max = 3000
-spread_rate = 0.04
+spread_rate = 0.32
 shade_cast = 0.0
 shade_tolerance = 0.9
-soil_gain = 0.001
+soil_gain = 0.003
 
 [flora.grasses]
 level = 1
 pioneer = true
 growth_rate = 0.25
 k_max = 8000
-spread_rate = 0.15
+spread_rate = 1.2
 shade_cast = 0.0
 shade_tolerance = 0.1
-soil_gain = 0.0008
+soil_gain = 0.0024
 
 [flora.clover]
 level = 1
 pioneer = false
 growth_rate = 0.15
 k_max = 7000
-spread_rate = 0.06
+spread_rate = 0.48
 shade_cast = 0.0
 shade_tolerance = 0.2
-soil_gain = 0.0015
+soil_gain = 0.0045
 
 [flora.ferns]
 level = 1
 pioneer = false
 growth_rate = 0.06
 k_max = 6000
-spread_rate = 0.03
+spread_rate = 0.24
 shade_cast = 0.1
 shade_tolerance = 0.9
-soil_gain = 0.0006
+soil_gain = 0.0018
 
 [flora.bramble]
 level = 1
 pioneer = false
 growth_rate = 0.2
 k_max = 10000
-spread_rate = 0.1
+spread_rate = 0.8
 shade_cast = 0.2
 shade_tolerance = 0.4
-soil_gain = 0.0008
+soil_gain = 0.0024
 
 [flora.elder]
 level = 2
 pioneer = false
 growth_rate = 0.08
 k_max = 20000
-spread_rate = 0.05
+spread_rate = 1.2
 shade_cast = 0.3
 shade_tolerance = 0.3
-soil_gain = 0.0008
+soil_gain = 0.0024
 
 [flora.hazel]
 level = 2
 pioneer = false
 growth_rate = 0.05
 k_max = 22000
-spread_rate = 0.03
+spread_rate = 0.72
 shade_cast = 0.4
 shade_tolerance = 0.8
-soil_gain = 0.0008
+soil_gain = 0.0024
 
 [flora.hawthorn]
 level = 2
 pioneer = false
 growth_rate = 0.04
 k_max = 25000
-spread_rate = 0.02
+spread_rate = 0.48
 shade_cast = 0.5
 shade_tolerance = 0.3
-soil_gain = 0.0008
+soil_gain = 0.0024
 
 [flora.oak]
 level = 3
 pioneer = false
 growth_rate = 0.015
 k_max = 60000
-spread_rate = 0.01
+spread_rate = 0.24
 shade_cast = 0.4
 shade_tolerance = 0.2
-soil_gain = 0.0005
+soil_gain = 0.0015
 
 [flora.beech]
 level = 3
 pioneer = false
 growth_rate = 0.02
 k_max = 65000
-spread_rate = 0.012
+spread_rate = 0.288
 shade_cast = 0.85
 shade_tolerance = 0.8
-soil_gain = 0.0005
+soil_gain = 0.0015
 
 [flora.chestnut]
 level = 3
 pioneer = false
 growth_rate = 0.03
 k_max = 55000
-spread_rate = 0.02
+spread_rate = 0.48
 shade_cast = 0.6
 shade_tolerance = 0.4
-soil_gain = 0.0005
+soil_gain = 0.0015

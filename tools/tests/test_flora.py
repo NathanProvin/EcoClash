@@ -104,12 +104,12 @@ def test_same_stratum_species_interpenetrate_and_spread():
     for _ in range(300):
         fl.step(st)
     clover, grasses = st.bio[fl.idx("clover")], st.bio[fl.idx("grasses")]
-    assert (clover[6:10, 3] > 0).all()  # clover spread 3 cells into the meadow...
+    assert (clover[6:10, 4] > 0).all()  # clover spread 2 cells into the meadow...
     assert (grasses > 0).all()  # ...without displacing the grass
 
 
 def test_mixed_stand_outgrows_monoculture():
-    fl = Flora(load_balance(), own_spread=False)
+    fl = Flora(load_balance())
     mono, mixed = fl.new_state(4), fl.new_state(4)
     cells = np.ones((4, 4), bool)
     for st in (mono, mixed):
@@ -150,7 +150,7 @@ def test_gauge_rises_faster_with_more_neighbours():
 
 @pytest.mark.parametrize("mode", ["float", "quant"])
 def test_biomass_stays_under_gauge_capacity(mode):
-    fl = Flora(load_balance(), mode, shade=False, own_spread=False)
+    fl = Flora(load_balance(), mode, shade=False)
     st = fl.new_state(4)
     fl.plant(st, 1, "grasses", np.ones((4, 4), bool))  # gauge = plant_gauge (0.5)
     i = fl.idx("grasses")

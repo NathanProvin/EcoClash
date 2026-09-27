@@ -115,7 +115,7 @@ Plants reproduce and spread **from cell to cell**, into the 4 neighbouring cells
 | **Owned by the opponent, same dominant level** | **Nothing happens.** The frontier holds |
 | **Owned by the opponent, lower dominant level** (e.g. enemy meadow grasses next to our trees) | Gradually **colonized and smothered**. The enemy biomass decreases at `smother_rate`, our colonization progress rises, and the cell switches to us when the enemy biomass reaches zero |
 | **Owned by the opponent, higher dominant level** | Our spread has no effect. Their spread smothers us instead |
-| **[Proposed] Owned by us** | Any of our strata spreads into the same stratum of the neighbour when it is empty: forest advances over our own meadow, and lower strata fill in underneath (understory), subject to shade and soil development (D-019) |
+| **Owned by us** (D-024) | Each of our species colonizes the neighbour through its gauge: forest advances over our own meadow, and lower strata fill in underneath (understory), subject to shade, soil and bioclimate. Only species established in a neighbour (above `establish_threshold`) seed new arrivals |
 
 Only the **level** is compared, not the tier within a level (see open questions).
 

@@ -221,3 +221,30 @@ Template:
   - `suit = f_dev × f_soil × f_water × f_light` is the single modifier of gamerules §2.3. `f_dev` ramps from 0 at `soil_min − soil_ramp` to 1 at `soil_min` (soft succession). Water and light use a triangular response (no transcendentals). Soil affinity is per soil type. The terrain fields exist with constant V1 values, and absent species keys are neutral.
   - `spread_threshold` is removed.
 - **Consequences:** State adds `gauge[species]`, `soil_type`, `water` and `light`; own-cell progress is gone. Fronts are round and gradual. At the old rates, spread at a straight front is about 5× slower (pressure 1/5), so M0.7 retunes.
+
+## D-025 · 2026-09-27 · M0.7 tuning pass 1: frontier timing, and gauge fixes
+- **Status:** accepted (values are placeholders until the M0.6 sweep)
+- **Target (gamerules §11.1):** frontiers form in the mid phase, shrubs reach them by 12 min, and frozen frontiers can break.
+- **Decision:**
+  - `spread_rate` ×8 for L1 and ×24 for L2/L3; `soil_gain` ×3 (values in `balance.toml`).
+  - The "forest" build plants shrubs and trees forward, toward the frontier, as a player would. Build offsets scale with the map size.
+  - Fixes found while tuning:
+    - arrivals (claims and flips) come only from species **established** in a neighbour (biomass ≥ establish threshold), so 1-biomass seedlings can't be promoted;
+    - seed rain uses normal rounding, not the growth floor;
+    - biomass below 1 is cleared at the end of each step, which removes float "ghosts" of 1e-57.
+  - The `own_spread` switch is removed: the gauge is the spread mechanism (D-024), and turning it off only froze all spread.
+  - `spread_rate × dt ≤ 1` is validated at load.
+- **Result (seed 1, 128², 20 min):**
+
+  | Variant | Contact | L2 at front (P1 / P2) | First take | Territory (P1 / P2) | Cells taken (P1 / P2) |
+  |---|---|---|---|---|---|
+  | Baseline | 8.1 min | 10.4 / 11.5 min | 10.8 min | 50.3 % / 49.7 % | 202 / 0 |
+  | Quant | 8.1 min | 10.3 / 10.7 min | 10.7 min | 49.3 % / 50.7 % | 75 / 40 |
+  | No succession | 8.1 min | 9.1 / 11.3 min | 9.5 min | 52.1 % / 47.9 % | 500 / 0 |
+  | No shade | same as baseline | | | | |
+  | No contested cells | same as baseline | | | | |
+
+  - The meadow build leads at 5 and 10 min. The switches now change territory.
+  - Quant's timing matches float. Its biomass is +5 %: a species enters a neighbour cell once a tick's seed rain rounds to 1, which is half a unit in quant and a full unit in float.
+  - No shade: +11 % biomass, same territory.
+- **Consequences:** Breakthroughs are threshold events, so exact cell counts differ between modes; curves and timings are compared, not cell counts.

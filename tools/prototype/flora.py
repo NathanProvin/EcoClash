@@ -29,7 +29,7 @@ U16 = ONE - 1
 STRATA = 3
 PLAYERS = (1, 2)
 DIRS = ((-1, 0), (1, 0), (0, -1), (0, 1))
-SWITCHES = ("succession", "shade", "contested_cells", "own_spread")
+SWITCHES = ("succession", "shade", "contested_cells")
 
 
 def load_balance(path: Path = BALANCE) -> dict:
@@ -90,6 +90,7 @@ class Flora:
             assert 0 < s["k_max"] <= U16, n
             assert 0 <= s["shade_cast"] < 1 and 0 <= s["shade_tolerance"] <= 1, n
             assert s["growth_rate"] * self.dt < 1, f"{n}: growth_rate * dt must stay < 1"
+            assert s["spread_rate"] * self.dt <= 1, f"{n}: spread_rate * dt must stay <= 1"
             assert set(s.get("soil_affinity", {})) <= set(soil_types), n
 
         def col(key, scale=1.0, default=None):
@@ -225,15 +226,19 @@ class Flora:
             soil = np.minimum(soil + self.div((X(self.soil_dt) * cover).sum(0), ONE), U16)
 
         # 4. Colonization pressure of each player's species: own cover in the cell plus the cover
-        #    of its 4 neighbours, / 5. Attack: best higher-level neighbour cover, summed.
+        #    of its 4 neighbours, / 5. Attack: best higher-level neighbour cover, summed. Only
+        #    species established in a neighbour (biomass >= establish_threshold) can arrive.
         dom = self.dominant(st)
         can = (X(self.level) > dom) & (suit > 0)
-        pressure, attack = {}, {}
+        established = bio >= X(self.est_thr)
+        pressure, attack, seeds = {}, {}, {}
         for p in PLAYERS:
             cov = np.where(owner == p, cover, 0)
             near = [nb(cov, dy, dx) for dy, dx in DIRS]
             pressure[p] = np.minimum(self.div(cov + sum(near), 5), ONE)
             attack[p] = sum(np.where(can, n, 0).max(0) for n in near)
+            mine = established & (owner == p)
+            seeds[p] = np.logical_or.reduce([nb(mine, dy, dx) for dy, dx in DIRS]) & (suit > 0)
 
         # 5. Growth minus smothering by higher enemy levels; species below 1 die (gauge reset).
         new_bio = bio + growth
@@ -248,13 +253,12 @@ class Flora:
 
         # 6. Own cells: the gauge rises toward the suitability, driven by pressure; seed rain
         #    brings biomass in proportion (gamerules §3, D-024).
-        if sw["own_spread"]:
-            for p in PLAYERS:
-                own = (owner == p) & (new_owner == p) & (suit > 0)
-                gap = np.maximum(suit - new_g, 0)
-                dg = np.where(own, self.div(X(self.rate) * pressure[p] * gap, ONE * ONE), 0)
-                new_g = new_g + dg
-                new_bio = new_bio + np.where(dg > 0, self.grow_div(X(self.seed_b) * dg, ONE), 0)
+        for p in PLAYERS:
+            own = (owner == p) & (new_owner == p) & (suit > 0)
+            gap = np.maximum(suit - new_g, 0)
+            dg = np.where(own, self.div(X(self.rate) * pressure[p] * gap, ONE * ONE), 0)
+            new_g = new_g + dg
+            new_bio = new_bio + np.where(dg > 0, self.div(X(self.seed_b) * dg, ONE), 0)
 
         def arrive(mask, p, cand):
             """Cells of `mask` become p's; each candidate species starts at gauge pressure x suit,
@@ -268,13 +272,13 @@ class Flora:
         # 7. Smothered enemy cells flip to the attacker's higher-level species.
         for p in PLAYERS:
             won = (owner == 3 - p) & (new_owner == 0) & (attack[p] > 0)
-            arrive(won, p, can & (pressure[p] > 0))
+            arrive(won, p, can & seeds[p])
 
         # 8. Empty cells: claim progress builds up; the first player to complete takes the cell.
         empty = owner == 0
         cand, lvl, done = {}, {}, {}
         for p in PLAYERS:
-            cand[p] = (pressure[p] > 0) & (suit > 0)
+            cand[p] = seeds[p]
             push = np.where(cand[p], self.div(X(self.rate) * pressure[p] * suit, ONE * ONE), 0)
             prog[p - 1] = np.where(empty, prog[p - 1] + push.max(0), 0)
             done[p] = empty & (prog[p - 1] >= ONE) & cand[p].any(0)
@@ -288,6 +292,11 @@ class Flora:
             arrive(win, p, cand[p])
         prog[:, done[1] | done[2]] = 0
 
+        # 9. Biomass below 1 is gone, with its gauge (no sub-unit ghosts in float mode).
+        new_bio = np.where(new_bio < 1, 0, new_bio)
+        new_g = np.where(new_bio > 0, new_g, 0)
+        new_owner = np.where((new_bio > 0).any(0), new_owner, 0).astype(np.int8)
+
         income = {
             p: float(np.where((owner == p) & (growth > 0), growth, 0).sum() / self.dt)
             for p in PLAYERS
@@ -297,16 +306,20 @@ class Flora:
         return income
 
 
-# Scripted build orders for player 1: (time_s, species, dy, dx, radius) around the base.
+# Scripted build orders for player 1: (time_s, species, dy, dx, radius) around the base; offsets
+# are in cells of a 128 map and scale with the map size.
 # Player 2 uses its own order, point-mirrored through the map centre.
 BUILDS = {
-    "forest": (
+    "forest": (  # pushes shrubs and trees toward the frontier (M0.7)
         (0, "grasses", 0, 0, 3),
         (0, "lichen", 0, 8, 3),
         (150, "clover", 0, 0, 2),
         (240, "elder", 0, 0, 2),
         (300, "hawthorn", 6, 0, 2),
+        (360, "elder", 16, 16, 2),
+        (420, "hawthorn", 18, 18, 2),
         (420, "oak", 0, 0, 2),
+        (540, "oak", 14, 14, 2),
         (540, "beech", 4, 4, 2),
     ),
     "meadow": (
@@ -338,13 +351,13 @@ def run(
     orders = {p: sorted(BUILDS[b]) for p, b in zip(PLAYERS, builds, strict=True)}
     steps = round(minutes * 60 / flora.dt)
     snap_steps = {round(m * 60 / flora.dt): m for m in snap_min if m <= minutes}
-    rows, snaps, log = [], {}, []
+    rows, snaps, log, taken = [], {}, [], dict.fromkeys(PLAYERS, 0)
     for i in range(steps + 1):
         t = i * flora.dt
         for p in PLAYERS:
             while orders[p] and orders[p][0][0] <= t:
                 _, name, dy, dx, r = orders[p][0]
-                cy, cx = base + (dy, dx)
+                cy, cx = base + np.round(np.array((dy, dx)) * n / 128).astype(int)
                 if p == 2:
                     cy, cx = n - 1 - cy, n - 1 - cx
                 cells = flora.plant(st, p, name, (yy - cy) ** 2 + (xx - cx) ** 2 <= r * r)
@@ -356,10 +369,18 @@ def run(
             snaps[snap_steps[i]] = (st.owner.copy(), flora.dominant(st))
         if i == steps:
             break
+        before = st.owner.copy()
         income = flora.step(st)
+        dom = flora.dominant(st)
         row = {"t_s": round(t + flora.dt, 3)}
         for p in PLAYERS:
             mine = st.owner == p
+            # Frontier: own cells next to an enemy cell. front_hi: share of it held by L2+.
+            front = mine & np.logical_or.reduce([nb(st.owner == 3 - p, *d) for d in DIRS])
+            row[f"front_p{p}"] = int(front.sum())
+            row[f"front_hi_p{p}"] = float((dom[front] >= 2).mean()) if front.any() else 0.0
+            taken[p] += int((mine & (before == 3 - p)).sum())
+            row[f"taken_p{p}"] = taken[p]
             row[f"biomass_p{p}"] = float(st.bio.sum(0)[mine].sum())
             row[f"territory_p{p}"] = float(mine.mean())
             row[f"income_p{p}"] = income[p]

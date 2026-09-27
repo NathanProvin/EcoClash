@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M0.7 tuning, first target: shrubs/trees reach the frontier in the mid phase (5–12 min) so frozen frontiers can break (D-022 journal).
+- **Now:** M0.4 fauna agents (unblocked by D-023). M0.7 tuning pass 1 done (D-025): frontier contact 8 min, shrubs at the front 10–11.5 min, frontiers break.
 - **Next:** M0.4 agents and M0.5 economy (unblocked by D-023), M0.6 seed sweep once the flora is tuned.
 - **Blocked:**
   - None on design questions for M0.
@@ -30,7 +30,7 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [ ] M0.4 Herbivores + predators as agents (NumPy arrays of positions and energy), reproduction with cap, refuges (D-023).
 - [ ] M0.5 Economy / victory metric: standing biomass (D-023).
 - [ ] M0.6 Seed sweep: 100 seeds; all trophic levels of both players coexist at t = 20 min in ≥ 90 % of runs.
-- [ ] M0.7 `balance.toml` filled with the tuned coefficients. DECISIONS entry for the model.
+- [ ] M0.7 `balance.toml` filled with the tuned coefficients. DECISIONS entry for the model. (Pass 1, flora frontier timing: D-025.)
 
 ## M1 · `sim-core` fields (Rust)
 - [ ] M1.1 User creates the GitHub remote. Cargo workspace (`Cargo.toml`: release `overflow-checks = true`), CI skeleton (fmt, clippy, test).

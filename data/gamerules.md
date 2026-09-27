@@ -412,5 +412,6 @@ The mechanics below make sure **no position is permanently locked**, and that **
 4. **Herbivore trigger range `R`:** a global rule, or per species?
 5. **Stance:** fixed role per species, or a switchable stance per consumer?
 6. **Starting conditions:** starting budget and starting unlocks (default proposed in §1.1).
+7. **Herbaceous succession within L1 (found by the M0.1 prototype).** Clover, ferns and bramble need developed soil, but the only cells with developed soil already hold a pioneer in L1, and spread never replaces a species in its own stratum. So these species can only be planted, never spread. Options: (a) within a stratum, a higher tier spreads over a lower tier of the same player; (b) pioneers fade once the soil is developed (succession by decline); (c) keep it: the player replants by hand. The prototype lets planting replace the player's own species in the stratum, which is a stopgap.
 
 Resolved (see `memory/DECISIONS.md` D-017): three flora levels, with pioneers as L1 tier 1; bees and fire are post-V1; the hedgehog counters slugs; decomposers are agents; unlocks are permanent.

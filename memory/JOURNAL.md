@@ -46,3 +46,13 @@
 - **Decisions:** D-019 cell model + own-cell spread + [Proposed] rules behind switches; D-020 species data in `balance.toml`.
 - **Next:** M0.1 float cell model.
 - **Blockers:** None for flora.
+
+## 2026-09-27 · M0.1 float flora cell model
+- **Goal:** First prototype code: the gamerules flora rules in NumPy.
+- **Done:**
+  - `tools/prototype/flora.py`: strata, logistic growth + shade, soil development, spread / smother / frozen frontiers, contested cells, own-cell spread; scripted mirrored scenario; CSV + plots.
+  - Species tables in `balance.toml` (placeholders). 5 rule tests in `tools/tests/test_flora.py`.
+- **Findings (seed 1, 128², 20 min):** meadow build out-expands forest build (45 % vs 40 % territory); L1/L1 frontier freezes at ~15 min as designed; trees stay near their base (slow spread + 0.6 soil gate), so no smothering happens in 20 min; clover/ferns/bramble cannot spread (gamerules §12 q7).
+- **Decisions:** None.
+- **Next:** M0.2 quantized mode.
+- **Blockers:** None.

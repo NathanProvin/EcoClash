@@ -4,8 +4,8 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M0.1: flora cell model prototype (float).
-- **Next:** M0.2 quantized mode, then M0.3 comparison runs.
+- **Now:** M0.2: quantized mode (resolves Q-015).
+- **Next:** M0.3 comparison runs (float vs quant, switches on/off).
 - **Blocked:**
   - M0 agent tasks (M0.4+) wait for Q-003, Q-004, Q-005 (user thinking).
   - None on the tooling side (Rust ready as of 2026-09-27).
@@ -24,7 +24,7 @@
 
 ## M0 · Ecological prototype (Python, `tools/prototype/`)
 Flora-only first, following the gamerules cell model (D-019). [Proposed] flora rules are prototyped behind switches in `balance.toml`.
-- [ ] M0.1 NumPy float cell model (`tools/prototype/flora.py`): strata, logistic growth + shade, soil development, spread / colonize / smother / frozen frontiers, territory. Species from `balance.toml` `[flora.<id>]`. Mirrored scripted scenario; CSV + plots (biomass, territory %, income).
+- [x] M0.1 NumPy float cell model (`tools/prototype/flora.py`): strata, logistic growth + shade, soil development, spread / colonize / smother / frozen frontiers, territory. Species from `balance.toml` `[flora.<id>]`. Mirrored scripted scenario; CSV + plots (biomass, territory %, income).
 - [ ] M0.2 Quantized mode: u16 state, Q16.16 rates, the §4 rounding rule, stochastic rounding vs growth floor (resolves Q-015).
 - [ ] M0.3 Comparison runs: float vs quant curves, each [Proposed] switch on vs off. Report in JOURNAL.
 - [ ] M0.4 ⏸ Herbivores + predators as agents (NumPy arrays of positions and energy). Needs Q-004, Q-005.

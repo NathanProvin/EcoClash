@@ -89,7 +89,7 @@ growth_rate(species, cell) = base_rate(species)
 
 Each `f` is a species response curve (an optimum and a tolerance) defined in `data/balance.toml` (D-020).
 
-**Hooks to keep from V1 onward:**
+**Hooks to keep from V1 onward** (implemented in the M0 prototype, D-024):
 - The simulation already stores the `soil_type`, `elevation`, `water` and `light` fields, with constant values.
 - Species data already holds `soil_affinity`, `water_optimum`/`water_tolerance` and `light_optimum`/`light_tolerance`, with neutral defaults.
 - Growth code already calls a single modifier function, which returns 1.0 in V1.
@@ -100,11 +100,18 @@ Adding terrain later is then new data and a map generator, not a rewrite of the 
 
 ## 3. Plant spread and competition
 
+**Colonization gauge (D-024).** Every species has a gauge (0–100 %) in each cell. It caps the species' capacity there: `capacity = k_max × gauge`. The species is present from the first seeds, and biomass grows toward that capacity. The gauge rises with:
+- **neighbourhood:** the cover of the same species, same owner, in the cell and its 4 neighbours;
+- **soil:** soil development (a soft ramp up to each level's threshold) and, later, soil type;
+- **bioclimate:** water and light, later from terrain.
+
+It rises toward the site's **suitability**, so poor sites fill slower and cap lower. A species whose biomass dies out loses its gauge.
+
 Plants reproduce and spread **from cell to cell**, into the 4 neighbouring cells. For each own cell whose species has enough biomass to spread (above `spread_threshold`), each neighbour is evaluated as follows:
 
 | Neighbour cell state | Result |
 |---|---|
-| **Empty** | Gradually colonized. A colonization progress builds up at the species' `spread_rate`, and the cell switches to the spreading player when progress is complete. **[Proposed]** Only if the soil and water requirements are met |
+| **Empty** | Gradually colonized. A claim progress builds up at `spread_rate × neighbour pressure × suitability`, and the cell switches to the spreading player when progress is complete. The arriving species start established, with a gauge equal to pressure × suitability. Species with zero suitability cannot arrive |
 | **Owned by the opponent, same dominant level** | **Nothing happens.** The frontier holds |
 | **Owned by the opponent, lower dominant level** (e.g. enemy meadow grasses next to our trees) | Gradually **colonized and smothered**. The enemy biomass decreases at `smother_rate`, our colonization progress rises, and the cell switches to us when the enemy biomass reaches zero |
 | **Owned by the opponent, higher dominant level** | Our spread has no effect. Their spread smothers us instead |

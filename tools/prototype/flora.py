@@ -2,7 +2,8 @@
 
 Each cell has an owner. Several of the owner's species can share a cell, also within one stratum
 (L1 herbaceous, L2 shrub, L3 canopy): they compete with partial niche overlap, so mixed stands
-hold more biomass than monocultures. State units match the future integer sim: biomass and soil
+hold more biomass than monocultures. Each species has a colonization gauge per cell (0-100 %),
+driven by same-species neighbours and site suitability; it caps the species' capacity there. State units match the future integer sim: biomass and soil
 development in [0, U16], cover and colonization progress in [0, ONE]. Every rule reads the
 previous state (double buffering).
 
@@ -57,9 +58,12 @@ def X(a: np.ndarray) -> np.ndarray:
 class State:
     owner: np.ndarray  # (N, N) int8: 0 none, else player
     bio: np.ndarray  # (S, N, N) biomass per species
+    gauge: np.ndarray  # (S, N, N) colonization gauge in [0, ONE]: capacity = k_max x gauge
     soil: np.ndarray  # (N, N) soil development
-    prog: np.ndarray  # (2, N, N) colonization progress on empty cells, per player
-    prog_own: np.ndarray  # (S, N, N) own-cell spread progress, per species
+    soil_type: np.ndarray  # (N, N) int8 index into terrain.soil_types (V1: 0 = loam)
+    water: np.ndarray  # (N, N) moisture in [0, U16] (V1: constant)
+    light: np.ndarray  # (N, N) light in [0, U16] (V1: constant)
+    prog: np.ndarray  # (2, N, N) claim progress on empty cells, per player
     t: int = 0  # flora steps done
 
 
@@ -73,20 +77,22 @@ class Flora:
         self.mode, self.rounding = mode, rounding
         self.dtype = np.float64 if mode == "float" else np.int64
         self.rng = np.random.default_rng(seed)
-        f, sim = balance["flora"], balance["sim"]
+        f, sim, terrain = balance["flora"], balance["sim"], balance["terrain"]
         self.dt = sim["flora_every_ticks"] / sim["tick_hz"]
         self.sw = {k: switches.get(k, f[k]) for k in SWITCHES}
         self.names = [k for k, v in f.items() if isinstance(v, dict)]
         sp = [f[n] for n in self.names]  # species index = table order
-        assert 0 <= f["niche_overlap"] <= 1
+        soil_types = terrain["soil_types"]
+        assert soil_types[0] == "loam" and 0 <= f["niche_overlap"] <= 1 and f["soil_ramp"] > 0
         for n, s in zip(self.names, sp, strict=True):
             assert s["level"] in (1, 2, 3), n
             assert 0 < s["k_max"] <= U16, n
             assert 0 <= s["shade_cast"] < 1 and 0 <= s["shade_tolerance"] <= 1, n
             assert s["growth_rate"] * self.dt < 1, f"{n}: growth_rate * dt must stay < 1"
+            assert set(s.get("soil_affinity", {})) <= set(soil_types), n
 
-        def col(key, scale=1.0):
-            return np.array([s[key] * scale for s in sp], dtype=np.float64)
+        def col(key, scale=1.0, default=None):
+            return np.array([s.get(key, default) * scale for s in sp], dtype=np.float64)
 
         self.level = np.array([s["level"] for s in sp], dtype=np.int8)
         self.strata = [np.flatnonzero(self.level == s + 1) for s in range(STRATA)]
@@ -98,20 +104,24 @@ class Flora:
         self.tol = col("shade_tolerance", ONE)
         self.alpha = np.float64(f["niche_overlap"] * ONE)
         self.seed_b = self.kmax * f["seed_fraction"]
-        self.spread_thr = self.kmax * f["spread_threshold"]
         self.est_thr = self.kmax * f["establish_threshold"]
         self.smother = self.kmax * f["smother_rate"] * self.dt
+        self.plant_g = np.float64(f["plant_gauge"] * ONE)
+        # Soft succession: suitability ramps from 0 at soil_min - soil_ramp to 1 at soil_min.
         mins = np.array(f["soil_min_level"]) * U16
-        self.soil_min = np.where(col("pioneer") > 0, 0.0, mins[self.level - 1])
-        # Spread target preference: fastest spread (it arrives first), then highest level, then
-        # lowest index. Higher strata reach bare land later, through own-cell spread.
-        order = sorted(range(len(sp)), key=lambda i: (self.rate[i], self.level[i], -i))
-        self.rank = np.zeros(len(sp), dtype=np.int16)
-        self.rank[order] = np.arange(1, len(sp) + 1)
-        self.by_rank = np.array([-1, *order])  # rank 0 = no candidate
+        self.soil_min = np.where(col("pioneer", default=False) > 0, 0.0, mins[self.level - 1])
+        self.soil_ramp = np.float64(f["soil_ramp"] * U16)
+        # Bioclimate response (gamerules §2.3). Absent keys are neutral: tolerance 0 = indifferent.
+        self.water0, self.light0 = terrain["water"] * U16, terrain["light"] * U16
+        self.w_opt, self.w_tol = col("water_optimum", U16, 0), col("water_tolerance", U16, 0)
+        self.l_opt, self.l_tol = col("light_optimum", U16, 0), col("light_tolerance", U16, 0)
+        self.aff = np.array(
+            [[s.get("soil_affinity", {}).get(t, 1.0) * ONE for t in soil_types] for s in sp]
+        )
         if mode == "quant":  # converted once at load, after which everything is integer
             for k in ("kmax", "rdt", "rate", "soil_dt", "cast", "tol", "alpha", "seed_b",
-                      "spread_thr", "est_thr", "smother", "soil_min"):  # fmt: skip
+                      "est_thr", "smother", "plant_g", "soil_min", "soil_ramp", "water0",
+                      "light0", "w_opt", "w_tol", "l_opt", "l_tol", "aff"):  # fmt: skip
                 setattr(self, k, round_half_away(getattr(self, k)))
 
     def div(self, a, b):
@@ -138,22 +148,42 @@ class Flora:
         return State(
             owner=z((n, n), np.int8),
             bio=z((s, n, n), d),
+            gauge=z((s, n, n), d),
             soil=z((n, n), d),
+            soil_type=z((n, n), np.int8),
+            water=np.full((n, n), self.water0, d),
+            light=np.full((n, n), self.light0, d),
             prog=z((2, n, n), d),
-            prog_own=z((s, n, n), d),
         )
+
+    def response(self, x, opt, tol):
+        """Triangular response in [0, ONE]: 1 at the optimum, 0 at `tol` away; tol 0 = neutral."""
+        safe = np.where(tol > 0, tol, 1)
+        f = np.clip(ONE - self.div(np.abs(x - X(opt)) * ONE, X(safe)), 0, ONE)
+        return np.where(X(tol) > 0, f, ONE)
+
+    def suitability(self, st: State) -> np.ndarray:
+        """The single site modifier (gamerules §2.3): f_dev x f_soil x f_water x f_light, per
+        species and cell, in [0, ONE]. Every factor is neutral in V1 except soil development."""
+        suit = self.aff[:, st.soil_type]
+        if self.sw["succession"]:
+            dev = self.div((st.soil - X(self.soil_min - self.soil_ramp)) * ONE, self.soil_ramp)
+            suit = self.div(suit * np.clip(dev, 0, ONE), ONE)
+        suit = self.div(suit * self.response(st.water, self.w_opt, self.w_tol), ONE)
+        return self.div(suit * self.response(st.light, self.l_opt, self.l_tol), ONE)
 
     def plant(self, st: State, player: int, name: str, mask: np.ndarray, frac=None) -> int:
         """Seed a species on own or empty cells of `mask` (gamerules §8), alongside what already
-        grows there. Returns the number of cells planted."""
+        grows there. Sets its gauge to at least `plant_gauge`. Returns the cells planted."""
         i = self.idx(name)
-        ok = mask & ((st.owner == 0) | (st.owner == player))
-        if self.sw["succession"]:
-            ok &= st.soil >= self.soil_min[i]
+        ok = mask & ((st.owner == 0) | (st.owner == player)) & (self.suitability(st)[i] > 0)
         b = self.seed_b[i] if frac is None else self.kmax[i] * frac
-        b = b if self.mode == "float" else round_half_away(b)
+        g = self.plant_g if frac is None else max(self.plant_g, frac * ONE)
+        if self.mode == "quant":
+            b, g = round_half_away(b), round_half_away(g)
         st.owner[ok] = player
         st.bio[i][ok] = np.maximum(st.bio[i][ok], b)
+        st.gauge[i][ok] = np.maximum(st.gauge[i][ok], g)
         return int(ok.sum())
 
     def dominant(self, st: State) -> np.ndarray:
@@ -164,9 +194,10 @@ class Flora:
 
     def step(self, st: State) -> dict[int, float]:
         """Advance one flora tick. Returns each player's income (positive growth per second)."""
-        sw, bio, owner = self.sw, st.bio, st.owner
+        sw, bio, gauge, owner = self.sw, st.bio, st.gauge, st.owner
         present = bio > 0
         cover = self.div(bio * ONE, X(self.kmax))
+        suit = self.suitability(st)
 
         # 1. Shade: the cover of each upper stratum lowers the capacity of the species below it.
         shade = np.full(bio.shape, ONE, self.dtype)
@@ -177,89 +208,90 @@ class Flora:
                 low = np.flatnonzero(self.level <= u)
                 block = self.div(cast * X(ONE - self.tol[low]), ONE)
                 shade[low] = self.div(shade[low] * np.maximum(ONE - block, 0), ONE)
-            shade = np.maximum(shade, 1)
 
-        # 2. Growth: logistic, with competition inside a stratum weighted by niche overlap.
+        # 2. Growth: logistic toward capacity = shade x gauge, with competition inside a stratum
+        #    weighted by niche overlap (D-022).
+        cap = np.maximum(self.div(shade * gauge, ONE), 1)
         comp = np.empty_like(cover)
         for idx in self.strata:
             others = cover[idx].sum(0) - cover[idx]
             comp[idx] = cover[idx] + self.div(self.alpha * others, ONE)
-        growth = self.grow_div(X(self.rdt) * bio * (shade - comp), shade * ONE)
-        growth = np.where(present, growth, 0)
+        growth = np.where(present, self.grow_div(X(self.rdt) * bio * (cap - comp), cap * ONE), 0)
 
         # 3. Soil development (succession).
         soil = st.soil
         if sw["succession"]:
             soil = np.minimum(soil + self.div((X(self.soil_dt) * cover).sum(0), ONE), U16)
 
-        # 4. Spread candidates from the 4 neighbours, per player and species.
+        # 4. Colonization pressure of each player's species: own cover in the cell plus the cover
+        #    of its 4 neighbours, / 5. Attack: best higher-level neighbour cover, summed.
         dom = self.dominant(st)
-        soil_ok = st.soil >= X(self.soil_min) if sw["succession"] else np.True_
-        reach, best, att, rate, attackers = {}, {}, {}, {}, {}
+        can = (X(self.level) > dom) & (suit > 0)
+        pressure, attack = {}, {}
         for p in PLAYERS:
-            src = (owner == p) & (bio >= X(self.spread_thr))
-            reach[p] = np.zeros(bio.shape, bool)
-            attackers[p] = np.zeros(owner.shape, np.int8)
-            higher = X(self.level) > dom
-            for dy, dx in DIRS:
-                ok = nb(src, dy, dx) & soil_ok
-                reach[p] |= ok
-                attackers[p] += (ok & higher).any(0)
-            best[p] = np.where(reach[p], X(self.rank), 0).max(0)  # target on empty land
-            att[p] = np.where(reach[p] & higher, X(self.rank), 0).max(0)  # target when smothering
-            rate[p] = np.where(reach[p], X(self.rate), 0).max(0)
+            cov = np.where(owner == p, cover, 0)
+            near = [nb(cov, dy, dx) for dy, dx in DIRS]
+            pressure[p] = np.minimum(self.div(cov + sum(near), 5), ONE)
+            attack[p] = sum(np.where(can, n, 0).max(0) for n in near)
 
-        # 5. Growth minus smothering by higher enemy levels; species below 1 die.
+        # 5. Growth minus smothering by higher enemy levels; species below 1 die (gauge reset).
         new_bio = bio + growth
         for p in PLAYERS:
             enemy = (owner == 3 - p) & present
-            new_bio = new_bio - np.where(enemy, attackers[p] * X(self.smother), 0)
+            new_bio = new_bio - np.where(enemy, self.div(X(self.smother) * attack[p], ONE), 0)
         new_bio = np.clip(new_bio, 0, U16)
         new_bio = np.where(new_bio < 1, 0, new_bio)
+        new_g = np.where(new_bio > 0, gauge, 0)
         new_owner = np.where((new_bio > 0).any(0), owner, 0).astype(np.int8)
-        prog, prog_own = st.prog.copy(), np.zeros_like(st.prog_own)
+        prog = st.prog.copy()
 
-        def establish(mask, p, target):
-            ys, xs = np.nonzero(mask)
-            i = self.by_rank[target[ys, xs]]
-            new_bio[i, ys, xs] = self.seed_b[i]
+        # 6. Own cells: the gauge rises toward the suitability, driven by pressure; seed rain
+        #    brings biomass in proportion (gamerules §3, D-024).
+        if sw["own_spread"]:
+            for p in PLAYERS:
+                own = (owner == p) & (new_owner == p) & (suit > 0)
+                gap = np.maximum(suit - new_g, 0)
+                dg = np.where(own, self.div(X(self.rate) * pressure[p] * gap, ONE * ONE), 0)
+                new_g = new_g + dg
+                new_bio = new_bio + np.where(dg > 0, self.grow_div(X(self.seed_b) * dg, ONE), 0)
+
+        def arrive(mask, p, cand):
+            """Cells of `mask` become p's; each candidate species starts at gauge pressure x suit,
+            established (biomass >= establish_threshold) so the new owner can hold the cell."""
+            m = cand & mask
+            g = self.div(pressure[p] * suit, ONE)
+            new_g[m] = g[m]
+            new_bio[m] = np.maximum(self.grow_div(X(self.seed_b) * g, ONE), X(self.est_thr))[m]
             new_owner[mask] = p
 
-        # 6. Smothered enemy cells flip to the attacker.
+        # 7. Smothered enemy cells flip to the attacker's higher-level species.
         for p in PLAYERS:
-            establish((owner == 3 - p) & (new_owner == 0) & (att[p] > 0), p, att[p])
+            won = (owner == 3 - p) & (new_owner == 0) & (attack[p] > 0)
+            arrive(won, p, can & (pressure[p] > 0))
 
-        # 7. Empty cells: progress builds up; the first player to complete takes the cell.
+        # 8. Empty cells: claim progress builds up; the first player to complete takes the cell.
         empty = owner == 0
-        done = {}
+        cand, lvl, done = {}, {}, {}
         for p in PLAYERS:
-            prog[p - 1] = np.where(empty, prog[p - 1] + rate[p], 0)
-            done[p] = empty & (prog[p - 1] >= ONE) & (best[p] > 0)
+            cand[p] = (pressure[p] > 0) & (suit > 0)
+            push = np.where(cand[p], self.div(X(self.rate) * pressure[p] * suit, ONE * ONE), 0)
+            prog[p - 1] = np.where(empty, prog[p - 1] + push.max(0), 0)
+            done[p] = empty & (prog[p - 1] >= ONE) & cand[p].any(0)
+            lvl[p] = np.where(cand[p], X(self.level), 0).max(0)
         both = done[1] & done[2]
         for p in PLAYERS:
             q = 3 - p
             win = done[p] & ~done[q]
             if sw["contested_cells"]:
-                lv = {k: self.level[self.by_rank[best[k]]] for k in PLAYERS}
-                win |= both & (lv[p] > lv[q])
-            establish(win, p, best[p])
+                win |= both & (lvl[p] > lvl[q])
+            arrive(win, p, cand[p])
         prog[:, done[1] | done[2]] = 0
-
-        # 8. Own-cell spread: each species fills neighbouring own cells where it is absent.
-        if sw["own_spread"]:
-            for p in PLAYERS:
-                own = (owner == p) & (new_owner == p)
-                opn = own & (new_bio == 0) & reach[p]
-                prog_own = np.where(opn, st.prog_own + X(self.rate), prog_own)
-                full = opn & (prog_own >= ONE)
-                new_bio = np.where(full, X(self.seed_b), new_bio)
-                prog_own[full] = 0
 
         income = {
             p: float(np.where((owner == p) & (growth > 0), growth, 0).sum() / self.dt)
             for p in PLAYERS
         }
-        st.owner, st.bio, st.soil, st.prog, st.prog_own = new_owner, new_bio, soil, prog, prog_own
+        st.owner, st.bio, st.gauge, st.soil, st.prog = new_owner, new_bio, new_g, soil, prog
         st.t += 1
         return income
 

@@ -44,7 +44,7 @@ def test_trees_need_developed_soil(succession):
     left, _ = halves(8)
     st.soil[left] = U16
     assert fl.plant(st, 1, "oak", left, frac=1.0) == 32
-    for _ in range(400):
+    for _ in range(1500):
         fl.step(st)
     assert (st.owner[:, 4] == 1).all() != succession
 
@@ -73,7 +73,7 @@ def test_quant_stochastic_is_repeatable():
 
     (rows_a, a), (rows_b, b) = final(), final()
     assert rows_a == rows_b
-    for f in ("owner", "bio", "soil", "prog", "prog_own"):
+    for f in ("owner", "bio", "gauge", "soil", "prog"):
         assert np.array_equal(getattr(a, f), getattr(b, f)), f
 
 
@@ -130,3 +130,54 @@ def test_float_and_quant_agree_on_territory():
     for p in (1, 2):
         key = f"territory_p{p}"
         assert final["float"][key] == pytest.approx(final["quant"][key], abs=0.02)
+
+
+def test_gauge_rises_faster_with_more_neighbours():
+    fl = Flora(load_balance())
+    gains = []
+    for neighbours in (1, 3):
+        st = fl.new_state(5)
+        st.soil[:] = U16
+        fl.plant(st, 1, "lichen", np.ones((5, 5), bool), frac=1.0)  # own cells everywhere
+        mask = np.zeros((5, 5), bool)
+        for dy, dx in ((-1, 0), (0, -1), (0, 1))[:neighbours]:
+            mask[2 + dy, 2 + dx] = True
+        fl.plant(st, 1, "grasses", mask, frac=1.0)
+        fl.step(st)
+        gains.append(st.gauge[fl.idx("grasses"), 2, 2])
+    assert 0 < gains[0] < gains[1]
+
+
+@pytest.mark.parametrize("mode", ["float", "quant"])
+def test_biomass_stays_under_gauge_capacity(mode):
+    fl = Flora(load_balance(), mode, shade=False, own_spread=False)
+    st = fl.new_state(4)
+    fl.plant(st, 1, "grasses", np.ones((4, 4), bool))  # gauge = plant_gauge (0.5)
+    i = fl.idx("grasses")
+    for _ in range(200):
+        fl.step(st)
+    cap = fl.kmax[i] * st.gauge[i] / (1 << 16)
+    assert (st.bio[i] <= cap * 1.01 + 1).all()
+    assert (st.bio[i] >= cap * 0.9).all()  # and it does fill it
+
+
+def test_bioclimate_hooks_are_neutral_in_v1_and_bite_when_set():
+    bal = load_balance()
+    fl = Flora(bal, succession=False)
+    assert (fl.suitability(fl.new_state(4)) == 1 << 16).all()
+    bal["flora"]["grasses"] |= {"water_optimum": 0.9, "water_tolerance": 0.5}  # field is 0.5
+    dry = Flora(bal, succession=False)
+    assert dry.suitability(dry.new_state(4))[dry.idx("grasses")].max() < 0.25 * (1 << 16)
+
+
+def test_soft_succession_ramp():
+    fl = Flora(load_balance())
+    st = fl.new_state(3)
+    oak = fl.idx("oak")
+    lo = fl.soil_min[oak] - fl.soil_ramp
+    st.soil[0, :] = lo - 1  # below the ramp
+    st.soil[1, :] = lo + fl.soil_ramp / 2  # inside
+    st.soil[2, :] = fl.soil_min[oak]  # at full suitability
+    s = fl.suitability(st)[oak]
+    assert (s[0] == 0).all() and (0 < s[1]).all() and (s[1] < 1 << 16).all()
+    assert (s[2] == 1 << 16).all()

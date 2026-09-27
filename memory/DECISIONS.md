@@ -208,3 +208,16 @@ Template:
   - Q-004: animals **reproduce** when their energy crosses a threshold (it costs energy), under a per-player population cap. Players also spawn cards.
   - Q-005: counters come from **food-web predators** (gamerules §5.2) and **shrub refuges** (own small fauna in dense hawthorn or bramble cannot be hunted). No special fast energy decay; no friendly predation (gamerules §6.2 stands).
 - **Consequences:** M0.4 and M0.5 are unblocked. INSTRUCTIONS §2.1, §2.3, §5.4 and gamerules §6.2, §6.4, §11.3 updated.
+
+## D-024 · 2026-09-27 · Colonization gauge and bioclimate hooks
+- **Status:** accepted (user decision; formula [Proposed])
+- **Context:** Spread was binary: a flat-rate progress, then a species popped in at 10 % biomass. The user asked for a 0–100 % colonization gauge driven by same-species neighbours, soil and bioclimate.
+- **Decision:**
+  - Each species has a gauge per cell that caps its capacity (`K × gauge`).
+  - In own cells, `Δg = spread_rate × pressure × max(suit − g, 0)`, with pressure = (own + 4-neighbour cover of the same species and owner) / 5.
+  - Seed rain adds `seed_fraction × K × Δg` biomass.
+  - Empty cells: claim progress at `spread_rate × pressure × suit`. Arrivals start established (biomass ≥ establish threshold, so the new owner can hold the cell), with gauge = pressure × suit.
+  - Smothering is continuous, proportional to the best higher-level neighbour cover.
+  - `suit = f_dev × f_soil × f_water × f_light` is the single modifier of gamerules §2.3. `f_dev` ramps from 0 at `soil_min − soil_ramp` to 1 at `soil_min` (soft succession). Water and light use a triangular response (no transcendentals). Soil affinity is per soil type. The terrain fields exist with constant V1 values, and absent species keys are neutral.
+  - `spread_threshold` is removed.
+- **Consequences:** State adds `gauge[species]`, `soil_type`, `water` and `light`; own-cell progress is gone. Fronts are round and gradual. At the old rates, spread at a straight front is about 5× slower (pressure 1/5), so M0.7 retunes.

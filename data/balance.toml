@@ -22,15 +22,24 @@ input_delay_ticks = 2    # §10: 200 ms at 10 Hz
 stall_timeout_s = 10     # §10
 hash_every_ticks = 10    # §10: desync check once per second
 
+# Terrain (gamerules §2.3). V1: flat, loam, constant water and light. Species may add optional
+# water_optimum / water_tolerance, light_optimum / light_tolerance (0..1; tolerance 0 = indifferent)
+# and soil_affinity = { sandy = 1.2, ... }; absent keys are neutral (D-024).
+[terrain]
+water = 0.5
+light = 1.0
+soil_types = ["loam", "sandy", "clay_limestone"]
+
 # Flora cell model (gamerules §2.1, §3; D-019). Placeholder values until M0.7 tuning.
 # Rates are per second; fractions are of the species' k_max. Biomass is in u16 units (0..65535).
 [flora]
-seed_fraction = 0.1        # biomass of a newly established stratum
-spread_threshold = 0.5     # a stratum spreads once B >= this fraction of k_max
+seed_fraction = 0.1        # seed rain: biomass added per unit of gauge gained, as a fraction of k_max
 establish_threshold = 0.1  # a stratum counts for the dominant level from this fraction
 smother_rate = 0.15        # enemy strata lose this fraction of k_max per second, per attacking neighbour
 niche_overlap = 0.5        # [Proposed] competition between species of one stratum (1 = full overlap, D-022)
-soil_min_level = [0.1, 0.3, 0.6]  # soil development needed by L1 (non-pioneers), L2, L3
+soil_min_level = [0.1, 0.3, 0.6]  # soil development for full suitability: L1 (non-pioneers), L2, L3
+soil_ramp = 0.1           # suitability ramps from 0 at soil_min - soil_ramp to 1 at soil_min (D-024)
+plant_gauge = 0.5         # colonization gauge of a freshly planted species (D-024)
 # [Proposed] rules behind switches (D-019)
 succession = true
 shade = true
@@ -38,7 +47,7 @@ contested_cells = true
 own_spread = true
 
 # One table per species, in tech-tree order (gamerules §4.2). The table order sets the species id.
-# growth_rate: logistic r (1/s). spread_rate: colonization progress (1/s). soil_gain: soil development
+# growth_rate: logistic r (1/s). spread_rate: colonization gauge speed at full pressure (1/s). soil_gain: soil development
 # per second at full cover. shade_cast / shade_tolerance: 0..1.
 [flora.lichen]
 level = 1

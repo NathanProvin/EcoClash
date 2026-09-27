@@ -81,3 +81,8 @@
 ## 2026-09-27 · Q-003, Q-004, Q-005 resolved
 - **Done:** Recorded the author's answers (D-023): standing biomass at the time limit; reproduction with a cap; food-web predators + shrub refuges.
 - **Next:** Colonization gauge (D-024), then M0.7 tuning.
+
+## 2026-09-27 · Colonization gauge (D-024)
+- **Done:** Gauge per species per cell (neighbour pressure × suitability), seed rain, continuous smothering, soft succession ramp, terrain fields (soil type, water, light) with neutral V1 hooks. Fix: arrivals start established (a conquered seedling was re-smothered at once). 19 tests green.
+- **Findings (seed 1, 128², 20 min, old rates):** round fronts; the shrub belt keeps pace with the meadow; territory 14.7 % / 18.2 % (was 40 / 45), because front pressure is ~1/5.
+- **Next:** M0.7 tuning pass with frontier metrics.

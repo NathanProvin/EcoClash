@@ -196,7 +196,8 @@ Required tests:
 
 Flora follows the cell model of `data/gamerules.md` §2.1 and §3 (D-019): each cell has an owner and holds biomass per species; species of one stratum (L1 herbaceous, L2 shrub, L3 canopy) interpenetrate (D-022). Per plant tick, for each species biomass B:
 - **Logistic growth with competition:** `ΔB_i = r_i · B_i · (shade_i − c_i − α · Σ_{j≠i, same stratum} c_j) / shade_i`, where `c = B / K` is cover, `K_i = k_max_i × modifier(cell)` (the modifier is 1.0 in V1, gamerules §2.3), `α` = `niche_overlap`, and `shade_i` is the capacity left by higher strata.
-- **Spread:** colonization progress into the 4 neighbours, smothering of lower enemy levels, frozen same-level frontiers (gamerules §3). There is no diffusion.
+- **Colonization gauge (D-024):** `g_i ∈ [0, 1]` per species per cell caps the capacity (`K_i × g_i`). In own cells, `Δg = spread_rate × pressure × max(suit − g, 0)`, where pressure = (own cover + 4-neighbour cover of the same species and owner) / 5, and `suit = f_dev × f_soil × f_water × f_light` (the single modifier hook; neutral in V1 except the soil development ramp). Seed rain adds `seed_fraction × K × Δg` biomass.
+- **Spread:** claim progress into empty neighbours, continuous smothering of lower enemy levels by neighbour cover, frozen same-level frontiers (gamerules §3). There is no diffusion.
 - **Grazing:** herbivores consume B, which converts into their energy.
 - **Death:** B that decays goes to `dead_biomass`, and decomposers turn `dead_biomass` into `nutrients`.
 - Clamp to `[0, u16::MAX]`. All coefficients come from `balance.toml`, species under `[flora.<id>]` (D-020).

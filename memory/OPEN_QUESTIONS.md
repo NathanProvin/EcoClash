@@ -24,7 +24,7 @@
 | Q-012 | Decomposers: agent or field | M3 | resolved → D-018 |
 | Q-013 | Exact victory thresholds and match length | M4 (tuned via `tools/balance`) | open |
 | Q-014 | Plant species per player in v1 | M0 | open (default: grass + shrub + tree) |
-| Q-015 | Low-density growth: stochastic rounding or growth floor | M0 (quantized mode) | open |
+| Q-015 | Low-density growth: stochastic rounding or growth floor | M0 (quantized mode) | resolved → D-021 |
 
 ---
 
@@ -82,7 +82,4 @@
 ## Q-014 · Plant species per player
 - Default: grass + shrub (fields) + tree (structure).
 
-## Q-015 · Low-density growth rounding
-- **Problem:** At u16 resolution, growth at low density truncates to 0.
-- **Options:** (a) seeded stochastic rounding (the fractional part becomes the probability of +1); (b) a minimum growth floor when B > 0.
-- **Recommended default:** (a). It is unbiased on average. Compare both in the M0 quantized mode.
+## Q-015 · Low-density growth rounding — resolved → D-021

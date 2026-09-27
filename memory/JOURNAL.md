@@ -56,3 +56,10 @@
 - **Decisions:** None.
 - **Next:** M0.2 quantized mode.
 - **Blockers:** None.
+
+## 2026-09-27 · M0.2 quantized mode, Q-015 resolved
+- **Goal:** Preview integer effects before the Rust port.
+- **Done:** `--mode quant`: int64 state in u16 ranges, Q16.16 rates converted once with round-half-away, floor or stochastic growth rounding. Tests: quant determinism, low-density growth, mirror symmetry (float + quant), float≈quant territory. 12 tests green.
+- **Decisions:** D-021 minimum-growth floor (quant matches float within 0.5 % biomass, identical territory).
+- **Next:** M0.3 comparison runs; author answer on gamerules §12 q7.
+- **Blockers:** None.

@@ -203,7 +203,7 @@ Flora follows the cell model of `data/gamerules.md` §2.1 and §3 (D-019): each 
 - Every rule reads the previous state and writes the next one (double buffering), so the result never depends on update order.
 
 Integer implementation constraint (it must already be modelled in the M0 prototype's quantized mode):
-- **Small-value growth:** at low density, `r·B·(…)` is below 1 and truncates to 0, so empty cells never grow. Use seeded stochastic rounding (the fractional part becomes the probability of +1), or a minimum-growth floor. The choice is recorded in DECISIONS during M0.
+- **Small-value growth:** at low density, `r·B·(…)` is below 1 and rounds to 0, so a stratum never grows. Positive growth that rounds to 0 becomes +1 (minimum-growth floor, D-021). No RNG draw is spent on growth.
 
 ### 5.3 Multi-rate scheduling
 

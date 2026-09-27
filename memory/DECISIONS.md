@@ -185,3 +185,11 @@ Template:
 - **Context:** Gamerules asked for a separate `data/species.toml`. Species coefficients are tunables (rule 6), and the balance hash (D-011) should cover one file.
 - **Decision:** Species tunables go in `data/balance.toml` under `[flora.<id>]` (later `[fauna.<id>]`). No `species.toml`.
 - **Consequences:** One loader and one balance hash for every target.
+
+## D-021 · 2026-09-27 · Low-density growth uses a minimum-growth floor (Q-015)
+- **Status:** accepted (M0.2 evidence)
+- **Context:** In integer mode, growth below 1 per tick rounds to 0. Q-015 recommended seeded stochastic rounding.
+- **Decision:** Positive growth that rounds to 0 becomes +1. Every other division rounds half away from zero.
+- **Evidence:** Scenario seed 1, 128², 20 min: float, quant-stochastic and quant-floor give identical territory (39.9 % / 45.0 %) and biomass within 0.5 %. The cell model seeds each stratum at 10 % of k_max, so the low-density regime is rare and the floor's bias doesn't show.
+- **Alternatives:** Stochastic rounding is unbiased, but it costs one RNG draw per stratum per cell per flora tick, couples the RNG stream to the map size, and breaks exact mirror symmetry. It stays in the prototype as `--rounding stochastic` for comparison.
+- **Consequences:** INSTRUCTIONS §5.2 updated. `sim-core` growth needs no RNG.

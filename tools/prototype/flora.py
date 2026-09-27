@@ -4,7 +4,7 @@ Each cell has an owner and at most one species per stratum (L1 herbaceous, L2 sh
 State units match the future integer sim: biomass and soil development in [0, U16], cover and
 colonization progress in [0, ONE]. Every rule reads the previous state (double buffering).
 
-Run: npm run proto:flora -- --seed 1 --minutes 20
+Run: npm run proto:flora -- --seed 1 --minutes 20 [--mode quant]
 """
 
 from __future__ import annotations
@@ -31,6 +31,12 @@ def load_balance(path: Path = BALANCE) -> dict:
     return tomllib.loads(path.read_text(encoding="utf-8"))
 
 
+def round_half_away(x) -> np.ndarray:
+    """INSTRUCTIONS §4 rounding rule, for converting balance values to integers."""
+    x = np.asarray(x, dtype=np.float64)
+    return (np.sign(x) * np.floor(np.abs(x) + 0.5)).astype(np.int64)
+
+
 def nb(a: np.ndarray, dy: int, dx: int) -> np.ndarray:
     """Value of each cell's neighbour at (y + dy, x + dx); 0 outside the map (no wrap)."""
     n0, n1 = a.shape
@@ -51,7 +57,15 @@ class State:
 class Flora:
     """Species tables and rules, converted once from balance.toml."""
 
-    def __init__(self, balance: dict, **switches: bool):
+    def __init__(
+        self, balance: dict, mode="float", rounding="floor", seed=0, **switches: bool
+    ):
+        """mode "quant" holds the state in integers with Q16.16 rates (INSTRUCTIONS §4). rounding
+        picks the low-density growth fix: "floor" (+1 minimum, chosen by D-021) or "stochastic"."""
+        assert mode in ("float", "quant") and rounding in ("stochastic", "floor")
+        self.mode, self.rounding = mode, rounding
+        self.dtype = np.float64 if mode == "float" else np.int64
+        self.rng = np.random.default_rng(seed)
         f, sim = balance["flora"], balance["sim"]
         self.dt = sim["flora_every_ticks"] / sim["tick_hz"]
         self.sw = {k: switches.get(k, f[k]) for k in SWITCHES}
@@ -85,22 +99,39 @@ class Flora:
         self.rank = np.zeros(len(sp) + 1, dtype=np.int16)
         self.rank[order] = np.arange(1, len(sp) + 1)
         self.by_rank = np.array([0, *order], dtype=np.int16)
+        if mode == "quant":  # converted once at load, after which everything is integer
+            for k in ("kmax", "rdt", "rate", "soil_dt", "cast", "tol", "seed_b", "spread_thr",
+                      "est_thr", "smother", "soil_min"):  # fmt: skip
+                setattr(self, k, round_half_away(getattr(self, k)))
 
     def div(self, a, b):
-        return a / b
+        """a / b; in quant mode rounded half away from zero (INSTRUCTIONS §4). b > 0."""
+        if self.mode == "float":
+            return a / b
+        return np.sign(a) * ((np.abs(a) + b // 2) // b)
+
+    def grow_div(self, a, b):
+        """Division for growth, where low densities would round to 0 (Q-015)."""
+        if self.mode == "float":
+            return a / b
+        if self.rounding == "floor":
+            q = self.div(a, b)
+            return np.where((q == 0) & (a > 0), 1, q)
+        q, r = np.divmod(np.abs(a), b)  # stochastic: the remainder is the probability of +1
+        return np.sign(a) * (q + (self.rng.integers(0, b, size=np.shape(a)) < r))
 
     def id(self, name: str) -> int:
         return self.names.index(name) + 1
 
     def new_state(self, n: int) -> State:
-        z = np.zeros
+        z, d = np.zeros, self.dtype
         return State(
             owner=z((n, n), np.int8),
             species=z((STRATA, n, n), np.int16),
-            bio=z((STRATA, n, n)),
-            soil=z((n, n)),
-            prog=z((2, n, n)),
-            prog_own=z((STRATA, n, n)),
+            bio=z((STRATA, n, n), d),
+            soil=z((n, n), d),
+            prog=z((2, n, n), d),
+            prog_own=z((STRATA, n, n), d),
         )
 
     def plant(self, st: State, player: int, name: str, mask: np.ndarray, frac=None) -> int:
@@ -113,7 +144,8 @@ class Flora:
             ok &= st.soil >= self.soil_min[sp]
         st.owner[ok] = player
         st.species[s][ok] = sp
-        st.bio[s][ok] = self.seed_b[sp] if frac is None else self.kmax[sp] * frac
+        b = self.seed_b[sp] if frac is None else self.kmax[sp] * frac
+        st.bio[s][ok] = b if self.mode == "float" else round_half_away(b)
         return int(ok.sum())
 
     def dominant(self, st: State) -> np.ndarray:
@@ -130,7 +162,7 @@ class Flora:
         cover = self.div(bio * ONE, k)
 
         # 1. Growth, logistic per stratum. Shade: upper strata lower the capacity of lower ones.
-        shade = np.full(bio.shape, float(ONE))
+        shade = np.full(bio.shape, ONE, self.dtype)
         if sw["shade"]:
             for s in range(STRATA - 1):
                 for u in range(s + 1, STRATA):
@@ -139,7 +171,7 @@ class Flora:
                     )
                     shade[s] = self.div(shade[s] * (ONE - block), ONE)
         keff = np.maximum(self.div(k * shade, ONE), 1)
-        growth = np.where(sp > 0, self.div(self.rdt[sp] * bio * (keff - bio), keff * ONE), 0)
+        growth = np.where(sp > 0, self.grow_div(self.rdt[sp] * bio * (keff - bio), keff * ONE), 0)
 
         # 2. Soil development (succession).
         soil = st.soil
@@ -156,7 +188,7 @@ class Flora:
                 for s in range(STRATA)
             ]
             best[p] = np.zeros(sp.shape, np.int16)
-            rate[p] = np.zeros(bio.shape)
+            rate[p] = np.zeros(bio.shape, self.dtype)
             attackers[p] = np.zeros(owner.shape, np.int8)
             for dy, dx in DIRS:
                 hit = np.zeros(owner.shape, bool)
@@ -366,14 +398,21 @@ def main():
     ap.add_argument("--minutes", type=float, default=20)
     ap.add_argument("--p1", choices=BUILDS, default="forest")
     ap.add_argument("--p2", choices=BUILDS, default="meadow")
+    ap.add_argument("--mode", choices=("float", "quant"), default="float")
+    ap.add_argument("--rounding", choices=("floor", "stochastic"), default="floor")
     ap.add_argument("--out", type=Path, default=Path(__file__).parent / "out")
     for s in SWITCHES:
         ap.add_argument(f"--no-{s.replace('_', '-')}", dest=s, action="store_false", default=None)
     a = ap.parse_args()
     flora = Flora(
-        load_balance(), **{s: getattr(a, s) for s in SWITCHES if getattr(a, s) is not None}
+        load_balance(),
+        a.mode,
+        a.rounding,
+        a.seed,
+        **{s: getattr(a, s) for s in SWITCHES if getattr(a, s) is not None},
     )
-    out = a.out / f"float_seed{a.seed}"
+    tag = a.mode if a.mode == "float" else f"quant-{a.rounding}"
+    out = a.out / f"{tag}_seed{a.seed}"
     out.mkdir(parents=True, exist_ok=True)
     rows, snaps, _, log = run(flora, a.size, a.minutes, a.seed, (a.p1, a.p2))
     for t, p, name, cells in log:

@@ -57,10 +57,45 @@ def test_pioneers_establish_on_bare_soil_trees_do_not():
     assert fl.plant(st, 1, "lichen", everywhere) == 64
 
 
-def test_mirrored_scenario_is_symmetric_and_repeatable():
-    fl = Flora(load_balance())
+@pytest.mark.parametrize("mode", ["float", "quant"])
+def test_mirrored_scenario_is_symmetric(mode):
+    fl = Flora(load_balance(), mode, rounding="floor")  # floor: no random draws, exact mirror
     rows, _, st, _ = run(fl, 32, 4, seed=3, builds=("forest", "forest"))
     assert rows[-1]["territory_p1"] == rows[-1]["territory_p2"] > 0
     assert np.array_equal(st.owner == 1, np.rot90(st.owner == 2, 2))
-    again, _, _, _ = run(fl, 32, 4, seed=3, builds=("forest", "forest"))
-    assert rows == again
+
+
+def test_quant_stochastic_is_repeatable():
+    def final():
+        fl = Flora(load_balance(), "quant", "stochastic", seed=7)
+        rows, _, st, _ = run(fl, 32, 4, seed=7)
+        return rows, st
+
+    (rows_a, a), (rows_b, b) = final(), final()
+    assert rows_a == rows_b
+    for f in ("owner", "species", "bio", "soil", "prog", "prog_own"):
+        assert np.array_equal(getattr(a, f), getattr(b, f)), f
+
+
+@pytest.mark.parametrize("rounding", ["stochastic", "floor"])
+def test_quant_low_density_still_grows(rounding):
+    fl = Flora(load_balance(), "quant", rounding, seed=1)
+    st = fl.new_state(4)
+    st.soil[:] = U16
+    one_cell = np.zeros((4, 4), bool)
+    one_cell[1, 1] = True
+    fl.plant(st, 1, "oak", one_cell, frac=2 / 60000)  # biomass 2: exact growth is < 1 per tick
+    assert st.bio[2, 1, 1] == 2
+    for _ in range(200):
+        fl.step(st)
+    assert st.bio[2, 1, 1] > 2
+
+
+def test_float_and_quant_agree_on_territory():
+    final = {}
+    for mode in ("float", "quant"):
+        rows, _, _, _ = run(Flora(load_balance(), mode, seed=5), 48, 6, seed=5)
+        final[mode] = rows[-1]
+    for p in (1, 2):
+        key = f"territory_p{p}"
+        assert final["float"][key] == pytest.approx(final["quant"][key], abs=0.02)

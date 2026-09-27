@@ -5,9 +5,9 @@
 
 ## Status
 - **Now:** M0.7 tuning, first target: shrubs/trees reach the frontier in the mid phase (5–12 min) so frozen frontiers can break (D-022 journal).
-- **Next:** M0.6 seed sweep once the flora is tuned; agents (M0.4) still wait on Q-004/Q-005.
+- **Next:** M0.4 agents and M0.5 economy (unblocked by D-023), M0.6 seed sweep once the flora is tuned.
 - **Blocked:**
-  - M0 agent tasks (M0.4+) wait for Q-003, Q-004, Q-005 (user thinking).
+  - None on design questions for M0.
   - None on the tooling side (Rust ready as of 2026-09-27).
 - **Last updated:** 2026-09-27
 
@@ -27,8 +27,8 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [x] M0.1 NumPy float cell model (`tools/prototype/flora.py`): strata, logistic growth + shade, soil development, spread / colonize / smother / frozen frontiers, territory. Species from `balance.toml` `[flora.<id>]`. Mirrored scripted scenario; CSV + plots (biomass, territory %, income).
 - [x] M0.2 Quantized mode: u16 state, Q16.16 rates, the §4 rounding rule, stochastic rounding vs growth floor (resolves Q-015).
 - [x] M0.3 Comparison runs: float vs quant curves, each [Proposed] switch on vs off. Report in JOURNAL.
-- [ ] M0.4 ⏸ Herbivores + predators as agents (NumPy arrays of positions and energy). Needs Q-004, Q-005.
-- [ ] M0.5 ⏸ Economy / victory metric. Needs Q-003.
+- [ ] M0.4 Herbivores + predators as agents (NumPy arrays of positions and energy), reproduction with cap, refuges (D-023).
+- [ ] M0.5 Economy / victory metric: standing biomass (D-023).
 - [ ] M0.6 Seed sweep: 100 seeds; all trophic levels of both players coexist at t = 20 min in ≥ 90 % of runs.
 - [ ] M0.7 `balance.toml` filled with the tuned coefficients. DECISIONS entry for the model.
 

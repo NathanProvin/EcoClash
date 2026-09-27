@@ -200,3 +200,11 @@ Template:
 - **Decision:** Species of the same stratum complement each other, share cells and keep spreading. A cell holds biomass per species. Within a stratum they compete with partial niche overlap: `ΔB_i = r_i B_i (shade_i − c_i − α Σ_{j≠i} c_j) / shade_i`, with `α = niche_overlap` (0.5 default), so mixed stands hold more biomass than monocultures.
 - **Related fix:** On bare land, the fastest-spreading candidate colonizes (it arrives first). A smothered enemy cell goes to the attacking higher-level species. Higher strata reach bare land later, through own-cell spread.
 - **Consequences:** State is `bio[species]` (12 layers at V1; about 6 MB of u16 at 512²). Planting adds a species next to the existing ones instead of replacing them.
+
+## D-023 · 2026-09-27 · Victory metric, reproduction, counters (Q-003, Q-004, Q-005)
+- **Status:** accepted (user decision)
+- **Decision:**
+  - Q-003: at the time limit, the highest **standing biomass** (living flora + fauna) wins, shown live in the HUD. Ties: territory share, then draw.
+  - Q-004: animals **reproduce** when their energy crosses a threshold (it costs energy), under a per-player population cap. Players also spawn cards.
+  - Q-005: counters come from **food-web predators** (gamerules §5.2) and **shrub refuges** (own small fauna in dense hawthorn or bramble cannot be hunted). No special fast energy decay; no friendly predation (gamerules §6.2 stands).
+- **Consequences:** M0.4 and M0.5 are unblocked. INSTRUCTIONS §2.1, §2.3, §5.4 and gamerules §6.2, §6.4, §11.3 updated.

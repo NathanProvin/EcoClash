@@ -201,7 +201,7 @@ In V1 the only soil requirement is the soil development threshold of the level (
 | Bramble & nettles | L1 | 3 | Meadow & bocage, forest edge | Rich (nitrophilous); medium water | Fast, aggressive spread. Thorns slow enemy units. Nettles host butterfly caterpillars | Rabbits (bramble), caterpillars (nettles) |
 | Elder | L2 | 1 | Meadow & bocage | Rich; medium water | Fastest shrub, but short-lived (early senescence). The first L2 foothold | Caterpillars, rabbits (young stems) |
 | Hazel | L2 | 2 | Forest, bocage | Medium; medium water | Shade-tolerant: grows under own trees. Nuts feed voles | Caterpillars, voles (nuts, §6.1) |
-| Hawthorn & blackthorn | L2 | 3 | Meadow & bocage (hedgerows) | Medium; dry-tolerant | Slow but dense and thorny: slows enemy units, and own small fauna inside is harder to hunt (Q-005). Hedgehog habitat | Caterpillars, rabbits (seedlings) |
+| Hawthorn & blackthorn | L2 | 3 | Meadow & bocage (hedgerows) | Medium; dry-tolerant | Slow but dense and thorny: slows enemy units, and own small fauna inside cannot be hunted (§6.2). Hedgehog habitat | Caterpillars, rabbits (seedlings) |
 | Oak | L3 | 1 | Forest, bocage | Medium to rich; medium water | Very slow, very long-lived (late senescence). Light canopy, so the understory grows well beneath it. Hosts the most caterpillars | Caterpillars, voles (acorns, §6.1) |
 | Beech | L3 | 2 | Forest | Rich; moist but not waterlogged | Shade-tolerant, casts deep shade that suppresses the understory. High biomass. Prone to monoculture (§11.3) | Caterpillars, voles (beechnuts, §6.1) |
 | Chestnut | L3 | 3 | Forest (sandy soil) | Medium, acidic; dry-tolerant | Fastest-growing tree, with earlier maturity and senescence | Caterpillars, voles (chestnuts, §6.1) |
@@ -292,6 +292,7 @@ All dead organisms, plants and animals, feed `Dead biomass`.
 
 - Predators attack enemy agents whose species is in their diet. Damage reduces health, and a killed agent becomes dead biomass.
 - Predators cannot attack species outside their diet. A fox ignores slugs, for example.
+- **Refuge (D-023):** a player's small fauna inside own cells with dense hawthorn & blackthorn or bramble cannot be hunted. Predators are otherwise kept in check by their own predators (§5.2).
 
 ### 6.3 Spawn conditions
 
@@ -306,8 +307,9 @@ A species can be spawned only when **all** of the following hold:
 - **[Proposed] UI.** Unavailable cards are greyed out, with the reason shown (e.g. "No enemy prey in your territory").
 - **[Proposed] Spawn location (non-predators).** Other fauna spawns on the own cell closest to the clicked point that satisfies its habitat. This replaces "fauna spawns from trees" in `INSTRUCTIONS.md` §2.4, so that early fauna is possible before trees exist.
 
-### 6.4 Energy and upkeep [Proposed]
+### 6.4 Energy, upkeep and reproduction
 
+- **Reproduction (D-023):** an animal whose energy crosses a threshold reproduces, which costs energy, under a per-player population cap. Players still spawn cards. The numbers below are [Proposed].
 - Every animal has an energy value. It regains energy by eating and loses it over time. At zero energy it dies and becomes dead biomass.
 - **Trophic transfer:** eating converts ~10 % of the consumed biomass into the eater's energy, and ~10 % into biomass points for its owner. This follows the ecological 10 % rule and keeps consumer armies expensive.
 
@@ -390,7 +392,7 @@ The mechanics below make sure **no position is permanently locked**, and that **
    - *Storm:* windthrow along a corridor, opening a line of gaps through a forest.
    - *Forest fire* **[Post-V1]**: ignites a target area. Each tick, fire spreads to neighbouring cells with a chance (seeded RNG) that grows with the cell's biomass. Burnt strata become dead biomass and the soil gains nutrients. Fire dies out on bare or low-biomass cells, so meadow strips act as firebreaks. It opens irregular gaps through a forest.
 4. **Decaying territory threshold.** The territorial victory threshold starts high (e.g. 75 %) and decreases linearly to ~55 % at the time limit. This rewards late aggression. If validated, it supersedes the fixed 60 % in `INSTRUCTIONS.md` §2.3.
-5. **Guaranteed end.** At the time limit, the highest total biomass wins; if tied, the higher territory share wins; if still tied, the match is a draw.
+5. **Guaranteed end.** At the time limit, the highest standing biomass (living flora + fauna) wins; if tied, the higher territory share wins; if still tied, the match is a draw.
 
 ### 11.4 Comeback levers for the trailing player
 

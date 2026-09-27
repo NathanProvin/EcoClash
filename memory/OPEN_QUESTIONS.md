@@ -12,9 +12,9 @@
 |---|---|---|---|
 | Q-001 | Herbivore diet: enemy flora only, or any flora? | M0 (agents part) | resolved → D-018 |
 | Q-002 | What biomass currency is (bank vs harvesting standing stock) | M0 (agents part) | resolved → D-018 |
-| Q-003 | Victory metric: standing biomass or cumulative production | M0 | user thinking |
-| Q-004 | Do agents reproduce on their own? | M0 (agents part) | user thinking |
-| Q-005 | Counter loop: what kills predators, friendly fire | M0 (agents part) | user thinking |
+| Q-003 | Victory metric: standing biomass or cumulative production | M0 | resolved → D-023 |
+| Q-004 | Do agents reproduce on their own? | M0 (agents part) | resolved → D-023 |
+| Q-005 | Counter loop: what kills predators, friendly fire | M0 (agents part) | resolved → D-023 |
 | Q-006 | Unit control at 1–2k agents: per-unit or swarm/zone orders | M3 | resolved → D-018 |
 | Q-007 | Fog of war in v1? | M3 | user thinking |
 | Q-008 | Map scale: world units per cell, agent size, speeds | M2 | user thinking |
@@ -31,25 +31,9 @@
 ## Q-001 · Herbivore diet — resolved → D-018
 ## Q-002 · Biomass as a currency — resolved → D-018
 
-## Q-003 · Victory metric
-- **Problem:** §1 says "producing more biomass". §2.3 says "highest total biomass".
-- **Options:** (a) standing living biomass (flora + agents) at the time limit; (b) cumulative production over the match.
-- **Recommended default:** (a), shown live in the HUD. It rewards a healthy ecosystem at the end, not an early rush.
-
-## Q-004 · Agent reproduction
-- **Problem:** Predator–prey oscillations (the "feature" of §2.3) need populations that reproduce. If agents only appear from player spawns, there are no Lotka–Volterra dynamics.
-- **Options:**
-  - (a) Autonomous reproduction when energy crosses a threshold (costs energy), with a per-player population cap. Players also spawn from trees.
-  - (b) Spawn-only, with death by starvation.
-- **Recommended default:** (a). This is the "cultivate, don't command" fantasy.
-
-## Q-005 · Counter loop
-- **Problem:** Nothing kills predators except starvation, and it's unclear whether predators eat friendly herbivores. Predator spam or herbivore spam may dominate.
-- **Options:**
-  - Shrubs act as a **refuge**: herbivores inside dense shrubs can't be hunted. This fits the existing rule "shrubs slow enemy units".
-  - Predators have a fast energy decay and a high cost.
-  - Predators hunt any herbivore but prefer enemy ones.
-- **Recommended default:** all three. The resulting triangle: flora feeds herbivores, predators eat herbivores, shrub refuges and starvation limit predators.
+## Q-003 · Victory metric — resolved → D-023
+## Q-004 · Agent reproduction — resolved → D-023
+## Q-005 · Counter loop — resolved → D-023
 
 ## Q-006 · Unit control scale — resolved → D-018
 

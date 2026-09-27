@@ -77,3 +77,7 @@
 - **Decisions:** D-022.
 - **Next:** M0.7 tuning: L2/L3 must reach the frontier in the mid phase (gamerules §11.1).
 - **Blockers:** M0.4/M0.5 wait on Q-003, Q-004, Q-005.
+
+## 2026-09-27 · Q-003, Q-004, Q-005 resolved
+- **Done:** Recorded the author's answers (D-023): standing biomass at the time limit; reproduction with a cap; food-web predators + shrub refuges.
+- **Next:** Colonization gauge (D-024), then M0.7 tuning.

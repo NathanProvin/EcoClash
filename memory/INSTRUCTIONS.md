@@ -46,7 +46,7 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 | Shrubs (L2) | **Field**, medium growth | Biomass storage, slows enemy units |
 | Trees (L3) | **Structure** (discrete entity on grid) | Anchor territory, act as buildings / production sites |
 | Herbivores (insects, small mammals) | **Agent** | Eat enemy flora; without orders and with no enemy flora nearby, graze own flora slowly for bonus biomass (D-018) |
-| Predators | **Agent** | Hunt herbivores |
+| Predators | **Agent** | Hunt enemy prey. Kept in check by their own predators (food web) and by shrub refuges (D-023) |
 | Decomposers | **Agent** (earthworms, pill bugs; D-018) | Turn dead biomass into nutrients |
 
 ### 2.2 Environment layers (fields)
@@ -60,7 +60,7 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 
 - **Resource:** biomass points, a bank separate from the fields. Income comes from the growth of the player's living plants and fauna; spending never removes biomass from the fields. Points are spent on unlocking tech-tree cards and spawning species (D-018, `data/gamerules.md` §4, §7).
 - **Territory:** a cell belongs to the player whose living plant biomass dominates it (above a minimum threshold).
-- **Victory:** control ≥ X % of the map (default 60 %), **or** have the highest total biomass when the time limit is reached (default 20 min). Both values are configurable.
+- **Victory:** control ≥ X % of the map (default 60 %), **or** have the highest standing biomass (living flora + fauna, D-023) when the time limit is reached (default 20 min). Both values are configurable.
 - **Core tension:** predator–prey oscillations are a feature.
 
 ### 2.4 Player actions (v1)
@@ -216,7 +216,8 @@ Integer implementation constraint (it must already be modelled in the M0 prototy
 
 - Hand-rolled **Structure-of-Arrays** storage with **generational entity ids**. No external ECS in `sim-core`, to keep full control of ordering.
 - Positions and velocities are fixed-point.
-- Behaviours in v1: move to target, graze (herbivores), hunt (predators), flee, idle/wander. Kept as simple state machines.
+- Behaviours in v1: move to target, graze (herbivores), hunt (predators), flee, idle/wander, reproduce. Kept as simple state machines.
+- **Reproduction (D-023):** an agent whose energy crosses a threshold splits, which costs energy, under a per-player population cap. Players also spawn cards.
 - Group movement uses **flow fields** computed on a coarse grid (e.g. 64×64).
 - Budget: **1,000–2,000 agents** in v1.
 

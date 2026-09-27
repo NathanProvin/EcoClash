@@ -36,7 +36,7 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 ## 2. Game design (v1 scope)
 
 > **The detailed gameplay rules live in `data/gamerules.md`** (strata, spread, tech tree, species, fauna rules, economy, endgame). For game design, it takes precedence over this section (D-016). Read it before any gameplay or sim-rules task.
-> Still open: the victory metric, agent reproduction, counters, fog of war and map scale (`OPEN_QUESTIONS.md`). Flora-only work (growth, diffusion, competition, territory) does not depend on them.
+> Still open: the victory metric, agent reproduction, counters, fog of war and map scale (`OPEN_QUESTIONS.md`). Flora-only work (growth, spread, competition, territory) does not depend on them.
 
 ### 2.1 Ecological strata
 
@@ -61,7 +61,7 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 - **Resource:** biomass points, a bank separate from the fields. Income comes from the growth of the player's living plants and fauna; spending never removes biomass from the fields. Points are spent on unlocking tech-tree cards and spawning species (D-018, `data/gamerules.md` §4, §7).
 - **Territory:** a cell belongs to the player whose living plant biomass dominates it (above a minimum threshold).
 - **Victory:** control ≥ X % of the map (default 60 %), **or** have the highest total biomass when the time limit is reached (default 20 min). Both values are configurable.
-- **Core tension:** predator–prey oscillations are a feature. Over-producing herbivores destroys your own economy.
+- **Core tension:** predator–prey oscillations are a feature.
 
 ### 2.4 Player actions (v1)
 
@@ -103,7 +103,7 @@ EcoClash/
 │   │   ├── fixed.rs         # fixed-point types and math helpers
 │   │   ├── rng.rs           # hand-rolled PCG32 (no `rand` crate, see §4)
 │   │   ├── fields/          # grid layers (u16 / fixed-point)
-│   │   ├── rules/           # growth, diffusion, grazing, predation, decomposition
+│   │   ├── rules/           # growth, spread, grazing, predation, decomposition
 │   │   ├── agents/          # hand-rolled SoA ECS, generational entity ids
 │   │   ├── pathing/         # flow fields
 │   │   ├── commands.rs      # player commands, timestamped by tick
@@ -194,17 +194,16 @@ Required tests:
 
 ### 5.2 Update rules (reference model, prototype first in Python)
 
-For each flora layer B (per player p, species s), per plant tick:
-- **Logistic growth with competition:** `ΔB = r_s · B · (1 − Σ_all B / K)`, where `K = f(nutrients, water)`.
-- **Diffusion / seed spread:** `ΔB += D_s · Laplacian(B)`, using a 4-neighbour stencil and clamped edges.
-- **Grazing:** herbivores within radius consume B, which converts into their energy.
+Flora follows the cell model of `data/gamerules.md` §2.1 and §3 (D-019): each cell has an owner and at most one species per stratum (L1 herbaceous, L2 shrub, L3 canopy). Per plant tick, for each stratum biomass B:
+- **Logistic growth:** `ΔB = r_s · B · (1 − B / K_s)`, where `K_s = k_max_s × modifier(cell)` (the modifier is 1.0 in V1, gamerules §2.3). Higher strata shade lower ones.
+- **Spread:** colonization progress into the 4 neighbours, smothering of lower enemy levels, frozen same-level frontiers (gamerules §3). There is no diffusion.
+- **Grazing:** herbivores consume B, which converts into their energy.
 - **Death:** B that decays goes to `dead_biomass`, and decomposers turn `dead_biomass` into `nutrients`.
-- Clamp to `[0, u16::MAX]`. All coefficients come from `balance.toml`.
+- Clamp to `[0, u16::MAX]`. All coefficients come from `balance.toml`, species under `[flora.<id>]` (D-020).
+- Every rule reads the previous state and writes the next one (double buffering), so the result never depends on update order.
 
-Integer implementation constraints (they must already be modelled in the M0 prototype's quantized mode):
+Integer implementation constraint (it must already be modelled in the M0 prototype's quantized mode):
 - **Small-value growth:** at low density, `r·B·(…)` is below 1 and truncates to 0, so empty cells never grow. Use seeded stochastic rounding (the fractional part becomes the probability of +1), or a minimum-growth floor. The choice is recorded in DECISIONS during M0.
-- **Diffusion must conserve mass.** Implement it as a pairwise flux exchange: each edge moves `D·(B_a − B_b)` from one cell to the other, with the same rounding on both sides. Do not add a Laplacian per cell independently.
-- **Stability:** explicit 4-neighbour diffusion requires `D_s · dt ≤ 0.25`. Enforce this when `balance.toml` is loaded.
 
 ### 5.3 Multi-rate scheduling
 
@@ -331,7 +330,7 @@ Each milestone ends with a playable or testable result and passing CI. The detai
 |---|---|---|
 | M-1 | Environment bootstrap | Memory files, pinned toolchains, `npm run doctor` green, git initialized |
 | M0 | Ecological prototype (Python) | Float and quantized modes. Over 100 seeds, all trophic levels of both players coexist at t = 20 min in ≥ 90 % of runs. Tunables are in `balance.toml` |
-| M1 | `sim-core` fields | Growth/diffusion/competition in fixed-point. Determinism tests are green. `sim-cli` output matches M0's quantized-mode curves within tolerance. CI checks native vs WASM hashes |
+| M1 | `sim-core` fields | Growth/spread/competition in fixed-point. Determinism tests are green. `sim-cli` output matches M0's quantized-mode curves within tolerance. CI checks native vs WASM hashes |
 | M2 | Web render of fields | Worker + WASM + Three.js: terrain, flora textures, instanced grass, RTS camera. 60 fps at 512² on the reference machine (to be named in ROADMAP) |
 | M3 | Agents and control | Herbivores and predators, selection, orders, flow fields. The decomposer decision is taken |
 | M3.5 | Lockstep smoke test | Two browser tabs over a local relay play the same match for 5 min with identical hashes |

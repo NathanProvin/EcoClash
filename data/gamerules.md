@@ -4,7 +4,7 @@
 > Items tagged **[Proposed]** are design suggestions not yet validated by the author. Treat them as defaults that may change.
 > Untagged rules are the author's decisions.
 > All numeric values live in `data/balance.toml`; numbers in this file are illustrative only.
-> Species data (§5–§6) should also exist as machine-readable data in `data/species.toml`. This file is the design reference.
+> Species data (§5–§6) also exists as machine-readable data in `data/balance.toml`, under `[flora.<id>]` (and later `[fauna.<id>]`) (D-020). This file is the design reference.
 
 ---
 
@@ -86,7 +86,7 @@ growth_rate(species, cell) = base_rate(species)
                            × f_development(species, soil_development)
 ```
 
-Each `f` is a species response curve (an optimum and a tolerance) defined in `data/species.toml`.
+Each `f` is a species response curve (an optimum and a tolerance) defined in `data/balance.toml` (D-020).
 
 **Hooks to keep from V1 onward:**
 - The simulation already stores the `soil_type`, `elevation`, `water` and `light` fields, with constant values.
@@ -107,7 +107,7 @@ Plants reproduce and spread **from cell to cell**, into the 4 neighbouring cells
 | **Owned by the opponent, same dominant level** | **Nothing happens.** The frontier holds |
 | **Owned by the opponent, lower dominant level** (e.g. enemy meadow grasses next to our trees) | Gradually **colonized and smothered**. The enemy biomass decreases at `smother_rate`, our colonization progress rises, and the cell switches to us when the enemy biomass reaches zero |
 | **Owned by the opponent, higher dominant level** | Our spread has no effect. Their spread smothers us instead |
-| **[Proposed] Owned by us** | Lower strata of our species can fill in underneath (understory), subject to shade |
+| **[Proposed] Owned by us** | Any of our strata spreads into the same stratum of the neighbour when it is empty: forest advances over our own meadow, and lower strata fill in underneath (understory), subject to shade and soil development (D-019) |
 
 Only the **level** is compared, not the tier within a level (see open questions).
 

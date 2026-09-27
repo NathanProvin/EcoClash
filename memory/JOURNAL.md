@@ -39,3 +39,10 @@
 - **Decisions:** D-016 gamerules is the design reference; D-017 flora levels and V1 species; D-018 resolves Q-001, Q-002, Q-006, Q-012.
 - **Next:** M0.1 flora-only prototype.
 - **Blockers:** M0.5+ wait for Q-003, Q-004, Q-005.
+
+## 2026-09-27 · Spec aligned with the gamerules flora model
+- **Goal:** Prepare M0 code: align INSTRUCTIONS and ROADMAP with gamerules.
+- **Done:** Dropped the "over-producing herbivores" sentence (§2.3). §5.2 now uses the cell spread model. ROADMAP M0 rewritten.
+- **Decisions:** D-019 cell model + own-cell spread + [Proposed] rules behind switches; D-020 species data in `balance.toml`.
+- **Next:** M0.1 float cell model.
+- **Blockers:** None for flora.

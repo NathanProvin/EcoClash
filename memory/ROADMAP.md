@@ -4,10 +4,10 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M0.1: start the Python prototype with flora-only dynamics.
-- **Next:** M0.2 quantized mode, then M0.3 territory.
+- **Now:** M0.1: flora cell model prototype (float).
+- **Next:** M0.2 quantized mode, then M0.3 comparison runs.
 - **Blocked:**
-  - M0 agent tasks (M0.5+) wait for Q-003, Q-004, Q-005 (user thinking).
+  - M0 agent tasks (M0.4+) wait for Q-003, Q-004, Q-005 (user thinking).
   - None on the tooling side (Rust ready as of 2026-09-27).
 - **Last updated:** 2026-09-27
 
@@ -23,20 +23,19 @@
 - [x] Rust 1.98.1 + wasm32 + MSVC Build Tools installed; `npm run doctor` green, native + wasm32 hello builds OK
 
 ## M0 · Ecological prototype (Python, `tools/prototype/`)
-Flora-only first. None of these tasks depends on open questions.
-- [ ] M0.1 NumPy float model: 2 players × (grass, shrub) fields, logistic growth with competition, `K = f(nutrients, water)`. Coefficients read from `data/balance.toml` with `tomllib`.
-- [ ] M0.2 Diffusion as a pairwise flux exchange that conserves mass (assert on it). Check `D·dt ≤ 0.25`.
-- [ ] M0.3 Quantized mode: u16 fields, the §4 rounding rule, stochastic rounding vs growth floor (resolves Q-015).
-- [ ] M0.4 Territory rule + map-control % over time. Plots: biomass per player, territory %.
-- [ ] M0.5 ⏸ Herbivores + predators as agents (NumPy arrays of positions and energy). Needs Q-004, Q-005.
-- [ ] M0.6 ⏸ Economy / victory metric. Needs Q-003.
-- [ ] M0.7 Seed sweep: 100 seeds; all trophic levels of both players coexist at t = 20 min in ≥ 90 % of runs.
-- [ ] M0.8 `balance.toml` filled with the tuned coefficients. DECISIONS entry for the model.
+Flora-only first, following the gamerules cell model (D-019). [Proposed] flora rules are prototyped behind switches in `balance.toml`.
+- [ ] M0.1 NumPy float cell model (`tools/prototype/flora.py`): strata, logistic growth + shade, soil development, spread / colonize / smother / frozen frontiers, territory. Species from `balance.toml` `[flora.<id>]`. Mirrored scripted scenario; CSV + plots (biomass, territory %, income).
+- [ ] M0.2 Quantized mode: u16 state, Q16.16 rates, the §4 rounding rule, stochastic rounding vs growth floor (resolves Q-015).
+- [ ] M0.3 Comparison runs: float vs quant curves, each [Proposed] switch on vs off. Report in JOURNAL.
+- [ ] M0.4 ⏸ Herbivores + predators as agents (NumPy arrays of positions and energy). Needs Q-004, Q-005.
+- [ ] M0.5 ⏸ Economy / victory metric. Needs Q-003.
+- [ ] M0.6 Seed sweep: 100 seeds; all trophic levels of both players coexist at t = 20 min in ≥ 90 % of runs.
+- [ ] M0.7 `balance.toml` filled with the tuned coefficients. DECISIONS entry for the model.
 
 ## M1 · `sim-core` fields (Rust)
 - [ ] M1.1 User creates the GitHub remote. Cargo workspace (`Cargo.toml`: release `overflow-checks = true`), CI skeleton (fmt, clippy, test).
 - [ ] M1.2 `fixed.rs` (Q16.16, rounding rule, LUTs) + `rng.rs` (PCG32 with known-answer tests).
-- [ ] M1.3 Fields + growth/diffusion/competition rules, multi-rate scheduler.
+- [ ] M1.3 Fields + growth/spread/competition rules, multi-rate scheduler.
 - [ ] M1.4 `commands.rs`, `hash.rs` (incremental), `snapshot.rs`.
 - [ ] M1.5 Balance loader: parse, convert to fixed-point, validate (stability), balance hash.
 - [ ] M1.6 `sim-cli run` → per-tick hash + metrics CSV. The Python script compares the result with M0 quantized mode.

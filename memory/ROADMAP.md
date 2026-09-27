@@ -8,7 +8,7 @@
 - **Next:** M0.2 quantized mode, then M0.3 territory.
 - **Blocked:**
   - M0 agent tasks (M0.5+) wait for Q-001…Q-005 (user thinking).
-  - M1 needs the Rust install (user action, see README).
+  - None on the tooling side (Rust ready as of 2026-09-27).
 - **Last updated:** 2026-09-27
 
 ---
@@ -20,7 +20,7 @@
 - [x] Repo hygiene: `.gitattributes` (LF), `.editorconfig`, `.gitignore`
 - [x] `npm run doctor`
 - [x] `git init` + first commit
-- [ ] **User:** install rustup + VS Build Tools (C++ workload), then run `npm run doctor` until it is green
+- [x] Rust 1.98.1 + wasm32 + MSVC Build Tools installed; `npm run doctor` green, native + wasm32 hello builds OK
 
 ## M0 · Ecological prototype (Python, `tools/prototype/`)
 Flora-only first. None of these tasks depends on open questions.

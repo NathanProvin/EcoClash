@@ -41,7 +41,7 @@ Flora-only first. None of these tasks depends on open questions.
 - [ ] M1.5 Balance loader: parse, convert to fixed-point, validate (stability), balance hash.
 - [ ] M1.6 `sim-cli run` → per-tick hash + metrics CSV. The Python script compares the result with M0 quantized mode.
 - [ ] M1.7 Determinism tests: run twice, `proptest` command streams.
-- [ ] M1.8 `sim-wasm` + Node headless runner. CI checks the native vs WASM hash.
+- [ ] M1.8 `sim-wasm` + Node headless runner. CI checks the native vs WASM hash. `npm run doctor` checks that the `wasm-bindgen-cli` version matches `Cargo.lock` (D-008).
 
 ## M2 · Web render of fields
 - [ ] Resolve Q-008 (scale), Q-009 (colours), Q-010 (reference machine).

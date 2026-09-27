@@ -29,6 +29,7 @@ seed_fraction = 0.1        # biomass of a newly established stratum
 spread_threshold = 0.5     # a stratum spreads once B >= this fraction of k_max
 establish_threshold = 0.1  # a stratum counts for the dominant level from this fraction
 smother_rate = 0.15        # enemy strata lose this fraction of k_max per second, per attacking neighbour
+niche_overlap = 0.5        # [Proposed] competition between species of one stratum (1 = full overlap, D-022)
 soil_min_level = [0.1, 0.3, 0.6]  # soil development needed by L1 (non-pioneers), L2, L3
 # [Proposed] rules behind switches (D-019)
 succession = true

@@ -38,7 +38,7 @@ Victory conditions are defined in `INSTRUCTIONS.md` §2.3 (territory share or to
 ### 2.1 Hidden grid
 
 - The map is backed by a **hidden grid**. The player **never sees cells**: everything is rendered as a fluid, continuous landscape.
-- Each cell has an **owner** (none, player 1 or player 2) and can host several of its owner's species at once, **one species per vertical stratum**:
+- Each cell has an **owner** (none, player 1 or player 2) and can host several of its owner's species at once, in three vertical strata. Species of the same stratum **complement each other and interpenetrate** (e.g. grasses and clover in one meadow cell), and each keeps spreading (D-022):
 
 | Level | Stratum | Examples (V1) |
 |---|---|---|
@@ -46,6 +46,7 @@ Victory conditions are defined in `INSTRUCTIONS.md` §2.3 (territory share or to
 | L2 | Shrub | Elder, hazel, hawthorn & blackthorn |
 | L3 | Canopy (trees) | Oak, beech, chestnut |
 
+- **[Proposed] Complementarity.** Species of one stratum compete with partial niche overlap (`niche_overlap` in `balance.toml`, below 1), so a mixed stand holds more biomass than a monoculture.
 - A cell's **dominant level** is the highest level among the strata present in it, counting only strata whose biomass is above `establish_threshold`.
 - **[Proposed] Shade.** Higher strata in a cell reduce the growth of the owner's lower strata in that same cell. Shade-tolerant species suffer less.
 - **[Proposed] Succession (soil development).** Each cell has a **soil development** value (organic matter), which starts at 0 on bare soil. Plants raise it over time, pioneers fastest. Each level needs a minimum value to establish: L1 pioneers none, the rest of L1 low, L2 medium, L3 high. This drives the V1 progression bare soil → meadow → shrubs → forest. It is independent of the soil *type* (§2.3).
@@ -412,6 +413,5 @@ The mechanics below make sure **no position is permanently locked**, and that **
 4. **Herbivore trigger range `R`:** a global rule, or per species?
 5. **Stance:** fixed role per species, or a switchable stance per consumer?
 6. **Starting conditions:** starting budget and starting unlocks (default proposed in §1.1).
-7. **Herbaceous succession within L1 (found by the M0.1 prototype).** Clover, ferns and bramble need developed soil, but the only cells with developed soil already hold a pioneer in L1, and spread never replaces a species in its own stratum. So these species can only be planted, never spread. Options: (a) within a stratum, a higher tier spreads over a lower tier of the same player; (b) pioneers fade once the soil is developed (succession by decline); (c) keep it: the player replants by hand. The prototype lets planting replace the player's own species in the stratum, which is a stopgap.
 
-Resolved (see `memory/DECISIONS.md` D-017): three flora levels, with pioneers as L1 tier 1; bees and fire are post-V1; the hedgehog counters slugs; decomposers are agents; unlocks are permanent.
+Resolved (see `memory/DECISIONS.md` D-017, D-022): three flora levels, with pioneers as L1 tier 1; bees and fire are post-V1; the hedgehog counters slugs; decomposers are agents; unlocks are permanent; species of one stratum interpenetrate.

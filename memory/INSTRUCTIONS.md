@@ -194,8 +194,8 @@ Required tests:
 
 ### 5.2 Update rules (reference model, prototype first in Python)
 
-Flora follows the cell model of `data/gamerules.md` §2.1 and §3 (D-019): each cell has an owner and at most one species per stratum (L1 herbaceous, L2 shrub, L3 canopy). Per plant tick, for each stratum biomass B:
-- **Logistic growth:** `ΔB = r_s · B · (1 − B / K_s)`, where `K_s = k_max_s × modifier(cell)` (the modifier is 1.0 in V1, gamerules §2.3). Higher strata shade lower ones.
+Flora follows the cell model of `data/gamerules.md` §2.1 and §3 (D-019): each cell has an owner and holds biomass per species; species of one stratum (L1 herbaceous, L2 shrub, L3 canopy) interpenetrate (D-022). Per plant tick, for each species biomass B:
+- **Logistic growth with competition:** `ΔB_i = r_i · B_i · (shade_i − c_i − α · Σ_{j≠i, same stratum} c_j) / shade_i`, where `c = B / K` is cover, `K_i = k_max_i × modifier(cell)` (the modifier is 1.0 in V1, gamerules §2.3), `α` = `niche_overlap`, and `shade_i` is the capacity left by higher strata.
 - **Spread:** colonization progress into the 4 neighbours, smothering of lower enemy levels, frozen same-level frontiers (gamerules §3). There is no diffusion.
 - **Grazing:** herbivores consume B, which converts into their energy.
 - **Death:** B that decays goes to `dead_biomass`, and decomposers turn `dead_biomass` into `nutrients`.

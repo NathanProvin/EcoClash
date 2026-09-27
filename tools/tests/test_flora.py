@@ -73,7 +73,7 @@ def test_quant_stochastic_is_repeatable():
 
     (rows_a, a), (rows_b, b) = final(), final()
     assert rows_a == rows_b
-    for f in ("owner", "species", "bio", "soil", "prog", "prog_own"):
+    for f in ("owner", "bio", "soil", "prog", "prog_own"):
         assert np.array_equal(getattr(a, f), getattr(b, f)), f
 
 
@@ -84,11 +84,42 @@ def test_quant_low_density_still_grows(rounding):
     st.soil[:] = U16
     one_cell = np.zeros((4, 4), bool)
     one_cell[1, 1] = True
+    oak = fl.idx("oak")
     fl.plant(st, 1, "oak", one_cell, frac=2 / 60000)  # biomass 2: exact growth is < 1 per tick
-    assert st.bio[2, 1, 1] == 2
+    assert st.bio[oak, 1, 1] == 2
     for _ in range(200):
         fl.step(st)
-    assert st.bio[2, 1, 1] > 2
+    assert st.bio[oak, 1, 1] > 2
+
+
+def test_same_stratum_species_interpenetrate_and_spread():
+    fl = Flora(load_balance())
+    st = fl.new_state(16)
+    st.soil[:] = U16
+    everywhere = np.ones((16, 16), bool)
+    fl.plant(st, 1, "grasses", everywhere, frac=1.0)
+    patch = np.zeros((16, 16), bool)
+    patch[6:10, 6:10] = True
+    fl.plant(st, 1, "clover", patch, frac=1.0)
+    for _ in range(300):
+        fl.step(st)
+    clover, grasses = st.bio[fl.idx("clover")], st.bio[fl.idx("grasses")]
+    assert (clover[6:10, 3] > 0).all()  # clover spread 3 cells into the meadow...
+    assert (grasses > 0).all()  # ...without displacing the grass
+
+
+def test_mixed_stand_outgrows_monoculture():
+    fl = Flora(load_balance(), own_spread=False)
+    mono, mixed = fl.new_state(4), fl.new_state(4)
+    cells = np.ones((4, 4), bool)
+    for st in (mono, mixed):
+        st.soil[:] = U16
+        fl.plant(st, 1, "grasses", cells)
+    fl.plant(mixed, 1, "clover", cells)
+    for _ in range(400):
+        fl.step(mono)
+        fl.step(mixed)
+    assert mixed.bio.sum() > 1.2 * mono.bio.sum()
 
 
 def test_float_and_quant_agree_on_territory():

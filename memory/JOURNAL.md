@@ -63,3 +63,17 @@
 - **Decisions:** D-021 minimum-growth floor (quant matches float within 0.5 % biomass, identical territory).
 - **Next:** M0.3 comparison runs; author answer on gamerules §12 q7.
 - **Blockers:** None.
+
+## 2026-09-27 · Interpenetrating strata (D-022) + M0.3 comparison runs
+- **Goal:** Apply the author's answer on L1 succession; compare float vs quant and each [Proposed] switch.
+- **Done:**
+  - State is now biomass per species; same-stratum species share cells with niche overlap 0.5. Planting adds instead of replacing. Tests for interpenetration and mixed > monoculture (14 green).
+  - Fix: bare land goes to the fastest colonizer; smothered cells go to the attacking higher-level species.
+  - `--compare` runs 6 variants and writes `compare.csv` + `compare.png`.
+- **Findings (seed 1, 20 min; 128² and 64² agree):**
+  - Territory is identical in every variant (128²: 39.9 % vs 44.9 %). It is settled by the early pioneer race; L1/L1 frontiers freeze on contact, and shrubs/trees never reach the frontier in time. The switches only move biomass.
+  - Biomass vs baseline: quant −0.5 %; no succession +3.5 % (P1); no shade +4 %; no contested cells 0 (ties rare); no own spread −25 % (128²) / −55 % (64²) and no mixed stands.
+  - Keep succession, shade, own spread. Contested cells is harmless (tie rule only).
+- **Decisions:** D-022.
+- **Next:** M0.7 tuning: L2/L3 must reach the frontier in the mid phase (gamerules §11.1).
+- **Blockers:** M0.4/M0.5 wait on Q-003, Q-004, Q-005.

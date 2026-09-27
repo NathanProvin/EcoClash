@@ -57,9 +57,7 @@ class State:
 class Flora:
     """Species tables and rules, converted once from balance.toml."""
 
-    def __init__(
-        self, balance: dict, mode="float", rounding="floor", seed=0, **switches: bool
-    ):
+    def __init__(self, balance: dict, mode="float", rounding="floor", seed=0, **switches: bool):
         """mode "quant" holds the state in integers with Q16.16 rates (INSTRUCTIONS §4). rounding
         picks the low-density growth fix: "floor" (+1 minimum, chosen by D-021) or "stochastic"."""
         assert mode in ("float", "quant") and rounding in ("stochastic", "floor")

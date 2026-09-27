@@ -1,11 +1,12 @@
-"""M0 flora prototype: the gamerules cell model (gamerules §2.1, §3; D-019, D-022).
+"""M0 flora prototype: the gamerules cell model (gamerules §2.1, §3; D-019, D-022, D-024).
 
 Each cell has an owner. Several of the owner's species can share a cell, also within one stratum
 (L1 herbaceous, L2 shrub, L3 canopy): they compete with partial niche overlap, so mixed stands
 hold more biomass than monocultures. Each species has a colonization gauge per cell (0-100 %),
-driven by same-species neighbours and site suitability; it caps the species' capacity there. State units match the future integer sim: biomass and soil
-development in [0, U16], cover and colonization progress in [0, ONE]. Every rule reads the
-previous state (double buffering).
+driven by same-species neighbours and site suitability; it caps the species' capacity there.
+State units match the future integer sim: biomass, soil development, water and light in
+[0, U16]; cover, gauge and claim progress in [0, ONE]. Every rule reads the previous state
+(double buffering).
 
 Run: npm run proto:flora -- --seed 1 --minutes 20 [--mode quant] [--compare]
 """

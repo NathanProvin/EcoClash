@@ -142,3 +142,31 @@ Template:
 - **Context:** CI needs a remote, but there is no code to build before M1.
 - **Decision:** `git init` locally with conventional commits. The user creates the GitHub remote before the M1 CI task.
 - **Consequences:** The ROADMAP M1 has a "create remote + CI" task.
+
+## D-016 · 2026-09-27 · Gameplay rules live in `data/gamerules.md`
+- **Status:** accepted (user decision)
+- **Context:** The author wrote a detailed gameplay draft (strata, spread, tech tree, species, fauna rules, economy, endgame) that goes far beyond INSTRUCTIONS §2.
+- **Decision:** `data/gamerules.md` is the design reference for what the game is. For game design it takes precedence over INSTRUCTIONS §2, which keeps only a summary. `CLAUDE.md` points to it; it is not auto-imported, to keep session context small.
+- **Consequences:** Gameplay and sim-rules tasks read gamerules first. Items tagged [Proposed] there are defaults, not decisions (INSTRUCTIONS rule 11 applies to them as to open questions).
+
+## D-017 · 2026-09-27 · V1 flora levels and species subset
+- **Status:** accepted (user decision)
+- **Context:** Review of the gamerules draft: three strata in one table, four levels everywhere else; bees and fire in V1 against INSTRUCTIONS §2.5; slugs had no real counter.
+- **Decision:**
+  - Three flora levels: L1 herbaceous (pioneers lichen, moss, grasses are its first tier), L2 shrub, L3 canopy. A tier may unlock up to three species.
+  - Pollinators (bees) and fire stay post-V1. F2 insects in V1 are grasshoppers and caterpillars.
+  - The hedgehog joins V1 (F3 tier 2 with moles) as the slug counter.
+  - Non-V1 species (bark beetles, roe deer, wild boar, wood mice) are removed from V1 examples. The bark beetle outbreak stays as a disturbance card.
+  - Unlocked cards are permanent, even if the species dies out.
+- **Consequences:** Succession thresholds: pioneers none, rest of L1 low, L2 medium, L3 high.
+
+## D-018 · 2026-09-27 · Open questions answered by the gamerules draft
+- **Status:** accepted (user decision)
+- **Context:** Rules written in gamerules answer four open questions.
+- **Decision:**
+  - Q-001 herbivore diet: herbivores eat enemy flora. Without orders and with no enemy flora nearby, they graze own flora at a much slower rate and generate bonus biomass points (economic use). Gamerules §10.
+  - Q-002 currency: biomass points are a bank separate from the fields. Income comes from the growth of the player's living plants and fauna, in proportion to biomass and growth. Spending (unlocks, spawns) never removes field biomass. Gamerules §7.
+  - Q-006 control: fauna are autonomous agents; standard per-unit / group RTS orders override autonomy until completed. Gamerules §9.
+  - Q-012 decomposers are agents (earthworms, pill bugs). Gamerules §5.2.
+- **Alternatives:** The Q-002 default tied income to a radius around trees; the author's rule counts all living organisms. The Q-006 default was zone orders.
+- **Consequences:** INSTRUCTIONS §2.1 and §2.3 updated. Per-unit control at 1–2k agents must stay usable (box select, control groups); revisit if M3 playtests show micro overload.

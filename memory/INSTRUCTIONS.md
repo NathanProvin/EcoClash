@@ -35,19 +35,19 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 
 ## 2. Game design (v1 scope)
 
-> Several rules below are incomplete or contradictory: herbivore diet, what biomass currency is, the victory metric, agent reproduction, counters, unit control scale, fog of war and map scale.
-> They are tracked in `OPEN_QUESTIONS.md` (Q-001 to Q-008). Flora-only work (growth, diffusion, competition, territory) does not depend on them.
+> **The detailed gameplay rules live in `data/gamerules.md`** (strata, spread, tech tree, species, fauna rules, economy, endgame). For game design, it takes precedence over this section (D-016). Read it before any gameplay or sim-rules task.
+> Still open: the victory metric, agent reproduction, counters, fog of war and map scale (`OPEN_QUESTIONS.md`). Flora-only work (growth, diffusion, competition, territory) does not depend on them.
 
 ### 2.1 Ecological strata
 
 | Stratum | Representation | Role |
 |---|---|---|
-| Grass / moss | **Field** (grid layer), fast growth | Base economy, colonizes land |
-| Shrubs | **Field**, medium growth | Biomass storage, slows enemy units |
-| Trees | **Structure** (discrete entity on grid) | Anchor territory, act as buildings / production sites |
-| Herbivores (insects) | **Agent** | Eat enemy flora |
+| Herbaceous (L1, incl. pioneers) | **Field** (grid layer), fast growth | Base economy, colonizes land |
+| Shrubs (L2) | **Field**, medium growth | Biomass storage, slows enemy units |
+| Trees (L3) | **Structure** (discrete entity on grid) | Anchor territory, act as buildings / production sites |
+| Herbivores (insects, small mammals) | **Agent** | Eat enemy flora; without orders and with no enemy flora nearby, graze own flora slowly for bonus biomass (D-018) |
 | Predators | **Agent** | Hunt herbivores |
-| Decomposers | **Agent or field** (to decide in M3) | Turn dead biomass into nutrients |
+| Decomposers | **Agent** (earthworms, pill bugs; D-018) | Turn dead biomass into nutrients |
 
 ### 2.2 Environment layers (fields)
 
@@ -58,7 +58,7 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 
 ### 2.3 Economy and victory
 
-- **Resource:** biomass. Players spend it to spawn agents and plant structures.
+- **Resource:** biomass points, a bank separate from the fields. Income comes from the growth of the player's living plants and fauna; spending never removes biomass from the fields. Points are spent on unlocking tech-tree cards and spawning species (D-018, `data/gamerules.md` §4, §7).
 - **Territory:** a cell belongs to the player whose living plant biomass dominates it (above a minimum threshold).
 - **Victory:** control ≥ X % of the map (default 60 %), **or** have the highest total biomass when the time limit is reached (default 20 min). Both values are configurable.
 - **Core tension:** predator–prey oscillations are a feature. Over-producing herbivores destroys your own economy.
@@ -95,7 +95,8 @@ EcoClash/
 │   ├── OPEN_QUESTIONS.md    # undecided design points, with defaults and deadlines
 │   └── JOURNAL.md           # append-only session log
 ├── data/
-│   └── balance.toml         # all gameplay tunables (shared by all targets)
+│   ├── balance.toml         # all gameplay tunables (shared by all targets)
+│   └── gamerules.md         # gameplay rules: strata, tech tree, species, fauna, endgame (D-016)
 ├── sim-core/                # Rust crate: deterministic simulation, no rendering, no I/O
 │   ├── src/
 │   │   ├── lib.rs

@@ -32,3 +32,10 @@
 - **Decisions:** None final. New author questions added to gamerules §12 (7, 9–11).
 - **Next:** Author validates §12; then reconcile gamerules with INSTRUCTIONS §2 and OPEN_QUESTIONS (Q-001, Q-002, Q-006, Q-012 overlap). `data/species.toml` when species reach code (M0.5+).
 - **Blockers:** None for M0.1–M0.4 (flora-only).
+
+## 2026-09-27 · Gamerules decisions applied
+- **Goal:** Apply the author's answers to the gamerules review.
+- **Done:** Gamerules moved to three flora levels (pioneers = L1 tier 1), bees and fire post-V1, hedgehog added, non-V1 species removed from examples. INSTRUCTIONS §2 summarizes and defers to gamerules; CLAUDE.md points to it.
+- **Decisions:** D-016 gamerules is the design reference; D-017 flora levels and V1 species; D-018 resolves Q-001, Q-002, Q-006, Q-012.
+- **Next:** M0.1 flora-only prototype.
+- **Blockers:** M0.5+ wait for Q-003, Q-004, Q-005.

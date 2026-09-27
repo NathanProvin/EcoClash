@@ -6,6 +6,8 @@ The spec and the current plan are imported below. Read them before any task.
 @memory/INSTRUCTIONS.md
 @memory/ROADMAP.md
 
+Gameplay rules (strata, tech tree, species, fauna, endgame) live in `data/gamerules.md`. It is not imported, to keep context small: read it before any gameplay or sim-rules task (D-016).
+
 ## Session protocol
 1. **Start:** read ROADMAP `Status`, the last entry of `memory/JOURNAL.md`, and any `memory/OPEN_QUESTIONS.md` item that touches the task.
 2. **Work:** plan first, one task = one conventional commit. Never build on an unresolved open question (INSTRUCTIONS rule 11).

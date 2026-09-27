@@ -7,7 +7,7 @@
 - **Now:** M0.1: start the Python prototype with flora-only dynamics.
 - **Next:** M0.2 quantized mode, then M0.3 territory.
 - **Blocked:**
-  - M0 agent tasks (M0.5+) wait for Q-001…Q-005 (user thinking).
+  - M0 agent tasks (M0.5+) wait for Q-003, Q-004, Q-005 (user thinking).
   - None on the tooling side (Rust ready as of 2026-09-27).
 - **Last updated:** 2026-09-27
 
@@ -28,8 +28,8 @@ Flora-only first. None of these tasks depends on open questions.
 - [ ] M0.2 Diffusion as a pairwise flux exchange that conserves mass (assert on it). Check `D·dt ≤ 0.25`.
 - [ ] M0.3 Quantized mode: u16 fields, the §4 rounding rule, stochastic rounding vs growth floor (resolves Q-015).
 - [ ] M0.4 Territory rule + map-control % over time. Plots: biomass per player, territory %.
-- [ ] M0.5 ⏸ Herbivores + predators as agents (NumPy arrays of positions and energy). Needs Q-001, Q-004, Q-005.
-- [ ] M0.6 ⏸ Economy / victory metric. Needs Q-002, Q-003.
+- [ ] M0.5 ⏸ Herbivores + predators as agents (NumPy arrays of positions and energy). Needs Q-004, Q-005.
+- [ ] M0.6 ⏸ Economy / victory metric. Needs Q-003.
 - [ ] M0.7 Seed sweep: 100 seeds; all trophic levels of both players coexist at t = 20 min in ≥ 90 % of runs.
 - [ ] M0.8 `balance.toml` filled with the tuned coefficients. DECISIONS entry for the model.
 
@@ -51,7 +51,7 @@ Flora-only first. None of these tasks depends on open questions.
 - [ ] Perf check: 60 fps at 512² on the reference machine.
 
 ## M3 · Agents and control
-- [ ] Resolve Q-006 (control), Q-007 (fog), Q-012 (decomposers).
+- [ ] Resolve Q-007 (fog). (Q-006 and Q-012 resolved by D-018.)
 - [ ] SoA agent storage + generational ids, behaviour state machines, flow fields (64×64).
 - [ ] Selection, orders, group hotkeys; input → commands.
 - [ ] Sim tick ≤ 8 ms at 512² with 1,500 agents (in the worker).

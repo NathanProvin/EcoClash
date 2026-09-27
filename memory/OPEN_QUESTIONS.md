@@ -10,39 +10,26 @@
 
 | ID | Topic | Deadline | Status |
 |---|---|---|---|
-| Q-001 | Herbivore diet: enemy flora only, or any flora? | M0 (agents part) | user thinking |
-| Q-002 | What biomass currency is (bank vs harvesting standing stock) | M0 (agents part) | user thinking |
+| Q-001 | Herbivore diet: enemy flora only, or any flora? | M0 (agents part) | resolved → D-018 |
+| Q-002 | What biomass currency is (bank vs harvesting standing stock) | M0 (agents part) | resolved → D-018 |
 | Q-003 | Victory metric: standing biomass or cumulative production | M0 | user thinking |
 | Q-004 | Do agents reproduce on their own? | M0 (agents part) | user thinking |
 | Q-005 | Counter loop: what kills predators, friendly fire | M0 (agents part) | user thinking |
-| Q-006 | Unit control at 1–2k agents: per-unit or swarm/zone orders | M3 | user thinking |
+| Q-006 | Unit control at 1–2k agents: per-unit or swarm/zone orders | M3 | resolved → D-018 |
 | Q-007 | Fog of war in v1? | M3 | user thinking |
 | Q-008 | Map scale: world units per cell, agent size, speeds | M2 | user thinking |
 | Q-009 | Colour-blind-safe player colours | M2 | open |
 | Q-010 | Reference machine for performance budgets | M2 | open |
 | Q-011 | Final game name | before store page | open |
-| Q-012 | Decomposers: agent or field | M3 | open |
+| Q-012 | Decomposers: agent or field | M3 | resolved → D-018 |
 | Q-013 | Exact victory thresholds and match length | M4 (tuned via `tools/balance`) | open |
 | Q-014 | Plant species per player in v1 | M0 | open (default: grass + shrub + tree) |
 | Q-015 | Low-density growth: stochastic rounding or growth floor | M0 (quantized mode) | open |
 
 ---
 
-## Q-001 · Herbivore diet
-- **Problem:** The §2.1 table says herbivores "eat enemy flora". §2.3 says over-producing herbivores "destroys your own economy". Both can't be true without another mechanism.
-- **Options:**
-  - (a) They eat any flora and prefer the enemy's.
-  - (b) They eat only enemy flora and have a biomass upkeep.
-  - (c) They eat only enemy flora; over-production hurts only through predators.
-- **Recommended default:** (a). The self-harm comes naturally when they graze inside your own territory. It is ecologically honest and makes positioning matter.
-
-## Q-002 · Biomass as a currency
-- **Problem:** Standing biomass is territory, victory score and currency all at once. If spending removes it from the fields, spending lowers your score and your territory.
-- **Options:**
-  - (a) A separate bank. Its income is net primary production (growth) within a radius of your trees.
-  - (b) Spending harvests standing biomass from your territory.
-  - (c) Each tree stores biomass locally and spawns from its own store.
-- **Recommended default:** (a). Trees become the "production sites" of §2.1, the fields stay untouched by spending, and the income is easy to show in the HUD.
+## Q-001 · Herbivore diet — resolved → D-018
+## Q-002 · Biomass as a currency — resolved → D-018
 
 ## Q-003 · Victory metric
 - **Problem:** §1 says "producing more biomass". §2.3 says "highest total biomass".
@@ -64,9 +51,7 @@
   - Predators hunt any herbivore but prefer enemy ones.
 - **Recommended default:** all three. The resulting triangle: flora feeds herbivores, predators eat herbivores, shrub refuges and starvation limit predators.
 
-## Q-006 · Unit control scale
-- **Problem:** With 1–2k agents, classic per-unit micro is impossible.
-- **Recommended default:** Box/brush selection plus zone orders ("graze here", "hunt this zone", rally point). Units act autonomously within the zone. Group hotkeys stay.
+## Q-006 · Unit control scale — resolved → D-018
 
 ## Q-007 · Fog of war
 - **Recommended default:** None in v1 (full visibility). Lockstep gives every client the full state anyway. Revisit after v1.
@@ -89,8 +74,7 @@
 ## Q-011 · Final game name
 - Use the codename **EcoClash** until then.
 
-## Q-012 · Decomposers: agent or field
-- Decide in M3. A field is cheaper (just a rule on `dead_biomass` → `nutrients`). An agent adds a unit and gameplay.
+## Q-012 · Decomposers: agent or field — resolved → D-018
 
 ## Q-013 · Victory thresholds and match length
 - Defaults: 60 % of the map / 20 min. Tune them with `tools/balance` in M4.

@@ -248,3 +248,34 @@ Template:
   - Quant's timing matches float. Its biomass is +5 %: a species enters a neighbour cell once a tick's seed rain rounds to 1, which is half a unit in quant and a full unit in float.
   - No shade: +11 % biomass, same territory.
 - **Consequences:** Breakthroughs are threshold events, so exact cell counts differ between modes; curves and timings are compared, not cell counts.
+
+## D-026 · 2026-09-28 · Fauna prototype model (M0.4)
+- **Status:** accepted (prototype; values are untuned placeholders by user request)
+- **Context:** M0.4 needs animals on top of the flora model, following gamerules §5.2 and §6 and D-023.
+- **Decision:**
+  - **Agents:** stand on grid cells and update once per flora tick (2 Hz) in the prototype. The spec's 10 Hz stays for `sim-core`. Structure of arrays in creation order; integer-only logic with Q16 energy, so float and quant flora modes share it.
+  - **Behaviour priority:**
+    1. flee the nearest enemy hunter within `flee_radius`;
+    2. seek food within sight: enemy flora, then own flora (herbivores); dead biomass on non-enemy land (decomposers); huntable enemy prey (predators);
+    3. otherwise wander one cell (seeded RNG, separate from flora).
+  - **Eating:**
+    - Herbivores eat the richest diet species of their cell; own flora at `own_graze` × bite. Bites on one stock are shared pro rata.
+    - Energy gain = eaten × `transfer` (10 % rule); the rest becomes dead biomass.
+    - Predators kill one huntable prey in their cell per tick, in index order.
+    - Decomposers eat dead biomass and add soil development.
+  - **Refuge:** small fauna in its owner's cells with dense hawthorn or bramble cannot be hunted (D-023).
+  - **Life cycle:** upkeep each tick; starvation leaves half the body as dead biomass; at full energy an animal splits in two under the per-player cap `max_agents / 2` and a per-species breeding cap `species_cap` (150), so breeding cannot fill the room player spawns need.
+  - **Grazers avoid crowds:** herbivores and decomposers only target cells whose stock covers everyone of their kind already there, and animals in an overcrowded cell wander off, so herds disperse instead of starving together.
+  - **Spawning (gamerules §6.3):**
+    - own habitat is required;
+    - predators are dropped on the enemy prey nearest the clicked point;
+    - herbivores need enemy food within `herbivore_range` of own land and spawn at the nearest own habitat cell;
+    - decomposers need habitat only.
+  - **Flora litter:** `litter_fraction × growth_rate × B` per second goes to dead biomass, as the spec's "death" rule. This keeps decomposers fed from the start.
+  - **Code split:** `flora.py` (plants), `fauna.py` (animals), `match.py` (scripted match, plots, CLI; `npm run proto`).
+- **Simplified for now:**
+  - no player orders or stances (M3);
+  - no spawn costs (M0.5);
+  - voles eat biomass instead of reducing tree spread (§6.1);
+  - lynx and buzzard habitats are "any L3";
+  - no bark-beetle card.

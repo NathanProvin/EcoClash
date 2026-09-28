@@ -94,3 +94,18 @@
 - **Result:** contact 8.1 min, L2 at front 10.4/11.5 min, first take 10.8 min, 50/50 at 20 min; quant matches float in timing and territory within 1 %.
 - **Next:** M0.4 fauna agents (D-023), then M0.6 100-seed sweep.
 - **Notes:** a 128² 20-min run takes about 2 min; the 19 tests take about 25 s.
+
+## 2026-09-28 · M0.4 fauna agents (D-026)
+- **Goal:** A prototype with animals (user: no more balance fine-tuning).
+- **Done:**
+  - `fauna.py`: 15 V1 species as integer agents; flee / seek / wander, grazing, decomposing, hunting, refuges, starvation, reproduction with player and species caps, §6.3 spawn rules.
+  - Flora litter turnover feeds dead biomass.
+  - `match.py` split out (`npm run proto`); both builds spawn animals; an animals panel and animal markers on the maps.
+  - 8 fauna tests; 27 tests green.
+- **Structural fixes found:**
+  - integer upkeep rounded up 4× → Q16 energy;
+  - decomposers starved on a bare floor → litter turnover;
+  - herds piled into one cell and starved together → crowd-aware targeting;
+  - breeding filled the player cap and blocked spawns → per-species breeding cap.
+- **Result (seed 1, 128², 20 min):** decomposers 150/150 from 5 min; herbivores from 8 min up to 300/300; predators hunt (9 / 36 kills) but starve within minutes (placeholder values, not tuned). Territory 49 % / 51 %.
+- **Next:** M0.5 economy, then the replay viewer (D-027).

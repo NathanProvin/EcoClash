@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from prototype.flora import U16, Flora, load_balance, run
+from prototype.flora import U16, Flora, load_balance
+from prototype.match import run
 
 
 def halves(n):
@@ -158,7 +159,7 @@ def test_biomass_stays_under_gauge_capacity(mode):
         fl.step(st)
     cap = fl.kmax[i] * st.gauge[i] / (1 << 16)
     assert (st.bio[i] <= cap * 1.01 + 1).all()
-    assert (st.bio[i] >= cap * 0.9).all()  # and it does fill it
+    assert (st.bio[i] >= cap * 0.85).all()  # and fills it, minus litter turnover (10 %)
 
 
 def test_bioclimate_hooks_are_neutral_in_v1_and_bite_when_set():

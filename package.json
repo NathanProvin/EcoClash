@@ -11,6 +11,6 @@
     "py:sync": "uv sync --directory tools",
     "py:test": "uv run --directory tools pytest",
     "py:lint": "uv run --directory tools ruff check . && uv run --directory tools ruff format --check .",
-    "proto:flora": "uv run --directory tools python prototype/flora.py"
+    "proto": "uv run --directory tools python -m prototype.match"
   }
 }

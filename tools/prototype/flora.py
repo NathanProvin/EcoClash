@@ -8,14 +8,11 @@ State units match the future integer sim: biomass, soil development, water and l
 [0, U16]; cover, gauge and claim progress in [0, ONE]. Every rule reads the previous state
 (double buffering).
 
-Run: npm run proto:flora -- --seed 1 --minutes 20 [--mode quant] [--compare]
+The scripted match, plots and CLI are in match.py (npm run proto).
 """
 
 from __future__ import annotations
 
-import argparse
-import csv
-import time
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -65,6 +62,7 @@ class State:
     water: np.ndarray  # (N, N) moisture in [0, U16] (V1: constant)
     light: np.ndarray  # (N, N) light in [0, U16] (V1: constant)
     prog: np.ndarray  # (2, N, N) claim progress on empty cells, per player
+    dead: np.ndarray  # (N, N) dead biomass (litter), eaten by decomposers
     t: int = 0  # flora steps done
 
 
@@ -108,6 +106,7 @@ class Flora:
         self.seed_b = self.kmax * f["seed_fraction"]
         self.est_thr = self.kmax * f["establish_threshold"]
         self.smother = self.kmax * f["smother_rate"] * self.dt
+        self.litter = self.rdt * f["litter_fraction"]  # per tick, Q16 (INSTRUCTIONS §5.2 death)
         self.plant_g = np.float64(f["plant_gauge"] * ONE)
         # Soft succession: suitability ramps from 0 at soil_min - soil_ramp to 1 at soil_min.
         mins = np.array(f["soil_min_level"]) * U16
@@ -122,7 +121,7 @@ class Flora:
         )
         if mode == "quant":  # converted once at load, after which everything is integer
             for k in ("kmax", "rdt", "rate", "soil_dt", "cast", "tol", "alpha", "seed_b",
-                      "est_thr", "smother", "plant_g", "soil_min", "soil_ramp", "water0",
+                      "est_thr", "smother", "litter", "plant_g", "soil_min", "soil_ramp", "water0",
                       "light0", "w_opt", "w_tol", "l_opt", "l_tol", "aff"):  # fmt: skip
                 setattr(self, k, round_half_away(getattr(self, k)))
 
@@ -156,6 +155,7 @@ class Flora:
             water=np.full((n, n), self.water0, d),
             light=np.full((n, n), self.light0, d),
             prog=z((2, n, n), d),
+            dead=z((n, n), d),
         )
 
     def response(self, x, opt, tol):
@@ -240,12 +240,17 @@ class Flora:
             mine = established & (owner == p)
             seeds[p] = np.logical_or.reduce([nb(mine, dy, dx) for dy, dx in DIRS]) & (suit > 0)
 
-        # 5. Growth minus smothering by higher enemy levels; species below 1 die (gauge reset).
-        new_bio = bio + growth
+        # 5. Growth, minus litter (turnover) and smothering by higher enemy levels. Litter,
+        #    die-back (negative growth) and smothered biomass become dead biomass.
+        litter = np.where(present, self.div(X(self.litter) * bio, ONE), 0)
+        new_bio = bio + growth - litter
+        smothered = np.zeros_like(bio)
         for p in PLAYERS:
             enemy = (owner == 3 - p) & present
-            new_bio = new_bio - np.where(enemy, self.div(X(self.smother) * attack[p], ONE), 0)
-        new_bio = np.clip(new_bio, 0, U16)
+            smothered = smothered + np.where(enemy, self.div(X(self.smother) * attack[p], ONE), 0)
+        smothered = np.minimum(smothered, np.maximum(new_bio, 0))
+        dead = (litter + smothered + np.maximum(-growth, 0)).sum(0)
+        new_bio = np.clip(new_bio - smothered, 0, U16)
         new_bio = np.where(new_bio < 1, 0, new_bio)
         new_g = np.where(new_bio > 0, gauge, 0)
         new_owner = np.where((new_bio > 0).any(0), owner, 0).astype(np.int8)
@@ -301,250 +306,7 @@ class Flora:
             p: float(np.where((owner == p) & (growth > 0), growth, 0).sum() / self.dt)
             for p in PLAYERS
         }
+        st.dead = st.dead + dead
         st.owner, st.bio, st.gauge, st.soil, st.prog = new_owner, new_bio, new_g, soil, prog
         st.t += 1
         return income
-
-
-# Scripted build orders for player 1: (time_s, species, dy, dx, radius) around the base; offsets
-# are in cells of a 128 map and scale with the map size.
-# Player 2 uses its own order, point-mirrored through the map centre.
-BUILDS = {
-    "forest": (  # pushes shrubs and trees toward the frontier (M0.7)
-        (0, "grasses", 0, 0, 3),
-        (0, "lichen", 0, 8, 3),
-        (150, "clover", 0, 0, 2),
-        (240, "elder", 0, 0, 2),
-        (300, "hawthorn", 6, 0, 2),
-        (360, "elder", 16, 16, 2),
-        (420, "hawthorn", 18, 18, 2),
-        (420, "oak", 0, 0, 2),
-        (540, "oak", 14, 14, 2),
-        (540, "beech", 4, 4, 2),
-    ),
-    "meadow": (
-        (0, "grasses", 0, 0, 3),
-        (0, "lichen", 0, 8, 3),
-        (60, "grasses", 8, 0, 3),
-        (120, "grasses", 8, 8, 3),
-        (150, "clover", 0, 0, 2),
-        (300, "elder", 0, 0, 2),
-    ),
-}
-
-
-def run(
-    flora: Flora,
-    n: int,
-    minutes: float,
-    seed: int,
-    builds=("forest", "meadow"),
-    snap_min=(5, 10, 20),
-):
-    """Play the scripted scenario. An order waits until it can plant at least one cell, like a
-    player waiting for the soil. Returns (metrics rows, {minute: (owner, dominant)}, final state,
-    planting log)."""
-    rng = np.random.default_rng(seed)
-    base = np.array([n // 4, n // 4]) + rng.integers(-2, 3, size=2)
-    yy, xx = np.mgrid[:n, :n]
-    st = flora.new_state(n)
-    orders = {p: sorted(BUILDS[b]) for p, b in zip(PLAYERS, builds, strict=True)}
-    steps = round(minutes * 60 / flora.dt)
-    snap_steps = {round(m * 60 / flora.dt): m for m in snap_min if m <= minutes}
-    rows, snaps, log, taken = [], {}, [], dict.fromkeys(PLAYERS, 0)
-    for i in range(steps + 1):
-        t = i * flora.dt
-        for p in PLAYERS:
-            while orders[p] and orders[p][0][0] <= t:
-                _, name, dy, dx, r = orders[p][0]
-                cy, cx = base + np.round(np.array((dy, dx)) * n / 128).astype(int)
-                if p == 2:
-                    cy, cx = n - 1 - cy, n - 1 - cx
-                cells = flora.plant(st, p, name, (yy - cy) ** 2 + (xx - cx) ** 2 <= r * r)
-                if not cells:
-                    break
-                orders[p].pop(0)
-                log.append((t, p, name, cells))
-        if i in snap_steps:
-            snaps[snap_steps[i]] = (st.owner.copy(), flora.dominant(st))
-        if i == steps:
-            break
-        before = st.owner.copy()
-        income = flora.step(st)
-        dom = flora.dominant(st)
-        row = {"t_s": round(t + flora.dt, 3)}
-        for p in PLAYERS:
-            mine = st.owner == p
-            # Frontier: own cells next to an enemy cell. front_hi: share of it held by L2+.
-            front = mine & np.logical_or.reduce([nb(st.owner == 3 - p, *d) for d in DIRS])
-            row[f"front_p{p}"] = int(front.sum())
-            row[f"front_hi_p{p}"] = float((dom[front] >= 2).mean()) if front.any() else 0.0
-            taken[p] += int((mine & (before == 3 - p)).sum())
-            row[f"taken_p{p}"] = taken[p]
-            row[f"biomass_p{p}"] = float(st.bio.sum(0)[mine].sum())
-            row[f"territory_p{p}"] = float(mine.mean())
-            row[f"income_p{p}"] = income[p]
-            row[f"soil_p{p}"] = float(st.soil[mine].mean() / U16) if mine.any() else 0.0
-            row[f"mixed_p{p}"] = (
-                float(((st.bio > 0).sum(0) >= 2)[mine].mean()) if mine.any() else 0.0
-            )
-        rows.append(row)
-    return rows, snaps, st, log
-
-
-P_COLOR = {1: "#0072B2", 2: "#E69F00"}  # Q-009 default pair, validated for CVD separation
-
-
-def plot(rows, snaps, out: Path):
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    from matplotlib.colors import ListedColormap
-
-    t = np.array([r["t_s"] for r in rows]) / 60
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4), layout="constrained")
-    for ax, (key, title) in zip(
-        axes,
-        (
-            ("biomass", "Standing biomass"),
-            ("territory", "Territory share"),
-            ("income", "Income (growth / s)"),
-        ),
-        strict=True,
-    ):
-        for p in PLAYERS:
-            y = np.array([r[f"{key}_p{p}"] for r in rows])
-            ax.plot(t, y, color=P_COLOR[p], lw=2, label=f"P{p}")
-            ax.annotate(
-                f"P{p}",
-                (t[-1], y[-1]),
-                xytext=(4, 0),
-                textcoords="offset points",
-                va="center",
-                color="#333",
-            )
-        ax.set_title(title, loc="left")
-        ax.set_xlabel("minutes")
-        ax.grid(color="#e5e5e5", lw=0.8)
-        ax.spines[["top", "right"]].set_visible(False)
-        ax.legend(frameon=False)
-    fig.savefig(out / "curves.png", dpi=110)
-    plt.close(fig)
-
-    # Signed dominant level: P2 L3..L1 (orange ramp), bare (grey), P1 L1..L3 (blue ramp).
-    cmap = ListedColormap(
-        ["#8a4b00", "#E69F00", "#f5d08a", "#d9d6cf", "#9ecae9", "#0072B2", "#003d61"]
-    )
-    fig, axes = plt.subplots(
-        1, len(snaps), figsize=(4.5 * len(snaps), 4.5), layout="constrained", squeeze=False
-    )
-    for ax, (m, (owner, dom)) in zip(axes[0], sorted(snaps.items()), strict=True):
-        lv = np.where(owner > 0, np.maximum(dom, 1), 0) * np.where(owner == 2, -1, 1)
-        ax.imshow(lv, cmap=cmap, vmin=-3.5, vmax=3.5, interpolation="nearest")
-        ax.set_title(f"{m} min — dominant level (P1 blue, P2 orange)", loc="left", fontsize=9)
-        ax.set_axis_off()
-    fig.savefig(out / "maps.png", dpi=110)
-    plt.close(fig)
-
-
-# M0.3 comparison variants: (label, Flora keyword arguments). Baseline: float, all switches on.
-VARIANTS = (
-    ("baseline", {}),
-    ("quant", {"mode": "quant"}),
-    *((f"no {s.replace('_', ' ')}", {s: False}) for s in SWITCHES),
-)
-
-
-def compare(balance: dict, n: int, minutes: float, seed: int, builds, out: Path):
-    """Run every variant on the same scenario; write compare.csv and compare.png."""
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
-    results = []
-    for label, kw in VARIANTS:
-        t0 = time.perf_counter()
-        rows, _, _, _ = run(Flora(balance, seed=seed, **kw), n, minutes, seed, builds)
-        results.append((label, rows))
-        last = rows[-1]
-        print(f"{label:<20} {time.perf_counter() - t0:5.1f} s  " + "  ".join(
-            f"P{p} terr {last[f'territory_p{p}']:.1%} bio {last[f'biomass_p{p}']:.3g} "
-            f"mixed {last[f'mixed_p{p}']:.0%}" for p in PLAYERS))  # fmt: skip
-    keys = [k for k in results[0][1][-1] if k != "t_s"]
-    with open(out / "compare.csv", "w", newline="", encoding="utf-8") as fh:
-        w = csv.writer(fh)
-        w.writerow(["variant", *keys])
-        w.writerows([label, *(rows[-1][k] for k in keys)] for label, rows in results)
-
-    # Small multiples: territory share per variant, same axes, P1 blue / P2 orange.
-    fig, axes = plt.subplots(2, 3, figsize=(13, 7), sharex=True, sharey=True, layout="constrained")
-    for ax, (label, rows) in zip(axes.flat, results, strict=True):
-        t = np.array([r["t_s"] for r in rows]) / 60
-        for p in PLAYERS:
-            y = np.array([r[f"territory_p{p}"] for r in rows])
-            ax.plot(t, y, color=P_COLOR[p], lw=2, label=f"P{p} ({builds[p - 1]})")
-            ax.annotate(f"{y[-1]:.0%}", (t[-1], y[-1]), xytext=(4, 0), textcoords="offset points",
-                        va="center", color="#333", fontsize=8)  # fmt: skip
-        ax.set_title(label, loc="left")
-        ax.grid(color="#e5e5e5", lw=0.8)
-        ax.spines[["top", "right"]].set_visible(False)
-    axes[0, 0].legend(frameon=False)
-    for ax in axes[1]:
-        ax.set_xlabel("minutes")
-    fig.suptitle("Territory share by variant", x=0.01, ha="left")
-    fig.savefig(out / "compare.png", dpi=110)
-    plt.close(fig)
-
-
-def main():
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--seed", type=int, default=1)
-    ap.add_argument("--size", type=int, default=128)
-    ap.add_argument("--minutes", type=float, default=20)
-    ap.add_argument("--p1", choices=BUILDS, default="forest")
-    ap.add_argument("--p2", choices=BUILDS, default="meadow")
-    ap.add_argument("--mode", choices=("float", "quant"), default="float")
-    ap.add_argument("--rounding", choices=("floor", "stochastic"), default="floor")
-    ap.add_argument("--out", type=Path, default=Path(__file__).parent / "out")
-    ap.add_argument("--compare", action="store_true", help="M0.3: run every variant (VARIANTS)")
-    for s in SWITCHES:
-        ap.add_argument(f"--no-{s.replace('_', '-')}", dest=s, action="store_false", default=None)
-    a = ap.parse_args()
-    if a.compare:
-        out = a.out / f"compare_seed{a.seed}"
-        out.mkdir(parents=True, exist_ok=True)
-        compare(load_balance(), a.size, a.minutes, a.seed, (a.p1, a.p2), out)
-        print(f"wrote {out}")
-        return
-    flora = Flora(
-        load_balance(),
-        a.mode,
-        a.rounding,
-        a.seed,
-        **{s: getattr(a, s) for s in SWITCHES if getattr(a, s) is not None},
-    )
-    tag = a.mode if a.mode == "float" else f"quant-{a.rounding}"
-    out = a.out / f"{tag}_seed{a.seed}"
-    out.mkdir(parents=True, exist_ok=True)
-    rows, snaps, _, log = run(flora, a.size, a.minutes, a.seed, (a.p1, a.p2))
-    for t, p, name, cells in log:
-        print(f"{t / 60:5.1f} min  P{p} planted {name} ({cells} cells)")
-    with open(out / "metrics.csv", "w", newline="", encoding="utf-8") as fh:
-        w = csv.DictWriter(fh, fieldnames=list(rows[0]))
-        w.writeheader()
-        w.writerows(rows)
-    plot(rows, snaps, out)
-    last = rows[-1]
-    print(
-        " | ".join(
-            f"P{p}: territory {last[f'territory_p{p}']:.1%}, biomass {last[f'biomass_p{p}']:.3g}"
-            for p in PLAYERS
-        )
-    )
-    print(f"wrote {out}")
-
-
-if __name__ == "__main__":
-    main()

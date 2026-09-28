@@ -15,7 +15,8 @@ victory_territory = 0.60 # §2.3, Q-013
 time_limit_s = 1200      # §2.3: 20 min, Q-013
 
 [agents]
-max_agents = 2000        # §5.4 budget
+max_agents = 2000        # §5.4 budget; per player: half
+species_cap = 150        # breeding stops at this many animals of one species per player (D-026)
 
 [net]
 input_delay_ticks = 2    # §10: 200 ms at 10 Hz
@@ -36,6 +37,7 @@ soil_types = ["loam", "sandy", "clay_limestone"]
 seed_fraction = 0.1        # seed rain: biomass added per unit of gauge gained, as a fraction of k_max
 establish_threshold = 0.1  # a stratum counts for the dominant level from this fraction
 smother_rate = 0.15        # enemy strata lose this fraction of k_max per second, per attacking neighbour
+litter_fraction = 0.1       # litter per second = this x growth_rate x biomass (turnover)
 niche_overlap = 0.5        # [Proposed] competition between species of one stratum (1 = full overlap, D-022)
 soil_min_level = [0.1, 0.3, 0.6]  # soil development for full suitability: L1 (non-pioneers), L2, L3
 soil_ramp = 0.1           # suitability ramps from 0 at soil_min - soil_ramp to 1 at soil_min (D-024)
@@ -168,3 +170,183 @@ spread_rate = 0.48
 shade_cast = 0.6
 shade_tolerance = 0.4
 soil_gain = 0.0015
+
+# Fauna agents (gamerules §5.2, §6; D-023). Placeholder values, not tuned (prototype).
+# Energy is in biomass units. Rates are per second; speed and sight are in cells (speed per flora
+# tick). role: decomposer (eats dead biomass), herbivore (eats flora), predator (eats animals).
+# eats / habitat list flora names, "L1".."L3" (every species of that level) or, for predators,
+# fauna names. small = can hide in a refuge. group = animals per spawned card.
+[fauna]
+transfer = 0.1          # share of eaten biomass that becomes the eater's energy (10 % rule)
+own_graze = 0.2         # bite on own flora, relative to enemy flora (gamerules §10)
+soil_per_dead = 0.5     # soil development (u16 units) per unit of dead biomass decomposed
+herbivore_range = 10    # spawn trigger: enemy food within this many cells of own land (§6.3)
+flee_radius = 3         # prey flee enemy hunters closer than this
+refuge_flora = ["hawthorn", "bramble"]
+refuge_cover = 0.5      # summed cover of refuge flora that hides small fauna (D-023)
+
+[fauna.earthworms]
+role = "decomposer"
+eats = ["dead"]
+habitat = ["L1"]
+small = true
+body = 50
+bite = 15
+upkeep = 0.01
+speed = 1
+sight = 4
+group = 10
+
+[fauna.pill_bug]
+role = "decomposer"
+eats = ["dead"]
+habitat = ["moss", "L2", "L3"]
+small = true
+body = 40
+bite = 12
+upkeep = 0.01
+speed = 1
+sight = 4
+group = 10
+
+[fauna.slugs]
+role = "herbivore"
+eats = ["lichen", "moss", "grasses", "clover", "ferns"]
+habitat = ["L1"]
+small = true
+body = 100
+bite = 30
+upkeep = 0.01
+speed = 1
+sight = 5
+group = 8
+
+[fauna.grasshoppers]
+role = "herbivore"
+eats = ["grasses", "clover"]
+habitat = ["grasses"]
+small = true
+body = 80
+bite = 25
+upkeep = 0.012
+speed = 2
+sight = 6
+group = 15
+
+[fauna.caterpillars]
+role = "herbivore"
+eats = ["bramble", "L2", "L3"]
+habitat = ["bramble", "L2"]
+small = true
+body = 120
+bite = 36
+upkeep = 0.01
+speed = 1
+sight = 6
+group = 15
+
+[fauna.voles]
+role = "herbivore"
+eats = ["grasses", "clover"]
+habitat = ["grasses"]
+small = true
+body = 300
+bite = 90
+upkeep = 0.01
+speed = 2
+sight = 6
+group = 6
+
+[fauna.moles]
+role = "predator"
+eats = ["earthworms", "pill_bug", "slugs"]
+habitat = ["L1"]
+small = true
+body = 400
+upkeep = 0.004
+speed = 1
+sight = 6
+group = 1
+
+[fauna.hedgehog]
+role = "predator"
+eats = ["slugs", "earthworms", "caterpillars"]
+habitat = ["L2"]
+small = true
+body = 500
+upkeep = 0.004
+speed = 2
+sight = 6
+group = 1
+
+[fauna.rabbits]
+role = "herbivore"
+eats = ["grasses", "clover", "bramble", "elder", "hawthorn"]
+habitat = ["grasses"]
+small = true
+body = 800
+bite = 240
+upkeep = 0.01
+speed = 3
+sight = 8
+group = 4
+
+[fauna.tits]
+role = "predator"
+eats = ["caterpillars", "grasshoppers", "pill_bug"]
+habitat = ["L2", "L3"]
+body = 200
+upkeep = 0.005
+speed = 4
+sight = 10
+group = 2
+
+[fauna.woodpecker]
+role = "predator"
+eats = ["caterpillars"]
+habitat = ["L3"]
+body = 300
+upkeep = 0.004
+speed = 3
+sight = 10
+group = 1
+
+[fauna.buzzard]
+role = "predator"
+eats = ["voles", "rabbits", "moles", "grasshoppers", "earthworms"]
+habitat = ["L3"]
+body = 1500
+upkeep = 0.003
+speed = 6
+sight = 16
+group = 1
+
+[fauna.fox]
+role = "predator"
+eats = ["rabbits", "voles", "moles", "hedgehog", "grasshoppers", "earthworms"]
+habitat = ["L2"]
+body = 3000
+upkeep = 0.003
+speed = 4
+sight = 12
+group = 1
+
+[fauna.tawny_owl]
+role = "predator"
+eats = ["voles", "moles", "tits", "woodpecker"]
+habitat = ["L3"]
+body = 1200
+upkeep = 0.003
+speed = 5
+sight = 14
+group = 1
+
+[fauna.lynx]
+role = "predator"
+eats = ["rabbits", "fox"]
+habitat = ["L3"]
+body = 6000
+upkeep = 0.002
+speed = 4
+sight = 14
+group = 1

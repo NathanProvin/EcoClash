@@ -4,8 +4,8 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M0.4 fauna agents (unblocked by D-023). M0.7 tuning pass 1 done (D-025): frontier contact 8 min, shrubs at the front 10–11.5 min, frontiers break.
-- **Next:** M0.4 agents and M0.5 economy (unblocked by D-023), M0.6 seed sweep once the flora is tuned.
+- **Now:** M0.5 economy: biomass points bank, unlock and spawn costs, standing-biomass victory (D-018, D-023).
+- **Next:** M1 (`sim-core`). Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
 - **Blocked:**
   - None on design questions for M0.
   - None on the tooling side (Rust ready as of 2026-09-27).
@@ -27,7 +27,7 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [x] M0.1 NumPy float cell model (`tools/prototype/flora.py`): strata, logistic growth + shade, soil development, spread / colonize / smother / frozen frontiers, territory. Species from `balance.toml` `[flora.<id>]`. Mirrored scripted scenario; CSV + plots (biomass, territory %, income).
 - [x] M0.2 Quantized mode: u16 state, Q16.16 rates, the §4 rounding rule, stochastic rounding vs growth floor (resolves Q-015).
 - [x] M0.3 Comparison runs: float vs quant curves, each [Proposed] switch on vs off. Report in JOURNAL.
-- [ ] M0.4 Herbivores + predators as agents (NumPy arrays of positions and energy), reproduction with cap, refuges (D-023).
+- [x] M0.4 Herbivores + predators as agents (NumPy arrays of positions and energy), reproduction with cap, refuges (D-023). Fauna model D-026.
 - [ ] M0.5 Economy / victory metric: standing biomass (D-023).
 - [ ] M0.6 Seed sweep: 100 seeds; all trophic levels of both players coexist at t = 20 min in ≥ 90 % of runs.
 - [ ] M0.7 `balance.toml` filled with the tuned coefficients. DECISIONS entry for the model. (Pass 1, flora frontier timing: D-025.)

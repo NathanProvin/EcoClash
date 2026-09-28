@@ -142,3 +142,7 @@
   - Tests: 39 Python, 11 client. Checked in Chrome (WebGPU).
 - **Fix on the way:** `main()` reused `out` for the replay folder, so metrics and plots landed in the replay folder.
 - **Next:** M1 `sim-core`.
+
+## 2026-09-28 · Cell inspection (D-031)
+- **Done:** Click-to-inspect with a smoky aura, a cell panel (plants cover, animals, soil) and a zoom to plant scale; replay v3 with per-species cover and soil. Tests: 39 Python, 12 client. Checked in Chrome.
+- **Next:** M1 `sim-core` (workspace, `fixed.rs`, `rng.rs`).

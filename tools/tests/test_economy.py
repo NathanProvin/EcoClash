@@ -117,7 +117,7 @@ def test_replay_export_round_trips(tmp_path):
         if tick % FIELD_EVERY == 0:
             owner = np.frombuffer(data, "u1", 24 * 24, pos)
             assert set(owner.tolist()) <= {0, 1, 2}
-            pos += 4 * 24 * 24
+            pos += (2 + len(fl.names)) * 24 * 24
             fields += 1
     assert pos == len(data) and fields == (meta["ticks"] - 1) // FIELD_EVERY + 1
     assert animals > 0

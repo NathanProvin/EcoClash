@@ -5,7 +5,7 @@ import { interpolate, isGzip, Replay, type Animal, type ReplayMeta } from "./rep
 function tiny(): Replay {
   const n = 2;
   const meta: ReplayMeta = {
-    version: 2,
+    version: 3,
     species: [],
     counts: [
       [[3], [1]],
@@ -16,7 +16,7 @@ function tiny(): Replay {
     ticks: 3,
     field_every: 2,
     builds: ["forest", "meadow"],
-    flora: { names: ["grasses"], level: [1] },
+    flora: { names: ["grasses", "elder"], level: [1, 2] },
     fauna: { names: ["rabbits"], role: ["herbivore"] },
     series: { t_s: [0.5, 1.0], territory_p1: [0.25, 0.5] },
     log: [],
@@ -34,6 +34,7 @@ function tiny(): Replay {
       bytes.push(a.species, a.owner);
     }
     if (tick % meta.field_every === 0) {
+      // owner, soil, grasses cover, elder cover
       bytes.push(...[1, 0, 2, tick], ...[255, 0, 0, 0], ...[0, 128, 0, 0], ...[0, 0, 0, 9]);
     }
   });
@@ -48,9 +49,24 @@ describe("Replay", () => {
     const f = r.fields(1); // latest field frame at or before tick 1 is frame 0
     expect(f.frame).toBe(0);
     expect([...f.owner]).toEqual([1, 0, 2, 0]);
-    expect([...(f.cover[1] ?? [])]).toEqual([0, 128, 0, 0]);
+    expect([...f.soil]).toEqual([255, 0, 0, 0]);
+    expect([...(f.cover[0] ?? [])]).toEqual([0, 128, 0, 0]); // L1 = grasses
+    expect([...(f.cover[1] ?? [])]).toEqual([0, 0, 0, 9]); // L2 = elder
     expect([...r.fields(2).owner]).toEqual([1, 0, 2, 2]);
     expect(r.fields(99).frame).toBe(1); // clamped
+  });
+
+  it("describes one cell: owner, soil, plants, animals", () => {
+    const r = tiny();
+    expect(r.cell(0, 0, 0)).toEqual({
+      row: 0,
+      col: 0,
+      owner: 1,
+      soil: 1,
+      plants: [],
+      animals: [{ name: "rabbits", owner: 1, count: 1 }],
+    });
+    expect(r.cell(0, 0, 1).plants).toEqual([{ name: "grasses", level: 1, cover: 128 / 255 }]);
   });
 
   it("reads per-species counts of the latest field frame", () => {

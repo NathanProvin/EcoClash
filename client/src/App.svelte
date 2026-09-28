@@ -1,12 +1,13 @@
 <script lang="ts">
   // RTS shell (D-030): resource bar on top, unit bar at the bottom, full-screen tech tree, and the
-  // 3D view in between. Mouse: left-drag = box select, middle-drag = rotate, right-drag = pan,
-  // wheel = zoom. Keys: WASD / arrows = pan, Q / E = rotate, Home = reset view, Space = play,
+  // 3D view in between. Mouse: click = inspect a cell, left-drag = box select, middle-drag =
+  // rotate, right-drag = pan, wheel = zoom. Keys: WASD / arrows = pan, Q / E = rotate, Home = reset view, Space = play,
   // T = tech tree, Esc = close / clear selection.
   import { onDestroy, onMount } from "svelte";
   import { loadReplay, type Replay } from "./replay/replay";
   import { Viewer, type CameraKeys, type Layer } from "./render/viewer";
   import BottomBar from "./ui/BottomBar.svelte";
+  import CellPanel from "./ui/CellPanel.svelte";
   import TechTree from "./ui/TechTree.svelte";
   import Timeline from "./ui/Timeline.svelte";
   import TopBar from "./ui/TopBar.svelte";
@@ -24,6 +25,8 @@
   let techOpen = $state(false);
   let selection = $state(new Set<number>());
   let focus: string | null = $state(null);
+  let cell = $state<{ row: number; col: number } | null>(null);
+  const cellInfo = $derived(replay && cell ? replay.cell(tick, cell.row, cell.col) : null);
   let box: { x0: number; y0: number; x1: number; y1: number } | null = $state(null);
   let layers: Record<Layer, boolean> = $state({
     territory: true,
@@ -93,6 +96,7 @@
       tick = 0;
       playing = true;
       select([]);
+      inspect(null);
     } catch (e) {
       error = String(e);
     }
@@ -137,10 +141,19 @@
 
   function onPointerUp() {
     if (!box || !viewer) return;
-    const ids = viewer.pick(box.x0, box.y0, box.x1, box.y1, player);
-    select(ids);
-    focus = null;
+    const click = Math.abs(box.x1 - box.x0) < 4 && Math.abs(box.y1 - box.y0) < 4;
+    if (click) {
+      inspect(viewer.pickCell(box.x0, box.y0)); // click: inspect the cell under the cursor
+    } else {
+      select(viewer.pick(box.x0, box.y0, box.x1, box.y1, player)); // drag: box-select animals
+      focus = null;
+    }
     box = null;
+  }
+
+  function inspect(c: { row: number; col: number } | null) {
+    cell = c;
+    viewer?.setCell(c);
   }
 
   function onKey(e: KeyboardEvent, down: boolean) {
@@ -159,6 +172,7 @@
       techOpen = !techOpen;
     } else if (e.code === "Escape") {
       if (techOpen) techOpen = false;
+      else if (cell) inspect(null);
       else select([]);
     } else if (e.code === "Home") {
       viewer?.resetView();
@@ -198,7 +212,7 @@
 <main>
   <canvas
     bind:this={canvas}
-    aria-label="Match view: drag to select your animals"
+    aria-label="Match view: click a cell to inspect it, drag to select your animals"
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}
@@ -244,8 +258,16 @@
       onClear={() => select([])}
     />
     <p class="hint">
-      Drag: select · Middle-drag / Q E: rotate · Right-drag / WASD: pan · Wheel: zoom · T: tech tree
+      Click: inspect cell · Drag: select · Middle-drag / Q E: rotate · Right-drag / WASD: pan ·
+      Wheel: zoom · T: tech tree
     </p>
+    {#if cellInfo && cell}
+      <CellPanel
+        info={cellInfo}
+        onZoom={() => cell && viewer?.zoomToCell(cell)}
+        onClose={() => inspect(null)}
+      />
+    {/if}
     {#if techOpen}
       <TechTree {replay} {tick} {player} onClose={() => (techOpen = false)} />
     {/if}

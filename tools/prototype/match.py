@@ -121,9 +121,11 @@ def run(
             economy.events.clear()
         if record is not None:
             fields = counts = None
-            if i % FIELD_EVERY == 0:  # owner, then cover per stratum, one byte per cell each
-                cover = [np.minimum((st.bio[k] / X(flora.kmax[k])).sum(0), 1) for k in flora.strata]
-                fields = np.stack([st.owner, *(np.round(c * 255) for c in cover)]).astype(np.uint8)
+            if i % FIELD_EVERY == 0:  # owner, soil, then cover per plant species, 1 byte/cell
+                cover = np.minimum(st.bio / X(flora.kmax), 1)
+                soil = st.soil / U16
+                fields = np.concatenate([st.owner[None], np.round(soil * 255)[None],
+                                         np.round(cover * 255)]).astype(np.uint8)  # fmt: skip
                 counts = alive(flora, fauna, st, ag)
             record.append((i, fields, ag.keep(np.arange(len(ag))), counts))
         if i in snap_steps:
@@ -332,7 +334,8 @@ def export_replay(out: Path, balance, flora, fauna, n, record, rows, log, builds
     """Write replay.json (metadata, species table, HUD series, per-species counts, log) and
     frames.bin.gz for the client viewer. frames.bin, little endian, one record per tick: u32
     animal count, then per animal u32 id, u16 y, u16 x, u8 species, u8 owner; on ticks divisible
-    by field_every, 4 x n*n bytes follow (owner, then L1, L2, L3 cover in 0..255)."""
+    by field_every, (2 + plant species) x n*n bytes follow: owner, soil development (0..255),
+    then the cover of each plant species (0..255, species-table order)."""
     out.mkdir(parents=True, exist_ok=True)
     rec = np.dtype([("id", "<u4"), ("y", "<u2"), ("x", "<u2"), ("sp", "u1"), ("owner", "u1")])
     with gzip.open(out / "frames.bin.gz", "wb", compresslevel=6) as fh:
@@ -344,7 +347,7 @@ def export_replay(out: Path, balance, flora, fauna, n, record, rows, log, builds
                 fh.write(fields.tobytes())
     keys = [k for k in rows[0] if k.endswith(("_p1", "_p2"))]
     meta = {
-        "version": 2,
+        "version": 3,
         "n": n,
         "dt": flora.dt,
         "ticks": len(record),

@@ -337,3 +337,11 @@ Template:
   - A slim replay timeline sits above the unit bar (replay only).
   - Plants are scattered naturally: up to 5 dots, 3 cones or 2 cubes per cell, with deterministic random offset, size and angle, the count following cover (D-029).
 - **Not yet:** orders and spawning from the UI (needs the live sim: M1–M3), minimap, plant selection highlight.
+
+## D-031 · 2026-09-28 · Cell inspection (click), aura, zoom to plant scale
+- **Status:** accepted (user request)
+- **Decision:**
+  - A plain click on the map inspects the cell under the cursor (ground-plane raycast); a drag still box-selects animals (D-030). Esc clears the cell first, then the selection.
+  - **Aura:** a foggy, smoky light-grey ring (three soft layers through the plant height, drifting in opposite directions and gently breathing) marks the selected cell.
+  - **Cell panel** (floating, top right): owner, soil development, cover of each plant species present, the animals standing on the cell by species and owner, and a "Zoom to plant scale" button that flies the camera down (0.8 s ease-out) until single plant models fill the view. The wheel can now zoom that close too (min distance 2 m, near plane 0.1).
+  - **Replay v3:** each field frame stores owner, soil development and the cover of each plant species (1 byte each per cell); the viewer derives the per-stratum cover from the species.

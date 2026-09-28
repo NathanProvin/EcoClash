@@ -48,6 +48,10 @@ export class Viewer {
     1: { animal: new THREE.Color(PLAYER[1].animal), predator: new THREE.Color(PLAYER[1].predator) },
     2: { animal: new THREE.Color(PLAYER[2].animal), predator: new THREE.Color(PLAYER[2].predator) },
   };
+  private readonly aura: THREE.Group; // smoky ring over the selected cell
+  private readonly raycaster = new THREE.Raycaster();
+  private flight: { from: THREE.Vector3[]; to: THREE.Vector3[]; t: number } | undefined;
+  private lastTime = 0;
   private lastFrame = -1;
   private showTerritory = true;
   private shown: Animal[] = [];
@@ -73,7 +77,7 @@ export class Viewer {
     sun.position.set(-size, size * 0.6, -size * 0.4);
     this.scene.add(sun);
 
-    this.camera = new THREE.PerspectiveCamera(40, 1, 0.5, size * 6);
+    this.camera = new THREE.PerspectiveCamera(40, 1, 0.1, size * 6);
     this.controls = new MapControls(this.camera, canvas);
     // RTS mouse: left = box select (handled by the UI), middle = rotate, right = pan (orders
     // take the right button in M3), wheel = zoom toward the cursor.
@@ -82,7 +86,7 @@ export class Viewer {
     this.controls.enableDamping = true;
     this.controls.minPolarAngle = 0.15; // limited tilt (INSTRUCTIONS §2.4)
     this.controls.maxPolarAngle = 1.05;
-    this.controls.minDistance = 10;
+    this.controls.minDistance = 2; // close enough to see single plant models
     this.controls.maxDistance = size * 2.2;
     this.resetView();
 
@@ -103,6 +107,9 @@ export class Viewer {
     const cube = new THREE.BoxGeometry(0.85, 0.85, 0.85).translate(0, 1.6, 0);
     this.strata = [dot, cone, cube].map((g, s) => this.instanced(g, cells * SLOTS[s as 0], 0.9));
     this.scatter = SLOTS.map((slots, s) => scatterTable(cells * slots, 1 + s));
+
+    this.aura = makeAura();
+    this.scene.add(this.aura);
 
     const most = replay.maxAnimals();
     this.animals = {
@@ -169,6 +176,41 @@ export class Viewer {
     this.selected = new Set(ids);
   }
 
+  /** The grid cell under a screen point (CSS pixels of the canvas), or null off the map. */
+  pickCell(x: number, y: number): { row: number; col: number } | null {
+    const { clientWidth: w, clientHeight: h } = this.canvas;
+    this.raycaster.setFromCamera(new THREE.Vector2((x / w) * 2 - 1, 1 - (y / h) * 2), this.camera);
+    const hit = this.raycaster.ray.intersectPlane(
+      new THREE.Plane(new THREE.Vector3(0, 1, 0), 0),
+      new THREE.Vector3(),
+    );
+    const n = this.replay.meta.n;
+    if (!hit) return null;
+    const col = Math.floor(hit.x / CELL + n / 2);
+    const row = Math.floor(hit.z / CELL + n / 2);
+    return row >= 0 && row < n && col >= 0 && col < n ? { row, col } : null;
+  }
+
+  /** Show the aura over a cell, or hide it (null). */
+  setCell(cell: { row: number; col: number } | null): void {
+    this.aura.visible = cell !== null;
+    if (cell) this.aura.position.copy(cellCenter(cell, this.replay.meta.n));
+  }
+
+  /** Fly the camera down to a cell until single plant models fill the view. */
+  zoomToCell(cell: { row: number; col: number }): void {
+    const target = cellCenter(cell, this.replay.meta.n);
+    const dir = new THREE.Vector3().subVectors(this.camera.position, this.controls.target);
+    dir.y = 0;
+    dir.normalize();
+    const eye = target.clone().addScaledVector(dir, 3.2).setY(2.6);
+    this.flight = {
+      from: [this.camera.position.clone(), this.controls.target.clone()],
+      to: [eye, target],
+      t: 0,
+    };
+  }
+
   /** Keyboard camera: pan along the ground in the view direction, rotate around the target. */
   moveCamera(keys: CameraKeys, seconds: number): void {
     const dist = this.camera.position.distanceTo(this.controls.target);
@@ -195,12 +237,26 @@ export class Viewer {
 
   /** Draw the replay at a fractional tick. */
   render(tick: number): void {
+    const now = performance.now() / 1000;
+    const dt = Math.min(now - (this.lastTime || now), 0.1);
+    this.lastTime = now;
     const fields = this.replay.fields(tick);
     if (fields.frame !== this.lastFrame) {
       this.lastFrame = fields.frame;
       this.paintFields(fields.owner, fields.cover);
     }
     this.placeAnimals(tick);
+    animateAura(this.aura, now);
+    if (this.flight) {
+      const f = this.flight;
+      f.t = Math.min(f.t + dt / 0.8, 1);
+      const e = 1 - (1 - f.t) ** 3; // ease out
+      const [p0, t0] = f.from as [THREE.Vector3, THREE.Vector3];
+      const [p1, t1] = f.to as [THREE.Vector3, THREE.Vector3];
+      this.camera.position.lerpVectors(p0, p1, e);
+      this.controls.target.lerpVectors(t0, t1, e);
+      if (f.t >= 1) this.flight = undefined;
+    }
     this.controls.update();
     void this.renderer.render(this.scene, this.camera);
   }
@@ -299,6 +355,65 @@ export class Viewer {
     this.controls.dispose();
     this.renderer.dispose();
   }
+}
+
+function cellCenter(cell: { row: number; col: number }, n: number): THREE.Vector3 {
+  return new THREE.Vector3((cell.col - n / 2 + 0.5) * CELL, 0, (cell.row - n / 2 + 0.5) * CELL);
+}
+
+/** A foggy, smoky light-grey ring: three soft layers stacked through the plant height, each a
+ *  radial ring with smoke puffs, drifting in opposite directions. */
+function makeAura(): THREE.Group {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 256;
+  const g = canvas.getContext("2d");
+  if (!g) throw new Error("2D canvas unavailable");
+  const ring = g.createRadialGradient(128, 128, 36, 128, 128, 128);
+  ring.addColorStop(0, "rgba(232,234,236,0)");
+  ring.addColorStop(0.55, "rgba(232,234,236,0.5)");
+  ring.addColorStop(0.72, "rgba(232,234,236,0.32)");
+  ring.addColorStop(1, "rgba(232,234,236,0)");
+  g.fillStyle = ring;
+  g.fillRect(0, 0, 256, 256);
+  const random = scatterTable(48, 97);
+  for (let i = 0; i < 48; i++) {
+    const [a, r, s] = [
+      random[i * 4 + 3] ?? 0,
+      78 + (random[i * 4] ?? 0) * 50,
+      10 + (random[i * 4 + 2] ?? 1) * 14,
+    ];
+    const [x, y] = [128 + Math.cos(a) * r, 128 + Math.sin(a) * r];
+    const puff = g.createRadialGradient(x, y, 0, x, y, s);
+    puff.addColorStop(0, "rgba(240,241,243,0.22)");
+    puff.addColorStop(1, "rgba(240,241,243,0)");
+    g.fillStyle = puff;
+    g.fillRect(x - s, y - s, s * 2, s * 2);
+  }
+  const map = new THREE.CanvasTexture(canvas);
+  map.colorSpace = THREE.SRGBColorSpace;
+  const group = new THREE.Group();
+  [0.08, 0.9, 1.8].forEach((height, i) => {
+    const material = new THREE.MeshBasicNodeMaterial({ map, transparent: true, depthWrite: false });
+    material.opacity = [0.9, 0.55, 0.3][i] ?? 0.3;
+    const layer = new THREE.Mesh(
+      new THREE.PlaneGeometry(CELL * (2.6 + i * 0.5), CELL * (2.6 + i * 0.5)).rotateX(-Math.PI / 2),
+      material,
+    );
+    layer.position.y = height;
+    layer.renderOrder = 10;
+    group.add(layer);
+  });
+  group.visible = false;
+  return group;
+}
+
+function animateAura(aura: THREE.Group, seconds: number): void {
+  if (!aura.visible) return;
+  aura.children.forEach((layer, i) => {
+    layer.rotation.y = seconds * (i % 2 ? -0.35 : 0.25);
+    const breathe = 1 + Math.sin(seconds * 1.6 + i) * 0.06;
+    layer.scale.set(breathe, 1, breathe);
+  });
 }
 
 /** Deterministic per-slot randomness (dx, dz in -0.42..0.42 of a cell, size 0.8..1.2, angle). */

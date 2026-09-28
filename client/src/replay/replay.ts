@@ -23,7 +23,26 @@ export interface Species {
   };
 }
 
-export const REPLAY_VERSION = 2;
+export const REPLAY_VERSION = 3;
+
+/** Flora fields of one field frame. Arrays view the replay buffer, one byte per cell. */
+export interface Fields {
+  frame: number;
+  owner: Uint8Array; // 0 none, 1 or 2
+  soil: Uint8Array; // soil development 0..255
+  species: Uint8Array[]; // cover 0..255 per plant species (species-table order)
+  cover: Uint8Array[]; // cover 0..255 per stratum L1..L3 (sum of its species, capped)
+}
+
+/** What stands on one cell at one tick (the cell panel). */
+export interface CellInfo {
+  row: number;
+  col: number;
+  owner: number;
+  soil: number; // 0..1
+  plants: { name: string; level: number; cover: number }[]; // cover 0..1
+  animals: { name: string; owner: number; count: number }[];
+}
 
 export interface ReplayMeta {
   version: number;
@@ -56,6 +75,8 @@ export class Replay {
   private readonly view: DataView;
   private readonly animalAt: number[] = []; // byte offset of each tick's animal record
   private readonly fieldAt: number[] = []; // byte offset of each field frame
+  private readonly layers: number; // owner, soil, then one per plant species
+  private cached: Fields | undefined;
 
   constructor(meta: ReplayMeta, frames: ArrayBuffer) {
     if (meta.version !== REPLAY_VERSION) {
@@ -65,6 +86,7 @@ export class Replay {
     }
     this.meta = meta;
     this.view = new DataView(frames);
+    this.layers = 2 + meta.flora.names.length;
     const cells = meta.n * meta.n;
     let pos = 0;
     for (let tick = 0; tick < meta.ticks; tick++) {
@@ -72,7 +94,7 @@ export class Replay {
       pos += 4 + ANIMAL_BYTES * this.view.getUint32(pos, true);
       if (tick % meta.field_every === 0) {
         this.fieldAt.push(pos);
-        pos += 4 * cells;
+        pos += this.layers * cells;
       }
     }
     if (pos !== frames.byteLength) {
@@ -97,17 +119,52 @@ export class Replay {
     return out;
   }
 
-  /** Flora fields of the latest field frame at or before `tick`: owner, then cover of L1..L3
-   *  (0..255), one byte per cell each. The arrays view the replay buffer (no copy). */
-  fields(tick: number): { frame: number; owner: Uint8Array; cover: Uint8Array[] } {
+  /** Flora fields of the latest field frame at or before `tick` (cached per frame). */
+  fields(tick: number): Fields {
     const frame = Math.min(
       Math.floor(clampTick(tick, this.meta.ticks) / this.meta.field_every),
       this.fieldAt.length - 1,
     );
+    if (this.cached?.frame === frame) return this.cached;
     const cells = this.meta.n * this.meta.n;
     const at = this.fieldAt[frame] ?? 0;
     const layer = (k: number) => new Uint8Array(this.view.buffer, at + k * cells, cells);
-    return { frame, owner: layer(0), cover: [layer(1), layer(2), layer(3)] };
+    const species = this.meta.flora.names.map((_, i) => layer(2 + i));
+    const cover = [1, 2, 3].map((level) => {
+      const sum = new Uint8Array(cells);
+      species.forEach((c, i) => {
+        if (this.meta.flora.level[i] !== level) return;
+        for (let k = 0; k < cells; k++) sum[k] = Math.min(255, (sum[k] ?? 0) + (c[k] ?? 0));
+      });
+      return sum;
+    });
+    this.cached = { frame, owner: layer(0), soil: layer(1), species, cover };
+    return this.cached;
+  }
+
+  /** Plants (cover per species) and animals (count per species and owner) on one cell. */
+  cell(tick: number, row: number, col: number): CellInfo {
+    const f = this.fields(tick);
+    const k = row * this.meta.n + col;
+    const { names, level } = this.meta.flora;
+    const plants = names
+      .map((name, i) => ({ name, level: level[i] ?? 1, cover: (f.species[i]?.[k] ?? 0) / 255 }))
+      .filter((p) => p.cover > 0);
+    const herd: Record<string, { name: string; owner: number; count: number }> = {};
+    for (const a of this.animals(Math.round(tick))) {
+      if (a.y !== row || a.x !== col) continue;
+      const name = this.meta.fauna.names[a.species] ?? "?";
+      const key = `${name}:${a.owner}`;
+      herd[key] = { name, owner: a.owner, count: (herd[key]?.count ?? 0) + 1 };
+    }
+    return {
+      row,
+      col,
+      owner: f.owner[k] ?? 0,
+      soil: (f.soil[k] ?? 0) / 255,
+      plants,
+      animals: Object.values(herd),
+    };
   }
 
   /** Cells per plant species / animals per animal species for a player (1 or 2), from the latest

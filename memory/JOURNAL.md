@@ -166,3 +166,10 @@
   - 26 Rust tests: same inputs → same hash every tick, submission order irrelevant, planting re-hashes at once, incremental = full recompute (partial edge chunks), deterministic rejection.
 - **Finding:** a flora tick costs 107 ms at 256² (release) → M1.9 optimization, guarded by the parity test.
 - **Next:** M1.5 balance hash, M1.6 `sim-cli`, M1.9 performance.
+
+## 2026-09-28 · M1.5 balance hash, M1.6 sim-cli (D-037)
+- **Done:**
+  - Balance hash over converted values (formatting-proof, change-sensitive).
+  - `sim-cli run` with per-tick hashes and per-flora-tick metrics.
+  - Python cross-check: exact match with the prototype over 240 flora ticks (48²), in pytest so CI runs it.
+- **Next:** M1.7 `proptest` determinism tests, M1.9 flora performance, M1.8 `sim-wasm` + native-vs-WASM hash in CI.

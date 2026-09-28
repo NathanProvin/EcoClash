@@ -301,7 +301,7 @@ Quality presets (low / medium / high): grass density, shadows, post-processing, 
 
 - `tools/prototype/`: NumPy notebooks for the ecological model. This is where rules are validated **before** being ported to Rust.
 - Prototype quantization: the M0 notebook has a float mode and a **quantized mode** (u16 fields, same rounding as §4). Truncation effects should show up before the port, not after.
-- `sim-cli` (M1): `sim-cli run --seed N --balance data/balance.toml --commands file.jsonl --ticks T --out metrics.csv`. It prints the per-tick hash and writes metrics. Python tools call it as a subprocess and read the CSV.
+- `sim-cli` (M1): `sim-cli run --seed N --balance data/balance.toml --species data/species.toml --commands file.jsonl --ticks T [--size N] --out metrics.csv [--hashes hashes.csv]`. It prints the per-tick hash and writes metrics. Python tools call it as a subprocess and read the CSV.
 - `sim-py` (M4+, only if needed): exposes `World.new(seed, balance_path)`, `step(commands)`, `snapshot()` (NumPy views) and `hash()`. It is added when AI training needs in-process stepping.
 - `tools/balance/`: batch headless matches (thousands of seeds) via `sim-cli`, with metrics such as match length, win-rate by strategy and collapse frequency. Results are written to Parquet.
 - `tools/ai/`: v1 uses a scripted AI (Rust crate `sim-ai`, deterministic, command-only, see §6). Later, learned policies are trained with `sim-py`.

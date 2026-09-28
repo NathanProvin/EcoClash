@@ -7,7 +7,8 @@
 
 use xxhash_rust::xxh64::Xxh64;
 
-use crate::flora::FloraState;
+use crate::balance::Balance;
+use crate::flora::{FloraParams, FloraState};
 
 /// Seed of every xxHash64 in the simulation.
 pub const SEED: u64 = 0;
@@ -143,6 +144,31 @@ impl FieldHashes {
     }
 }
 
+/// Bumped whenever the set or order of hashed balance values changes.
+pub const BALANCE_HASH_VERSION: u64 = 1;
+
+/// The balance hash (INSTRUCTIONS §4, §10): the values the simulation uses, **after** conversion
+/// to fixed-point, never the file bytes. Formatting, comments, CRLF / LF and changes below the
+/// fixed-point resolution leave it unchanged. Peers and replays compare it before a match.
+/// Stats that no ported system reads yet (costs, yields, fauna) join when their system does.
+#[must_use]
+pub fn balance_hash(b: &Balance) -> u64 {
+    let mut h = Hasher::new();
+    h.u64(BALANCE_HASH_VERSION);
+    let s = &b.sim;
+    for v in [
+        s.tick_hz,
+        s.flora_every_ticks,
+        s.env_every_ticks,
+        s.grid_size,
+        s.chunk_size,
+    ] {
+        h.u64(u64::from(v));
+    }
+    FloraParams::from_balance(b).hash_into(&mut h);
+    h.finish()
+}
+
 /// The whole flora state in one hash (tests only: too slow per tick at full size).
 #[must_use]
 pub fn full_hash(st: &FloraState) -> u64 {
@@ -163,6 +189,29 @@ pub fn full_hash(st: &FloraState) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const BALANCE: &str = include_str!("../../data/balance.toml");
+    const SPECIES: &str = include_str!("../../data/species.toml");
+
+    fn hash_of(balance: &str, species: &str) -> u64 {
+        balance_hash(&Balance::from_toml(balance, species).expect("loads"))
+    }
+
+    #[test]
+    fn balance_hash_ignores_formatting_but_not_values() {
+        let base = hash_of(BALANCE, SPECIES);
+        let crlf = SPECIES.replace('\n', "\r\n");
+        let noisy = SPECIES.replace("growth = 1.2\n", "growth   =   1.2   # comment\n");
+        assert_eq!(hash_of(BALANCE, &crlf), base, "line endings");
+        assert_eq!(hash_of(BALANCE, &noisy), base, "spacing and comments");
+        // Below the fixed-point resolution (1 / 65536 of the per-tick scale): same values.
+        let tiny = SPECIES.replacen("growth = 1.2\n", "growth = 1.200000001\n", 1);
+        assert_eq!(hash_of(BALANCE, &tiny), base, "sub-resolution change");
+        let real = SPECIES.replacen("growth = 1.2\n", "growth = 1.25\n", 1);
+        assert_ne!(hash_of(BALANCE, &real), base, "a real change");
+        let rule = BALANCE.replace("smother_rate = 0.15", "smother_rate = 0.2");
+        assert_ne!(hash_of(&rule, SPECIES), base, "a rule change");
+    }
 
     #[test]
     fn xxh64_known_answers() {

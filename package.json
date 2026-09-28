@@ -20,7 +20,8 @@
     "rs:test": "cargo test --workspace",
     "rs:lint": "cargo fmt --check && cargo clippy --workspace --all-targets -- -D warnings",
     "rs:wasm": "cargo build -p sim-core --target wasm32-unknown-unknown --release",
-    "rs:fixture": "uv run --directory tools python -m prototype.fixture"
+    "rs:fixture": "uv run --directory tools python -m prototype.fixture",
+    "cli:check": "uv run --directory tools python -m prototype.cli_check"
   },
   "workspaces": [
     "client"

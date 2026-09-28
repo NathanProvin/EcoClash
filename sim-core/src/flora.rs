@@ -148,6 +148,48 @@ impl FloraParams {
     pub fn index(&self, name: &str) -> Option<usize> {
         self.names.iter().position(|n| n == name)
     }
+
+    /// Feed every converted value to a hasher, in a fixed order (balance hash, M1.5).
+    pub fn hash_into(&self, h: &mut crate::hash::Hasher) {
+        h.u64(self.names.len() as u64);
+        for name in &self.names {
+            h.u64(name.len() as u64).bytes(name.as_bytes());
+        }
+        h.bytes(&self.level);
+        for v in [
+            &self.kmax,
+            &self.rdt,
+            &self.rate,
+            &self.soil_dt,
+            &self.cast,
+            &self.tol,
+            &self.seed_b,
+            &self.est_thr,
+            &self.smother,
+            &self.litter,
+            &self.soil_min,
+            &self.w_opt,
+            &self.w_tol,
+            &self.l_opt,
+            &self.l_tol,
+            &self.cap,
+        ] {
+            h.i64s(v);
+        }
+        for row in &self.aff {
+            h.i64s(row);
+        }
+        h.i64(self.alpha)
+            .i64(self.plant_g)
+            .i64(self.soil_ramp)
+            .i64(self.water0)
+            .i64(self.light0);
+        h.bytes(&[
+            u8::from(self.succession),
+            u8::from(self.shade),
+            u8::from(self.contested_cells),
+        ]);
+    }
 }
 
 /// The flora grid. Per-species arrays are species-major: `bio[s * cells + k]`.

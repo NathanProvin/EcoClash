@@ -392,3 +392,10 @@ Template:
   - **World:** tick = commands → (agents, M3) → flora every `flora_every_ticks` → (environment, constant in V1) → hash. It owns the PCG32, seeded per match.
   - **Crate (rule 5):** `xxhash-rust` (xxh64 only): the spec mandates xxHash64, and its algorithm is frozen, so it cannot drift like `rand`; the known answers are tested.
 - **Finding:** 107 ms per flora tick at 256² in release (budget 8 ms per tick) → ROADMAP M1.9.
+
+## D-037 · 2026-09-28 · Balance hash and `sim-cli` (M1.5, M1.6)
+- **Status:** accepted
+- **Decision:**
+  - **Balance hash** (`hash::balance_hash`): xxh64 over a version number, the `[sim]` integers and every converted flora value (species names in order, levels, per-species fixed-point arrays, global rules, switches). It is computed **after** conversion, never over file bytes. Tested: CRLF, spacing, comments and sub-resolution edits keep it; real stat or rule changes alter it. Stats not read by a ported system yet (costs, yields, fauna) join it with their system. Peers compare it in the handshake (M6); `sim-cli` prints it.
+  - **`sim-cli`** (new workspace binary; deps `sim-core` + `serde_json`; std-only argument parsing): `run --seed --ticks [--commands file.jsonl] [--size] [--balance] [--species] [--out metrics.csv] [--hashes hashes.csv]`. It prints the balance hash and final state hash; metrics once per flora tick (territory, biomass, cells per species per player); hashes once per tick.
+  - **Cross-check** (`tools/prototype/cli_check.py`, `npm run cli:check`, `tests/test_cli.py`): one command file (both players, an order between flora ticks, two orders in one tick) through `sim-cli` and through the quant prototype with the same command semantics. Every flora tick must match exactly (240 of 240 at 48²). Shifting one order by one flora tick is detected.

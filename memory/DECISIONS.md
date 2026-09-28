@@ -382,3 +382,13 @@ Template:
   - Remote `origin` = https://github.com/NathanProvin/EcoClash, with CI on every push.
   - GitHub's email privacy refused the first push, so this repo's `user.email` is the noreply address `77007242+NathanProvin@users.noreply.github.com`. The 22 local, never-pushed commits were rewritten to it (dates and messages kept).
 - **Consequences:** Supersedes D-015.
+
+## D-036 · 2026-09-28 · Commands, hashing, snapshots, tick loop (M1.4)
+- **Status:** accepted
+- **Decision:**
+  - **Commands** `{tick, player, seq, payload}` sit in a `BTreeMap` queue and are applied at the start of their tick in (player, seq) order, whatever the submission order. The first payload is `Plant { species (by name), row, col, radius }` (gamerules §8 disc). Invalid commands (unknown species, bad player, off-map, late, duplicate) are ignored and counted in `rejected`, identically on every peer. Commands serialize to JSON (`{"type":"plant",...}`) for command files and replays. Plant costs and unlocks stay in the prototype economy until M4.
+  - **Hash:** xxHash64 (seed 0) of canonical little-endian bytes. Fields are hashed per 32×32 chunk; chunks are re-hashed only when dirty (all on flora ticks, touched chunks on a Plant). World hash per tick = (tick, flora ticks, rejected, RNG state, digest of chunk hashes). Chunk hashes can locate a desync (M6). `full_hash` is for tests.
+  - **Snapshot:** a copy in display bytes (owner, soil 0..255, cover per species 0..255). `field_frame()` is exactly the replay v3 layout the viewer decodes, so the worker (M2) can feed the renderer without changing it.
+  - **World:** tick = commands → (agents, M3) → flora every `flora_every_ticks` → (environment, constant in V1) → hash. It owns the PCG32, seeded per match.
+  - **Crate (rule 5):** `xxhash-rust` (xxh64 only): the spec mandates xxHash64, and its algorithm is frozen, so it cannot drift like `rand`; the known answers are tested.
+- **Finding:** 107 ms per flora tick at 256² in release (budget 8 ms per tick) → ROADMAP M1.9.

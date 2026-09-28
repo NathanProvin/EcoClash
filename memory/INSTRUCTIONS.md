@@ -107,6 +107,9 @@ EcoClash/
 │   │   ├── rules/           # growth, spread, grazing, predation, decomposition
 │   │   ├── agents/          # hand-rolled SoA ECS, generational entity ids
 │   │   ├── pathing/         # flow fields
+│   │   ├── balance.rs       # balance.toml + species.toml, parsed and validated at runtime (D-034)
+│   │   ├── flora.rs         # flora cell model (exact port of the prototype's quant mode)
+│   │   ├── world.rs         # world + tick loop (multi-rate scheduler)
 │   │   ├── commands.rs      # player commands, timestamped by tick
 │   │   ├── snapshot.rs      # read-only view for renderers / tools
 │   │   └── hash.rs          # per-tick state checksum

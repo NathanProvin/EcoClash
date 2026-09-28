@@ -29,6 +29,12 @@ impl Pcg32 {
         rng
     }
 
+    /// The generator's internal state (state, increment), for the world hash.
+    #[must_use]
+    pub fn state(&self) -> (u64, u64) {
+        (self.state, self.inc)
+    }
+
     /// The next 32 random bits.
     pub fn next_u32(&mut self) -> u32 {
         let old = self.state;

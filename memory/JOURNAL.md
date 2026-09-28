@@ -159,3 +159,10 @@
   - `sim-core`: `balance.rs` (runtime TOML loading and validation) and `flora.rs` (the full flora step), with exact parity with the prototype over 300 ticks (mutation-checked).
   - 14 Rust tests; clippy clean; wasm32 builds.
 - **Next:** M1.4 commands / hash / snapshot and the tick scheduler, M1.5 balance hash, M1.6 `sim-cli`.
+
+## 2026-09-28 · M1.4 commands, hash, snapshot, tick loop (D-036)
+- **Done:**
+  - `commands.rs` (ordered queue, JSON), `hash.rs` (xxh64, incremental chunk hashes), `snapshot.rs` (replay-layout field frame), `world.rs` (tick loop, flora every 5 ticks, seeded RNG).
+  - 26 Rust tests: same inputs → same hash every tick, submission order irrelevant, planting re-hashes at once, incremental = full recompute (partial edge chunks), deterministic rejection.
+- **Finding:** a flora tick costs 107 ms at 256² (release) → M1.9 optimization, guarded by the parity test.
+- **Next:** M1.5 balance hash, M1.6 `sim-cli`, M1.9 performance.

@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** first visualization: replay viewer on Python prototype replays, placeholder shapes (D-028).
+- **Now:** replay viewer v1 done (D-028). Next: pick between interactive input on the replay viewer and M1 (`sim-core`).
 - **Next:** M1 (`sim-core`). Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
 - **Blocked:**
   - None on design questions for M0.
@@ -43,9 +43,9 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [ ] M1.8 `sim-wasm` + Node headless runner. CI checks the native vs WASM hash. `npm run doctor` checks that the `wasm-bindgen-cli` version matches `Cargo.lock` (D-008).
 
 ## M2 · Web render of fields
-- [ ] Replay viewer (early M2, D-028): the Python prototype exports replays; the Vite + TS + Svelte + Three.js client plays them back with placeholder shapes, an RTS camera and a HUD.
+- [x] Replay viewer (early M2, D-028): the Python prototype exports replays; the Vite + TS + Svelte + Three.js client plays them back with placeholder shapes, an RTS camera and a HUD.
 - [ ] Resolve Q-008 (scale), Q-009 (colours), Q-010 (reference machine).
-- [ ] Vite + TS + Svelte scaffold as an npm workspace (`client/`). COOP/COEP headers in dev and `_headers`.
+- [ ] Vite + TS + Svelte scaffold as an npm workspace (`client/`) — done with the viewer; still to do: COOP/COEP headers in dev and `_headers`.
 - [ ] Worker hosting `sim-wasm`, SharedArrayBuffer snapshots (fields at their update rate only).
 - [ ] Three.js WebGPURenderer: terrain, flora textures, instanced grass, RTS camera.
 - [ ] Perf check: 60 fps at 512² on the reference machine.

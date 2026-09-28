@@ -117,6 +117,7 @@ EcoClash/
 ├── relay/                   # (M6) WebSocket lockstep relay server (forwards commands, compares hashes)
 ├── client/                  # TypeScript + Vite front-end
 │   ├── src/
+│   │   ├── replay/          # replay loader (Python prototype replays until the worker exists, D-028)
 │   │   ├── worker/          # Web Worker hosting sim-wasm
 │   │   ├── render/          # Three.js (WebGPURenderer), TSL shaders
 │   │   ├── ui/              # Svelte components (menus, HUD, minimap)

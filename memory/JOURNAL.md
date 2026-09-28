@@ -117,3 +117,16 @@
 - **Result:** P1 wins on biomass at 20 min (seed 1, 128²).
 - **Decisions:** D-027. The user chose the replay viewer first, with strata and role placeholder shapes (D-028, next).
 - **Next:** replay export + client viewer.
+
+## 2026-09-28 · Replay viewer v1 (D-028)
+- **Goal:** First visualization and UI with placeholder shapes.
+- **Done:**
+  - Python: persistent agent ids; `--replay` export (4.3 MB gz for a 20-min 128² match) with a round-trip test.
+  - Client (`client/`): replay loader and decoder, Three.js viewer (instanced dots / cones / cubes, animal spheres and pyramids, territory-tinted ground, RTS camera), Svelte HUD, timeline and legend.
+  - 6 Vitest tests; lint, type check and build clean.
+  - Verified in Chrome on the WebGPU backend: territory tint matches the flora; animals are visible at the front (herds, decomposers, predator raids).
+- **Fixes on the way:**
+  - Vite sends `.gz` with Content-Encoding (magic-byte check before decompressing);
+  - ground texture rows were flipped;
+  - animals blended into the plants (now unlit, bigger, raised, light tints).
+- **Next:** the user chooses: input on the viewer, or M1 `sim-core`.

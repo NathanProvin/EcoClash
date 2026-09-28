@@ -1,0 +1,49 @@
+/* Minimal, clean UI (INSTRUCTIONS §8): one sans-serif font, the palette's player colours. */
+:root {
+  --ink: #1d2327;
+  --ink-soft: #55606a;
+  --panel: rgba(250, 250, 247, 0.9);
+  --line: #d8dcd6;
+  --p1: #0072b2;
+  --p2: #e69f00;
+  --focus: #0b57d0;
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  color: var(--ink);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #dfe8ec;
+}
+
+button,
+select,
+input {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  backdrop-filter: blur(6px);
+  padding: 8px 12px;
+}

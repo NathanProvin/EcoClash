@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import argparse
 import csv
+import gzip
+import json
 import time
 from pathlib import Path
 
@@ -14,7 +16,10 @@ import numpy as np
 
 from prototype.economy import Economy
 from prototype.fauna import DECOMPOSER, HERBIVORE, PREDATOR, Agents, Fauna
-from prototype.flora import DIRS, PLAYERS, SWITCHES, U16, Flora, load_balance, nb
+from prototype.flora import DIRS, PLAYERS, SWITCHES, U16, Flora, X, load_balance, nb
+
+REPLAYS = Path(__file__).resolve().parents[2] / "client" / "public" / "replays"
+FIELD_EVERY = 4  # replay: flora fields every 4 ticks (2 s); animals every tick
 
 # Build orders for player 1. Flora: (time_s, species, dy, dx, radius) around the base; offsets are
 # in cells of a 128 map and scale with the map size. Fauna: (time_s, species), spawned per
@@ -64,11 +69,12 @@ def run(
     snap_min=(5, 10, 20),
     fauna: Fauna | None = None,
     economy: Economy | None = None,
+    record: list | None = None,
 ):
     """Play the scripted match; without `fauna`, animal orders are skipped. With `economy`, orders
     buy their unlocks and wait until affordable, and the match stops at a victory (logged as
     "end: <reason>"). Returns (metrics rows, {minute: (owner, dominant, agents)}, final flora
-    state, order log)."""
+    state, order log). With `record`, appends (tick, fields or None, agents) for a replay."""
     rng = np.random.default_rng(seed)
     base = np.array([n // 4, n // 4]) + rng.integers(-2, 3, size=2)
     yy, xx = np.mgrid[:n, :n]
@@ -110,6 +116,12 @@ def run(
                 if done:
                     orders[p].remove(o)
                     log.append((t, p, o[1], done))
+        if record is not None:
+            fields = None
+            if i % FIELD_EVERY == 0:  # owner, then cover per stratum, one byte per cell each
+                cover = [np.minimum((st.bio[k] / X(flora.kmax[k])).sum(0), 1) for k in flora.strata]
+                fields = np.stack([st.owner, *(np.round(c * 255) for c in cover)]).astype(np.uint8)
+            record.append((i, fields, ag.keep(np.arange(len(ag)))))
         if i in snap_steps:
             snaps[snap_steps[i]] = (
                 st.owner.copy(),
@@ -282,6 +294,45 @@ def compare(balance: dict, n: int, minutes: float, seed: int, builds, out: Path,
     plt.close(fig)
 
 
+def export_replay(out: Path, flora, fauna, n, record, rows, log, builds) -> None:
+    """Write replay.json (metadata, HUD series, log) and frames.bin.gz for the client viewer.
+    frames.bin, little endian, one record per tick: u32 animal count, then per animal u32 id,
+    u16 y, u16 x, u8 species, u8 owner; on ticks divisible by field_every, 4 x n*n bytes follow
+    (owner, then L1, L2, L3 cover in 0..255)."""
+    out.mkdir(parents=True, exist_ok=True)
+    rec = np.dtype([("id", "<u4"), ("y", "<u2"), ("x", "<u2"), ("sp", "u1"), ("owner", "u1")])
+    with gzip.open(out / "frames.bin.gz", "wb", compresslevel=6) as fh:
+        for _, fields, ag in record:
+            a = np.empty(len(ag), rec)
+            a["id"], a["y"], a["x"], a["sp"], a["owner"] = ag.id, ag.y, ag.x, ag.sp, ag.owner
+            fh.write(np.uint32(len(ag)).tobytes() + a.tobytes())
+            if fields is not None:
+                fh.write(fields.tobytes())
+    keys = [k for k in rows[0] if k.endswith(("_p1", "_p2"))]
+    meta = {
+        "version": 1,
+        "n": n,
+        "dt": flora.dt,
+        "ticks": len(record),
+        "field_every": FIELD_EVERY,
+        "builds": list(builds),
+        "flora": {"names": flora.names, "level": flora.level.tolist()},
+        "fauna": {
+            "names": fauna.names if fauna else [],
+            "role": [["decomposer", "herbivore", "predator"][r] for r in fauna.role]
+            if fauna
+            else [],
+        },
+        "series": {"t_s": [r["t_s"] for r in rows]} | {k: [r[k] for r in rows] for k in keys},
+        "log": [{"t_s": t, "player": p, "what": w, "count": c} for t, p, w, c in log],
+    }
+    (out / "replay.json").write_text(json.dumps(meta), encoding="utf-8")
+    index = out.parent / "index.json"  # newest first, read by the viewer
+    names = json.loads(index.read_text(encoding="utf-8")) if index.exists() else []
+    names = [out.name] + [x for x in names if x != out.name]
+    index.write_text(json.dumps(names), encoding="utf-8")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--seed", type=int, default=1)
@@ -295,6 +346,7 @@ def main():
     ap.add_argument("--no-economy", dest="economy", action="store_false")
     ap.add_argument("--out", type=Path, default=Path(__file__).parent / "out")
     ap.add_argument("--compare", action="store_true", help="M0.3: run every variant (VARIANTS)")
+    ap.add_argument("--replay", action="store_true", help="export a replay for the client viewer")
     for s in SWITCHES:
         ap.add_argument(f"--no-{s.replace('_', '-')}", dest=s, action="store_false", default=None)
     a = ap.parse_args()
@@ -312,9 +364,14 @@ def main():
     tag = a.mode if a.mode == "float" else f"quant-{a.rounding}"
     out = a.out / f"{tag}_seed{a.seed}"
     out.mkdir(parents=True, exist_ok=True)
+    record = [] if a.replay else None
     rows, snaps, _, log = run(
-        flora, a.size, a.minutes, a.seed, (a.p1, a.p2), fauna=fauna, economy=economy
+        flora, a.size, a.minutes, a.seed, (a.p1, a.p2), fauna=fauna, economy=economy, record=record
     )
+    if a.replay:
+        export_replay(REPLAYS / f"{tag}_seed{a.seed}", flora, fauna, a.size, record, rows, log,
+                      (a.p1, a.p2))  # fmt: skip
+        print(f"wrote replay {REPLAYS / f'{tag}_seed{a.seed}'}")
     for t, p, name, count in log:
         if name.startswith("end"):
             print(f"{t / 60:5.1f} min  {'draw' if p == 0 else f'P{p} wins'} ({name[5:]})")

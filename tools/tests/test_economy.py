@@ -72,3 +72,35 @@ def test_match_with_economy_ends_at_the_time_limit():
     assert rows[-1]["t_s"] == 120  # stopped at the limit, not at 5 min
     assert log[-1][2].startswith("end: ")
     assert all(r["bank_p1"] >= 0 and r["bank_p2"] >= 0 for r in rows)
+
+
+def test_replay_export_round_trips(tmp_path):
+    import gzip
+    import json
+
+    import numpy as np
+
+    from prototype.match import FIELD_EVERY, export_replay
+
+    bal = load_balance()
+    fl = Flora(bal)
+    fa = Fauna(bal, fl)
+    record = []
+    rows, _, _, log = run(fl, 24, 3, seed=1, fauna=fa, economy=Economy(bal, fl, fa), record=record)
+    export_replay(tmp_path / "r", fl, fa, 24, record, rows, log, ("forest", "meadow"))
+    meta = json.loads((tmp_path / "r" / "replay.json").read_text(encoding="utf-8"))
+    assert json.loads((tmp_path / "index.json").read_text(encoding="utf-8")) == ["r"]
+    assert meta["ticks"] == len(record) and len(meta["series"]["t_s"]) == len(rows)
+    data = gzip.decompress((tmp_path / "r" / "frames.bin.gz").read_bytes())
+    pos, fields, animals = 0, 0, 0
+    for tick in range(meta["ticks"]):
+        count = int(np.frombuffer(data, "<u4", 1, pos)[0])
+        pos += 4 + 10 * count
+        animals = max(animals, count)
+        if tick % FIELD_EVERY == 0:
+            owner = np.frombuffer(data, "u1", 24 * 24, pos)
+            assert set(owner.tolist()) <= {0, 1, 2}
+            pos += 4 * 24 * 24
+            fields += 1
+    assert pos == len(data) and fields == (meta["ticks"] - 1) // FIELD_EVERY + 1
+    assert animals > 0

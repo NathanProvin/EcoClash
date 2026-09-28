@@ -11,6 +11,14 @@
     "py:sync": "uv sync --directory tools",
     "py:test": "uv run --directory tools pytest",
     "py:lint": "uv run --directory tools ruff check . && uv run --directory tools ruff format --check .",
-    "proto": "uv run --directory tools python -m prototype.match"
-  }
+    "proto": "uv run --directory tools python -m prototype.match",
+    "client:dev": "npm run dev -w client",
+    "client:build": "npm run build -w client",
+    "client:check": "npm run check -w client",
+    "client:lint": "npm run lint -w client",
+    "client:test": "npm run test -w client"
+  },
+  "workspaces": [
+    "client"
+  ]
 }

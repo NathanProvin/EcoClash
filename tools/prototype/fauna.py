@@ -10,7 +10,8 @@ Not yet: player orders (M3), stances, spawn costs (M0.5), seed eating as spread 
 
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
+from typing import ClassVar
 
 import numpy as np
 
@@ -22,29 +23,36 @@ DECOMPOSER, HERBIVORE, PREDATOR = range(3)
 
 @dataclass
 class Agents:
-    """Structure of arrays: one row per living animal, in creation order."""
+    """Structure of arrays: one row per living animal, in creation order. Ids are never reused,
+    so a renderer can follow an animal between frames."""
 
     sp: np.ndarray  # int16 fauna species index
     owner: np.ndarray  # int8 player
     y: np.ndarray  # int64 cell row
     x: np.ndarray  # int64 cell column
     energy: np.ndarray  # int64, Q16 biomass units (ONE = 1 biomass)
+    id: np.ndarray  # int64 unique id
+    next_id: int = 0
+    ARRAYS: ClassVar = ("sp", "owner", "y", "x", "energy", "id")
+    DTYPES: ClassVar = (np.int16, np.int8, np.int64, np.int64, np.int64, np.int64)
 
     @classmethod
     def empty(cls) -> Agents:
-        return cls(*(np.zeros(0, d) for d in (np.int16, np.int8, np.int64, np.int64, np.int64)))
+        return cls(*(np.zeros(0, d) for d in cls.DTYPES))
 
     def __len__(self) -> int:
         return len(self.sp)
 
     def keep(self, m) -> Agents:
-        return Agents(*(getattr(self, f.name)[m] for f in fields(self)))
+        return Agents(*(getattr(self, k)[m] for k in self.ARRAYS), self.next_id)
 
     def append(self, sp, owner, y, x, energy) -> Agents:
-        new = (sp, owner, y, x, energy)
+        k = len(sp)
+        new = (sp, owner, y, x, energy, np.arange(self.next_id, self.next_id + k))
         return Agents(
-            *(np.concatenate([getattr(self, f.name), np.asarray(v, getattr(self, f.name).dtype)])
-              for f, v in zip(fields(self), new, strict=True))
+            *(np.concatenate([getattr(self, a), np.asarray(v, d)])
+              for a, d, v in zip(self.ARRAYS, self.DTYPES, new, strict=True)),
+            self.next_id + k,
         )  # fmt: skip
 
 

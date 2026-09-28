@@ -296,3 +296,18 @@ Template:
     - at the time limit: standing biomass (flora + animal bodies), then territory share, then a draw (D-023).
   - The scripted builds buy their unlock path one card at a time and wait until an order is affordable; orders don't block one another.
 - **Result (seed 1, 128²):** P1 (forest) wins on standing biomass at 20 min, 247 M vs 191 M. Banks reach the millions late (income outgrows costs; placeholder).
+
+## D-028 · 2026-09-28 · First visualization: replay viewer with placeholder shapes
+- **Status:** accepted (user decision)
+- **Context:** The user wanted a first visualization and UI, with dots, triangles and cubes standing in for the future models. The sim exists only in Python; the Rust/WASM core is M1/M2.
+- **Decision:**
+  - **Replay viewer first**, on the target stack: Vite + strict TypeScript + Svelte + Three.js `WebGPURenderer` (WebGL2 fallback), in `client/` as an npm workspace.
+  - **Replay files:** the Python prototype exports `replay.json` (metadata, HUD series, log) and `frames.bin.gz` (per tick: animals as id / y / x / species / owner; every 4 ticks: owner + L1..L3 cover bytes). When the WASM worker exists, it replaces the replay as the data source; the renderer only reads snapshots (INSTRUCTIONS §6).
+  - **Shapes:**
+    - ground tinted by territory;
+    - flora L1 = dots, L2 = cones, L3 = cubes, scaled by cover, in lighter-to-darker player hues;
+    - animals unlit and raised above the plants: herbivores as spheres, decomposers as small spheres, predators as bright pyramids.
+  - **UI:** HUD (territory, standing biomass, bank, animal counts, winner), timeline (play/pause with Space, speed, scrubber), legend with layer toggles, and an RTS camera (`MapControls`, limited tilt).
+  - Agents got persistent ids (never reused) so the viewer can interpolate positions.
+- **Dependencies (rule 5):** three (renderer, §3.1); svelte + @sveltejs/vite-plugin-svelte and vite (UI and build, §3.1); typescript ~6.0 (typescript-eslint and svelte-check cap it below 6.1); eslint + typescript-eslint + eslint-plugin-svelte + @eslint/js + globals (Definition of Done lint); prettier + prettier-plugin-svelte (§12); svelte-check (types in .svelte); vitest (client tests, reuses the Vite config).
+- **Not yet:** player input (the replay isn't live), minimap, COOP/COEP headers (no SharedArrayBuffer yet), real models and shaders (M5).

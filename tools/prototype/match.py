@@ -116,12 +116,16 @@ def run(
                 if done:
                     orders[p].remove(o)
                     log.append((t, p, o[1], done))
+        if economy:  # unlocks bought this tick, for the log and the tech tree
+            log += [(t, q, f"unlock: {name}", cost) for q, name, cost in economy.events]
+            economy.events.clear()
         if record is not None:
-            fields = None
+            fields = counts = None
             if i % FIELD_EVERY == 0:  # owner, then cover per stratum, one byte per cell each
                 cover = [np.minimum((st.bio[k] / X(flora.kmax[k])).sum(0), 1) for k in flora.strata]
                 fields = np.stack([st.owner, *(np.round(c * 255) for c in cover)]).astype(np.uint8)
-            record.append((i, fields, ag.keep(np.arange(len(ag)))))
+                counts = alive(flora, fauna, st, ag)
+            record.append((i, fields, ag.keep(np.arange(len(ag))), counts))
         if i in snap_steps:
             snaps[snap_steps[i]] = (
                 st.owner.copy(),
@@ -139,6 +143,7 @@ def run(
                 if k in total:
                     total[k] += v
         dom = flora.dominant(st)
+        census = alive(flora, fauna, st, ag)
         row = {"t_s": round(t + flora.dt, 3)}
         for p in PLAYERS:
             mine = st.owner == p
@@ -149,6 +154,7 @@ def run(
             row[f"front_hi_p{p}"] = float((dom[front] >= 2).mean()) if front.any() else 0.0
             row[f"biomass_p{p}"] = float(st.bio.sum(0)[mine].sum())
             row[f"territory_p{p}"] = float(mine.mean())
+            row[f"species_p{p}"] = int((census[p - 1] > 0).sum())
             row[f"income_p{p}"] = income[p]
             row[f"soil_p{p}"] = float(st.soil[mine].mean() / U16) if mine.any() else 0.0
             row[f"mixed_p{p}"] = (
@@ -160,10 +166,12 @@ def run(
                                 (DECOMPOSER, "decomposers")):  # fmt: skip
                     row[f"{name}_p{p}"] = int((role == r).sum())
             if economy:
-                economy.earn(p, income[p] * flora.dt, stats.get(f"fed_p{p}", 0))
+                rate = economy.income(p, st, ag if fauna else None)  # points per second
+                economy.bank[p] += rate * flora.dt
                 bodies = fauna.body[ag.sp[ag.owner == p]].sum() if fauna else 0
                 row[f"standing_p{p}"] = row[f"biomass_p{p}"] + float(bodies)
-                row[f"bank_p{p}"] = economy.bank[p]
+                row[f"bank_p{p}"] = round(economy.bank[p], 1)
+                row[f"yield_p{p}"] = round(rate, 3)
         row.update(total)
         rows.append(row)
         if economy:
@@ -294,15 +302,41 @@ def compare(balance: dict, n: int, minutes: float, seed: int, builds, out: Path,
     plt.close(fig)
 
 
-def export_replay(out: Path, flora, fauna, n, record, rows, log, builds) -> None:
-    """Write replay.json (metadata, HUD series, log) and frames.bin.gz for the client viewer.
-    frames.bin, little endian, one record per tick: u32 animal count, then per animal u32 id,
-    u16 y, u16 x, u8 species, u8 owner; on ticks divisible by field_every, 4 x n*n bytes follow
-    (owner, then L1, L2, L3 cover in 0..255)."""
+def alive(flora: Flora, fauna: Fauna | None, st, ag) -> np.ndarray:
+    """(players, plant species + animal species): cells held by each plant species and animals of
+    each animal species, per player."""
+    rows = []
+    for p in PLAYERS:
+        plants = ((st.bio > 0) & (st.owner == p)).sum((1, 2))
+        animals = np.bincount(ag.sp[ag.owner == p], minlength=len(fauna.names)) if fauna else []
+        rows.append(np.concatenate([plants, animals]).astype(np.int64))
+    return np.array(rows)
+
+
+def species_table(balance: dict, flora: Flora, fauna: Fauna | None) -> list[dict]:
+    """The stat sheet (species.toml) as the viewer needs it: tech tree, cards, stats (D-029)."""
+    stats = ("growth", "spawn_cost", "unlock_cost", "yield", "cap", "effect")
+    out = []
+    for kind, names in (("flora", flora.names), ("fauna", fauna.names if fauna else [])):
+        for name in names:
+            s = balance[kind][name]
+            out.append({
+                "name": name, "kind": kind, "level": s["level"], "tier": s["tier"],
+                "role": s.get("role", f"L{s['level']}"), "habitat": s.get("habitat", []),
+                "eats": s.get("eats", []), "stats": {k: s[k] for k in stats},
+            })  # fmt: skip
+    return out
+
+
+def export_replay(out: Path, balance, flora, fauna, n, record, rows, log, builds) -> None:
+    """Write replay.json (metadata, species table, HUD series, per-species counts, log) and
+    frames.bin.gz for the client viewer. frames.bin, little endian, one record per tick: u32
+    animal count, then per animal u32 id, u16 y, u16 x, u8 species, u8 owner; on ticks divisible
+    by field_every, 4 x n*n bytes follow (owner, then L1, L2, L3 cover in 0..255)."""
     out.mkdir(parents=True, exist_ok=True)
     rec = np.dtype([("id", "<u4"), ("y", "<u2"), ("x", "<u2"), ("sp", "u1"), ("owner", "u1")])
     with gzip.open(out / "frames.bin.gz", "wb", compresslevel=6) as fh:
-        for _, fields, ag in record:
+        for _, fields, ag, _ in record:
             a = np.empty(len(ag), rec)
             a["id"], a["y"], a["x"], a["sp"], a["owner"] = ag.id, ag.y, ag.x, ag.sp, ag.owner
             fh.write(np.uint32(len(ag)).tobytes() + a.tobytes())
@@ -310,7 +344,7 @@ def export_replay(out: Path, flora, fauna, n, record, rows, log, builds) -> None
                 fh.write(fields.tobytes())
     keys = [k for k in rows[0] if k.endswith(("_p1", "_p2"))]
     meta = {
-        "version": 1,
+        "version": 2,
         "n": n,
         "dt": flora.dt,
         "ticks": len(record),
@@ -323,7 +357,10 @@ def export_replay(out: Path, flora, fauna, n, record, rows, log, builds) -> None
             if fauna
             else [],
         },
+        "species": species_table(balance, flora, fauna),
         "series": {"t_s": [r["t_s"] for r in rows]} | {k: [r[k] for r in rows] for k in keys},
+        # per field frame: [player 1 counts, player 2 counts], in species-table order
+        "counts": [c.tolist() for _, _, _, c in record if c is not None],
         "log": [{"t_s": t, "player": p, "what": w, "count": c} for t, p, w, c in log],
     }
     (out / "replay.json").write_text(json.dumps(meta), encoding="utf-8")
@@ -336,7 +373,7 @@ def export_replay(out: Path, flora, fauna, n, record, rows, log, builds) -> None
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--seed", type=int, default=1)
-    ap.add_argument("--size", type=int, default=128)
+    ap.add_argument("--size", type=int, default=64)
     ap.add_argument("--minutes", type=float, default=20)
     ap.add_argument("--p1", choices=BUILDS, default="forest")
     ap.add_argument("--p2", choices=BUILDS, default="meadow")
@@ -369,8 +406,8 @@ def main():
         flora, a.size, a.minutes, a.seed, (a.p1, a.p2), fauna=fauna, economy=economy, record=record
     )
     if a.replay:
-        export_replay(REPLAYS / f"{tag}_seed{a.seed}", flora, fauna, a.size, record, rows, log,
-                      (a.p1, a.p2))  # fmt: skip
+        out = REPLAYS / f"{tag}_seed{a.seed}"
+        export_replay(out, balance, flora, fauna, a.size, record, rows, log, (a.p1, a.p2))
         print(f"wrote replay {REPLAYS / f'{tag}_seed{a.seed}'}")
     for t, p, name, count in log:
         if name.startswith("end"):

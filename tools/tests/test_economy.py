@@ -1,7 +1,9 @@
 """Rule checks for the M0.5 economy (gamerules §4, §7, §11.3; D-018, D-023)."""
 
+import numpy as np
+
 from prototype.economy import Economy
-from prototype.fauna import Fauna
+from prototype.fauna import Agents, Fauna
 from prototype.flora import Flora, load_balance
 from prototype.match import run
 
@@ -15,32 +17,46 @@ def economy(bal=None):
 def test_start_unlocks_and_tier_path():
     ec = economy()
     assert ec.missing(1, "grasses") == [] and ec.missing(1, "earthworms") == []
-    assert ec.missing(1, "bramble") == [("L", 1, 2), ("L", 1, 3)]
+    assert ec.missing(1, "bramble") == ["clover", "bramble"]  # cheapest L1 tier-2 species first
 
 
 def test_animals_need_their_habitat_unlocked_first():
     ec = economy()
-    assert ec.missing(1, "fox") == [("L", 2, 1), *[("F", 5, 1)]]
+    assert ec.missing(1, "fox") == ["elder", "fox"]
 
 
-def test_prepare_buys_one_card_at_a_time_when_affordable():
+def test_prepare_buys_one_species_at_a_time_when_affordable():
     ec = economy()
-    ec.bank[1] = ec.unlock_cost(("L", 1, 2)) + 10
-    assert not ec.prepare(1, "bramble")  # bought L1 T2, T3 still missing
-    assert ec.bank[1] == 10 and ("L", 1, 2) in ec.unlocked[1]
-    assert not ec.prepare(1, "bramble")  # cannot afford T3: nothing charged
+    ec.bank[1] = ec.stat("clover", "unlock_cost") + 10
+    assert not ec.prepare(1, "bramble")  # bought clover; bramble still missing
+    assert ec.bank[1] == 10 and "clover" in ec.unlocked[1]
+    assert ec.events == [(1, "clover", ec.stat("clover", "unlock_cost"))]
+    assert not ec.prepare(1, "bramble")  # cannot afford bramble: nothing charged
     assert ec.bank[1] == 10
-    ec.bank[1] += ec.unlock_cost(("L", 1, 3))
+    ec.bank[1] += ec.stat("bramble", "unlock_cost")
     assert ec.prepare(1, "bramble") and ec.bank[1] == 10
 
 
-def test_costs():
+def test_costs_come_from_the_stat_sheet():
     ec = economy()
-    assert ec.unlock_cost(("F", 1, 3)) == round(200 * 1.5**2)
-    assert ec.plant_cost("oak", 4) == 4 * 150
+    assert ec.plant_cost("oak", 4) == 4 * ec.stat("oak", "spawn_cost")
     fox = ec.spawn_cost("fox", 1)
-    assert ec.spawn_cost("fox", 1, outside=True) == round(fox * 1.5)
+    assert fox == ec.stat("fox", "spawn_cost")
+    assert ec.spawn_cost("fox", 1, outside=True) == fox * 1.5
     assert ec.spawn_cost("rabbits", 4, outside=True) == ec.spawn_cost("rabbits", 4)
+
+
+def test_income_is_the_sum_of_species_yields():
+    bal = load_balance()
+    fl = Flora(bal)
+    fa = Fauna(bal, fl)
+    ec = Economy(bal, fl, fa)
+    st = fl.new_state(4)
+    fl.plant(st, 1, "grasses", np.ones((4, 4), bool), frac=1.0)  # 16 fully covered cells
+    ag = Agents.empty().append([fa.idx("fox")] * 2, [1, 1], [0, 0], [0, 0], [1, 1])
+    expected = 16 * ec.stat("grasses", "yield") + 2 * ec.stat("fox", "yield")
+    assert abs(ec.income(1, st, ag) - expected) < 1e-9
+    assert ec.income(2, st, ag) == 0
 
 
 def test_victory_rules():
@@ -78,8 +94,6 @@ def test_replay_export_round_trips(tmp_path):
     import gzip
     import json
 
-    import numpy as np
-
     from prototype.match import FIELD_EVERY, export_replay
 
     bal = load_balance()
@@ -87,10 +101,13 @@ def test_replay_export_round_trips(tmp_path):
     fa = Fauna(bal, fl)
     record = []
     rows, _, _, log = run(fl, 24, 3, seed=1, fauna=fa, economy=Economy(bal, fl, fa), record=record)
-    export_replay(tmp_path / "r", fl, fa, 24, record, rows, log, ("forest", "meadow"))
+    export_replay(tmp_path / "r", bal, fl, fa, 24, record, rows, log, ("forest", "meadow"))
     meta = json.loads((tmp_path / "r" / "replay.json").read_text(encoding="utf-8"))
     assert json.loads((tmp_path / "index.json").read_text(encoding="utf-8")) == ["r"]
     assert meta["ticks"] == len(record) and len(meta["series"]["t_s"]) == len(rows)
+    assert len(meta["species"]) == 27 and meta["species"][0]["stats"]["effect"]
+    assert len(meta["counts"]) == (meta["ticks"] - 1) // FIELD_EVERY + 1
+    assert all(len(c) == 2 and len(c[0]) == 27 for c in meta["counts"])
     data = gzip.decompress((tmp_path / "r" / "frames.bin.gz").read_bytes())
     pos, fields, animals = 0, 0, 0
     for tick in range(meta["ticks"]):

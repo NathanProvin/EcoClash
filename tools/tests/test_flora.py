@@ -182,3 +182,15 @@ def test_soft_succession_ramp():
     s = fl.suitability(st)[oak]
     assert (s[0] == 0).all() and (0 < s[1]).all() and (s[1] < 1 << 16).all()
     assert (s[2] == 1 << 16).all()
+
+
+def test_plant_cap_limits_cells_per_player():
+    bal = load_balance()
+    bal["flora"]["grasses"]["cap"] = 10
+    fl = Flora(bal)
+    st = fl.new_state(8)
+    assert fl.plant(st, 1, "grasses", np.ones((8, 8), bool), frac=1.0) == 10
+    for _ in range(100):
+        fl.step(st)
+    held = ((st.bio[fl.idx("grasses")] > 0) & (st.owner == 1)).sum()
+    assert held == 10  # spread stops at the cap

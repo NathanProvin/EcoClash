@@ -181,7 +181,7 @@ Template:
 - **Consequences:** ROADMAP M0 rewritten (M0.1 float cell model, M0.2 quantized mode, M0.3 comparison runs). INSTRUCTIONS §5.2 and the M1 criteria refer to spread instead of diffusion.
 
 ## D-020 · 2026-09-27 · Species data lives in `balance.toml`
-- **Status:** accepted
+- **Status:** superseded by D-029
 - **Context:** Gamerules asked for a separate `data/species.toml`. Species coefficients are tunables (rule 6), and the balance hash (D-011) should cover one file.
 - **Decision:** Species tunables go in `data/balance.toml` under `[flora.<id>]` (later `[fauna.<id>]`). No `species.toml`.
 - **Consequences:** One loader and one balance hash for every target.
@@ -311,3 +311,17 @@ Template:
   - Agents got persistent ids (never reused) so the viewer can interpolate positions.
 - **Dependencies (rule 5):** three (renderer, §3.1); svelte + @sveltejs/vite-plugin-svelte and vite (UI and build, §3.1); typescript ~6.0 (typescript-eslint and svelte-check cap it below 6.1); eslint + typescript-eslint + eslint-plugin-svelte + @eslint/js + globals (Definition of Done lint); prettier + prettier-plugin-svelte (§12); svelte-check (types in .svelte); vitest (client tests, reuses the Vite config).
 - **Not yet:** player input (the replay isn't live), minimap, COOP/COEP headers (no SharedArrayBuffer yet), real models and shaders (M5).
+
+## D-029 · 2026-09-28 · Per-species stat sheet, halved grid
+- **Status:** accepted (user decision; values are placeholders the user will tune)
+- **Context:** The user wants per-species stats in a config file to tune: growth, spawn cost, unlock cost, biomass generation, population cap and special effect. They also found the grid too large.
+- **Decision:**
+  - **`data/species.toml`** holds one block per species; supersedes D-020. The six stats come first, then the model internals. `load_balance()` merges it into the balance dict, and both files will be converted and hashed together (D-011).
+  - **growth:** plants = colonization gauge speed at full pressure (formerly `spread_rate`); animals = minimum seconds between two births of a well-fed animal (a breeding cooldown). The logistic rate is renamed `biomass_rate`.
+  - **spawn_cost:** per cell planted or per animal. **unlock_cost:** per species; 0 means available at start.
+  - **yield:** a flat income in points per second, per fully covered cell (× cover) or per animal. It replaces "a share of flora growth + animal energy" (D-027 income).
+  - **cap:** max cells per player (plants) or max animals per player (animals); it replaces the global `species_cap`.
+  - **effect:** text shown in the UI. Mechanics stay where they are (refuge flora, shade, soil gain).
+  - **Unlocks are per species:** a species needs one unlocked species on the previous tier of its level (the cheapest path is bought first) and, for an animal, one of its habitat plants. Unlock events are logged for the tech tree.
+  - **Grid halved:** spec default 512 → 256 (INSTRUCTIONS §5.1); prototype default 128 → 64; Q-008 default is now 1 cell = 2 m. The renderer scatters several plant models per cell at random offsets.
+- **Consequences:** The balance hash in M1.5 covers both files. Replays (v2) carry the species table, per-species counts and unlock events.

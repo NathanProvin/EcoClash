@@ -119,3 +119,27 @@ def test_match_with_animals_is_repeatable():
     assert rows == again
     assert max(r["herbivores_p1"] + r["herbivores_p2"] for r in rows) > 0
     assert any(name == "earthworms" for _, _, name, _ in log)
+
+
+def test_breeding_waits_for_the_cooldown_and_the_species_cap():
+    bal = load_balance()
+    bal["fauna"]["earthworms"]["cap"] = 3
+    _, fl, fa, st = world(bal=bal)
+    body = int(fa.body[fa.idx("earthworms")])
+    st.dead[:] = 10**6  # plenty of food
+    ag = animals(fa, ("earthworms", 1, 2, 2, 16 * body * ONE))
+    ag, _ = fa.step(st, ag)
+    assert len(ag) == 2  # one birth, then the parent cools down
+    assert (ag.cooldown == fa.breed[fa.idx("earthworms")]).all()
+    for _ in range(int(fa.breed[fa.idx("earthworms")])):
+        ag, _ = fa.step(st, ag)
+    assert len(ag) == 3  # the species cap stops the fourth
+
+
+def test_spawn_respects_the_species_cap():
+    bal = load_balance()
+    bal["fauna"]["earthworms"]["cap"] = 4
+    _, fl, fa, st = world(bal=bal)
+    fl.plant(st, 1, "grasses", everywhere(8), frac=1.0)
+    ag, n = fa.spawn(st, Agents.empty(), 1, "earthworms", (4, 4))
+    assert n == 4 < fa.group[fa.idx("earthworms")]

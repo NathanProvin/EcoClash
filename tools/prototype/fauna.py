@@ -3,9 +3,9 @@
 Agents stand on grid cells and update once per flora tick. Their arithmetic is integer only
 (energy in Q16 biomass units), so the float and quant flora modes share the same fauna logic.
 Behaviours, in priority order: flee a hunter, seek food (enemy flora first, own flora at a reduced
-rate), wander. Then: graze, decompose, hunt, starve, reproduce (split at full energy, under a
-per-player cap).
-Not yet: player orders (M3), stances, spawn costs (M0.5), seed eating as spread reduction (§6.1).
+rate), wander. Then: graze, decompose, hunt, starve, reproduce (split at full energy once the
+breeding cooldown is over, under the player and species caps).
+Not yet: player orders (M3), stances, seed eating as spread reduction (§6.1).
 """
 
 from __future__ import annotations
@@ -32,9 +32,10 @@ class Agents:
     x: np.ndarray  # int64 cell column
     energy: np.ndarray  # int64, Q16 biomass units (ONE = 1 biomass)
     id: np.ndarray  # int64 unique id
+    cooldown: np.ndarray  # int64 ticks before this animal may give birth again
     next_id: int = 0
-    ARRAYS: ClassVar = ("sp", "owner", "y", "x", "energy", "id")
-    DTYPES: ClassVar = (np.int16, np.int8, np.int64, np.int64, np.int64, np.int64)
+    ARRAYS: ClassVar = ("sp", "owner", "y", "x", "energy", "id", "cooldown")
+    DTYPES: ClassVar = (np.int16, np.int8, np.int64, np.int64, np.int64, np.int64, np.int64)
 
     @classmethod
     def empty(cls) -> Agents:
@@ -46,9 +47,10 @@ class Agents:
     def keep(self, m) -> Agents:
         return Agents(*(getattr(self, k)[m] for k in self.ARRAYS), self.next_id)
 
-    def append(self, sp, owner, y, x, energy) -> Agents:
+    def append(self, sp, owner, y, x, energy, cooldown=None) -> Agents:
         k = len(sp)
-        new = (sp, owner, y, x, energy, np.arange(self.next_id, self.next_id + k))
+        cooldown = np.zeros(k) if cooldown is None else cooldown
+        new = (sp, owner, y, x, energy, np.arange(self.next_id, self.next_id + k), cooldown)
         return Agents(
             *(np.concatenate([getattr(self, a), np.asarray(v, d)])
               for a, d, v in zip(self.ARRAYS, self.DTYPES, new, strict=True)),
@@ -57,7 +59,7 @@ class Agents:
 
 
 class Fauna:
-    """Fauna tables and rules, converted once from balance.toml."""
+    """Fauna tables and rules, converted once from balance.toml + species.toml."""
 
     def __init__(self, balance: dict, flora: Flora, seed: int = 0):
         fa, dt = balance["fauna"], flora.dt
@@ -100,7 +102,9 @@ class Fauna:
         self.herb_range, self.flee = fa["herbivore_range"], fa["flee_radius"]
         self.refuge, self.refuge_cover = flora_set(fa["refuge_flora"]), fa["refuge_cover"]
         self.cap = balance["agents"]["max_agents"] // len(PLAYERS)
-        self.species_cap = balance["agents"]["species_cap"]
+        self.species_cap = np.array([s["cap"] for s in sp], np.int64)  # animals per player
+        self.breed = np.maximum(round_half_away([s["growth"] / dt for s in sp]), 1)  # ticks
+        self.yld = np.array([s["yield"] for s in sp], np.float64)  # points per s per animal
         # Search offsets up to the widest radius, nearest first (ties in row-major order).
         r = int(max(self.sight.max(), self.flee))
         dy, dx = (a.ravel() for a in np.mgrid[-r : r + 1, -r : r + 1])
@@ -141,7 +145,9 @@ class Fauna:
         herbivores need enemy food within `herbivore_range` of own land; decomposers need habitat
         only. Returns (agents, number spawned)."""
         s, q = self.idx(name), 3 - p
-        count = int(min(self.group[s], self.cap - (ag.owner == p).sum()))
+        mine = ag.owner == p
+        count = int(min(self.group[s], self.cap - mine.sum(),
+                        self.species_cap[s] - (mine & (ag.sp == s)).sum()))  # fmt: skip
         est = st.bio >= X(self.fl.est_thr)
         home = (st.owner == p) & (est & X(self.habitat[s])).any(0)
         if count <= 0 or not home.any():
@@ -171,12 +177,12 @@ class Fauna:
     def step(self, st: State, ag: Agents) -> tuple[Agents, dict]:
         """Advance one tick (the flora tick). Mutates the flora state (grazing, dead biomass,
         soil) and returns the surviving and newborn agents plus this tick's counters."""
-        stats = {f"{k}_p{p}": 0 for k in ("kills", "grazed", "fed") for p in PLAYERS}
-        fed = np.zeros(len(ag), np.int64)  # Q16 energy gained this tick (economy, §6.4)
+        stats = {f"{k}_p{p}": 0 for k in ("kills", "grazed") for p in PLAYERS}
         if not len(ag):
             return ag, stats
         n0, n1 = st.owner.shape
         ag.energy = ag.energy - self.upkeep[ag.sp]
+        ag.cooldown = np.maximum(ag.cooldown - 1, 0)
         safe = self.safe(st, ag)
         dy, dx = np.zeros(len(ag), np.int64), np.zeros(len(ag), np.int64)
         moved = np.zeros(len(ag), bool)
@@ -249,7 +255,6 @@ class Fauna:
             eaten = self._share(st.bio.shape, (pick, cy, cx), bite, have[np.arange(len(i)), pick])
             np.add.at(st.bio, (pick, cy, cx), -eaten)
             ag.energy[i] += eaten * self.transfer
-            fed[i] += eaten * self.transfer
             np.add.at(st.dead, (cy, cx), eaten - eaten * self.transfer // ONE)
             for p in PLAYERS:
                 stats[f"grazed_p{p}"] = int(eaten[(ag.owner[i] == p) & (cell_owner == 3 - p)].sum())
@@ -262,7 +267,6 @@ class Fauna:
             eaten = self._share(st.dead.shape, (cy, cx), self.bite[ag.sp[i]], have)
             np.add.at(st.dead, (cy, cx), -eaten)
             ag.energy[i] += eaten * self.transfer
-            fed[i] += eaten * self.transfer
             np.add.at(st.soil, (cy, cx), eaten * self.soil_per_dead // ONE)
             st.soil[:] = np.minimum(st.soil, U16)
 
@@ -277,31 +281,28 @@ class Fauna:
                 alive[b] = False
                 body = self.body[ag.sp[b]]
                 ag.energy[a] += body * self.transfer
-                fed[a] += body * self.transfer
                 st.dead[ag.y[b], ag.x[b]] += body - body * self.transfer // ONE
                 stats[f"kills_p{ag.owner[a]}"] += 1
-
-        for p in PLAYERS:
-            stats[f"fed_p{p}"] = int(fed[ag.owner == p].sum() // ONE)
 
         # 7. Starvation: the carcass (half the body) becomes dead biomass.
         starve = alive & (ag.energy <= 0)
         np.add.at(st.dead, (ag.y[starve], ag.x[starve]), self.body[ag.sp[starve]] // 2)
         ag = ag.keep(alive & ~starve)
 
-        # 8. Reproduction (D-023): at full energy an animal splits in two, under the player cap
-        #    and a per-species breeding cap, so breeding never fills the room left for spawns.
+        # 8. Reproduction (D-023, D-029): at full energy and once its cooldown (the species'
+        #    growth stat) is over, an animal splits in two, under the player and species caps.
         count = {p: int((ag.owner == p).sum()) for p in PLAYERS}
         kin = {}
         for s, p in zip(ag.sp.tolist(), ag.owner.tolist(), strict=True):
             kin[s, p] = kin.get((s, p), 0) + 1
         kids = []
-        for a in np.flatnonzero(ag.energy >= self.body[ag.sp] * ONE):
+        for a in np.flatnonzero((ag.energy >= self.body[ag.sp] * ONE) & (ag.cooldown == 0)):
             s, p = int(ag.sp[a]), int(ag.owner[a])
-            if count[p] < self.cap and kin[s, p] < self.species_cap:
+            if count[p] < self.cap and kin[s, p] < self.species_cap[s]:
                 half = ag.energy[a] // 2
                 ag.energy[a] -= half
-                kids.append((s, p, ag.y[a], ag.x[a], half))
+                ag.cooldown[a] = self.breed[s]
+                kids.append((s, p, ag.y[a], ag.x[a], half, self.breed[s]))
                 count[p] += 1
                 kin[s, p] += 1
         if kids:

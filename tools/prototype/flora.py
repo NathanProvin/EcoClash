@@ -21,6 +21,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
 BALANCE = ROOT / "data" / "balance.toml"
+SPECIES = ROOT / "data" / "species.toml"
 ONE = 1 << 16  # Q16.16 one: scale of fractions and of colonization progress
 U16 = ONE - 1
 STRATA = 3
@@ -29,8 +30,13 @@ DIRS = ((-1, 0), (1, 0), (0, -1), (0, 1))
 SWITCHES = ("succession", "shade", "contested_cells")
 
 
-def load_balance(path: Path = BALANCE) -> dict:
-    return tomllib.loads(path.read_text(encoding="utf-8"))
+def load_balance(path: Path = BALANCE, species: Path = SPECIES) -> dict:
+    """Global rules (balance.toml) with the per-species tables of species.toml merged into
+    balance["flora"] and balance["fauna"] (D-029)."""
+    balance = tomllib.loads(path.read_text(encoding="utf-8"))
+    for kind, tables in tomllib.loads(species.read_text(encoding="utf-8")).items():
+        balance[kind] |= tables
+    return balance
 
 
 def round_half_away(x) -> np.ndarray:
@@ -87,8 +93,8 @@ class Flora:
             assert s["level"] in (1, 2, 3), n
             assert 0 < s["k_max"] <= U16, n
             assert 0 <= s["shade_cast"] < 1 and 0 <= s["shade_tolerance"] <= 1, n
-            assert s["growth_rate"] * self.dt < 1, f"{n}: growth_rate * dt must stay < 1"
-            assert s["spread_rate"] * self.dt <= 1, f"{n}: spread_rate * dt must stay <= 1"
+            assert s["biomass_rate"] * self.dt < 1, f"{n}: biomass_rate * dt must stay < 1"
+            assert s["growth"] * self.dt <= 1, f"{n}: growth * dt must stay <= 1"
             assert set(s.get("soil_affinity", {})) <= set(soil_types), n
 
         def col(key, scale=1.0, default=None):
@@ -97,8 +103,10 @@ class Flora:
         self.level = np.array([s["level"] for s in sp], dtype=np.int8)
         self.strata = [np.flatnonzero(self.level == s + 1) for s in range(STRATA)]
         self.kmax = col("k_max")
-        self.rdt = col("growth_rate", self.dt * ONE)
-        self.rate = col("spread_rate", self.dt * ONE)
+        self.rdt = col("biomass_rate", self.dt * ONE)
+        self.rate = col("growth", self.dt * ONE)  # colonization gauge speed (D-029 stat)
+        self.yld = col("yield")  # points per second per fully covered cell (economy)
+        self.cap = np.array([s["cap"] for s in sp], np.int64)  # max cells per player
         self.soil_dt = col("soil_gain", self.dt * U16)
         self.cast = col("shade_cast", ONE)
         self.tol = col("shade_tolerance", ONE)
@@ -179,6 +187,11 @@ class Flora:
         grows there. Sets its gauge to at least `plant_gauge`. Returns the cells planted."""
         i = self.idx(name)
         ok = mask & ((st.owner == 0) | (st.owner == player)) & (self.suitability(st)[i] > 0)
+        room = self.cap[i] - int(((st.bio[i] > 0) & (st.owner == player)).sum())
+        new = ok & (st.bio[i] == 0)
+        ok &= ~new | (
+            np.cumsum(new).reshape(ok.shape) <= room
+        )  # cell cap: first cells in row order
         b = self.seed_b[i] if frac is None else self.kmax[i] * frac
         g = self.plant_g if frac is None else max(self.plant_g, frac * ONE)
         if self.mode == "quant":
@@ -239,6 +252,9 @@ class Flora:
             attack[p] = sum(np.where(can, n, 0).max(0) for n in near)
             mine = established & (owner == p)
             seeds[p] = np.logical_or.reduce([nb(mine, dy, dx) for dy, dx in DIRS]) & (suit > 0)
+        # Species at their cell cap (D-029) cannot enter new cells this tick. The check uses the
+        # previous state, so simultaneous arrivals may overshoot by one tick's worth.
+        full = {p: X(((bio > 0) & (owner == p)).sum((1, 2)) >= self.cap) for p in PLAYERS}
 
         # 5. Growth, minus litter (turnover) and smothering by higher enemy levels. Litter,
         #    die-back (negative growth) and smothered biomass become dead biomass.
@@ -259,7 +275,7 @@ class Flora:
         # 6. Own cells: the gauge rises toward the suitability, driven by pressure; seed rain
         #    brings biomass in proportion (gamerules §3, D-024).
         for p in PLAYERS:
-            own = (owner == p) & (new_owner == p) & (suit > 0)
+            own = (owner == p) & (new_owner == p) & (suit > 0) & ~(full[p] & (new_bio == 0))
             gap = np.maximum(suit - new_g, 0)
             dg = np.where(own, self.div(X(self.rate) * pressure[p] * gap, ONE * ONE), 0)
             new_g = new_g + dg
@@ -277,13 +293,13 @@ class Flora:
         # 7. Smothered enemy cells flip to the attacker's higher-level species.
         for p in PLAYERS:
             won = (owner == 3 - p) & (new_owner == 0) & (attack[p] > 0)
-            arrive(won, p, can & seeds[p])
+            arrive(won, p, can & seeds[p] & ~full[p])
 
         # 8. Empty cells: claim progress builds up; the first player to complete takes the cell.
         empty = owner == 0
         cand, lvl, done = {}, {}, {}
         for p in PLAYERS:
-            cand[p] = seeds[p]
+            cand[p] = seeds[p] & ~full[p]
             push = np.where(cand[p], self.div(X(self.rate) * pressure[p] * suit, ONE * ONE), 0)
             prog[p - 1] = np.where(empty, prog[p - 1] + push.max(0), 0)
             done[p] = empty & (prog[p - 1] >= ONE) & cand[p].any(0)

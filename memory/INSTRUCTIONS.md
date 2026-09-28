@@ -95,7 +95,8 @@ EcoClash/
 │   ├── OPEN_QUESTIONS.md    # undecided design points, with defaults and deadlines
 │   └── JOURNAL.md           # append-only session log
 ├── data/
-│   ├── balance.toml         # all gameplay tunables (shared by all targets)
+│   ├── balance.toml         # global gameplay tunables (shared by all targets)
+│   ├── species.toml         # per-species stat sheet: growth, costs, yield, cap, effect (D-029)
 │   └── gamerules.md         # gameplay rules: strata, tech tree, species, fauna, endgame (D-016)
 ├── sim-core/                # Rust crate: deterministic simulation, no rendering, no I/O
 │   ├── src/
@@ -189,7 +190,7 @@ Required tests:
 
 ### 5.1 Grid
 
-- Default size **512×512** (configurable: 256 for low-end, 1024 as a stretch goal).
+- Default size **256×256** (configurable: 128 for low-end, 512 as a stretch goal; D-029). One cell holds several plant models, placed at random offsets for a natural look.
 - Each field is a flat `Vec<u16>` (row-major). Per-player flora layers: `flora[player][species]`.
 - Rendering never sees the grid as pixels. Fields are uploaded as textures and sampled bilinearly.
 
@@ -201,7 +202,7 @@ Flora follows the cell model of `data/gamerules.md` §2.1 and §3 (D-019): each 
 - **Spread:** claim progress into empty neighbours, continuous smothering of lower enemy levels by neighbour cover, frozen same-level frontiers (gamerules §3). There is no diffusion.
 - **Grazing:** herbivores consume B, which converts into their energy.
 - **Death (D-026):** litter turnover (`litter_fraction × growth_rate × B` per second), die-back (negative growth) and smothered biomass go to `dead_biomass`. Decomposers turn `dead_biomass` into soil development.
-- Clamp to `[0, u16::MAX]`. All coefficients come from `balance.toml`, species under `[flora.<id>]` (D-020).
+- Clamp to `[0, u16::MAX]`. All coefficients come from `balance.toml`; per-species stats and coefficients from `species.toml` (D-029).
 - Every rule reads the previous state and writes the next one (double buffering), so the result never depends on update order.
 
 Integer implementation constraint (it must already be modelled in the M0 prototype's quantized mode):

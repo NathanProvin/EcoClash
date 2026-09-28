@@ -4,7 +4,7 @@
 > Items tagged **[Proposed]** are design suggestions not yet validated by the author. Treat them as defaults that may change.
 > Untagged rules are the author's decisions.
 > All numeric values live in `data/balance.toml`; numbers in this file are illustrative only.
-> Species data (§5–§6) also exists as machine-readable data in `data/balance.toml`, under `[flora.<id>]` (and later `[fauna.<id>]`) (D-020). This file is the design reference.
+> Species data (§5–§6) also exists as machine-readable data in `data/species.toml`: one stat sheet per species (D-029). This file is the design reference.
 
 ---
 
@@ -87,7 +87,7 @@ growth_rate(species, cell) = base_rate(species)
                            × f_development(species, soil_development)
 ```
 
-Each `f` is a species response curve (an optimum and a tolerance) defined in `data/balance.toml` (D-020).
+Each `f` is a species response curve (an optimum and a tolerance) defined in `data/species.toml` (D-029).
 
 **Hooks to keep from V1 onward** (implemented in the M0 prototype, D-024):
 - The simulation already stores the `soil_type`, `elevation`, `water` and `light` fields, with constant values.
@@ -186,8 +186,9 @@ Each card also needs its flora habitat unlocked (§4.1). The habitat of each spe
 
 ### 4.4 Costs [Proposed]
 
-- The unlock cost grows with level and tier (placeholder rule: `cost = base_level × tier_multiplier`).
-- The spawn cost scales with trophic level and body size.
+- Every species has its own stat sheet in `data/species.toml` (D-029): **growth** (plants: colonization gauge speed; animals: seconds between births), **spawn cost**, **unlock cost**, **yield** (points per second per covered cell or per animal), **population cap** (cells or animals per player) and a **special effect**.
+- Unlocking is per species: it needs one unlocked species on the previous tier of its level and, for an animal, one of its habitat plants. Species with unlock cost 0 are available at start.
+- The initial unlock costs follow the placeholder rule `base(level) × 1.5^(tier−1)`; spawn costs scale with level and body size.
 - Higher tiers are not strictly better. They trade off speed vs. efficiency, or shade tolerance vs. growth rate.
 
 ---
@@ -327,7 +328,7 @@ A species can be spawned only when **all** of the following hold:
 - **Biomass points** are the single currency.
 - **Income:** mainly from living plants & fauna growth, in proportion to their biomass and growth. 
 - **Spending:** unlocking cards (§4) or spawning species (§8).
-- **Prototype rules (D-027, values [Proposed]):** income = `income_rate` × flora growth + the energy the player's animals gain (§6.4). Unlocks cost `base(level) × tier_multiplier^(tier−1)`. Plants cost per cell by level. Animals cost by body size, ×`drop_surcharge` for predators dropped outside own land.
+- **Prototype rules (D-027, D-029, values [Proposed]):** income = Σ species yield × (cover of each own cell, or number of own animals). Costs are per species (§4.4). Predators dropped outside own land cost ×`drop_surcharge`.
 
 ---
 

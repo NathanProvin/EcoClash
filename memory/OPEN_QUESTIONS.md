@@ -42,10 +42,10 @@
 
 ## Q-008 · Map scale
 - **Recommended default** (to validate visually in M2):
-  - 1 cell = 1 m.
-  - Herbivore ≈ 0.3 m, speed ≈ 3 cells/s.
-  - Predator ≈ 0.6 m, speed ≈ 5 cells/s.
-  - A 512² map then takes about 2–3 minutes to cross.
+  - 1 cell = 2 m on the 256² default grid (D-029: grid halved, several plant models per cell).
+  - Herbivore ≈ 0.3 m, speed ≈ 1.5 cells/s.
+  - Predator ≈ 0.6 m, speed ≈ 2.5 cells/s.
+  - A 256² map then takes about 2–3 minutes to cross.
 
 ## Q-009 · Player colours
 - **Problem:** "Cool greens vs warm ochres" sits on the red–green colour-blind confusion axis.

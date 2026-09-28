@@ -1,76 +1,91 @@
 """M0.5 economy prototype: biomass points, tech-tree unlocks, spawn costs, victory
-(gamerules §4, §7, §11.3; D-018, D-023). Points are integers, like the future sim.
+(gamerules §4, §7, §11.3; D-018, D-023, D-027, D-029). Costs, yields and caps come from the
+species stat sheet (species.toml). The prototype keeps the bank as a float; sim-core will use
+fixed-point.
 """
 
 from __future__ import annotations
 
 import numpy as np
 
-from prototype.fauna import PREDATOR, Fauna
-from prototype.flora import PLAYERS, Flora
+from prototype.fauna import PREDATOR, Agents, Fauna
+from prototype.flora import PLAYERS, Flora, State, X
 
 
 class Economy:
-    """Each player's bank and unlocked cards. A card is (tree, level, tier), tree "L" or "F";
-    it unlocks every species at that position."""
+    """Each player's bank and unlocked species. Unlocking is per species (D-029): a species needs
+    one unlocked species on the previous tier of its level and, for an animal, one of its habitat
+    plants; species with unlock_cost 0 are available at start."""
 
     def __init__(self, balance: dict, flora: Flora, fauna: Fauna | None):
         e, m = balance["economy"], balance["match"]
-        self.e, self.fauna, self.flora = e, fauna, flora
-        self.pos = {n: ("L", balance["flora"][n]["level"], balance["flora"][n]["tier"])
-                    for n in flora.names}  # fmt: skip
+        self.e, self.flora, self.fauna = e, flora, fauna
+        self.species = {n: ("L", balance["flora"][n]) for n in flora.names}
         if fauna:
-            self.pos |= {n: ("F", balance["fauna"][n]["level"], balance["fauna"][n]["tier"])
-                         for n in fauna.names}  # fmt: skip
-        self.bank = dict.fromkeys(PLAYERS, int(e["start_budget"]))
-        self.unlocked = {p: {("L", 1, 1), ("F", 1, 1)} for p in PLAYERS}
+            self.species |= {n: ("F", balance["fauna"][n]) for n in fauna.names}
+        self.bank = dict.fromkeys(PLAYERS, float(e["start_budget"]))
+        start = {n for n, (_, s) in self.species.items() if s["unlock_cost"] == 0}
+        self.unlocked = {p: set(start) for p in PLAYERS}
+        self.events: list[tuple[int, str, int]] = []  # (player, species, cost) bought, for the log
         self.time_limit, self.fixed = m["time_limit_s"], m["victory_territory"]
         self.decay = (m["territory_start"], m["territory_end"]) if m["territory_decay"] else None
 
-    def unlock_cost(self, card) -> int:
-        tree, level, tier = card
-        base = self.e["unlock_flora" if tree == "L" else "unlock_fauna"][level - 1]
-        return round(base * self.e["tier_multiplier"] ** (tier - 1))
+    def stat(self, name: str, key: str):
+        return self.species[name][1][key]
 
-    def missing(self, p: int, name: str) -> list:
-        """Cards still needed for `name`, in buying order: the tiers of its level up to its own,
-        and, for an animal, the path to its first habitat plant if none is unlocked (§4.1)."""
-        tree, level, tier = self.pos[name]
-        need = [(tree, level, t) for t in range(1, tier + 1)]
-        if tree == "F":
-            habitat_mask = self.fauna.habitat[self.fauna.idx(name)]
-            habitat = [self.flora.names[i] for i in np.flatnonzero(habitat_mask)]
-            if not any(self.pos[h] in self.unlocked[p] for h in habitat):
-                need = self.missing(p, habitat[0]) + need
-        return [c for c in dict.fromkeys(need) if c not in self.unlocked[p]]
+    def missing(self, p: int, name: str) -> list[str]:
+        """Species still to unlock for `name`, in buying order."""
+        if name in self.unlocked[p]:
+            return []
+        tree, s = self.species[name]
+        need = []
+        if s["tier"] > 1:  # one species of the previous tier, the cheapest path first
+            pos = (tree, s["level"], s["tier"] - 1)
+            below = [n for n, (t, x) in self.species.items() if (t, x["level"], x["tier"]) == pos]
+            if not any(n in self.unlocked[p] for n in below):
+                need += min((self.missing(p, n) for n in below), key=self._cost)
+        if tree == "F":  # the first habitat plant, if none is unlocked yet
+            habitat = [self.flora.names[i] for i in np.flatnonzero(
+                self.fauna.habitat[self.fauna.idx(name)])]  # fmt: skip
+            if not any(h in self.unlocked[p] for h in habitat):
+                need += self.missing(p, habitat[0])
+        return list(dict.fromkeys([*need, name]))
+
+    def _cost(self, names: list[str]) -> float:
+        return sum(self.stat(n, "unlock_cost") for n in names)
 
     def prepare(self, p: int, name: str) -> bool:
-        """Buy the next missing card for `name` if affordable. True once `name` is unlocked."""
+        """Buy the next missing species for `name` if affordable. True once `name` is unlocked."""
         need = self.missing(p, name)
-        if need and self.pay(p, self.unlock_cost(need[0])):
+        if need and self.pay(p, self.stat(need[0], "unlock_cost")):
             self.unlocked[p].add(need[0])
+            self.events.append((p, need[0], self.stat(need[0], "unlock_cost")))
             need = need[1:]
         return not need
 
-    def pay(self, p: int, amount: int) -> bool:
+    def pay(self, p: int, amount: float) -> bool:
         if self.bank[p] < amount:
             return False
         self.bank[p] -= amount
         return True
 
-    def plant_cost(self, name: str, cells: int) -> int:
-        return self.e["plant_cost"][self.pos[name][1] - 1] * cells
+    def plant_cost(self, name: str, cells: int) -> float:
+        return self.stat(name, "spawn_cost") * cells
 
-    def spawn_cost(self, name: str, count: int, outside: bool = False) -> int:
-        s = self.fauna.idx(name)
-        cost = self.fauna.body[s] * self.e["spawn_cost_per_body"] * count
-        if outside and self.fauna.role[s] == PREDATOR:
+    def spawn_cost(self, name: str, count: int, outside: bool = False) -> float:
+        cost = self.stat(name, "spawn_cost") * count
+        if outside and self.fauna.role[self.fauna.idx(name)] == PREDATOR:
             cost *= self.e["drop_surcharge"]
-        return round(cost)
+        return cost
 
-    def earn(self, p: int, flora_growth: float, fed: int) -> None:
-        """Income: a share of flora growth, plus the energy the player's animals gained (§6.4)."""
-        self.bank[p] += int(flora_growth * self.e["income_rate"]) + fed
+    def income(self, p: int, st: State, ag: Agents | None) -> float:
+        """Points per second: each plant yields per fully covered cell (x cover), each animal
+        yields per head (D-029)."""
+        cover = np.minimum(st.bio / X(self.flora.kmax), 1)[:, st.owner == p].sum(1)
+        points = float(self.flora.yld @ cover)
+        if ag is not None and len(ag):
+            points += float(self.fauna.yld[ag.sp[ag.owner == p]].sum())
+        return points
 
     def threshold(self, t: float) -> float:
         """Territorial victory threshold at time t: fixed, or decaying (§11.3 switch)."""

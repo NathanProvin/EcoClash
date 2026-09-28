@@ -1,0 +1,496 @@
+# species.toml — per-species stats (D-029). Tune freely; values are placeholders.
+# Loaded together with balance.toml (both are converted and hashed together, D-011).
+#
+# Stats (first block of each species):
+#   growth       plants: colonization gauge speed at full pressure (1/s)
+#                animals: minimum seconds between two births of a well-fed animal
+#   spawn_cost   plants: points per cell planted; animals: points per animal
+#   unlock_cost  points to unlock the species card (0 = available at start)
+#   yield        points per second: per fully covered cell (plants), per animal (animals)
+#   cap          max cells per player (plants); max animals per player (animals)
+#   effect       special effect, shown in the UI
+#
+# Model (second block): level / tier = tech-tree position (flora L1..L3, fauna F1..F5).
+#   Plants: biomass_rate = logistic r (1/s); k_max = biomass capacity of a cell (u16);
+#   shade_cast / shade_tolerance 0..1; soil_gain = soil development per second at full cover.
+#   Animals: role, eats, habitat (flora names or L1..L3; predators eat fauna names), small =
+#   can hide in a refuge, body (energy capacity), bite (1/s), upkeep (share of body per s),
+#   speed and sight (cells), group (animals per spawned card).
+
+[flora.lichen]
+growth = 0.24
+spawn_cost = 20
+unlock_cost = 0
+yield = 0.05
+cap = 2000
+effect = "Pioneer: establishes on bare soil; fastest soil development."
+level = 1
+tier = 1
+pioneer = true
+biomass_rate = 0.03
+k_max = 2000
+shade_cast = 0.0
+shade_tolerance = 0.3
+soil_gain = 0.0045
+
+[flora.moss]
+growth = 0.32
+spawn_cost = 20
+unlock_cost = 0
+yield = 0.08
+cap = 2000
+effect = "Pioneer, shade-tolerant: carpets the ground under own shrubs and trees."
+level = 1
+tier = 1
+pioneer = true
+biomass_rate = 0.05
+k_max = 3000
+shade_cast = 0.0
+shade_tolerance = 0.9
+soil_gain = 0.003
+
+[flora.grasses]
+growth = 1.2
+spawn_cost = 20
+unlock_cost = 0
+yield = 0.2
+cap = 2000
+effect = "Pioneer: fastest spread; the main early income."
+level = 1
+tier = 1
+pioneer = true
+biomass_rate = 0.25
+k_max = 8000
+shade_cast = 0.0
+shade_tolerance = 0.1
+soil_gain = 0.0024
+
+[flora.clover]
+growth = 0.48
+spawn_cost = 20
+unlock_cost = 300
+yield = 0.25
+cap = 800
+effect = "Fixes nitrogen: fast soil development in its cell."
+level = 1
+tier = 2
+pioneer = false
+biomass_rate = 0.15
+k_max = 7000
+shade_cast = 0.0
+shade_tolerance = 0.2
+soil_gain = 0.0045
+
+[flora.ferns]
+growth = 0.24
+spawn_cost = 20
+unlock_cost = 300
+yield = 0.1
+cap = 600
+effect = "Shade-tolerant understory; only slugs graze it."
+level = 1
+tier = 2
+pioneer = false
+biomass_rate = 0.06
+k_max = 6000
+shade_cast = 0.1
+shade_tolerance = 0.9
+soil_gain = 0.0018
+
+[flora.bramble]
+growth = 0.8
+spawn_cost = 20
+unlock_cost = 450
+yield = 0.2
+cap = 800
+effect = "Thorny refuge: own small animals inside cannot be hunted."
+level = 1
+tier = 3
+pioneer = false
+biomass_rate = 0.2
+k_max = 10000
+shade_cast = 0.2
+shade_tolerance = 0.4
+soil_gain = 0.0024
+
+[flora.elder]
+growth = 1.2
+spawn_cost = 60
+unlock_cost = 1500
+yield = 0.4
+cap = 600
+effect = "Fastest shrub, short-lived: the first L2 foothold."
+level = 2
+tier = 1
+pioneer = false
+biomass_rate = 0.08
+k_max = 20000
+shade_cast = 0.3
+shade_tolerance = 0.3
+soil_gain = 0.0024
+
+[flora.hazel]
+growth = 0.72
+spawn_cost = 60
+unlock_cost = 2250
+yield = 0.4
+cap = 600
+effect = "Shade-tolerant shrub: grows under own trees."
+level = 2
+tier = 2
+pioneer = false
+biomass_rate = 0.05
+k_max = 22000
+shade_cast = 0.4
+shade_tolerance = 0.8
+soil_gain = 0.0024
+
+[flora.hawthorn]
+growth = 0.48
+spawn_cost = 60
+unlock_cost = 3375
+yield = 0.35
+cap = 600
+effect = "Thorny refuge: own small animals inside cannot be hunted."
+level = 2
+tier = 3
+pioneer = false
+biomass_rate = 0.04
+k_max = 25000
+shade_cast = 0.5
+shade_tolerance = 0.3
+soil_gain = 0.0024
+
+[flora.oak]
+growth = 0.24
+spawn_cost = 150
+unlock_cost = 5000
+yield = 0.8
+cap = 400
+effect = "Light canopy: the understory thrives beneath it."
+level = 3
+tier = 1
+pioneer = false
+biomass_rate = 0.015
+k_max = 60000
+shade_cast = 0.4
+shade_tolerance = 0.2
+soil_gain = 0.0015
+
+[flora.beech]
+growth = 0.288
+spawn_cost = 150
+unlock_cost = 7500
+yield = 0.9
+cap = 400
+effect = "Deep shade: suppresses the understory beneath it."
+level = 3
+tier = 2
+pioneer = false
+biomass_rate = 0.02
+k_max = 65000
+shade_cast = 0.85
+shade_tolerance = 0.8
+soil_gain = 0.0015
+
+[flora.chestnut]
+growth = 0.48
+spawn_cost = 150
+unlock_cost = 11250
+yield = 0.7
+cap = 400
+effect = "Fastest-growing tree."
+level = 3
+tier = 3
+pioneer = false
+biomass_rate = 0.03
+k_max = 55000
+shade_cast = 0.6
+shade_tolerance = 0.4
+soil_gain = 0.0015
+
+[fauna.earthworms]
+growth = 20
+spawn_cost = 50
+unlock_cost = 0
+yield = 0.01
+cap = 150
+effect = "Decomposer: turns dead biomass into soil development."
+level = 1
+tier = 1
+role = "decomposer"
+eats = ["dead"]
+habitat = ["L1"]
+small = true
+body = 50
+bite = 15
+upkeep = 0.01
+speed = 1
+sight = 4
+group = 10
+
+[fauna.pill_bug]
+growth = 20
+spawn_cost = 40
+unlock_cost = 300
+yield = 0.01
+cap = 150
+effect = "Decomposer of litter under moss, shrubs and trees."
+level = 1
+tier = 2
+role = "decomposer"
+eats = ["dead"]
+habitat = ["moss", "L2", "L3"]
+small = true
+body = 40
+bite = 12
+upkeep = 0.01
+speed = 1
+sight = 4
+group = 10
+
+[fauna.slugs]
+growth = 30
+spawn_cost = 100
+unlock_cost = 450
+yield = 0.02
+cap = 150
+effect = "Grazes pioneers and low herbs."
+level = 1
+tier = 3
+role = "herbivore"
+eats = ["lichen", "moss", "grasses", "clover", "ferns"]
+habitat = ["L1"]
+small = true
+body = 100
+bite = 30
+upkeep = 0.01
+speed = 1
+sight = 5
+group = 8
+
+[fauna.grasshoppers]
+growth = 30
+spawn_cost = 80
+unlock_cost = 1000
+yield = 0.02
+cap = 150
+effect = "Fast meadow grazer."
+level = 2
+tier = 1
+role = "herbivore"
+eats = ["grasses", "clover"]
+habitat = ["grasses"]
+small = true
+body = 80
+bite = 25
+upkeep = 0.012
+speed = 2
+sight = 6
+group = 15
+
+[fauna.caterpillars]
+growth = 30
+spawn_cost = 120
+unlock_cost = 1500
+yield = 0.03
+cap = 150
+effect = "Defoliates shrubs and trees: the counter to forests."
+level = 2
+tier = 2
+role = "herbivore"
+eats = ["bramble", "L2", "L3"]
+habitat = ["bramble", "L2"]
+small = true
+body = 120
+bite = 36
+upkeep = 0.01
+speed = 1
+sight = 6
+group = 15
+
+[fauna.voles]
+growth = 40
+spawn_cost = 300
+unlock_cost = 2000
+yield = 0.05
+cap = 100
+effect = "Meadow grazer."
+level = 3
+tier = 1
+role = "herbivore"
+eats = ["grasses", "clover"]
+habitat = ["grasses"]
+small = true
+body = 300
+bite = 90
+upkeep = 0.01
+speed = 2
+sight = 6
+group = 6
+
+[fauna.moles]
+growth = 90
+spawn_cost = 400
+unlock_cost = 3000
+yield = 0.08
+cap = 20
+effect = "Hunts enemy soil fauna."
+level = 3
+tier = 2
+role = "predator"
+eats = ["earthworms", "pill_bug", "slugs"]
+habitat = ["L1"]
+small = true
+body = 400
+upkeep = 0.004
+speed = 1
+sight = 6
+group = 1
+
+[fauna.hedgehog]
+growth = 90
+spawn_cost = 500
+unlock_cost = 3000
+yield = 0.1
+cap = 20
+effect = "Hunts slugs, earthworms and caterpillars."
+level = 3
+tier = 2
+role = "predator"
+eats = ["slugs", "earthworms", "caterpillars"]
+habitat = ["L2"]
+small = true
+body = 500
+upkeep = 0.004
+speed = 2
+sight = 6
+group = 1
+
+[fauna.rabbits]
+growth = 45
+spawn_cost = 800
+unlock_cost = 4500
+yield = 0.1
+cap = 60
+effect = "Heavy grazer: breaks meadow and bramble frontiers."
+level = 3
+tier = 3
+role = "herbivore"
+eats = ["grasses", "clover", "bramble", "elder", "hawthorn"]
+habitat = ["grasses"]
+small = true
+body = 800
+bite = 240
+upkeep = 0.01
+speed = 3
+sight = 8
+group = 4
+
+[fauna.tits]
+growth = 60
+spawn_cost = 200
+unlock_cost = 4000
+yield = 0.05
+cap = 30
+effect = "Hunts insects: caterpillars, grasshoppers, pill bugs."
+level = 4
+tier = 1
+role = "predator"
+eats = ["caterpillars", "grasshoppers", "pill_bug"]
+habitat = ["L2", "L3"]
+body = 200
+upkeep = 0.005
+speed = 4
+sight = 10
+group = 2
+
+[fauna.woodpecker]
+growth = 90
+spawn_cost = 300
+unlock_cost = 6000
+yield = 0.06
+cap = 20
+effect = "Hunts caterpillars in the canopy."
+level = 4
+tier = 2
+role = "predator"
+eats = ["caterpillars"]
+habitat = ["L3"]
+body = 300
+upkeep = 0.004
+speed = 3
+sight = 10
+group = 1
+
+[fauna.buzzard]
+growth = 120
+spawn_cost = 1500
+unlock_cost = 9000
+yield = 0.3
+cap = 8
+effect = "Raptor: hunts small mammals and insects in the open."
+level = 4
+tier = 3
+role = "predator"
+eats = ["voles", "rabbits", "moles", "grasshoppers", "earthworms"]
+habitat = ["L3"]
+body = 1500
+upkeep = 0.003
+speed = 6
+sight = 16
+group = 1
+
+[fauna.fox]
+growth = 120
+spawn_cost = 3000
+unlock_cost = 8000
+yield = 0.5
+cap = 10
+effect = "Hunts small mammals; drop it on enemy grazers."
+level = 5
+tier = 1
+role = "predator"
+eats = ["rabbits", "voles", "moles", "hedgehog", "grasshoppers", "earthworms"]
+habitat = ["L2"]
+body = 3000
+upkeep = 0.003
+speed = 4
+sight = 12
+group = 1
+
+[fauna.tawny_owl]
+growth = 120
+spawn_cost = 1200
+unlock_cost = 12000
+yield = 0.25
+cap = 8
+effect = "Raptor: hunts voles, moles and small birds."
+level = 5
+tier = 2
+role = "predator"
+eats = ["voles", "moles", "tits", "woodpecker"]
+habitat = ["L3"]
+body = 1200
+upkeep = 0.003
+speed = 5
+sight = 14
+group = 1
+
+[fauna.lynx]
+growth = 180
+spawn_cost = 6000
+unlock_cost = 18000
+yield = 1.0
+cap = 4
+effect = "Apex forest predator: hunts rabbits and foxes."
+level = 5
+tier = 3
+role = "predator"
+eats = ["rabbits", "fox"]
+habitat = ["L3"]
+body = 6000
+upkeep = 0.002
+speed = 4
+sight = 14
+group = 1

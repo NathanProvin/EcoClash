@@ -354,3 +354,12 @@ Template:
   - **`rng.rs`:** PCG32 (XSH-RR 64/32), seeded like the reference `pcg32_srandom_r`. Verified against the reference demo outputs (seed 42, stream 54). `below()` uses the reference threshold rejection (unbiased). `chance(num, den)` is exact.
   - **CI workflow** (`.github/workflows/ci.yml`): rust (fmt, clippy, test, wasm32 build), python (ruff, pytest), client (lint, check, test, build), all through the root npm scripts. It is inactive until the remote exists.
 - **Consequences:** No crates yet. The balance loader (M1.5) will need `toml` + `serde`, justified then.
+
+## D-033 · 2026-09-28 · Placeholder layout without overlaps
+- **Status:** accepted (fix of a critical visual bug reported by the user)
+- **Context:** Models overlapped. Offsets were independent and random (up to ±0.42 cell); heights were baked into the geometry and scaled with size, so small tree cubes sank into cones; animals on one cell were drawn at the same point.
+- **Decision** (`client/src/render/layout.ts`, pure and tested):
+  - **Slots:** every model owns a slot of a per-cell grid: 2×2 for tree cubes and for shrub cones, 3×3 for herb dots. Its jitter, size and rotation keep it inside the slot, so there are no overlaps inside a cell or across cells. Dots skip slots that would touch a cone base.
+  - **Height bands**, fixed and disjoint: dots on the ground; cones up to 1.26 m (≤ 1.3); tree cubes between 1.65 and 2.35 m (centre 2.0); animals above 2.6 m.
+  - **Animals** sharing a cell get a per-cell g×g grid by id order, scaled down as they crowd. The selection highlight is colour only (no size bump).
+  - The test checks no overlap over 4,000 random cells and the band limits.

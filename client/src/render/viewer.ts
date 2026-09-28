@@ -1,25 +1,22 @@
 // Placeholder diorama over a Replay (INSTRUCTIONS §6: the renderer only reads snapshots).
 // Ground tinted by territory; flora as instanced dots (L1), cones (L2) and cubes (L3), several per
-// cell at deterministic random offsets, sizes and angles for a natural look (D-029); animals as
-// spheres (herbivores), small dots (decomposers) and pyramids (predators), unlit and raised.
-// 1 cell = CELL world units (2 m, Q-008 default).
+// cell in their own slots and height bands so models never overlap (layout.ts, D-033); animals as
+// spheres (herbivores), small dots (decomposers) and pyramids (predators), unlit, in a band above
+// the canopy, one slot each per cell. 1 cell = CELL world units (2 m, Q-008 default).
 
 import { MapControls } from "three/addons/controls/MapControls.js";
 import * as THREE from "three/webgpu";
 import { interpolate, type Animal, type Replay, type Role } from "../replay/replay";
+import { animalSlots, ANIMAL_BASE, CANOPY_Y, CELL, CONE, DOT, plantLayout, rand } from "./layout";
 import { hexToRgb, PLAYER, WORLD, type PlayerId } from "./palette";
 
 export type Layer = "territory" | "L1" | "L2" | "L3" | "animals";
 
-export const CELL = 2;
+export { CELL };
 const ROLES: Role[] = ["herbivore", "decomposer", "predator"];
-/** Models per cell and size ranges per stratum: many small dots, a few cones, one or two cubes. */
-const SLOTS = [5, 3, 2] as const;
-const SIZE = [
-  [0.35, 0.8],
-  [0.45, 1.0],
-  [0.6, 1.1],
-] as const;
+/** Footprint radius (m) of each animal shape at scale 1; the band starts at ANIMAL_BASE. */
+const ANIMAL_R: Record<Role, number> = { herbivore: 0.35, decomposer: 0.18, predator: 0.4 };
+const MAX_PER_CELL = [5, 3, 2] as const; // instance capacity per cell and stratum
 const HIGHLIGHT = new THREE.Color("#ffffff");
 
 /** Keys held by the player, read each frame for keyboard camera moves. */
@@ -41,7 +38,6 @@ export class Viewer {
   private readonly groundData: Uint8Array;
   private readonly groundTex: THREE.DataTexture;
   private readonly strata: THREE.InstancedMesh[];
-  private readonly scatter: Float32Array[]; // per stratum: n*n*slots x (dx, dz, size, angle)
   private readonly animals: Record<Role, THREE.InstancedMesh>;
   private readonly roleOf: Role[];
   private readonly animalColor: Record<PlayerId, { animal: THREE.Color; predator: THREE.Color }> = {
@@ -55,6 +51,7 @@ export class Viewer {
   private lastFrame = -1;
   private showTerritory = true;
   private shown: Animal[] = [];
+  private drawn: { id: number; owner: number; x: number; z: number }[] = []; // world positions
   private selected = new Set<number>();
 
   private constructor(
@@ -102,20 +99,29 @@ export class Viewer {
     this.scene.add(ground);
 
     const cells = n * n;
-    const dot = new THREE.SphereGeometry(0.3, 6, 4).scale(1, 0.4, 1).translate(0, 0.12, 0);
-    const cone = new THREE.ConeGeometry(0.45, 1.1, 7).translate(0, 0.55, 0);
-    const cube = new THREE.BoxGeometry(0.85, 0.85, 0.85).translate(0, 1.6, 0);
-    this.strata = [dot, cone, cube].map((g, s) => this.instanced(g, cells * SLOTS[s as 0], 0.9));
-    this.scatter = SLOTS.map((slots, s) => scatterTable(cells * slots, 1 + s));
+    // Unit shapes, base on the ground (dots, cones) or centred (cubes); instances scale them to
+    // their footprint and place them in their band (layout.ts).
+    const dot = new THREE.SphereGeometry(1, 8, 4)
+      .scale(1, DOT.heightRatio / 2, 1)
+      .translate(0, DOT.heightRatio / 2, 0);
+    const cone = new THREE.ConeGeometry(1, CONE.heightRatio, 8).translate(
+      0,
+      CONE.heightRatio / 2,
+      0,
+    );
+    const cube = new THREE.BoxGeometry(1, 1, 1);
+    this.strata = [dot, cone, cube].map((g, s) =>
+      this.instanced(g, cells * MAX_PER_CELL[s as 0], 0.9),
+    );
 
     this.aura = makeAura();
     this.scene.add(this.aura);
 
     const most = replay.maxAnimals();
     this.animals = {
-      herbivore: this.instanced(new THREE.SphereGeometry(0.6, 12, 8).translate(0, 1.3, 0), most),
-      decomposer: this.instanced(new THREE.SphereGeometry(0.3, 8, 6).translate(0, 0.9, 0), most),
-      predator: this.instanced(new THREE.ConeGeometry(0.9, 2.4, 3).translate(0, 2.2, 0), most),
+      herbivore: this.instanced(new THREE.SphereGeometry(1, 12, 8).translate(0, 1, 0), most),
+      decomposer: this.instanced(new THREE.SphereGeometry(1, 8, 6).translate(0, 1, 0), most),
+      predator: this.instanced(new THREE.ConeGeometry(1, 2.5, 3).translate(0, 1.25, 0), most),
     };
   }
 
@@ -268,13 +274,12 @@ export class Viewer {
     const [top, bottom] = [Math.min(y0, y1), Math.max(y0, y1)];
     const click = right - left < 4 && bottom - top < 4;
     const { clientWidth: w, clientHeight: h } = this.canvas;
-    const n = this.replay.meta.n;
     const v = new THREE.Vector3();
     let best: { id: number; d: number } | undefined;
     const hits: number[] = [];
-    for (const a of this.shown) {
+    for (const a of this.drawn) {
       if (a.owner !== player) continue;
-      v.set((a.x - n / 2 + 0.5) * CELL, 1.2, (a.y - n / 2 + 0.5) * CELL).project(this.camera);
+      v.set(a.x, ANIMAL_BASE + 0.4, a.z).project(this.camera);
       if (v.z > 1) continue; // behind the camera
       const [sx, sy] = [((v.x + 1) / 2) * w, ((1 - v.y) / 2) * h];
       if (click) {
@@ -311,25 +316,22 @@ export class Viewer {
       }
       this.groundData[texel + 3] = 255;
       if (!p) continue;
-      const cx = (c % n) - n / 2 + 0.5;
-      const cz = Math.floor(c / n) - n / 2 + 0.5;
-      for (const s of [0, 1, 2] as const) {
-        const v = (cover[s]?.[c] ?? 0) / 255;
+      const x0 = ((c % n) - n / 2) * CELL; // cell corner in world metres
+      const z0 = (Math.floor(c / n) - n / 2) * CELL;
+      const layers = plantLayout(
+        c,
+        [0, 1, 2].map((k) => (cover[k]?.[c] ?? 0) / 255),
+      );
+      layers.forEach((models, s) => {
         const mesh = this.strata[s];
         const color = strataColor[p - 1]?.[s];
-        if (v < 0.05 || !mesh || !color) continue;
-        // More models as the cover fills; each keeps its own random spot, size and angle.
-        const models = Math.max(1, Math.round(v * SLOTS[s]));
-        const [lo, hi] = SIZE[s];
-        const table = this.scatter[s] ?? new Float32Array(0);
-        for (let m = 0; m < models; m++) {
-          const r = (c * SLOTS[s] + m) * 4;
-          const x = (cx + (table[r] ?? 0)) * CELL;
-          const z = (cz + (table[r + 1] ?? 0)) * CELL;
-          const scale = (lo + (hi - lo) * v) * (table[r + 2] ?? 1) * CELL * 0.6;
-          writeInstance(mesh, counts[s]++, x, z, scale, table[r + 3] ?? 0, color);
+        if (!mesh || !color) return;
+        const y = s === 2 ? CANOPY_Y : 0;
+        for (const m of models) {
+          const i = counts[s as 0 | 1 | 2]++;
+          writeInstance(mesh, i, x0 + m.x, y, z0 + m.z, m.size, m.angle, color);
         }
-      }
+      });
     }
     this.strata.forEach((m, s) => finish(m, counts[s as 0 | 1 | 2]));
     this.groundTex.needsUpdate = true;
@@ -339,14 +341,32 @@ export class Viewer {
     const t0 = Math.floor(tick);
     this.shown = interpolate(this.replay.animals(t0), this.replay.animals(t0 + 1), tick - t0);
     const n = this.replay.meta.n;
-    const counts: Record<Role, number> = { herbivore: 0, decomposer: 0, predator: 0 };
+    // Animals sharing a cell each get their own slot (by id order), shrinking as they crowd.
+    const byCell = new Map<number, Animal[]>();
     for (const a of this.shown) {
-      const role = this.roleOf[a.species] ?? "herbivore";
-      const colors = this.animalColor[a.owner === 2 ? 2 : 1];
-      const picked = this.selected.has(a.id);
-      const color = picked ? HIGHLIGHT : role === "predator" ? colors.predator : colors.animal;
-      const [x, z] = [(a.x - n / 2 + 0.5) * CELL, (a.y - n / 2 + 0.5) * CELL];
-      writeInstance(this.animals[role], counts[role]++, x, z, picked ? 1.35 : 1, 0, color);
+      const key = Math.round(a.y) * n + Math.round(a.x);
+      const list = byCell.get(key);
+      if (list) list.push(a);
+      else byCell.set(key, [a]);
+    }
+    const counts: Record<Role, number> = { herbivore: 0, decomposer: 0, predator: 0 };
+    this.drawn = [];
+    for (const group of byCell.values()) {
+      group.sort((a, b) => a.id - b.id);
+      const slots = animalSlots(group.length, ANIMAL_R.predator);
+      group.forEach((a, k) => {
+        const slot = slots[k] ?? { x: CELL / 2, z: CELL / 2, scale: 1 };
+        const role = this.roleOf[a.species] ?? "herbivore";
+        const colors = this.animalColor[a.owner === 2 ? 2 : 1];
+        const picked = this.selected.has(a.id);
+        const color = picked ? HIGHLIGHT : role === "predator" ? colors.predator : colors.animal;
+        // The animal's (interpolated) cell corner, plus its slot inside the cell.
+        const x = (a.x - n / 2) * CELL + slot.x;
+        const z = (a.y - n / 2) * CELL + slot.z;
+        const size = ANIMAL_R[role] * slot.scale;
+        writeInstance(this.animals[role], counts[role]++, x, ANIMAL_BASE, z, size, 0, color);
+        this.drawn.push({ id: a.id, owner: a.owner, x, z });
+      });
     }
     for (const role of ROLES) finish(this.animals[role], counts[role]);
   }
@@ -375,13 +395,8 @@ function makeAura(): THREE.Group {
   ring.addColorStop(1, "rgba(232,234,236,0)");
   g.fillStyle = ring;
   g.fillRect(0, 0, 256, 256);
-  const random = scatterTable(48, 97);
   for (let i = 0; i < 48; i++) {
-    const [a, r, s] = [
-      random[i * 4 + 3] ?? 0,
-      78 + (random[i * 4] ?? 0) * 50,
-      10 + (random[i * 4 + 2] ?? 1) * 14,
-    ];
+    const [a, r, s] = [rand(i, 1) * Math.PI * 2, 78 + rand(i, 2) * 50, 10 + rand(i, 3) * 14];
     const [x, y] = [128 + Math.cos(a) * r, 128 + Math.sin(a) * r];
     const puff = g.createRadialGradient(x, y, 0, x, y, s);
     puff.addColorStop(0, "rgba(240,241,243,0.22)");
@@ -416,29 +431,12 @@ function animateAura(aura: THREE.Group, seconds: number): void {
   });
 }
 
-/** Deterministic per-slot randomness (dx, dz in -0.42..0.42 of a cell, size 0.8..1.2, angle). */
-function scatterTable(count: number, seed: number): Float32Array {
-  const out = new Float32Array(count * 4);
-  let h = seed * 0x9e3779b9;
-  const next = () => {
-    h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) ^ Math.imul(h ^ (h >>> 13), 0x297a2d39);
-    h ^= h >>> 16;
-    return (h >>> 0) / 4294967296;
-  };
-  for (let i = 0; i < count; i++) {
-    out.set(
-      [(next() - 0.5) * 0.84, (next() - 0.5) * 0.84, 0.8 + next() * 0.4, next() * 6.283],
-      i * 4,
-    );
-  }
-  return out;
-}
-
 /** Rotation about Y + uniform scale + translation, written straight into the instance buffers. */
 function writeInstance(
   mesh: THREE.InstancedMesh,
   i: number,
   x: number,
+  y: number, // not scaled: the height band
   z: number,
   scale: number,
   angle: number,
@@ -446,7 +444,7 @@ function writeInstance(
 ): void {
   const [c, s] = [Math.cos(angle) * scale, Math.sin(angle) * scale];
   const m = mesh.instanceMatrix.array as Float32Array;
-  m.set([c, 0, -s, 0, 0, scale, 0, 0, s, 0, c, 0, x, 0, z, 1], i * 16);
+  m.set([c, 0, -s, 0, 0, scale, 0, 0, s, 0, c, 0, x, y, z, 1], i * 16);
   (mesh.instanceColor?.array as Float32Array | undefined)?.set([color.r, color.g, color.b], i * 3);
 }
 

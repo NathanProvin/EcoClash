@@ -325,3 +325,15 @@ Template:
   - **Unlocks are per species:** a species needs one unlocked species on the previous tier of its level (the cheapest path is bought first) and, for an animal, one of its habitat plants. Unlock events are logged for the tech tree.
   - **Grid halved:** spec default 512 → 256 (INSTRUCTIONS §5.1); prototype default 128 → 64; Q-008 default is now 1 cell = 2 m. The renderer scatters several plant models per cell at random offsets.
 - **Consequences:** The balance hash in M1.5 covers both files. Replays (v2) carry the species table, per-species counts and unlock events.
+
+## D-030 · 2026-09-28 · RTS UI v1 and camera controls
+- **Status:** accepted (user direction: RTS philosophy, simple and clean style)
+- **Decision:**
+  - **Top resource bar** (viewed player; a P1 / P2 switch picks the view): land colonized (vs opponent), number of living species, biomass stock and its rate (+X/s). Tech tree and Layers buttons.
+  - **Bottom unit bar:** the current selection grouped by species, or the player's living species (cells / animals) when nothing is selected. A card focuses a species; clicking an animal card selects those animals on screen. A details panel shows the focused species' stats and effect.
+  - **Full-screen tech tree** (T / Esc): flora L1–L3 and fauna F1–F5 as levels × tiers. Each card shows the stat sheet, diet and habitat, owned count, and its state (unlocked / available / locked) at the current time, from the unlock log.
+  - **Mouse (RTS):** left-drag = box select (a click picks one animal), middle-drag = rotate, right-drag = pan (right-click becomes orders in M3), wheel = zoom toward the cursor.
+  - **Keys:** WASD / arrows = pan, Q / E = rotate, Home = reset view, Space = play/pause, Esc = close / clear.
+  - A slim replay timeline sits above the unit bar (replay only).
+  - Plants are scattered naturally: up to 5 dots, 3 cones or 2 cubes per cell, with deterministic random offset, size and angle, the count following cover (D-029).
+- **Not yet:** orders and spawning from the UI (needs the live sim: M1–M3), minimap, plant selection highlight.

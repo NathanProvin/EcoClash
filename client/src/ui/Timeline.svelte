@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Playback: play / pause (Space), speed, scrubber.
+  // Replay playback strip: play / pause (Space), speed, scrubber. Sits above the unit bar.
   import type { Replay } from "../replay/replay";
 
   let {
@@ -7,7 +7,14 @@
     tick = $bindable(),
     playing = $bindable(),
     speed = $bindable(),
-  }: { replay: Replay; tick: number; playing: boolean; speed: number } = $props();
+    result,
+  }: {
+    replay: Replay;
+    tick: number;
+    playing: boolean;
+    speed: number;
+    result: string;
+  } = $props();
 
   const speeds = [1, 2, 4, 8, 16, 32];
   const clock = (s: number) =>
@@ -19,7 +26,7 @@
   }
 </script>
 
-<footer class="panel timeline">
+<div class="strip">
   <button onclick={playPause} aria-label={playing ? "Pause" : "Play"}>
     {playing ? "❚❚" : "▶"}
   </button>
@@ -34,37 +41,44 @@
     bind:value={tick}
     aria-label="Match time"
   />
-  <label>
-    Speed
-    <select bind:value={speed}>
-      {#each speeds as s (s)}<option value={s}>{s}×</option>{/each}
-    </select>
-  </label>
-</footer>
+  <select bind:value={speed} aria-label="Playback speed">
+    {#each speeds as s (s)}<option value={s}>{s}×</option>{/each}
+  </select>
+  {#if result}<strong class="result" role="status">{result}</strong>{/if}
+</div>
 
 <style>
-  .timeline {
+  .strip {
     position: absolute;
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
+    left: 0;
+    right: 0;
+    bottom: 132px;
+    height: 34px;
     display: flex;
-    gap: 12px;
+    gap: 10px;
     align-items: center;
+    padding: 0 16px;
+    background: rgba(250, 250, 247, 0.72);
+    border-top: 1px solid var(--line);
   }
   input[type="range"] {
     flex: 1;
   }
   button {
-    width: 40px;
-    height: 32px;
+    width: 32px;
+    height: 24px;
     border: 1px solid var(--line);
     border-radius: 6px;
     background: white;
     cursor: pointer;
+    font-size: 0.8em;
   }
   .clock {
     font-variant-numeric: tabular-nums;
-    min-width: 96px;
+    font-size: 0.85em;
+    min-width: 88px;
+  }
+  .result {
+    font-size: 0.9em;
   }
 </style>

@@ -406,9 +406,9 @@ def main():
         flora, a.size, a.minutes, a.seed, (a.p1, a.p2), fauna=fauna, economy=economy, record=record
     )
     if a.replay:
-        out = REPLAYS / f"{tag}_seed{a.seed}"
-        export_replay(out, balance, flora, fauna, a.size, record, rows, log, (a.p1, a.p2))
-        print(f"wrote replay {REPLAYS / f'{tag}_seed{a.seed}'}")
+        replay_dir = REPLAYS / f"{tag}_seed{a.seed}"
+        export_replay(replay_dir, balance, flora, fauna, a.size, record, rows, log, (a.p1, a.p2))
+        print(f"wrote replay {replay_dir}")
     for t, p, name, count in log:
         if name.startswith("end"):
             print(f"{t / 60:5.1f} min  {'draw' if p == 0 else f'P{p} wins'} ({name[5:]})")

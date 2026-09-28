@@ -5,7 +5,12 @@ import { interpolate, isGzip, Replay, type Animal, type ReplayMeta } from "./rep
 function tiny(): Replay {
   const n = 2;
   const meta: ReplayMeta = {
-    version: 1,
+    version: 2,
+    species: [],
+    counts: [
+      [[3], [1]],
+      [[4], [0]],
+    ],
     n,
     dt: 0.5,
     ticks: 3,
@@ -46,6 +51,17 @@ describe("Replay", () => {
     expect([...(f.cover[1] ?? [])]).toEqual([0, 128, 0, 0]);
     expect([...r.fields(2).owner]).toEqual([1, 0, 2, 2]);
     expect(r.fields(99).frame).toBe(1); // clamped
+  });
+
+  it("reads per-species counts of the latest field frame", () => {
+    const r = tiny();
+    expect(r.counts(1, 1)).toEqual([3]);
+    expect(r.counts(2, 2)).toEqual([0]);
+  });
+
+  it("refuses an older replay format", () => {
+    const r = tiny();
+    expect(() => new Replay({ ...r.meta, version: 1 }, new ArrayBuffer(0))).toThrow(/version/);
   });
 
   it("maps ticks to series rows", () => {

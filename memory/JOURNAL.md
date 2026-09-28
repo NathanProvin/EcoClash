@@ -130,3 +130,15 @@
   - ground texture rows were flipped;
   - animals blended into the plants (now unlit, bigger, raised, light tints).
 - **Next:** the user chooses: input on the viewer, or M1 `sim-core`.
+
+## 2026-09-28 · Species stat sheet (D-029) and RTS UI v1 (D-030)
+- **Goal:** Per-species stats in a config file for the user to tune; halve the grid; a first RTS UI.
+- **Done:**
+  - `data/species.toml`: growth, spawn / unlock cost, yield, cap, effect per species, plus model internals.
+  - Per-species unlocks with a prerequisite chain; yield income; plant cell caps; animal breeding cooldown and species caps.
+  - Grid 512 → 256 (prototype 128 → 64).
+  - Replay v2: species table, counts, unlock log.
+  - Client: natural scatter (several models per cell), RTS mouse and keys with rotation, top resource bar, bottom unit bar with box selection, full-screen tech tree.
+  - Tests: 39 Python, 11 client. Checked in Chrome (WebGPU).
+- **Fix on the way:** `main()` reused `out` for the replay folder, so metrics and plots landed in the replay folder.
+- **Next:** M1 `sim-core`.

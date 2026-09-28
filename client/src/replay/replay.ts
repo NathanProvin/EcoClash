@@ -4,8 +4,31 @@
 
 export type Role = "decomposer" | "herbivore" | "predator";
 
+/** One species of the stat sheet (data/species.toml, D-029). */
+export interface Species {
+  name: string;
+  kind: "flora" | "fauna";
+  level: number;
+  tier: number;
+  role: string; // "L1".."L3" for plants, a Role for animals
+  habitat: string[];
+  eats: string[];
+  stats: {
+    growth: number;
+    spawn_cost: number;
+    unlock_cost: number;
+    yield: number;
+    cap: number;
+    effect: string;
+  };
+}
+
+export const REPLAY_VERSION = 2;
+
 export interface ReplayMeta {
   version: number;
+  species: Species[];
+  counts: number[][][]; // per field frame: [player 1, player 2] counts in species order
   n: number;
   dt: number;
   ticks: number;
@@ -35,6 +58,11 @@ export class Replay {
   private readonly fieldAt: number[] = []; // byte offset of each field frame
 
   constructor(meta: ReplayMeta, frames: ArrayBuffer) {
+    if (meta.version !== REPLAY_VERSION) {
+      throw new Error(
+        `replay version ${meta.version}, viewer expects ${REPLAY_VERSION}: npm run proto -- --replay`,
+      );
+    }
     this.meta = meta;
     this.view = new DataView(frames);
     const cells = meta.n * meta.n;
@@ -80,6 +108,13 @@ export class Replay {
     const at = this.fieldAt[frame] ?? 0;
     const layer = (k: number) => new Uint8Array(this.view.buffer, at + k * cells, cells);
     return { frame, owner: layer(0), cover: [layer(1), layer(2), layer(3)] };
+  }
+
+  /** Cells per plant species / animals per animal species for a player (1 or 2), from the latest
+   *  field frame at or before `tick`, in species-table order. */
+  counts(tick: number, player: number): number[] {
+    const frame = this.fields(tick).frame;
+    return this.meta.counts[frame]?.[player - 1] ?? [];
   }
 
   /** The largest animal count of any tick (instance buffer capacity). */

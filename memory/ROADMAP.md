@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** replay viewer v1 done (D-028). Next: pick between interactive input on the replay viewer and M1 (`sim-core`).
+- **Now:** species stat sheet (D-029) and RTS UI v1 (D-030) done. Next: M1 `sim-core` (user: UI first, then M1).
 - **Next:** M1 (`sim-core`). Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
 - **Blocked:**
   - None on design questions for M0.
@@ -43,6 +43,7 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [ ] M1.8 `sim-wasm` + Node headless runner. CI checks the native vs WASM hash. `npm run doctor` checks that the `wasm-bindgen-cli` version matches `Cargo.lock` (D-008).
 
 ## M2 · Web render of fields
+- [x] RTS UI v1 on the replay viewer (D-030): top resource bar, bottom unit bar with box selection, full-screen tech tree, camera rotation.
 - [x] Replay viewer (early M2, D-028): the Python prototype exports replays; the Vite + TS + Svelte + Three.js client plays them back with placeholder shapes, an RTS camera and a HUD.
 - [ ] Resolve Q-008 (scale), Q-009 (colours), Q-010 (reference machine).
 - [ ] Vite + TS + Svelte scaffold as an npm workspace (`client/`) — done with the viewer; still to do: COOP/COEP headers in dev and `_headers`.

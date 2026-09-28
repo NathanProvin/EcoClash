@@ -173,3 +173,7 @@
   - `sim-cli run` with per-tick hashes and per-flora-tick metrics.
   - Python cross-check: exact match with the prototype over 240 flora ticks (48²), in pytest so CI runs it.
 - **Next:** M1.7 `proptest` determinism tests, M1.9 flora performance, M1.8 `sim-wasm` + native-vs-WASM hash in CI.
+
+## 2026-09-28 · M1.7 determinism property tests
+- **Done:** `proptest` over random command streams (invalid players, species, cells, duplicate / late commands): no panic, identical hashes on replay, submission order irrelevant, incremental chunk hashes = fresh recompute, owned cells = cells with biomass. 29 Rust tests green.
+- **Next:** M1.9 flora performance (user OK with a lower flora frequency, e.g. every 8 ticks; `growth * dt <= 1` still holds at dt 0.8), then M1.8 `sim-wasm` + native vs WASM hashes in CI.

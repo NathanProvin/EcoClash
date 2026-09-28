@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M1.7 determinism tests (`proptest` command streams), then M1.9 performance and M1.8 `sim-wasm`.
+- **Now:** M1.9 flora performance (user: lowering the flora frequency is fine, e.g. `flora_every_ticks` 5 → 8; plan: per-cell fused pass over relevant species only, reused buffers, test-only reference step), then M1.8 `sim-wasm`.
 - **Known issue:** a flora tick takes 107 ms at 256² (budget 8 ms per tick): M1.9.
 - **Next:** M1 (`sim-core`). Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
 - **Blocked:**
@@ -40,7 +40,7 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [x] M1.4 `commands.rs`, `hash.rs` (incremental, per 32×32 chunk), `snapshot.rs`, `world.rs` tick loop (multi-rate: flora every 5 ticks) (D-036).
 - [x] M1.5 Balance loader: parse, convert to fixed-point, validate (`balance.rs`); balance hash of the converted values (`hash::balance_hash`, D-037).
 - [x] M1.6 `sim-cli run` → per-tick hash + metrics CSV. `npm run cli:check` / pytest compare it with the M0 quant mode: identical on every flora tick (D-037).
-- [ ] M1.7 Determinism tests: run twice, `proptest` command streams.
+- [x] M1.7 Determinism tests: run twice, `proptest` command streams (invalid ones included), chunk-hash and ownership invariants (`sim-core/tests/determinism.rs`).
 - [ ] M1.9 Flora step performance: ≤ 8 ms per flora tick at 256² (107 ms at the first port, release). Skip bare cells, reuse buffers, precompute neighbours; the parity test guards exactness. Measure: `cargo test -p sim-core --release -- --ignored --nocapture flora_tick_time`.
 - [ ] M1.8 `sim-wasm` + Node headless runner. CI checks the native vs WASM hash. `npm run doctor` checks that the `wasm-bindgen-cli` version matches `Cargo.lock` (D-008).
 

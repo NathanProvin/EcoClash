@@ -13,6 +13,9 @@ chunk_size = 32          # §5.3 chunk sleeping, hashing
 players = 2
 victory_territory = 0.60 # §2.3, Q-013
 time_limit_s = 1200      # §2.3: 20 min, Q-013
+territory_decay = false  # [Proposed] switch (gamerules §11.3): threshold decays linearly ...
+territory_start = 0.75   # ... from this at t = 0 ...
+territory_end = 0.55     # ... to this at the time limit
 
 [agents]
 max_agents = 2000        # §5.4 budget; per player: half
@@ -53,6 +56,7 @@ contested_cells = true
 # per second at full cover. shade_cast / shade_tolerance: 0..1.
 [flora.lichen]
 level = 1
+tier = 1
 pioneer = true
 growth_rate = 0.03
 k_max = 2000
@@ -63,6 +67,7 @@ soil_gain = 0.0045
 
 [flora.moss]
 level = 1
+tier = 1
 pioneer = true
 growth_rate = 0.05
 k_max = 3000
@@ -73,6 +78,7 @@ soil_gain = 0.003
 
 [flora.grasses]
 level = 1
+tier = 1
 pioneer = true
 growth_rate = 0.25
 k_max = 8000
@@ -83,6 +89,7 @@ soil_gain = 0.0024
 
 [flora.clover]
 level = 1
+tier = 2
 pioneer = false
 growth_rate = 0.15
 k_max = 7000
@@ -93,6 +100,7 @@ soil_gain = 0.0045
 
 [flora.ferns]
 level = 1
+tier = 2
 pioneer = false
 growth_rate = 0.06
 k_max = 6000
@@ -103,6 +111,7 @@ soil_gain = 0.0018
 
 [flora.bramble]
 level = 1
+tier = 3
 pioneer = false
 growth_rate = 0.2
 k_max = 10000
@@ -113,6 +122,7 @@ soil_gain = 0.0024
 
 [flora.elder]
 level = 2
+tier = 1
 pioneer = false
 growth_rate = 0.08
 k_max = 20000
@@ -123,6 +133,7 @@ soil_gain = 0.0024
 
 [flora.hazel]
 level = 2
+tier = 2
 pioneer = false
 growth_rate = 0.05
 k_max = 22000
@@ -133,6 +144,7 @@ soil_gain = 0.0024
 
 [flora.hawthorn]
 level = 2
+tier = 3
 pioneer = false
 growth_rate = 0.04
 k_max = 25000
@@ -143,6 +155,7 @@ soil_gain = 0.0024
 
 [flora.oak]
 level = 3
+tier = 1
 pioneer = false
 growth_rate = 0.015
 k_max = 60000
@@ -153,6 +166,7 @@ soil_gain = 0.0015
 
 [flora.beech]
 level = 3
+tier = 2
 pioneer = false
 growth_rate = 0.02
 k_max = 65000
@@ -163,6 +177,7 @@ soil_gain = 0.0015
 
 [flora.chestnut]
 level = 3
+tier = 3
 pioneer = false
 growth_rate = 0.03
 k_max = 55000
@@ -171,7 +186,7 @@ shade_cast = 0.6
 shade_tolerance = 0.4
 soil_gain = 0.0015
 
-# Fauna agents (gamerules §5.2, §6; D-023). Placeholder values, not tuned (prototype).
+# Fauna agents (gamerules §5.2, §6; D-023). level / tier: position in the tech tree (F1..F5). Placeholder values, not tuned (prototype).
 # Energy is in biomass units. Rates are per second; speed and sight are in cells (speed per flora
 # tick). role: decomposer (eats dead biomass), herbivore (eats flora), predator (eats animals).
 # eats / habitat list flora names, "L1".."L3" (every species of that level) or, for predators,
@@ -186,6 +201,8 @@ refuge_flora = ["hawthorn", "bramble"]
 refuge_cover = 0.5      # summed cover of refuge flora that hides small fauna (D-023)
 
 [fauna.earthworms]
+level = 1
+tier = 1
 role = "decomposer"
 eats = ["dead"]
 habitat = ["L1"]
@@ -198,6 +215,8 @@ sight = 4
 group = 10
 
 [fauna.pill_bug]
+level = 1
+tier = 2
 role = "decomposer"
 eats = ["dead"]
 habitat = ["moss", "L2", "L3"]
@@ -210,6 +229,8 @@ sight = 4
 group = 10
 
 [fauna.slugs]
+level = 1
+tier = 3
 role = "herbivore"
 eats = ["lichen", "moss", "grasses", "clover", "ferns"]
 habitat = ["L1"]
@@ -222,6 +243,8 @@ sight = 5
 group = 8
 
 [fauna.grasshoppers]
+level = 2
+tier = 1
 role = "herbivore"
 eats = ["grasses", "clover"]
 habitat = ["grasses"]
@@ -234,6 +257,8 @@ sight = 6
 group = 15
 
 [fauna.caterpillars]
+level = 2
+tier = 2
 role = "herbivore"
 eats = ["bramble", "L2", "L3"]
 habitat = ["bramble", "L2"]
@@ -246,6 +271,8 @@ sight = 6
 group = 15
 
 [fauna.voles]
+level = 3
+tier = 1
 role = "herbivore"
 eats = ["grasses", "clover"]
 habitat = ["grasses"]
@@ -258,6 +285,8 @@ sight = 6
 group = 6
 
 [fauna.moles]
+level = 3
+tier = 2
 role = "predator"
 eats = ["earthworms", "pill_bug", "slugs"]
 habitat = ["L1"]
@@ -269,6 +298,8 @@ sight = 6
 group = 1
 
 [fauna.hedgehog]
+level = 3
+tier = 2
 role = "predator"
 eats = ["slugs", "earthworms", "caterpillars"]
 habitat = ["L2"]
@@ -280,6 +311,8 @@ sight = 6
 group = 1
 
 [fauna.rabbits]
+level = 3
+tier = 3
 role = "herbivore"
 eats = ["grasses", "clover", "bramble", "elder", "hawthorn"]
 habitat = ["grasses"]
@@ -292,6 +325,8 @@ sight = 8
 group = 4
 
 [fauna.tits]
+level = 4
+tier = 1
 role = "predator"
 eats = ["caterpillars", "grasshoppers", "pill_bug"]
 habitat = ["L2", "L3"]
@@ -302,6 +337,8 @@ sight = 10
 group = 2
 
 [fauna.woodpecker]
+level = 4
+tier = 2
 role = "predator"
 eats = ["caterpillars"]
 habitat = ["L3"]
@@ -312,6 +349,8 @@ sight = 10
 group = 1
 
 [fauna.buzzard]
+level = 4
+tier = 3
 role = "predator"
 eats = ["voles", "rabbits", "moles", "grasshoppers", "earthworms"]
 habitat = ["L3"]
@@ -322,6 +361,8 @@ sight = 16
 group = 1
 
 [fauna.fox]
+level = 5
+tier = 1
 role = "predator"
 eats = ["rabbits", "voles", "moles", "hedgehog", "grasshoppers", "earthworms"]
 habitat = ["L2"]
@@ -332,6 +373,8 @@ sight = 12
 group = 1
 
 [fauna.tawny_owl]
+level = 5
+tier = 2
 role = "predator"
 eats = ["voles", "moles", "tits", "woodpecker"]
 habitat = ["L3"]
@@ -342,6 +385,8 @@ sight = 14
 group = 1
 
 [fauna.lynx]
+level = 5
+tier = 3
 role = "predator"
 eats = ["rabbits", "fox"]
 habitat = ["L3"]
@@ -350,3 +395,16 @@ upkeep = 0.002
 speed = 4
 sight = 14
 group = 1
+
+# Economy (gamerules §4, §7; D-018, D-023). Placeholder values, not tuned (prototype).
+# Biomass points are a bank separate from the fields. Tier 1 of level 1 (pioneers, earthworms) is
+# unlocked at start; each other card needs the previous tier of its level.
+[economy]
+start_budget = 1000
+income_rate = 0.001          # points per unit of flora growth (animals add their energy gain)
+unlock_flora = [200, 1500, 5000]            # base unlock cost per flora level L1..L3
+unlock_fauna = [200, 1000, 2000, 4000, 8000]  # base unlock cost per fauna level F1..F5
+tier_multiplier = 1.5        # unlock cost = base x tier_multiplier^(tier - 1) (§4.4)
+plant_cost = [20, 60, 150]   # points per cell planted, per flora level
+spawn_cost_per_body = 1.0    # points per unit of body per animal spawned
+drop_surcharge = 1.5         # predators dropped outside own land cost more (§6.3)

@@ -109,3 +109,11 @@
   - breeding filled the player cap and blocked spawns → per-species breeding cap.
 - **Result (seed 1, 128², 20 min):** decomposers 150/150 from 5 min; herbivores from 8 min up to 300/300; predators hunt (9 / 36 kills) but starve within minutes (placeholder values, not tuned). Territory 49 % / 51 %.
 - **Next:** M0.5 economy, then the replay viewer (D-027).
+
+## 2026-09-28 · M0.5 economy (D-027)
+- **Done:**
+  - `economy.py`: bank, income (flora growth share + animal energy gain), tech-tree unlock paths with habitat prerequisites, plant and spawn costs with drop surcharge, victory (fixed or decaying threshold; standing biomass at the limit).
+  - Wired into `match.py` (`--no-economy`); 7 economy tests; 34 tests green.
+- **Result:** P1 wins on biomass at 20 min (seed 1, 128²).
+- **Decisions:** D-027. The user chose the replay viewer first, with strata and role placeholder shapes (D-028, next).
+- **Next:** replay export + client viewer.

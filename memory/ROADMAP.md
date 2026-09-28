@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M0.5 economy: biomass points bank, unlock and spawn costs, standing-biomass victory (D-018, D-023).
+- **Now:** first visualization: replay viewer on Python prototype replays, placeholder shapes (D-028).
 - **Next:** M1 (`sim-core`). Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
 - **Blocked:**
   - None on design questions for M0.
@@ -28,7 +28,7 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [x] M0.2 Quantized mode: u16 state, Q16.16 rates, the §4 rounding rule, stochastic rounding vs growth floor (resolves Q-015).
 - [x] M0.3 Comparison runs: float vs quant curves, each [Proposed] switch on vs off. Report in JOURNAL.
 - [x] M0.4 Herbivores + predators as agents (NumPy arrays of positions and energy), reproduction with cap, refuges (D-023). Fauna model D-026.
-- [ ] M0.5 Economy / victory metric: standing biomass (D-023).
+- [x] M0.5 Economy / victory metric: standing biomass (D-023). Economy model D-027.
 - [ ] M0.6 Seed sweep: 100 seeds; all trophic levels of both players coexist at t = 20 min in ≥ 90 % of runs.
 - [ ] M0.7 `balance.toml` filled with the tuned coefficients. DECISIONS entry for the model. (Pass 1, flora frontier timing: D-025.)
 
@@ -43,6 +43,7 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [ ] M1.8 `sim-wasm` + Node headless runner. CI checks the native vs WASM hash. `npm run doctor` checks that the `wasm-bindgen-cli` version matches `Cargo.lock` (D-008).
 
 ## M2 · Web render of fields
+- [ ] Replay viewer (early M2, D-028): the Python prototype exports replays; the Vite + TS + Svelte + Three.js client plays them back with placeholder shapes, an RTS camera and a HUD.
 - [ ] Resolve Q-008 (scale), Q-009 (colours), Q-010 (reference machine).
 - [ ] Vite + TS + Svelte scaffold as an npm workspace (`client/`). COOP/COEP headers in dev and `_headers`.
 - [ ] Worker hosting `sim-wasm`, SharedArrayBuffer snapshots (fields at their update rate only).

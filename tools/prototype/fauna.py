@@ -163,7 +163,8 @@ class Fauna:
     def step(self, st: State, ag: Agents) -> tuple[Agents, dict]:
         """Advance one tick (the flora tick). Mutates the flora state (grazing, dead biomass,
         soil) and returns the surviving and newborn agents plus this tick's counters."""
-        stats = {f"{k}_p{p}": 0 for k in ("kills", "grazed") for p in PLAYERS}
+        stats = {f"{k}_p{p}": 0 for k in ("kills", "grazed", "fed") for p in PLAYERS}
+        fed = np.zeros(len(ag), np.int64)  # Q16 energy gained this tick (economy, §6.4)
         if not len(ag):
             return ag, stats
         n0, n1 = st.owner.shape
@@ -240,6 +241,7 @@ class Fauna:
             eaten = self._share(st.bio.shape, (pick, cy, cx), bite, have[np.arange(len(i)), pick])
             np.add.at(st.bio, (pick, cy, cx), -eaten)
             ag.energy[i] += eaten * self.transfer
+            fed[i] += eaten * self.transfer
             np.add.at(st.dead, (cy, cx), eaten - eaten * self.transfer // ONE)
             for p in PLAYERS:
                 stats[f"grazed_p{p}"] = int(eaten[(ag.owner[i] == p) & (cell_owner == 3 - p)].sum())
@@ -252,6 +254,7 @@ class Fauna:
             eaten = self._share(st.dead.shape, (cy, cx), self.bite[ag.sp[i]], have)
             np.add.at(st.dead, (cy, cx), -eaten)
             ag.energy[i] += eaten * self.transfer
+            fed[i] += eaten * self.transfer
             np.add.at(st.soil, (cy, cx), eaten * self.soil_per_dead // ONE)
             st.soil[:] = np.minimum(st.soil, U16)
 
@@ -266,8 +269,12 @@ class Fauna:
                 alive[b] = False
                 body = self.body[ag.sp[b]]
                 ag.energy[a] += body * self.transfer
+                fed[a] += body * self.transfer
                 st.dead[ag.y[b], ag.x[b]] += body - body * self.transfer // ONE
                 stats[f"kills_p{ag.owner[a]}"] += 1
+
+        for p in PLAYERS:
+            stats[f"fed_p{p}"] = int(fed[ag.owner == p].sum() // ONE)
 
         # 7. Starvation: the carcass (half the body) becomes dead biomass.
         starve = alive & (ag.energy <= 0)

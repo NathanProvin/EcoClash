@@ -279,3 +279,20 @@ Template:
   - voles eat biomass instead of reducing tree spread (§6.1);
   - lynx and buzzard habitats are "any L3";
   - no bark-beetle card.
+
+## D-027 · 2026-09-28 · Economy prototype (M0.5)
+- **Status:** accepted (prototype; values are untuned placeholders)
+- **Decision:**
+  - Biomass points are an integer bank per player (D-018), starting at `start_budget`.
+  - **Income per tick:** `income_rate × flora growth` + the energy the player's animals gained (gamerules §6.4).
+  - **Tech tree:**
+    - a card is (tree, level, tier) and unlocks every species at that position;
+    - tier 1 of level 1 of both trees (pioneers, earthworms) is unlocked at start;
+    - a card needs the previous tier of its level, and an animal also needs one of its habitat plants unlocked;
+    - unlocks cost `base(level) × tier_multiplier^(tier−1)` (§4.4).
+  - **Spawning:** plants cost per cell by level. Animals cost `body × spawn_cost_per_body` each, ×`drop_surcharge` for predators dropped outside own land (§6.3).
+  - **Victory:**
+    - territory ≥ threshold at any time; the threshold is fixed (`victory_territory`, 60 %) or decays 75 % → 55 % behind the [Proposed] `territory_decay` switch (§11.3);
+    - at the time limit: standing biomass (flora + animal bodies), then territory share, then a draw (D-023).
+  - The scripted builds buy their unlock path one card at a time and wait until an order is affordable; orders don't block one another.
+- **Result (seed 1, 128²):** P1 (forest) wins on standing biomass at 20 min, 247 M vs 191 M. Banks reach the millions late (income outgrows costs; placeholder).

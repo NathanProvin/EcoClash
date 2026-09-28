@@ -327,6 +327,7 @@ A species can be spawned only when **all** of the following hold:
 - **Biomass points** are the single currency.
 - **Income:** mainly from living plants & fauna growth, in proportion to their biomass and growth. 
 - **Spending:** unlocking cards (§4) or spawning species (§8).
+- **Prototype rules (D-027, values [Proposed]):** income = `income_rate` × flora growth + the energy the player's animals gain (§6.4). Unlocks cost `base(level) × tier_multiplier^(tier−1)`. Plants cost per cell by level. Animals cost by body size, ×`drop_surcharge` for predators dropped outside own land.
 
 ---
 

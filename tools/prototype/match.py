@@ -12,6 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
+from prototype.economy import Economy
 from prototype.fauna import DECOMPOSER, HERBIVORE, PREDATOR, Agents, Fauna
 from prototype.flora import DIRS, PLAYERS, SWITCHES, U16, Flora, load_balance, nb
 
@@ -62,9 +63,12 @@ def run(
     builds=("forest", "meadow"),
     snap_min=(5, 10, 20),
     fauna: Fauna | None = None,
+    economy: Economy | None = None,
 ):
-    """Play the scripted match; without `fauna`, animal orders are skipped. Returns (metrics rows,
-    {minute: (owner, dominant, agents)}, final flora state, order log)."""
+    """Play the scripted match; without `fauna`, animal orders are skipped. With `economy`, orders
+    buy their unlocks and wait until affordable, and the match stops at a victory (logged as
+    "end: <reason>"). Returns (metrics rows, {minute: (owner, dominant, agents)}, final flora
+    state, order log)."""
     rng = np.random.default_rng(seed)
     base = np.array([n // 4, n // 4]) + rng.integers(-2, 3, size=2)
     yy, xx = np.mgrid[:n, :n]
@@ -82,13 +86,27 @@ def run(
         for p in PLAYERS:
             home = base if p == 1 else n - 1 - base
             for o in [o for o in orders[p] if o[0] <= t]:
+                name = o[1]
+                if economy and not economy.prepare(p, name):
+                    continue
                 if len(o) == 5:
                     cy, cx = base + np.round(np.array(o[2:4]) * n / 128).astype(int)
                     if p == 2:
                         cy, cx = n - 1 - cy, n - 1 - cx
-                    done = flora.plant(st, p, o[1], (yy - cy) ** 2 + (xx - cx) ** 2 <= o[4] ** 2)
+                    disc = (yy - cy) ** 2 + (xx - cx) ** 2 <= o[4] ** 2
+                    if economy and economy.bank[p] < economy.plant_cost(name, int(disc.sum())):
+                        continue
+                    done = flora.plant(st, p, name, disc)
+                    if economy and done:
+                        economy.pay(p, economy.plant_cost(name, done))
                 else:
-                    ag, done = fauna.spawn(st, ag, p, o[1], home)
+                    group = int(fauna.group[fauna.idx(name)])
+                    if economy and economy.bank[p] < economy.spawn_cost(name, group, True):
+                        continue
+                    ag, done = fauna.spawn(st, ag, p, name, home)
+                    if economy and done:
+                        outside = st.owner[ag.y[-1], ag.x[-1]] != p
+                        economy.pay(p, economy.spawn_cost(name, done, outside))
                 if done:
                     orders[p].remove(o)
                     log.append((t, p, o[1], done))
@@ -102,10 +120,12 @@ def run(
             break
         before = st.owner.copy()
         income = flora.step(st)
+        stats = {}
         if fauna:
             ag, stats = fauna.step(st, ag)
             for k, v in stats.items():
-                total[k] += v
+                if k in total:
+                    total[k] += v
         dom = flora.dominant(st)
         row = {"t_s": round(t + flora.dt, 3)}
         for p in PLAYERS:
@@ -127,8 +147,20 @@ def run(
                 for r, name in ((HERBIVORE, "herbivores"), (PREDATOR, "predators"),
                                 (DECOMPOSER, "decomposers")):  # fmt: skip
                     row[f"{name}_p{p}"] = int((role == r).sum())
+            if economy:
+                economy.earn(p, income[p] * flora.dt, stats.get(f"fed_p{p}", 0))
+                bodies = fauna.body[ag.sp[ag.owner == p]].sum() if fauna else 0
+                row[f"standing_p{p}"] = row[f"biomass_p{p}"] + float(bodies)
+                row[f"bank_p{p}"] = economy.bank[p]
         row.update(total)
         rows.append(row)
+        if economy:
+            territory = {p: row[f"territory_p{p}"] for p in PLAYERS}
+            standing = {p: row[f"standing_p{p}"] for p in PLAYERS}
+            end = economy.winner(row["t_s"], territory, standing)
+            if end:
+                log.append((row["t_s"], end[0], f"end: {end[1]}", 0))
+                break
     return rows, snaps, st, log
 
 
@@ -260,6 +292,7 @@ def main():
     ap.add_argument("--mode", choices=("float", "quant"), default="float")
     ap.add_argument("--rounding", choices=("floor", "stochastic"), default="floor")
     ap.add_argument("--no-animals", dest="animals", action="store_false")
+    ap.add_argument("--no-economy", dest="economy", action="store_false")
     ap.add_argument("--out", type=Path, default=Path(__file__).parent / "out")
     ap.add_argument("--compare", action="store_true", help="M0.3: run every variant (VARIANTS)")
     for s in SWITCHES:
@@ -275,12 +308,18 @@ def main():
     switches = {s: getattr(a, s) for s in SWITCHES if getattr(a, s) is not None}
     flora = Flora(balance, a.mode, a.rounding, a.seed, **switches)
     fauna = Fauna(balance, flora, a.seed) if a.animals else None
+    economy = Economy(balance, flora, fauna) if a.economy else None
     tag = a.mode if a.mode == "float" else f"quant-{a.rounding}"
     out = a.out / f"{tag}_seed{a.seed}"
     out.mkdir(parents=True, exist_ok=True)
-    rows, snaps, _, log = run(flora, a.size, a.minutes, a.seed, (a.p1, a.p2), fauna=fauna)
+    rows, snaps, _, log = run(
+        flora, a.size, a.minutes, a.seed, (a.p1, a.p2), fauna=fauna, economy=economy
+    )
     for t, p, name, count in log:
-        print(f"{t / 60:5.1f} min  P{p} {name} ({count})")
+        if name.startswith("end"):
+            print(f"{t / 60:5.1f} min  {'draw' if p == 0 else f'P{p} wins'} ({name[5:]})")
+        else:
+            print(f"{t / 60:5.1f} min  P{p} {name} ({count})")
     with open(out / "metrics.csv", "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
         w.writeheader()
@@ -289,6 +328,8 @@ def main():
     last = rows[-1]
     for p in PLAYERS:
         line = f"P{p}: territory {last[f'territory_p{p}']:.1%}, flora {last[f'biomass_p{p}']:.3g}"
+        if economy:
+            line += f", standing {last[f'standing_p{p}']:.3g}, bank {last[f'bank_p{p}']}"
         if fauna:
             line += (f", herbivores {last[f'herbivores_p{p}']}, predators {last[f'predators_p{p}']}"
                      f", kills {last[f'kills_p{p}']}, grazed {last[f'grazed_p{p}']}")  # fmt: skip

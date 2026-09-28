@@ -1,0 +1,48 @@
+# CI (INSTRUCTIONS §12, ROADMAP M1.1). Runs once the GitHub remote exists (D-015).
+# Every job goes through the same root npm scripts as local work (INSTRUCTIONS §14).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain from rust-toolchain.toml
+        run: rustup show
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm run rs:lint
+      - run: npm run rs:test
+      - run: npm run rs:wasm
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm run py:sync
+      - run: npm run py:lint
+      - run: npm run py:test
+
+  client:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run client:lint
+      - run: npm run client:check
+      - run: npm run client:test
+      - run: npm run client:build

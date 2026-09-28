@@ -345,3 +345,12 @@ Template:
   - **Aura:** a foggy, smoky light-grey ring (three soft layers through the plant height, drifting in opposite directions and gently breathing) marks the selected cell.
   - **Cell panel** (floating, top right): owner, soil development, cover of each plant species present, the animals standing on the cell by species and owner, and a "Zoom to plant scale" button that flies the camera down (0.8 s ease-out) until single plant models fill the view. The wheel can now zoom that close too (min distance 2 m, near plane 0.1).
   - **Replay v3:** each field frame stores owner, soil development and the cover of each plant species (1 byte each per cell); the viewer derives the per-stratum cover from the species.
+
+## D-032 · 2026-09-28 · `sim-core` foundations (M1.1, M1.2)
+- **Status:** accepted
+- **Decision:**
+  - **Cargo workspace** at the root: edition 2024, resolver 3, release `overflow-checks = true`. Lints: `unsafe_code = "forbid"` and clippy `float_arithmetic = "warn"`, with clippy run as `-D warnings`, so any float slipping into simulation logic fails the build. `Q16::from_balance` is the single allowed conversion point.
+  - **`fixed.rs`:** `Q16` (Q16.16 in `i32`), products through `i64`, one rounding rule, `div_round` (half away from zero), identical to the prototype's quant mode. `+`/`-` panic on overflow (a bug); `saturating_*` where saturation is meant. `from_balance(f64)` scales by 2^16 (exact) and rounds half away (`f64::round`), so it is platform-independent.
+  - **`rng.rs`:** PCG32 (XSH-RR 64/32), seeded like the reference `pcg32_srandom_r`. Verified against the reference demo outputs (seed 42, stream 54). `below()` uses the reference threshold rejection (unbiased). `chance(num, den)` is exact.
+  - **CI workflow** (`.github/workflows/ci.yml`): rust (fmt, clippy, test, wasm32 build), python (ruff, pytest), client (lint, check, test, build), all through the root npm scripts. It is inactive until the remote exists.
+- **Consequences:** No crates yet. The balance loader (M1.5) will need `toml` + `serde`, justified then.

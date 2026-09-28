@@ -4,7 +4,8 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** species stat sheet (D-029) and RTS UI v1 (D-030) done. Next: M1 `sim-core` (user: UI first, then M1).
+- **Now:** M1.3 fields + growth / gauge / spread rules in `sim-core`, porting the prototype's quant mode.
+- **Waiting on the user:** create the GitHub remote so CI (`.github/workflows/ci.yml`) runs (M1.1, D-015).
 - **Next:** M1 (`sim-core`). Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
 - **Blocked:**
   - None on design questions for M0.
@@ -33,8 +34,8 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [ ] M0.7 `balance.toml` filled with the tuned coefficients. DECISIONS entry for the model. (Pass 1, flora frontier timing: D-025.)
 
 ## M1 · `sim-core` fields (Rust)
-- [ ] M1.1 User creates the GitHub remote. Cargo workspace (`Cargo.toml`: release `overflow-checks = true`), CI skeleton (fmt, clippy, test).
-- [ ] M1.2 `fixed.rs` (Q16.16, rounding rule, LUTs) + `rng.rs` (PCG32 with known-answer tests).
+- [ ] M1.1 User creates the GitHub remote. ~~Cargo workspace (`Cargo.toml`: release `overflow-checks = true`), CI skeleton (fmt, clippy, test)~~ done 2026-09-28; the remote is still pending.
+- [x] M1.2 `fixed.rs` (Q16.16, rounding rule) + `rng.rs` (PCG32 with known-answer tests). No LUT yet: no rule needs a transcendental function.
 - [ ] M1.3 Fields + growth/spread/competition rules, multi-rate scheduler.
 - [ ] M1.4 `commands.rs`, `hash.rs` (incremental), `snapshot.rs`.
 - [ ] M1.5 Balance loader: parse, convert to fixed-point, validate (stability), balance hash.

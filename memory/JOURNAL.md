@@ -146,3 +146,8 @@
 ## 2026-09-28 · Cell inspection (D-031)
 - **Done:** Click-to-inspect with a smoky aura, a cell panel (plants cover, animals, soil) and a zoom to plant scale; replay v3 with per-species cover and soil. Tests: 39 Python, 12 client. Checked in Chrome.
 - **Next:** M1 `sim-core` (workspace, `fixed.rs`, `rng.rs`).
+
+## 2026-09-28 · M1 started: workspace, fixed-point, PCG32 (D-032)
+- **Done:** Cargo workspace (`sim-core`), `fixed.rs` (Q16.16, half-away rounding, balance conversion) and `rng.rs` (PCG32, reference known answers, unbiased bounded draws). 8 Rust tests; fmt and clippy clean; wasm32 builds. CI workflow written; `rs:*` npm scripts added.
+- **Next:** M1.3 fields and rules (port of the quant-mode prototype), M1.4 commands / hash / snapshot.
+- **Blocker:** the GitHub remote (user) for CI.

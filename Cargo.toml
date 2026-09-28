@@ -1,0 +1,19 @@
+[workspace]
+resolver = "3"
+members = ["sim-core"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "UNLICENSED"
+publish = false
+
+[workspace.lints.rust]
+unsafe_code = "forbid" # INSTRUCTIONS §12: no unsafe without a documented reason
+
+[workspace.lints.clippy]
+float_arithmetic = "warn" # INSTRUCTIONS §4: no floats in simulation logic (see fixed.rs)
+
+# Debug and release must behave the same on overflow (INSTRUCTIONS §4, D-011).
+[profile.release]
+overflow-checks = true

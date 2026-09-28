@@ -16,7 +16,10 @@
     "client:build": "npm run build -w client",
     "client:check": "npm run check -w client",
     "client:lint": "npm run lint -w client",
-    "client:test": "npm run test -w client"
+    "client:test": "npm run test -w client",
+    "rs:test": "cargo test --workspace",
+    "rs:lint": "cargo fmt --check && cargo clippy --workspace --all-targets -- -D warnings",
+    "rs:wasm": "cargo build -p sim-core --target wasm32-unknown-unknown --release"
   },
   "workspaces": [
     "client"

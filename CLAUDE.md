@@ -29,5 +29,5 @@ Gameplay rules (strata, tech tree, species, fauna, endgame) live in `data/gameru
 - `npm run py:sync` / `npm run py:test` / `npm run py:lint`: Python tools (uv project in `tools/`).
 - `npm run proto -- [--replay]`: the M0 prototype match (flora + fauna + economy, 64² by default); `--replay` exports to `client/public/replays/`. Species stats: `data/species.toml`.
 - `npm run client:dev` (viewer at http://localhost:5173), `client:build` / `client:check` / `client:lint` / `client:test`: the web client.
-- Rust and WASM scripts are added to `package.json` with their milestones (M1, M2).
+- `npm run rs:lint` (fmt + clippy -D warnings) / `rs:test` / `rs:wasm` (wasm32 build check): the Rust workspace (`sim-core`).
 - Python: always go through `uv run` (the bare `python` on this machine is the Microsoft Store stub).

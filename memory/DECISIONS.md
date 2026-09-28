@@ -138,7 +138,7 @@ Template:
 - **Consequences:** Replays of AI matches work unchanged. The AI can run in the worker or headless in `sim-cli`.
 
 ## D-015 · 2026-09-27 · Git: local repository only for now
-- **Status:** accepted (user decision)
+- **Status:** superseded by D-035 (remote created 2026-09-28)
 - **Context:** CI needs a remote, but there is no code to build before M1.
 - **Decision:** `git init` locally with conventional commits. The user creates the GitHub remote before the M1 CI task.
 - **Consequences:** The ROADMAP M1 has a "create remote + CI" task.
@@ -363,3 +363,22 @@ Template:
   - **Height bands**, fixed and disjoint: dots on the ground; cones up to 1.26 m (≤ 1.3); tree cubes between 1.65 and 2.35 m (centre 2.0); animals above 2.6 m.
   - **Animals** sharing a cell get a per-cell g×g grid by id order, scaled down as they crowd. The selection highlight is colour only (no size bump).
   - The test checks no overlap over 4,000 random cells and the band limits.
+
+## D-034 · 2026-09-28 · Flora rules in `sim-core`, exact parity with the prototype (M1.3)
+- **Status:** accepted
+- **Decision:**
+  - **`balance.rs`:** parses `balance.toml` + `species.toml` from strings at runtime (no I/O in `sim-core`, no recompile to tune). Species keep file order (their index), unknown species keys are rejected (typos), and the prototype's asserts become readable errors.
+  - **`flora.rs`:**
+    - `FloraParams` converts with the prototype's float operations in the same order, then its rounding `sign(x)·floor(|x|+0.5)`, so every integer matches.
+    - `FloraState` is species-major, all `i64` (ponytail: pack to u16 later).
+    - `Flora::step` ports quant-mode `Flora.step` block for block (shade, logistic growth with niche overlap, soil, pressure / attack / seeds, cell caps, litter + smothering, gauge + seed rain, flips, contested claims, cleanup). `plant()` follows the prototype's cap rule.
+  - **Parity test:** `tools/prototype/fixture.py` (`npm run rs:fixture`) runs a 14×14, 300-tick quant scenario (soil gradient, both players, mixed strata, grass cap 30) and writes its parameters and 8 checkpoints with the TOML it used. `sim-core/tests/flora_parity.rs` demands identical parameters and state; a one-unit mutation is caught at tick 1 with its cell.
+  - **Crates (rule 5):** `serde` (derive) + `toml` (`preserve_order`: species index = file order) for the data files; `serde_json` (dev) for the fixture.
+- **Consequences:** The prototype and `sim-core` evolve together. The M1.6 comparison becomes an exact check instead of "within tolerance".
+
+## D-035 · 2026-09-28 · GitHub remote and commit identity
+- **Status:** accepted (user decision)
+- **Decision:**
+  - Remote `origin` = https://github.com/NathanProvin/EcoClash, with CI on every push.
+  - GitHub's email privacy refused the first push, so this repo's `user.email` is the noreply address `77007242+NathanProvin@users.noreply.github.com`. The 22 local, never-pushed commits were rewritten to it (dates and messages kept).
+- **Consequences:** Supersedes D-015.

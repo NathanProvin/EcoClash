@@ -4,8 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M1.3 fields + growth / gauge / spread rules in `sim-core`, porting the prototype's quant mode.
-- **Waiting on the user:** create the GitHub remote so CI (`.github/workflows/ci.yml`) runs (M1.1, D-015).
+- **Now:** M1.4 `commands.rs`, `hash.rs`, `snapshot.rs`; then M1.5 balance hash, M1.6 `sim-cli`.
 - **Next:** M1 (`sim-core`). Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
 - **Blocked:**
   - None on design questions for M0.
@@ -34,11 +33,11 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [ ] M0.7 `balance.toml` filled with the tuned coefficients. DECISIONS entry for the model. (Pass 1, flora frontier timing: D-025.)
 
 ## M1 · `sim-core` fields (Rust)
-- [ ] M1.1 User creates the GitHub remote. ~~Cargo workspace (`Cargo.toml`: release `overflow-checks = true`), CI skeleton (fmt, clippy, test)~~ done 2026-09-28; the remote is still pending.
+- [x] M1.1 GitHub remote (https://github.com/NathanProvin/EcoClash), Cargo workspace (`Cargo.toml`: release `overflow-checks = true`), CI (fmt, clippy, test; green on the first push).
 - [x] M1.2 `fixed.rs` (Q16.16, rounding rule) + `rng.rs` (PCG32 with known-answer tests). No LUT yet: no rule needs a transcendental function.
-- [ ] M1.3 Fields + growth/spread/competition rules, multi-rate scheduler.
+- [x] M1.3 Fields + growth / gauge / spread / competition rules (`flora.rs`), exact parity with the prototype's quant mode (D-034). The multi-rate scheduler moves to M1.4, with the tick loop.
 - [ ] M1.4 `commands.rs`, `hash.rs` (incremental), `snapshot.rs`.
-- [ ] M1.5 Balance loader: parse, convert to fixed-point, validate (stability), balance hash.
+- [ ] M1.5 Balance loader: ~~parse, convert to fixed-point, validate~~ (done with M1.3, `balance.rs`); balance hash still to do.
 - [ ] M1.6 `sim-cli run` → per-tick hash + metrics CSV. The Python script compares the result with M0 quantized mode.
 - [ ] M1.7 Determinism tests: run twice, `proptest` command streams.
 - [ ] M1.8 `sim-wasm` + Node headless runner. CI checks the native vs WASM hash. `npm run doctor` checks that the `wasm-bindgen-cli` version matches `Cargo.lock` (D-008).

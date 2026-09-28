@@ -151,3 +151,11 @@
 - **Done:** Cargo workspace (`sim-core`), `fixed.rs` (Q16.16, half-away rounding, balance conversion) and `rng.rs` (PCG32, reference known answers, unbiased bounded draws). 8 Rust tests; fmt and clippy clean; wasm32 builds. CI workflow written; `rs:*` npm scripts added.
 - **Next:** M1.3 fields and rules (port of the quant-mode prototype), M1.4 commands / hash / snapshot.
 - **Blocker:** the GitHub remote (user) for CI.
+
+## 2026-09-28 · Overlap fix, GitHub, M1.3 flora port (D-033–D-035)
+- **Done:**
+  - Placeholder layout without overlaps (slots + height bands, tested over 4,000 cells).
+  - Pushed to GitHub after rewriting commit emails to the noreply address; CI green on the first run.
+  - `sim-core`: `balance.rs` (runtime TOML loading and validation) and `flora.rs` (the full flora step), with exact parity with the prototype over 300 ticks (mutation-checked).
+  - 14 Rust tests; clippy clean; wasm32 builds.
+- **Next:** M1.4 commands / hash / snapshot and the tick scheduler, M1.5 balance hash, M1.6 `sim-cli`.

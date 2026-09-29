@@ -6,3 +6,8 @@
 {"tick":400,"player":1,"seq":2,"payload":{"type":"plant","species":"wildflowers","row":12,"col":12,"radius":2}}
 {"tick":800,"player":1,"seq":3,"payload":{"type":"plant","species":"elder","row":12,"col":12,"radius":1}}
 {"tick":801,"player":3,"seq":0,"payload":{"type":"plant","species":"grasses","row":1,"col":1,"radius":1}}
+{"tick":200,"player":1,"seq":10,"payload":{"type":"spawn","species":"earthworms","row":12,"col":12}}
+{"tick":210,"player":2,"seq":10,"payload":{"type":"spawn","species":"earthworms","row":51,"col":51}}
+{"tick":220,"player":2,"seq":11,"payload":{"type":"spawn","species":"grasshoppers","row":30,"col":30}}
+{"tick":900,"player":1,"seq":11,"payload":{"type":"spawn","species":"slugs","row":30,"col":30}}
+{"tick":950,"player":2,"seq":12,"payload":{"type":"spawn","species":"moles","row":12,"col":12}}

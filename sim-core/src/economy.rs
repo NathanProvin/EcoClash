@@ -1,9 +1,11 @@
 //! Biomass points (INSTRUCTIONS §2.3, gamerules §4; D-027, D-046): one bank per player, separate
 //! from the fields. After each flora tick, every plant yields `yield` points per second per fully
-//! covered cell of its owner (cover capped at 1): the prototype's `Economy.income`, in integers.
+//! covered cell of its owner (cover capped at 1), and every animal `yield` points per second
+//! per head: the prototype's `Economy.income`, in integers.
 //! Spending (unlocks, planting costs) comes with the M4 economy.
 
 use crate::balance::Balance;
+use crate::fauna::Fauna;
 use crate::fixed::{ONE, div_round};
 use crate::flora::{FloraParams, FloraState, round};
 use crate::hash::Hasher;
@@ -44,7 +46,7 @@ impl Economy {
     }
 
     /// Credit one flora period of income, from the state after the flora tick.
-    pub fn update(&mut self, p: &FloraParams, st: &FloraState) {
+    pub fn update(&mut self, p: &FloraParams, st: &FloraState, fauna: &Fauna) {
         let n2 = st.n * st.n;
         let mut income = [0i64; 2];
         for (s, (&yld, &kmax)) in self.yld.iter().zip(&p.kmax).enumerate() {
@@ -57,6 +59,10 @@ impl Economy {
             for (inc, c) in income.iter_mut().zip(covered) {
                 *inc += div_round(yld * c, kmax);
             }
+        }
+        let a = &fauna.agents;
+        for i in 0..a.len() {
+            income[usize::from(a.owner[i] - 1)] += fauna.p.yld[usize::from(a.sp[i])];
         }
         for (pi, inc) in income.into_iter().enumerate() {
             self.income[pi] = inc;
@@ -81,6 +87,7 @@ mod tests {
     fn income_is_yield_times_capped_cover_and_banks_one_flora_period() {
         let b = Balance::from_toml(BALANCE, SPECIES).unwrap();
         let p = FloraParams::from_balance(&b);
+        let fauna = Fauna::new(crate::fauna::FaunaParams::from_balance(&b, &p));
         let mut e = Economy::new(&b);
         let start = e.bank;
         let g = p.index("grasses").unwrap();
@@ -93,7 +100,7 @@ mod tests {
         st.bio[g * 16 + 5] = p.kmax[g] / 2; // half cover
         st.owner[6] = 2;
         st.bio[g * 16 + 6] = p.kmax[g]; // P2's cell counts for P2 only
-        e.update(&p, &st);
+        e.update(&p, &st, &fauna);
         let yld = e.yld[g];
         assert_eq!(e.income, [yld * 4 + div_round(yld, 2), yld]);
         let period = |inc: i64| div_round(inc * e.every, e.hz);

@@ -243,3 +243,15 @@
 - **Done:**
   - Map halved again, to 64² (256 m).
   - L1 is now lichen & moss, grasses, ferns (pioneers); wildflowers, nettle; bramble. Data, rules, diets, scripts and tests updated; the parity fixture was regenerated.
+
+## 2026-09-29 · Soil colour (D-051), animals in sim-core and the live match (D-052)
+- **Done:**
+  - The ground colour follows soil development, from bare earth to humus.
+  - Fauna ported to sim-core, behaviour-equivalent to the prototype:
+    - continuous movement every tick;
+    - `spawn` command with the §6.3 triggers;
+    - notices for orders that do nothing;
+    - animals hashed every tick, fauna parameters in the balance hash (version 3), animal yields in the income.
+  - Tests: 6 fauna unit tests, a world test, and spawn orders in the proptest streams and in the native-vs-WASM check (145 animals at 2 min, 300 at 10 min).
+  - Live client: animal frame every tick, interpolated; Plants / Animals tabs; click to call an animal; notice toasts.
+- **Next (M3):** player orders for animals (select, move, attack-move, stop), then flow fields.

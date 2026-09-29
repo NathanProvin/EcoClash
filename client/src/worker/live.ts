@@ -1,6 +1,6 @@
 // Main-thread side of the live match: owns the sim worker (sim.worker.ts) and exposes its latest
-// snapshot as a `Source`, so the viewer and HUD draw it like a replay. Plants only for now:
-// sim-core has no animals until M3.
+// snapshot as a `Source`, so the viewer and HUD draw it like a replay. Plants come with each flora
+// tick; animals with every tick, and are interpolated between the last two frames.
 
 import {
   cellAt,
@@ -10,6 +10,7 @@ import {
   type CellInfo,
   type Fields,
   type ReplayMeta,
+  type Role,
   type Source,
   type Species,
 } from "../replay/replay";
@@ -27,11 +28,37 @@ export type ToMain =
       n: number;
       tickHz: number;
       plantRadius: number;
+      maxAgents: number;
       balanceHash: string;
     }
-  | { type: "tick"; tick: number; hash: string; ms: number }
+  | { type: "tick"; tick: number; hash: string; ms: number; agents: ArrayBuffer }
   | { type: "fields"; tick: number; frame: ArrayBuffer; bank: number[]; income: number[] }
+  | { type: "notice"; notices: { player: number; text: string }[] }
   | { type: "error"; message: string };
+
+/** Why an order did nothing, shown for a few seconds. */
+export interface Notice {
+  player: number;
+  text: string;
+  at: number; // performance.now()
+}
+
+/** The animal record of `Fauna::frame` (sim-core): u32 count, then u32 id, u16 y, u16 x (1/256
+ *  cell), u8 species, u8 owner per animal, little endian. */
+export function decodeAgents(buf: ArrayBuffer): Animal[] {
+  const v = new DataView(buf);
+  const out: Animal[] = [];
+  for (let k = 0, p = 4; k < v.getUint32(0, true); k++, p += 10) {
+    out.push({
+      id: v.getUint32(p, true),
+      y: v.getUint16(p + 4, true) / 256,
+      x: v.getUint16(p + 6, true) / 256,
+      species: v.getUint8(p + 8),
+      owner: v.getUint8(p + 9),
+    });
+  }
+  return out;
+}
 
 export class Live implements Source {
   readonly meta: ReplayMeta;
@@ -40,16 +67,23 @@ export class Live implements Source {
   /** Sim time per tick in ms, smoothed (the HUD shows it; budget: INSTRUCTIONS §5.5). */
   simMs = 0;
   error = "";
+  notices: Notice[] = [];
   readonly plantRadius: number;
+  private readonly maxAgents: number;
   private current: Fields;
-  private census: number[][] = [[], []]; // cells per plant species, per player, current frame
+  private flora: number[][] = [[], []]; // cells per plant species, per player, current frame
+  private prev = { tick: 0, at: 0, animals: [] as Animal[] };
+  private cur = { tick: 0, at: 0, animals: [] as Animal[] };
 
   private constructor(
     private readonly worker: Worker,
     ready: Extract<ToMain, { type: "ready" }>,
   ) {
     const species = JSON.parse(ready.species) as Species[];
+    const plants = species.filter((s) => s.kind === "flora");
+    const animals = species.filter((s) => s.kind === "fauna");
     this.plantRadius = ready.plantRadius;
+    this.maxAgents = ready.maxAgents;
     this.meta = {
       version: REPLAY_VERSION,
       species,
@@ -59,12 +93,12 @@ export class Live implements Source {
       ticks: 1,
       field_every: 1,
       builds: [],
-      flora: { names: species.map((s) => s.name), level: species.map((s) => s.level) },
-      fauna: { names: [], role: [] },
+      flora: { names: plants.map((s) => s.name), level: plants.map((s) => s.level) },
+      fauna: { names: animals.map((s) => s.name), role: animals.map((s) => s.role as Role) },
       series: {},
       log: [],
     };
-    this.current = this.decode(0, new Uint8Array((2 + species.length) * ready.n * ready.n));
+    this.current = this.decode(0, new Uint8Array((2 + plants.length) * ready.n * ready.n));
     worker.onmessage = (e: MessageEvent<ToMain>) => this.receive(e.data);
   }
 
@@ -92,6 +126,18 @@ export class Live implements Source {
     this.send({ type: "command", player, payload: { type: "plant", species, row, col, radius } });
   }
 
+  /** Order one card of an animal species near a cell (gamerules §6.3: the sim decides where it
+   *  lands, or says why it cannot come). */
+  spawn(player: 1 | 2, species: string, row: number, col: number): void {
+    this.send({ type: "command", player, payload: { type: "spawn", species, row, col } });
+  }
+
+  /** The tick to draw at time `now` (ms): between the last two animal frames, so animals glide. */
+  renderTick(now: number): number {
+    const period = Math.max(this.cur.at - this.prev.at, 1);
+    return this.cur.tick - 1 + Math.min(Math.max((now - this.cur.at) / period, 0), 1);
+  }
+
   dispose(): void {
     this.worker.terminate();
   }
@@ -102,14 +148,19 @@ export class Live implements Source {
       this.hash = m.hash;
       this.meta.ticks = m.tick + 1;
       this.simMs = this.simMs ? this.simMs * 0.9 + m.ms * 0.1 : m.ms;
+      this.prev = this.cur;
+      this.cur = { tick: m.tick, at: performance.now(), animals: decodeAgents(m.agents) };
     } else if (m.type === "fields") {
       this.current = this.decode(this.current.frame + 1, new Uint8Array(m.frame), m);
+    } else if (m.type === "notice") {
+      const at = performance.now();
+      this.notices = [...this.notices, ...m.notices.map((n) => ({ ...n, at }))].slice(-4);
     } else if (m.type === "error") {
       this.error = m.message;
     }
   }
 
-  /** Decode a frame, refresh the per-player census, and append a row to the HUD series. */
+  /** Decode a frame, refresh the per-player plant census, and append a row to the HUD series. */
   private decode(
     frame: number,
     bytes: Uint8Array,
@@ -129,18 +180,19 @@ export class Live implements Source {
       });
     }
     for (const p of [1, 2]) {
-      const row = census[p] ?? [];
-      this.census[p - 1] = row;
+      this.flora[p - 1] = census[p] ?? [];
+      const alive = this.counts(0, p).filter((c) => c > 0).length;
       (this.meta.series[`territory_p${p}`] ??= []).push((owned[p] ?? 0) / cells);
-      (this.meta.series[`species_p${p}`] ??= []).push(row.filter((c) => c > 0).length);
+      (this.meta.series[`species_p${p}`] ??= []).push(alive);
       (this.meta.series[`bank_p${p}`] ??= []).push(points.bank[p - 1] ?? 0);
       (this.meta.series[`yield_p${p}`] ??= []).push(points.income[p - 1] ?? 0);
     }
     return f;
   }
 
-  animals(): Animal[] {
-    return [];
+  /** Animals at a tick: the latest frame from its tick on, the one before earlier. */
+  animals(tick: number): Animal[] {
+    return tick >= this.cur.tick ? this.cur.animals : this.prev.animals;
   }
 
   fields(): Fields {
@@ -151,12 +203,17 @@ export class Live implements Source {
     return cellAt(this, tick, row, col);
   }
 
+  /** Cells per plant species, then animals per animal species, in species-table order. */
   counts(_tick: number, player: number): number[] {
-    return this.census[player - 1] ?? [];
+    const fauna = new Array<number>(this.meta.fauna.names.length).fill(0);
+    for (const a of this.cur.animals) {
+      if (a.owner === player) fauna[a.species] = (fauna[a.species] ?? 0) + 1;
+    }
+    return [...(this.flora[player - 1] ?? []), ...fauna];
   }
 
   maxAnimals(): number {
-    return 0;
+    return this.maxAgents;
   }
 
   seriesIndex(): number {

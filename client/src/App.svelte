@@ -5,7 +5,8 @@
   // T = tech tree, Esc = close / clear selection.
   import { onDestroy, onMount } from "svelte";
   import { loadReplay, type Source } from "./replay/replay";
-  import { Live } from "./worker/live";
+  import { Live, type Notice } from "./worker/live";
+  import { label } from "./game/species";
   import { Viewer, type CameraKeys, type Layer } from "./render/viewer";
   import BottomBar from "./ui/BottomBar.svelte";
   import CellPanel from "./ui/CellPanel.svelte";
@@ -35,7 +36,11 @@
   let techOpen = $state(false);
   let selection = $state(new Set<number>());
   let focus: string | null = $state(null);
-  let planting: string | null = $state(null); // plant species armed for the next map click
+  let planting: string | null = $state(null); // species armed for the next map click
+  let notices: Notice[] = $state([]); // recent orders that did nothing
+  const armedKind = $derived(
+    replay?.meta.species.find((s) => s.name === planting)?.kind ?? "flora",
+  );
   let cell = $state<{ row: number; col: number } | null>(null);
   const cellInfo = $derived(replay && cell ? replay.cell(tick, cell.row, cell.col) : null);
   let box: { x0: number; y0: number; x1: number; y1: number } | null = $state(null);
@@ -84,9 +89,11 @@
     const r = replay;
     const seconds = Math.min((now - last) / 1000, 0.1);
     if (live) {
-      tick = live.tick;
+      tick = live.renderTick(now); // between the last two animal frames: animals glide
       simMs = live.simMs;
       if (live.error) error = live.error;
+      const fresh = live.notices.filter((n) => now - n.at < 5000);
+      if (fresh.length !== notices.length) notices = fresh;
     }
     if (r && viewer) {
       if (live) {
@@ -179,7 +186,9 @@
     const click = Math.abs(box.x1 - box.x0) < 4 && Math.abs(box.y1 - box.y0) < 4;
     const at = click && planting && live ? viewer.pickCell(box.x0, box.y0) : null;
     if (at && planting && live) {
-      live.plant(player, planting, at.row, at.col); // Shift keeps planting, like RTS build orders
+      // Shift keeps the order armed, like RTS build orders.
+      if (armedKind === "flora") live.plant(player, planting, at.row, at.col);
+      else live.spawn(player, planting, at.row, at.col);
       if (!e.shiftKey) planting = null;
     } else if (click) {
       inspect(viewer.pickCell(box.x0, box.y0)); // click: inspect the cell under the cursor
@@ -300,13 +309,23 @@
     />
     <p class="hint">
       {#if planting}
-        <strong>Planting {planting.replace(/_/g, " ")}:</strong> click a cell · Shift: keep planting ·
-        Esc: cancel
+        <strong>{armedKind === "flora" ? "Planting" : "Calling"} {label(planting)}:</strong>
+        {armedKind === "flora"
+          ? "click a cell"
+          : "click near where it should go (predators land on enemy prey)"} · Shift: keep going · Esc:
+        cancel
       {:else}
         Click: inspect cell · Drag: select · Middle-drag / Q E: rotate · Right-drag / WASD: pan ·
         Wheel: zoom · T: tech tree
       {/if}
     </p>
+    {#if notices.length}
+      <div class="notices" role="status">
+        {#each notices as n (n.at + n.text)}
+          <p class="notice panel p{n.player}">P{n.player} · {label(n.text)}</p>
+        {/each}
+      </div>
+    {/if}
     {#if cellInfo && cell}
       <CellPanel
         info={cellInfo}
@@ -356,6 +375,21 @@
   }
   .hint strong {
     color: var(--gold);
+  }
+  .notices {
+    position: absolute;
+    top: 104px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    pointer-events: none;
+  }
+  .notice {
+    margin: 0;
+    font-size: 0.85em;
+    border-left: 3px solid var(--player);
   }
   .error {
     position: absolute;

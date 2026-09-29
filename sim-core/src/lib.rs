@@ -6,6 +6,7 @@
 pub mod balance;
 pub mod commands;
 pub mod economy;
+pub mod fauna;
 pub mod fixed;
 pub mod flora;
 pub mod hash;

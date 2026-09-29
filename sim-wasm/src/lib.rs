@@ -18,6 +18,7 @@ pub struct Sim {
     species: String,
     tick_hz: u32,
     plant_radius: u32,
+    max_agents: u32,
 }
 
 #[wasm_bindgen]
@@ -34,6 +35,7 @@ impl Sim {
             species: species_table(&b),
             tick_hz: b.sim.tick_hz,
             plant_radius: b.flora.plant_radius,
+            max_agents: b.agents.max_agents,
             world: World::new(&b, seed, n),
         })
     }
@@ -94,6 +96,30 @@ impl Sim {
         points(self.world.economy.income, player)
     }
 
+    /// The agent budget, both players (instance buffer capacity).
+    #[wasm_bindgen(getter, js_name = maxAgents)]
+    pub fn max_agents(&self) -> u32 {
+        self.max_agents
+    }
+
+    /// The animals now, for the renderer: see `sim_core::fauna::Fauna::frame`.
+    #[wasm_bindgen(js_name = agentFrame)]
+    pub fn agent_frame(&self) -> Vec<u8> {
+        self.world.fauna.frame()
+    }
+
+    /// Why recent orders did nothing, as JSON `[{"player": 1, "text": "..."}]`; then forgotten.
+    #[wasm_bindgen(js_name = takeNotices)]
+    pub fn take_notices(&mut self) -> String {
+        let list: Vec<_> = self
+            .world
+            .take_notices()
+            .into_iter()
+            .map(|(player, text)| serde_json::json!({ "player": player, "text": text }))
+            .collect();
+        serde_json::Value::Array(list).to_string()
+    }
+
     /// Commands refused so far.
     #[wasm_bindgen(getter)]
     pub fn rejected(&self) -> f64 {
@@ -115,8 +141,8 @@ impl Sim {
         self.world.flora.p.names.clone()
     }
 
-    /// The plant stat sheet as JSON, in id order and in the viewer's `Species` shape (the same
-    /// table the prototype writes into replays: tools/prototype/match.py, `species_table`).
+    /// The stat sheet as JSON, plants then animals, each in id order, in the viewer's `Species`
+    /// shape (the table the prototype writes into replays: tools/prototype/match.py).
     #[wasm_bindgen(js_name = speciesTable)]
     pub fn species_table(&self) -> String {
         self.species.clone()
@@ -124,21 +150,27 @@ impl Sim {
 }
 
 fn species_table(b: &Balance) -> String {
-    let rows: Vec<_> = b
-        .flora_species
-        .iter()
-        .map(|(name, s)| {
-            serde_json::json!({
-                "name": name, "kind": "flora", "level": s.level, "tier": s.tier,
-                "role": format!("L{}", s.level), "habitat": [], "eats": [],
-                "stats": {
-                    "growth": s.growth, "spawn_cost": s.spawn_cost, "unlock_cost": s.unlock_cost,
-                    "yield": s.yield_, "cap": s.cap, "effect": s.effect,
-                },
-            })
+    let flora = b.flora_species.iter().map(|(name, s)| {
+        serde_json::json!({
+            "name": name, "kind": "flora", "level": s.level, "tier": s.tier,
+            "role": format!("L{}", s.level), "habitat": [], "eats": [],
+            "stats": {
+                "growth": s.growth, "spawn_cost": s.spawn_cost, "unlock_cost": s.unlock_cost,
+                "yield": s.yield_, "cap": s.cap, "effect": s.effect,
+            },
         })
-        .collect();
-    serde_json::Value::Array(rows).to_string()
+    });
+    let fauna = b.fauna_species.iter().map(|(name, s)| {
+        serde_json::json!({
+            "name": name, "kind": "fauna", "level": s.level, "tier": s.tier,
+            "role": s.role, "habitat": s.habitat, "eats": s.eats,
+            "stats": {
+                "growth": s.growth, "spawn_cost": s.spawn_cost, "unlock_cost": s.unlock_cost,
+                "yield": s.yield_, "cap": s.cap, "effect": s.effect,
+            },
+        })
+    });
+    serde_json::Value::Array(flora.chain(fauna).collect()).to_string()
 }
 
 /// A player's Q16 value as a float (0 for an unknown player).

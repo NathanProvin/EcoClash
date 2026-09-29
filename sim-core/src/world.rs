@@ -1,7 +1,8 @@
 //! The world and its tick loop (INSTRUCTIONS §4, §5.3). One `step()` = one fixed tick (10 Hz):
 //! 1. apply the tick's commands, in (player, seq) order;
-//! 2. agents (every tick; M3);
-//! 3. flora, every `flora_every_ticks` (default 8: 1.25 Hz), then the income it yields;
+//! 2. agents walk toward their targets (every tick);
+//! 3. every `flora_every_ticks` (default 8: 1.25 Hz): the animals act (feed, die, breed, choose
+//!    targets), then the flora step (which settles ownership), then the income;
 //! 4. environment, every `env_every_ticks` (nothing to update in V1);
 //! 5. refresh the dirty field-chunk hashes and return the tick hash.
 //!
@@ -10,6 +11,7 @@
 use crate::balance::Balance;
 use crate::commands::{Command, CommandQueue, Payload, disc};
 use crate::economy::Economy;
+use crate::fauna::{Fauna, FaunaParams};
 use crate::flora::{Flora, FloraParams, FloraState};
 use crate::hash::{FieldHashes, Hasher};
 use crate::rng::Pcg32;
@@ -25,6 +27,10 @@ pub struct World {
     pub flora: Flora,
     pub state: FloraState,
     pub economy: Economy,
+    pub fauna: Fauna,
+    /// Why recent orders did nothing, for the UI: (player, text). Not part of the state hash;
+    /// callers drain it (`take_notices`).
+    pub notices: Vec<(u8, String)>,
     /// The only randomness of the simulation (INSTRUCTIONS §4); unused by the flora rules.
     pub rng: Pcg32,
     /// Commands refused so far (invalid, or due in the past); identical on every peer.
@@ -40,6 +46,7 @@ impl World {
     #[must_use]
     pub fn new(balance: &Balance, seed: u64, n: usize) -> World {
         let flora = Flora::new(FloraParams::from_balance(balance));
+        let fauna = Fauna::new(FaunaParams::from_balance(balance, &flora.p));
         let state = FloraState::new(&flora.p, n);
         let chunk = usize::try_from(balance.sim.chunk_size).unwrap_or(32);
         World {
@@ -47,6 +54,8 @@ impl World {
             flora,
             state,
             economy: Economy::new(balance),
+            fauna,
+            notices: Vec::new(),
             rng: Pcg32::new(seed, RNG_STREAM),
             rejected: 0,
             queue: CommandQueue::default(),
@@ -70,10 +79,12 @@ impl World {
         for c in self.queue.take(self.tick) {
             self.apply(&c);
         }
-        // (agents: M3)
+        self.fauna.walk();
         if self.tick.is_multiple_of(self.flora_every) {
+            self.fauna
+                .act(&self.flora.p, &mut self.state, &mut self.rng);
             self.flora.step(&mut self.state);
-            self.economy.update(&self.flora.p, &self.state);
+            self.economy.update(&self.flora.p, &self.state, &self.fauna);
             self.fields.mark_all();
         }
         if self.tick.is_multiple_of(self.env_every) {
@@ -101,27 +112,58 @@ impl World {
                     return;
                 };
                 let cells = disc(n, *row, *col, *radius);
-                self.flora.plant(&mut self.state, c.player, s, &cells);
+                let planted = self.flora.plant(&mut self.state, c.player, s, &cells);
                 for &k in &cells {
                     self.fields.mark_cell(k);
                 }
+                if planted == 0 {
+                    self.notices.push((
+                        c.player,
+                        format!("{species}: nothing took there (soil too poor, land taken, or cap reached)"),
+                    ));
+                }
+            }
+            Payload::Spawn { species, row, col } => {
+                let s = self.fauna.p.index(species);
+                let n = self.state.n;
+                let at = (usize::try_from(*row), usize::try_from(*col));
+                let (Some(s), true, (Ok(r), Ok(c2))) = (s, valid_player, at) else {
+                    self.rejected += 1;
+                    return;
+                };
+                if r >= n || c2 >= n {
+                    self.rejected += 1;
+                    return;
+                }
+                let spawned = self
+                    .fauna
+                    .spawn(&self.flora.p, &self.state, c.player, s, (r, c2));
+                if let Err(why) = spawned {
+                    self.notices.push((c.player, format!("{species}: {why}")));
+                }
             }
         }
+    }
+
+    /// Why recent orders did nothing, oldest first; the list is emptied.
+    pub fn take_notices(&mut self) -> Vec<(u8, String)> {
+        std::mem::take(&mut self.notices)
     }
 
     /// Hash of the current state: tick, scalars (points banked included), RNG, field digest (dirty chunks re-hashed).
     pub fn hash(&mut self) -> u64 {
         let digest = self.fields.refresh(&self.state);
         let (state, inc) = self.rng.state();
-        Hasher::new()
-            .u64(self.tick)
+        let mut h = Hasher::new();
+        h.u64(self.tick)
             .u64(self.state.t)
             .u64(self.rejected)
             .i64s(&self.economy.bank)
             .u64(state)
             .u64(inc)
-            .u64(digest)
-            .finish()
+            .u64(digest);
+        self.fauna.agents.hash_into(&mut h);
+        h.finish()
     }
 
     /// Per-chunk field hashes, row-major (to locate a desync).
@@ -190,6 +232,40 @@ mod tests {
         let (b, _) = play(7, 40, 300, &orders());
         assert_eq!(a, b);
         assert_ne!(a[0], a[1], "the state moves");
+    }
+
+    #[test]
+    fn animals_spawn_by_command_live_in_the_hash_and_refusals_leave_a_notice() {
+        let spawn = |seq: u32, species: &str| Command {
+            tick: 100,
+            player: 1,
+            seq,
+            payload: Payload::Spawn {
+                species: species.into(),
+                row: 3,
+                col: 3,
+            },
+        };
+        let mut cmds = orders();
+        cmds.push(spawn(5, "earthworms"));
+        cmds.push(spawn(6, "fox")); // no shrubs yet: refused
+        let (a, mut w) = play(7, 40, 300, &cmds);
+        let (b, _) = play(7, 40, 300, &cmds);
+        assert_eq!(a, b);
+        assert!(
+            !w.fauna.agents.is_empty(),
+            "earthworms spawned on own grass"
+        );
+        let (plain, _) = play(7, 40, 300, &orders());
+        assert_ne!(a[299], plain[299], "animals are part of the state hash");
+        let notices = w.take_notices();
+        assert!(
+            notices
+                .iter()
+                .any(|(p, t)| *p == 1 && t.starts_with("fox:")),
+            "{notices:?}"
+        );
+        assert!(w.take_notices().is_empty(), "drained");
     }
 
     #[test]

@@ -39,4 +39,5 @@ for (let t = 0; t < ticks; t++) {
 }
 const out = opt("hashes");
 if (out) writeFileSync(out, hashes);
-console.log(`tick ${sim.tick} state hash ${last} (rejected commands: ${sim.rejected})`);
+const animals = new DataView(sim.agentFrame().buffer).getUint32(0, true);
+console.log(`tick ${sim.tick} state hash ${last}, ${animals} animals (rejected commands: ${sim.rejected})`);

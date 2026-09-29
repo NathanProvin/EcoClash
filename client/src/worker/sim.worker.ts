@@ -1,6 +1,7 @@
 // The live match (INSTRUCTIONS §6): sim-wasm in a Web Worker. It runs the fixed tick (10 Hz; a
 // tick that overruns slows game time down, ticks are never skipped), takes commands from the main
-// thread, and posts the tick every loop and the field frame only when the flora changed.
+// thread, and posts the tick with the animals every loop, the field frame only when the flora
+// changed, and notices when an order did nothing.
 
 import balance from "../../../data/balance.toml?raw";
 import species from "../../../data/species.toml?raw";
@@ -46,8 +47,12 @@ function loop() {
   if (s && !paused) {
     let hash = "";
     for (let i = 0; i < speed; i++) hash = s.step();
-    post({ type: "tick", tick: s.tick, hash, ms: (performance.now() - start) / speed });
+    const ms = (performance.now() - start) / speed;
+    const agents = s.agentFrame().buffer as ArrayBuffer;
+    post({ type: "tick", tick: s.tick, hash, ms, agents }, [agents]);
     if (s.floraTick !== floraTick) sendFields(s);
+    const notices = JSON.parse(s.takeNotices()) as { player: number; text: string }[];
+    if (notices.length) post({ type: "notice", notices });
   }
   setTimeout(loop, Math.max(0, 1000 / (s?.tickHz ?? 10) - (performance.now() - start)));
 }
@@ -71,6 +76,7 @@ async function begin(seed: number, size: number) {
     n,
     tickHz: s.tickHz,
     plantRadius: s.plantRadius,
+    maxAgents: s.maxAgents,
     balanceHash: s.balanceHash,
   });
   sendFields(s);

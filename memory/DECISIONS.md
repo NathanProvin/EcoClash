@@ -544,3 +544,25 @@ Template:
 - **Status:** accepted (user request: "subtle color changes given the soil status")
 - **Decision:** Each cell's ground texel blends from bare, pale earth (`WORLD.soil`) to dark humus (`WORLD.soilRich`) with its soil development (0–255, already in every field frame). The territory tint (35 %) goes on top, so succession stays visible under both players' land. The function is `soilColor` in `palette.ts`, with a unit test.
 - **Consequences:** No extra data or sim cost; it repaints with each field frame (1.25 Hz).
+
+## D-052 · 2026-09-29 · Animals in sim-core and the live match (M3 start)
+- **Status:** accepted
+- **Decision:**
+  - `sim-core/src/fauna.rs` ports the prototype's fauna rules (D-023, D-026; `tools/prototype/fauna.py`). At each flora tick, before the flora step (which then settles ownership of cells grazed bare):
+    1. upkeep;
+    2. feeding on the current cell: herbivores graze the richest diet species (enemy flora at a full bite, own flora at `own_graze`, pro rata when a stock runs short); decomposers turn litter into soil; predators kill one huntable enemy prey in their cell (not in a refuge);
+    3. starvation, where the carcass becomes litter;
+    4. reproduction, under the species and player caps;
+    5. new targets: flee the nearest hunter within `flee_radius`; else seek food in sight (grazers skip overcrowded cells); else wander.
+  - **Differences from the prototype, on purpose:**
+    - Animals walk every tick toward their target, at `speed` cells per second, in Q16 cells (the prototype jumped once per flora tick). The per-axis step keeps it integer-only, with no square roots.
+    - Wandering draws from the world's PCG32. The port is therefore behaviour-equivalent, not bit-exact; the prototype stays the design reference.
+  - **Units:** `speed` in species.toml is cells per second; `growth` is seconds between births; bites and upkeep are converted per flora tick.
+  - **Spawning** is a `spawn` command `{species, row, col}` with the gamerules §6.3 rules: own habitat required; predators land on the enemy prey nearest the click; herbivores need enemy diet flora within `herbivore_range` of own land and land on the own habitat cell nearest it; decomposers land on the own habitat cell nearest the click. Cards spawn `group` animals at half energy.
+  - **Free for now:** spawning is free and every species is available, as with planting (D-042); costs and unlocks come with M4 spending.
+  - **Notices:** an order that does nothing (spawn refused, or nothing planted) adds a notice (player, text). Notices are drained by the UI and are not part of the state hash.
+  - **Hashing and income:** agents are hashed every tick; the fauna parameters are in the balance hash (version 3). Animal yields count in the income.
+  - **Renderer frame:** the replay record layout with sub-cell positions (1/256 cell). The worker sends it every loop as a transferable buffer; the client keeps the last two frames and interpolates between them.
+  - **UI:** the live bottom bar has Plants / Animals tabs. Clicking a card arms it, and the next map click plants or calls it. Notices show for 5 s.
+  - **Not yet:** ids are sequential and never reused, with no generation counter, until orders need to hold references. There are no player orders for animals yet (they act on their own), and no flow fields.
+- **Consequences:** `npm run wasm:check` now includes spawn orders, so native and WASM agree on animal behaviour too. A seed-7 run has 145 animals at 2 min and 300 at 10 min (both earthworm caps reached).

@@ -110,6 +110,7 @@ EcoClash/
 │   │   ├── balance.rs       # balance.toml + species.toml, parsed and validated at runtime (D-034)
 │   │   ├── flora.rs         # flora cell model (exact port of the prototype's quant mode)
 │   │   ├── economy.rs       # biomass points: bank + income per player (D-046)
+│   │   ├── fauna.rs         # animals: SoA agents, behaviours, spawn rules (D-052)
 │   │   ├── world.rs         # world + tick loop (multi-rate scheduler)
 │   │   ├── commands.rs      # player commands, timestamped by tick
 │   │   ├── snapshot.rs      # read-only view for renderers / tools
@@ -225,6 +226,7 @@ Integer implementation constraint (it must already be modelled in the M0 prototy
 - Positions and velocities are fixed-point.
 - Behaviours in v1: move to target, graze (herbivores), hunt (predators), flee, idle/wander, reproduce. Kept as simple state machines.
 - **Reproduction (D-023):** an agent whose energy crosses a threshold splits, which costs energy, under a per-player population cap. Players also spawn cards.
+- **Implementation (D-052):** `sim-core/src/fauna.rs`. Animals walk every tick toward a target (Q16 cells, per-axis step at `speed` cells/s); they decide, feed, die and breed at each flora tick, before the flora step. Spawning is a `spawn` command with the gamerules §6.3 triggers. Orders that do nothing leave a notice for the UI (not hashed).
 - Group movement uses **flow fields** computed on a coarse grid (e.g. 64×64).
 - Budget: **1,000–2,000 agents** in v1.
 

@@ -19,7 +19,8 @@ fn balance() -> Balance {
     .expect("data files load")
 }
 
-/// Any command, valid or not: players 0..=3, unknown species, cells off the map, duplicate seqs.
+/// Any command, valid or not: players 0..=3, unknown species, plant orders for animals and spawn
+/// orders for plants, cells off the map, duplicate seqs.
 fn command(species: Vec<String>) -> impl Strategy<Value = Command> {
     (
         0..TICKS + 10,
@@ -29,18 +30,25 @@ fn command(species: Vec<String>) -> impl Strategy<Value = Command> {
         0..N + 4,
         0..N + 4,
         0u32..5,
+        any::<bool>(),
     )
-        .prop_map(|(tick, player, seq, species, row, col, radius)| Command {
-            tick,
-            player,
-            seq,
-            payload: Payload::Plant {
-                species,
-                row,
-                col,
-                radius,
+        .prop_map(
+            |(tick, player, seq, species, row, col, radius, plant)| Command {
+                tick,
+                player,
+                seq,
+                payload: if plant {
+                    Payload::Plant {
+                        species,
+                        row,
+                        col,
+                        radius,
+                    }
+                } else {
+                    Payload::Spawn { species, row, col }
+                },
             },
-        })
+        )
 }
 
 fn species_names() -> Vec<String> {
@@ -49,6 +57,7 @@ fn species_names() -> Vec<String> {
         .into_iter()
         .map(|(n, _)| n)
         .collect();
+    names.extend(balance().fauna_species.into_iter().map(|(n, _)| n));
     names.push("unknown".into());
     names
 }

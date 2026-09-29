@@ -1,7 +1,8 @@
 <script lang="ts">
   // RTS unit bar (D-030): the current selection grouped by species, or, when nothing is selected,
   // the viewed player's living species. A card focuses a species; the left panel shows its stats.
-  // In a live match every plant has a card, and clicking one arms planting (App plants on click).
+  // In a live match every species has a card, under a Plants / Animals tab; clicking one arms it,
+  // and the next map click plants it or calls the animal there (App).
   import { capText, label, position } from "../game/species";
   import type { Source, Species } from "../replay/replay";
   import SpeciesIcon from "./SpeciesIcon.svelte";
@@ -29,6 +30,7 @@
   } = $props();
 
   const species = $derived(replay.meta.species);
+  let tab: "flora" | "fauna" = $state("flora");
   const fauna = $derived(species.filter((s) => s.kind === "fauna"));
 
   /** Cards: selected animals by species, or the player's roster (cells / animals). */
@@ -44,7 +46,7 @@
     const counts = replay.counts(tick, player);
     return species
       .map((s, i) => ({ s, count: counts[i] ?? 0 }))
-      .filter((c) => c.count > 0 || (live && c.s.kind === "flora"));
+      .filter((c) => (live ? c.s.kind === tab : c.count > 0));
   });
   const shown = $derived(species.find((s) => s.name === focus) ?? cards[0]?.s);
   const unit = (s: Species) => (s.kind === "flora" ? "cells" : "animals");
@@ -86,13 +88,27 @@
 
   <section class="cards panel" aria-label={selection.size ? "Selection" : "Your species"}>
     <header>
-      <span class="label">
-        {selection.size
-          ? `Selection · ${selection.size} animals`
-          : live
-            ? "Your species · pick a plant, then click the map to plant it"
-            : "Your species"}
-      </span>
+      {#if live && !selection.size}
+        <div class="tabs" role="tablist">
+          {#each [["flora", "Plants"], ["fauna", "Animals"]] as const as [kind, name] (kind)}
+            <button
+              role="tab"
+              aria-selected={tab === kind}
+              class:on={tab === kind}
+              onclick={() => (tab = kind)}>{name}</button
+            >
+          {/each}
+        </div>
+        <span class="label">
+          {tab === "flora"
+            ? "Pick a plant, then click the map to plant it"
+            : "Pick an animal, then click the map to call it"}
+        </span>
+      {:else}
+        <span class="label">
+          {selection.size ? `Selection · ${selection.size} animals` : "Your species"}
+        </span>
+      {/if}
       {#if selection.size}<button class="btn clear" onclick={onClear}>Clear (Esc)</button>{/if}
     </header>
     <div class="list">
@@ -104,12 +120,10 @@
           class:none={count === 0}
           onclick={() => {
             focus = s.name;
-            if (s.kind === "fauna") onPickSpecies(s.name);
-            else if (live) planting = planting === s.name ? null : s.name;
+            if (live) planting = planting === s.name ? null : s.name;
+            else if (s.kind === "fauna") onPickSpecies(s.name);
           }}
-          title="{label(s.name)}: {count} {unit(s)}{live && s.kind === 'flora'
-            ? ' · click, then click the map to plant'
-            : ''}"
+          title="{label(s.name)}: {count} {unit(s)}{live ? ' · click, then click the map' : ''}"
         >
           <SpeciesIcon {s} size={46} />
           <span class="name">{label(s.name)}</span>
@@ -182,6 +196,26 @@
     justify-content: space-between;
     align-items: center;
     min-height: 22px;
+  }
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-right: auto;
+  }
+  .tabs button {
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--well);
+    padding: 2px 12px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.8em;
+    color: var(--ink-soft);
+  }
+  .tabs button.on {
+    color: var(--ink);
+    border-color: var(--gold);
+    box-shadow: 0 0 8px rgba(216, 180, 92, 0.35);
   }
   .clear {
     padding: 1px 10px;

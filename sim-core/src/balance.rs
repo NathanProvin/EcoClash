@@ -43,6 +43,25 @@ pub struct EconomyRules {
     pub start_budget: f64,
 }
 
+/// `[agents]`: the agent budget (INSTRUCTIONS §5.4).
+#[derive(Clone, Debug, Deserialize)]
+pub struct AgentRules {
+    /// Total for both players; each player may field half.
+    pub max_agents: u32,
+}
+
+/// `[fauna]` global rules (gamerules §6; D-023, D-026).
+#[derive(Clone, Debug, Deserialize)]
+pub struct FaunaRules {
+    pub transfer: f64,
+    pub own_graze: f64,
+    pub soil_per_dead: f64,
+    pub herbivore_range: u32,
+    pub flee_radius: u32,
+    pub refuge_flora: Vec<String>,
+    pub refuge_cover: f64,
+}
+
 /// `[terrain]`: V1 constants and the soil types (gamerules §2.3).
 #[derive(Clone, Debug, Deserialize)]
 pub struct Terrain {
@@ -86,6 +105,47 @@ pub struct FloraSpecies {
     pub soil_affinity: BTreeMap<String, f64>,
 }
 
+/// One animal species of `species.toml` (`[fauna.<name>]`).
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FaunaSpecies {
+    // Stats (D-029).
+    /// Minimum seconds between two births of a well-fed animal.
+    pub growth: f64,
+    pub spawn_cost: f64,
+    pub unlock_cost: f64,
+    #[serde(rename = "yield")]
+    pub yield_: f64,
+    /// Animals per player.
+    pub cap: u32,
+    pub effect: String,
+    // Model.
+    pub level: u8,
+    pub tier: u8,
+    /// "decomposer", "herbivore" or "predator".
+    pub role: String,
+    /// Flora names or L1..L3 (herbivores), fauna names (predators), "dead" (decomposers).
+    pub eats: Vec<String>,
+    /// Flora names or L1..L3 that the player must own for a spawn.
+    pub habitat: Vec<String>,
+    /// Can hide in a refuge (D-023).
+    #[serde(default)]
+    pub small: bool,
+    /// Energy capacity, in biomass units.
+    pub body: u32,
+    /// Biomass eaten per second (herbivores, decomposers).
+    #[serde(default)]
+    pub bite: f64,
+    /// Share of the body burnt per second.
+    pub upkeep: f64,
+    /// Cells per second.
+    pub speed: f64,
+    /// Cells.
+    pub sight: u32,
+    /// Animals per spawned card.
+    pub group: u32,
+}
+
 /// Everything `sim-core` reads from the data files, validated.
 #[derive(Clone, Debug)]
 pub struct Balance {
@@ -93,8 +153,12 @@ pub struct Balance {
     pub flora: FloraRules,
     pub terrain: Terrain,
     pub economy: EconomyRules,
+    pub agents: AgentRules,
+    pub fauna: FaunaRules,
     /// Plant species in file order: the index is the species id.
     pub flora_species: Vec<(String, FloraSpecies)>,
+    /// Animal species in file order: the index is the species id.
+    pub fauna_species: Vec<(String, FaunaSpecies)>,
 }
 
 #[derive(Deserialize)]
@@ -103,6 +167,8 @@ struct BalanceFile {
     flora: FloraRules,
     terrain: Terrain,
     economy: EconomyRules,
+    agents: AgentRules,
+    fauna: FaunaRules,
 }
 
 impl Balance {
@@ -111,22 +177,15 @@ impl Balance {
         let file: BalanceFile =
             toml::from_str(balance).map_err(|e| format!("balance.toml: {e}"))?;
         let doc: toml::Table = species.parse().map_err(|e| format!("species.toml: {e}"))?;
-        let mut flora_species = Vec::new();
-        if let Some(table) = doc.get("flora").and_then(toml::Value::as_table) {
-            for (name, value) in table {
-                let s: FloraSpecies = value
-                    .clone()
-                    .try_into()
-                    .map_err(|e| format!("species.toml [flora.{name}]: {e}"))?;
-                flora_species.push((name.clone(), s));
-            }
-        }
         let b = Balance {
             sim: file.sim,
             flora: file.flora,
             terrain: file.terrain,
             economy: file.economy,
-            flora_species,
+            agents: file.agents,
+            fauna: file.fauna,
+            flora_species: section(&doc, "flora")?,
+            fauna_species: section(&doc, "fauna")?,
         };
         b.validate()?;
         Ok(b)
@@ -170,6 +229,7 @@ impl Balance {
             "economy.start_budget must be in 0..32767".into(),
         )?;
         let dt = self.flora_dt();
+        self.validate_fauna()?;
         for (n, s) in &self.flora_species {
             check(
                 (1..=3).contains(&s.level),
@@ -213,6 +273,67 @@ impl Balance {
         }
         Ok(())
     }
+
+    /// Every name an animal refers to exists, and the numbers are usable.
+    fn validate_fauna(&self) -> Result<(), String> {
+        let check = |ok: bool, what: String| if ok { Ok(()) } else { Err(what) };
+        let flora = |x: &str| {
+            self.flora_species.iter().any(|(n, _)| n == x) || matches!(x, "L1" | "L2" | "L3")
+        };
+        let fauna = |x: &str| self.fauna_species.iter().any(|(n, _)| n == x);
+        check(
+            self.flora_species.len() <= 32 && self.fauna_species.len() <= 32,
+            "species.toml: at most 32 flora and 32 fauna species".into(),
+        )?;
+        check(
+            self.agents.max_agents >= 2,
+            "[agents] max_agents must be >= 2".into(),
+        )?;
+        for r in &self.fauna.refuge_flora {
+            check(flora(r), format!("[fauna] refuge_flora: unknown plant {r}"))?;
+        }
+        for (n, s) in &self.fauna_species {
+            let eats_ok = match s.role.as_str() {
+                "decomposer" => s.eats.iter().all(|e| e == "dead"),
+                "herbivore" => s.eats.iter().all(|e| flora(e)),
+                "predator" => s.eats.iter().all(|e| fauna(e)),
+                _ => false,
+            };
+            check(
+                eats_ok,
+                format!(
+                    "{n}: role must be decomposer, herbivore or predator, with a matching diet"
+                ),
+            )?;
+            check(
+                s.habitat.iter().all(|h| flora(h)),
+                format!("{n}: unknown habitat plant"),
+            )?;
+            check(
+                s.body > 0 && s.speed > 0.0 && s.group > 0 && s.growth > 0.0,
+                format!("{n}: body, speed, group and growth must be > 0"),
+            )?;
+        }
+        Ok(())
+    }
+}
+
+/// The `[kind.<name>]` tables of species.toml, in file order.
+fn section<T: serde::de::DeserializeOwned>(
+    doc: &toml::Table,
+    kind: &str,
+) -> Result<Vec<(String, T)>, String> {
+    let mut out = Vec::new();
+    if let Some(table) = doc.get(kind).and_then(toml::Value::as_table) {
+        for (name, value) in table {
+            let s: T = value
+                .clone()
+                .try_into()
+                .map_err(|e| format!("species.toml [{kind}.{name}]: {e}"))?;
+            out.push((name.clone(), s));
+        }
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -230,6 +351,11 @@ mod tests {
         assert_eq!(names.last(), Some(&"chestnut"));
         assert_eq!(names.len(), 12);
         assert!(b.flora.succession);
+        assert_eq!(
+            b.fauna_species.first().map(|(n, _)| n.as_str()),
+            Some("earthworms")
+        );
+        assert_eq!(b.fauna_species.len(), 15);
     }
 
     #[test]

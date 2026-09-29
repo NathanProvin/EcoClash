@@ -4,8 +4,8 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** (UI game pass done, D-048.) M2 perf check: the user reads the HUD fps on the reference laptop, in a visible window (D-044). The automated browser tab is hidden, so it cannot measure fps.
-- **Next:** the rest of the M2 render item (terrain, instanced grass), then M3. Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
+- **Now:** M3 in progress: animals run in `sim-core` and in the live match (D-052). Next in M3: player orders for animals (select, move, attack-move, stop).
+- **Next:** M2 leftovers (terrain, instanced grass shader, the user's fps reading, D-044); then M4 spending (unlocks and costs), the scripted bot and victory. Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
 - **Blocked:**
   - None on design questions for M0.
   - None on the tooling side (Rust ready as of 2026-09-27).
@@ -56,9 +56,11 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 
 ## M3 · Agents and control
 - [ ] Resolve Q-007 (fog). (Q-006 and Q-012 resolved by D-018.)
-- [ ] SoA agent storage + generational ids, behaviour state machines, flow fields (64×64).
-- [ ] Selection, orders, group hotkeys; input → commands.
-- [ ] Sim tick ≤ 8 ms at 512² with 1,500 agents (in the worker).
+- [x] Fauna in `sim-core` (D-052): SoA agents (sequential ids, never reused), the prototype's behaviours (flee, seek, wander, graze, decompose, hunt, starve, breed, refuges), continuous movement every tick, `spawn` command with the §6.3 triggers, animals hashed every tick, animal yields in the income. Native vs WASM check covers animals.
+- [x] Live animals in the client (D-052): animal frame every tick, interpolated; Plants / Animals tabs; call an animal with a click; notices for orders that did nothing.
+- [ ] Generational ids (only if orders need to hold references), flow fields (64×64) for group moves.
+- [ ] Selection, orders (move, attack-move, stop), group hotkeys; input → commands.
+- [ ] Sim tick ≤ 8 ms at 64² with 1,500 agents (in the worker): measure with the HUD readout.
 
 ## M3.5 · Lockstep smoke test (D-007)
 - [ ] Minimal `relay/` (Node WebSocket): order + forward commands, compare hashes.

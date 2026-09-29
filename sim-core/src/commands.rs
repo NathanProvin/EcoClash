@@ -18,6 +18,9 @@ pub enum Payload {
         col: u32,
         radius: u32,
     },
+    /// Spawn one card of an animal species near a cell (gamerules §6.3, §8). Where it lands and
+    /// whether it may spawn at all is decided by the fauna rules (`Fauna::spawn`).
+    Spawn { species: String, row: u32, col: u32 },
 }
 
 /// One command, timestamped by the tick it executes at.

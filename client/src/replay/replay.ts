@@ -201,7 +201,7 @@ export function cellAt(
     .filter((p) => p.cover > 0);
   const herd: Record<string, { name: string; owner: number; count: number }> = {};
   for (const a of src.animals(Math.round(tick))) {
-    if (a.y !== row || a.x !== col) continue;
+    if (Math.round(a.y) !== row || Math.round(a.x) !== col) continue; // live: sub-cell
     const name = src.meta.fauna.names[a.species] ?? "?";
     const key = `${name}:${a.owner}`;
     herd[key] = { name, owner: a.owner, count: (herd[key]?.count ?? 0) + 1 };

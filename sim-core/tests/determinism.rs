@@ -4,7 +4,7 @@
 
 use proptest::prelude::*;
 use sim_core::balance::Balance;
-use sim_core::commands::{Command, Payload};
+use sim_core::commands::{Command, OrderKind, Payload};
 use sim_core::hash::FieldHashes;
 use sim_core::world::World;
 
@@ -20,7 +20,7 @@ fn balance() -> Balance {
 }
 
 /// Any command, valid or not: players 0..=3, unknown species, plant orders for animals and spawn
-/// orders for plants, cells off the map, duplicate seqs.
+/// orders for plants, orders for unknown or enemy ids, cells off the map, duplicate seqs.
 fn command(species: Vec<String>) -> impl Strategy<Value = Command> {
     (
         0..TICKS + 10,
@@ -30,22 +30,29 @@ fn command(species: Vec<String>) -> impl Strategy<Value = Command> {
         0..N + 4,
         0..N + 4,
         0u32..5,
-        any::<bool>(),
+        0u8..4,
+        prop::collection::vec(0u32..60, 0..8),
     )
         .prop_map(
-            |(tick, player, seq, species, row, col, radius, plant)| Command {
+            |(tick, player, seq, species, row, col, radius, what, ids)| Command {
                 tick,
                 player,
                 seq,
-                payload: if plant {
-                    Payload::Plant {
+                payload: match what {
+                    0 => Payload::Plant {
                         species,
                         row,
                         col,
                         radius,
-                    }
-                } else {
-                    Payload::Spawn { species, row, col }
+                    },
+                    1 => Payload::Spawn { species, row, col },
+                    _ => Payload::Order {
+                        ids,
+                        kind: [OrderKind::Move, OrderKind::Attack, OrderKind::Stop]
+                            [(row % 3) as usize],
+                        row,
+                        col,
+                    },
                 },
             },
         )

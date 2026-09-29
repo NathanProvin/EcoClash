@@ -102,6 +102,12 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     player: 2,
     payload: { type: "spawn", species: "voles", row: 1, col: 0 },
   });
+  live.order(1, [4, 9], "attack", 1, 1);
+  expect(worker.sent.at(-1)).toEqual({
+    type: "command",
+    player: 1,
+    payload: { type: "order", ids: [4, 9], kind: "attack", row: 1, col: 1 },
+  });
   worker.emit({ type: "notice", notices: [{ player: 2, text: "voles: no enemy food" }] });
   expect(live.notices.map((n) => n.text)).toEqual(["voles: no enemy food"]);
 });

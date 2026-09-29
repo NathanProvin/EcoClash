@@ -357,7 +357,7 @@ A species can be spawned only when **all** of the following hold:
 | Right click on enemy target (valid for the unit's diet) | Attack / feed on target |
 | `A` + left click | Attack-move: move and feed on any valid target on the way |
 | `S` | Stop, return to autonomous behaviour |
-| `Ctrl` + number / number | Assign / recall control group |
+| `Ctrl` or `Shift` + number / number | Assign / recall control group (in the browser, Chrome keeps `Ctrl` + 1–8 for its tabs; D-053) |
 
 ---
 

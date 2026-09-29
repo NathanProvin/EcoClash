@@ -120,7 +120,7 @@
           class:none={count === 0}
           onclick={() => {
             focus = s.name;
-            if (live) planting = planting === s.name ? null : s.name;
+            if (live && !selection.size) planting = planting === s.name ? null : s.name;
             else if (s.kind === "fauna") onPickSpecies(s.name);
           }}
           title="{label(s.name)}: {count} {unit(s)}{live ? ' · click, then click the map' : ''}"

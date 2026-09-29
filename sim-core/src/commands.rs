@@ -21,6 +21,28 @@ pub enum Payload {
     /// Spawn one card of an animal species near a cell (gamerules §6.3, §8). Where it lands and
     /// whether it may spawn at all is decided by the fauna rules (`Fauna::spawn`).
     Spawn { species: String, row: u32, col: u32 },
+    /// Give own animals an RTS order (gamerules §9): `ids` are agent ids (others' and unknown ids
+    /// are ignored). `row` / `col` is the destination (not used by `stop`).
+    Order {
+        ids: Vec<u32>,
+        kind: OrderKind,
+        #[serde(default)]
+        row: u32,
+        #[serde(default)]
+        col: u32,
+    },
+}
+
+/// What an order asks (gamerules §9.2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OrderKind {
+    /// Walk to the cell, ignoring food and hunters, then act on its own again.
+    Move,
+    /// Walk to the cell, feeding on any enemy food or prey in sight on the way.
+    Attack,
+    /// Stop now and act on its own again.
+    Stop,
 }
 
 /// One command, timestamped by the tick it executes at.

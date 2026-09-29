@@ -1,9 +1,12 @@
 <script lang="ts">
   // RTS shell (D-030): resource bar on top, unit bar at the bottom, full-screen tech tree, and the
-  // 3D view in between. Mouse: click = inspect a cell, left-drag = box select, middle-drag =
-  // rotate, right-drag = pan, wheel = zoom. Keys: WASD / arrows = pan, Q / E = rotate, Home = reset view, Space = play,
-  // T = tech tree, Esc = close / clear selection.
+  // 3D view in between. Mouse: click = inspect a cell, left-drag = box select, right-click = order
+  // the selection (move, or attack on an enemy cell), middle-drag = rotate, right-drag = pan,
+  // wheel = zoom. Keys (gamerules §9.2, D-053): arrows = pan, Q / E = rotate, A + click =
+  // attack-move, S = stop, Shift or Ctrl + 1-9 = set a control group, 1-9 = recall it,
+  // Home = reset view, Space = play, T = tech tree, Esc = cancel / close / clear selection.
   import { onDestroy, onMount } from "svelte";
+  import { SvelteMap } from "svelte/reactivity";
   import { loadReplay, type Source } from "./replay/replay";
   import { Live, type Notice } from "./worker/live";
   import { label } from "./game/species";
@@ -37,6 +40,9 @@
   let selection = $state(new Set<number>());
   let focus: string | null = $state(null);
   let planting: string | null = $state(null); // species armed for the next map click
+  let attackArmed = $state(false); // A pressed: the next map click is an attack-move
+  const groups = new SvelteMap<number, number[]>(); // control groups: digit -> animal ids
+  let rightDown: { x: number; y: number } | null = null;
   let notices: Notice[] = $state([]); // recent orders that did nothing
   const armedKind = $derived(
     replay?.meta.species.find((s) => s.name === planting)?.kind ?? "flora",
@@ -60,14 +66,11 @@
     rotateLeft: false,
     rotateRight: false,
   };
+  // Arrows pan: A and S are unit orders (gamerules §9.2).
   const keyMap: Record<string, keyof CameraKeys> = {
-    KeyW: "forward",
     ArrowUp: "forward",
-    KeyS: "back",
     ArrowDown: "back",
-    KeyA: "left",
     ArrowLeft: "left",
-    KeyD: "right",
     ArrowRight: "right",
     KeyQ: "rotateLeft",
     KeyE: "rotateRight",
@@ -167,10 +170,23 @@
     );
   }
 
+  /** Order the selected animals (live match only). */
+  function order(kind: "move" | "attack" | "stop", at?: { row: number; col: number } | null) {
+    if (!live || !selection.size) return;
+    live.order(player, [...selection], kind, at?.row ?? 0, at?.col ?? 0);
+  }
+
+  /** An enemy cell: enemy land, or enemy animals on it (right-click there attacks). */
+  function enemyAt(at: { row: number; col: number }): boolean {
+    const info = replay?.cell(tick, at.row, at.col);
+    return !!info && (info.owner === 3 - player || info.animals.some((a) => a.owner !== player));
+  }
+
   function onPointerDown(e: PointerEvent) {
-    if (e.button !== 0) return;
     const r = canvas.getBoundingClientRect();
     const [x, y] = [e.clientX - r.left, e.clientY - r.top];
+    if (e.button === 2) rightDown = { x, y }; // a right click orders; a right drag pans
+    if (e.button !== 0) return;
     box = { x0: x, y0: y, x1: x, y1: y };
     canvas.setPointerCapture(e.pointerId);
   }
@@ -182,8 +198,24 @@
   }
 
   function onPointerUp(e: PointerEvent) {
+    if (e.button === 2 && rightDown && viewer) {
+      const r = canvas.getBoundingClientRect();
+      const [x, y] = [e.clientX - r.left, e.clientY - r.top];
+      if (Math.abs(x - rightDown.x) < 4 && Math.abs(y - rightDown.y) < 4) {
+        const at = viewer.pickCell(x, y);
+        if (at) order(enemyAt(at) ? "attack" : "move", at);
+      }
+      rightDown = null;
+      return;
+    }
     if (!box || !viewer) return;
     const click = Math.abs(box.x1 - box.x0) < 4 && Math.abs(box.y1 - box.y0) < 4;
+    if (click && attackArmed) {
+      order("attack", viewer.pickCell(box.x0, box.y0));
+      if (!e.shiftKey) attackArmed = false;
+      box = null;
+      return;
+    }
     const at = click && planting && live ? viewer.pickCell(box.x0, box.y0) : null;
     if (at && planting && live) {
       // Shift keeps the order armed, like RTS build orders.
@@ -213,13 +245,24 @@
       return;
     }
     if (!down || typing) return;
-    if (e.code === "Space") {
+    const digit = /^Digit([1-9])$/.exec(e.code)?.[1];
+    if (digit) {
+      // Chrome keeps Ctrl + 1-8 for its tabs: Shift + digit also sets a group.
+      if (e.ctrlKey || e.shiftKey) groups.set(Number(digit), [...selection]);
+      else select(groups.get(Number(digit)) ?? []);
+      e.preventDefault();
+    } else if (e.code === "KeyA" && live && selection.size) {
+      attackArmed = true;
+    } else if (e.code === "KeyS" && live && selection.size) {
+      order("stop");
+    } else if (e.code === "Space") {
       e.preventDefault();
       playing = !playing;
     } else if (e.code === "KeyT") {
       techOpen = !techOpen;
     } else if (e.code === "Escape") {
       if (techOpen) techOpen = false;
+      else if (attackArmed) attackArmed = false;
       else if (planting) planting = null;
       else if (cell) inspect(null);
       else select([]);
@@ -266,7 +309,7 @@
   <canvas
     bind:this={canvas}
     aria-label="Match view: click a cell to inspect it, drag to select your animals"
-    class:planting
+    class:planting={planting || attackArmed}
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}
@@ -308,14 +351,20 @@
       onClear={() => select([])}
     />
     <p class="hint">
-      {#if planting}
+      {#if attackArmed}
+        <strong>Attack-move:</strong> click a cell: your animals go there, feeding on any enemy food on
+        the way · Esc: cancel
+      {:else if live && selection.size && !planting}
+        <strong>{selection.size} selected:</strong> right-click: move (enemy cell: attack) · A + click:
+        attack-move · S: stop · Shift + 1-9: set group · 1-9: recall
+      {:else if planting}
         <strong>{armedKind === "flora" ? "Planting" : "Calling"} {label(planting)}:</strong>
         {armedKind === "flora"
           ? "click a cell"
           : "click near where it should go (predators land on enemy prey)"} · Shift: keep going · Esc:
         cancel
       {:else}
-        Click: inspect cell · Drag: select · Middle-drag / Q E: rotate · Right-drag / WASD: pan ·
+        Click: inspect cell · Drag: select · Middle-drag / Q E: rotate · Right-drag / arrows: pan ·
         Wheel: zoom · T: tech tree
       {/if}
     </p>

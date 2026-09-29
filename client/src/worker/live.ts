@@ -132,6 +132,17 @@ export class Live implements Source {
     this.send({ type: "command", player, payload: { type: "spawn", species, row, col } });
   }
 
+  /** Give own animals an order (gamerules §9): move to a cell, attack-move to it, or stop. */
+  order(
+    player: 1 | 2,
+    ids: number[],
+    kind: "move" | "attack" | "stop",
+    row: number,
+    col: number,
+  ): void {
+    this.send({ type: "command", player, payload: { type: "order", ids, kind, row, col } });
+  }
+
   /** The tick to draw at time `now` (ms): between the last two animal frames, so animals glide. */
   renderTick(now: number): number {
     const period = Math.max(this.cur.at - this.prev.at, 1);

@@ -255,3 +255,11 @@
   - Tests: 6 fauna unit tests, a world test, and spawn orders in the proptest streams and in the native-vs-WASM check (145 animals at 2 min, 300 at 10 min).
   - Live client: animal frame every tick, interpolated; Plants / Animals tabs; click to call an animal; notice toasts.
 - **Next (M3):** player orders for animals (select, move, attack-move, stop), then flow fields.
+
+## 2026-09-29 · M3 orders (D-053)
+- **Done:**
+  - `order` command (move, attack-move, stop), stored per agent and hashed, with unit tests and orders in the proptest streams.
+  - Client: right-click move (or attack on an enemy cell), A + click attack-move, S stop, control groups, arrow-key panning.
+  - Checked in the browser: 6 voles called, box-selected, moved, then attack-moved toward enemy grass.
+  - The timing test was fixed for 64² and map-share caps, and now includes 1,500 animals: ≈1.0 ms per tick on average, 7.9 ms worst tick.
+- **Next:** M4 spending and victory, the scripted bot; the M2 leftovers.

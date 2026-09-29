@@ -4,15 +4,17 @@
 //!   speed, while decisions and feeding happen at each flora tick, as in the prototype;
 //! - wandering draws from the world's PCG32, so the port is behaviour-equivalent, not bit-exact.
 //!
-//! At each flora tick, after the flora step: upkeep; feeding on the current cell (graze,
-//! decompose, hunt); starvation; reproduction; then new targets (flee a hunter, seek food,
-//! wander). Agents keep creation order; ids are never reused, so renderers can follow them.
+//! At each flora tick, before the flora step: upkeep; feeding on the current cell (graze,
+//! decompose, hunt); starvation; reproduction; then new targets (player orders first, then flee a
+//! hunter, seek food, wander). Agents keep creation order; ids only grow and are never reused, so
+//! renderers and orders can refer to them (no generation counter needed; D-053).
 
 #![allow(clippy::needless_range_loop)] // parallel SoA arrays, indexed together
 
 use std::collections::BTreeMap;
 
 use crate::balance::Balance;
+use crate::commands::OrderKind;
 use crate::fixed::{ONE, div_round};
 use crate::flora::{FloraParams, FloraState, U16, round};
 use crate::hash::Hasher;
@@ -21,6 +23,10 @@ use crate::rng::Pcg32;
 const ONE_I: i64 = ONE as i64;
 const HALF: i64 = ONE_I / 2;
 const PLAYERS: [u8; 2] = [1, 2];
+/// Standing orders (`Agents::order`).
+const FREE: u8 = 0;
+const MOVE: u8 = 1;
+const ATTACK: u8 = 2;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Role {
@@ -223,6 +229,11 @@ pub struct Agents {
     pub energy: Vec<i64>,
     /// Flora ticks before this animal may give birth again.
     pub cooldown: Vec<i64>,
+    /// Standing player order: 0 none, 1 move, 2 attack-move (gamerules §9; D-053).
+    pub order: Vec<u8>,
+    /// Destination of the order (Q16 cells).
+    pub gy: Vec<i64>,
+    pub gx: Vec<i64>,
     pub next_id: u32,
 }
 
@@ -243,7 +254,15 @@ impl Agents {
         cell_of(self.y[i]) * n + cell_of(self.x[i])
     }
 
-    fn push(&mut self, sp: usize, owner: u8, y: i64, x: i64, energy: i64, cooldown: i64) {
+    pub(crate) fn push(
+        &mut self,
+        sp: usize,
+        owner: u8,
+        y: i64,
+        x: i64,
+        energy: i64,
+        cooldown: i64,
+    ) {
         self.id.push(self.next_id);
         self.next_id = self.next_id.wrapping_add(1);
         self.sp.push(u8::try_from(sp).unwrap_or(u8::MAX));
@@ -254,6 +273,9 @@ impl Agents {
         self.tx.push(x);
         self.energy.push(energy);
         self.cooldown.push(cooldown);
+        self.order.push(FREE);
+        self.gy.push(y);
+        self.gx.push(x);
     }
 
     fn retain(&mut self, keep: &[bool]) {
@@ -270,6 +292,9 @@ impl Agents {
         filter(&mut self.tx, keep);
         filter(&mut self.energy, keep);
         filter(&mut self.cooldown, keep);
+        filter(&mut self.order, keep);
+        filter(&mut self.gy, keep);
+        filter(&mut self.gx, keep);
     }
 
     pub fn hash_into(&self, h: &mut Hasher) {
@@ -277,7 +302,8 @@ impl Agents {
         for i in 0..self.len() {
             h.u64(u64::from(self.id[i]))
                 .u64(u64::from(self.sp[i]))
-                .u64(u64::from(self.owner[i]));
+                .u64(u64::from(self.owner[i]))
+                .u64(u64::from(self.order[i]));
         }
         for v in [
             &self.y,
@@ -286,6 +312,8 @@ impl Agents {
             &self.tx,
             &self.energy,
             &self.cooldown,
+            &self.gy,
+            &self.gx,
         ] {
             h.i64s(v);
         }
@@ -314,6 +342,44 @@ impl Fauna {
             p,
             agents: Agents::default(),
         }
+    }
+
+    /// Give `player`'s animals among `ids` an order toward cell `goal` (gamerules §9). Other
+    /// players' and unknown ids are ignored. Returns how many animals took it. Takes effect at
+    /// once: the animals turn toward the goal now, not at the next flora tick.
+    pub fn order(
+        &mut self,
+        player: u8,
+        ids: &[u32],
+        kind: OrderKind,
+        goal: (usize, usize),
+    ) -> usize {
+        let a = &mut self.agents;
+        let mut taken = 0;
+        for id in ids {
+            // Ids only grow and the list keeps creation order: it is sorted.
+            let Ok(i) = a.id.binary_search(id) else {
+                continue;
+            };
+            if a.owner[i] != player {
+                continue;
+            }
+            taken += 1;
+            if kind == OrderKind::Stop {
+                a.order[i] = FREE;
+                a.ty[i] = a.y[i];
+                a.tx[i] = a.x[i];
+                continue;
+            }
+            a.order[i] = if kind == OrderKind::Move {
+                MOVE
+            } else {
+                ATTACK
+            };
+            (a.gy[i], a.gx[i]) = (centre(goal.0), centre(goal.1));
+            (a.ty[i], a.tx[i]) = (a.gy[i], a.gx[i]);
+        }
+        taken
     }
 
     /// Every tick: each animal walks toward its target, up to its speed on each axis.
@@ -520,11 +586,25 @@ impl Fauna {
         let mut species: Vec<usize> = self.agents.sp.iter().map(|&s| usize::from(s)).collect();
         species.sort_unstable();
         species.dedup();
+        let a = &mut self.agents;
+        // 0. Player orders: a move order holds until the goal cell is reached; an attack-move
+        //    also ends there (it looks for enemy food on the way, in step 2).
+        for i in 0..len {
+            let arrived =
+                cell_of(a.y[i]) == cell_of(a.gy[i]) && cell_of(a.x[i]) == cell_of(a.gx[i]);
+            if a.order[i] != FREE && arrived {
+                a.order[i] = FREE;
+            }
+            if a.order[i] == MOVE {
+                target[i] = Some((a.gy[i], a.gx[i]));
+            }
+        }
         let a = &self.agents;
         let p = &self.p;
         let limit = |v: i64| v.clamp(HALF, centre(n - 1));
 
-        // 1. Flee: step away from the nearest enemy hunter, one flora period's walk.
+        // 1. Flee: step away from the nearest enemy hunter, one flora period's walk. Animals
+        //    under orders hold their course.
         for &v in &species {
             for pl in PLAYERS {
                 let mut hunters = vec![false; n2];
@@ -534,7 +614,11 @@ impl Fauna {
                     }
                 }
                 for i in 0..len {
-                    if usize::from(a.sp[i]) != v || a.owner[i] != pl || safe[i] {
+                    if usize::from(a.sp[i]) != v
+                        || a.owner[i] != pl
+                        || safe[i]
+                        || a.order[i] != FREE
+                    {
                         continue;
                     }
                     if let Some(h) = self.nearest(&hunters, n, a.cell(i, n), p.flee) {
@@ -601,21 +685,30 @@ impl Fauna {
                         vec![on(&|o| o != 3 - pl)]
                     }
                 };
-                for m in &masks {
-                    idx.retain(|&i| match self.nearest(m, n, a.cell(i, n), p.sight[s]) {
-                        Some(k) => {
-                            target[i] = Some((centre(k / n), centre(k % n)));
-                            false
+                for (mi, m) in masks.iter().enumerate() {
+                    idx.retain(|&i| {
+                        if mi > 0 && a.order[i] == ATTACK {
+                            return true; // attack-move: enemy food only (the first mask)
                         }
-                        None => true,
+                        match self.nearest(m, n, a.cell(i, n), p.sight[s]) {
+                            Some(k) => {
+                                target[i] = Some((centre(k / n), centre(k % n)));
+                                false
+                            }
+                            None => true,
+                        }
                     });
                 }
             }
         }
 
-        // 3. Everyone else wanders to a neighbouring cell (or stays).
+        // 3. Attack-moves with nothing in sight head on; everyone else wanders to a neighbouring
+        //    cell (or stays).
         let a = &mut self.agents;
         for i in 0..len {
+            if target[i].is_none() && a.order[i] == ATTACK {
+                target[i] = Some((a.gy[i], a.gx[i]));
+            }
             let (ty, tx) = target[i].unwrap_or_else(|| {
                 let dy = i64::from(rng.below(3)) - 1;
                 let dx = i64::from(rng.below(3)) - 1;
@@ -898,6 +991,57 @@ mod tests {
         );
         let got = fa.spawn(&fl.p, &st, 2, voles, (5, 5)).unwrap();
         assert!(got > 0, "enemy grasses in range: voles may come");
+    }
+
+    #[test]
+    fn orders_steer_own_animals_until_they_arrive() {
+        let (fl, mut fa, mut st, mut rng) = setup(16);
+        meadow(&fl, &mut st, "grasses");
+        let voles = fa.p.index("voles").unwrap();
+        fa.agents
+            .push(voles, 1, centre(2), centre(2), ONE_I * 100, 0);
+        fa.agents
+            .push(voles, 2, centre(2), centre(12), ONE_I * 100, 0);
+        assert_eq!(
+            fa.order(1, &[0, 1, 99], OrderKind::Move, (14, 2)),
+            1,
+            "own animals only"
+        );
+        assert_eq!(
+            (fa.agents.ty[0], fa.agents.tx[0]),
+            (centre(14), centre(2)),
+            "turns at once"
+        );
+        assert_eq!(fa.agents.ty[1], centre(2), "the enemy vole ignores it");
+        for t in 0..400 {
+            fa.walk();
+            if t % 8 == 0 {
+                fa.act(&fl.p, &mut st, &mut rng); // food all around: an order ignores it
+            }
+            if fa.agents.order[0] == FREE {
+                break;
+            }
+        }
+        assert_eq!(
+            fa.agents.cell(0, 16),
+            14 * 16 + 2,
+            "arrived, then free again"
+        );
+        assert_eq!(fa.agents.order[0], FREE);
+
+        fa.order(1, &[0], OrderKind::Attack, (2, 2));
+        fa.act(&fl.p, &mut st, &mut rng);
+        let enemy_land = |ty: i64, tx: i64| st.owner[cell_of(ty) * 16 + cell_of(tx)] == 2;
+        assert!(
+            enemy_land(fa.agents.ty[0], fa.agents.tx[0]) || fa.agents.ty[0] == centre(2),
+            "attack-move: enemy food in sight, else the goal"
+        );
+        fa.order(1, &[0], OrderKind::Stop, (0, 0));
+        assert_eq!(
+            (fa.agents.order[0], fa.agents.ty[0]),
+            (FREE, fa.agents.y[0]),
+            "stops now"
+        );
     }
 
     #[test]

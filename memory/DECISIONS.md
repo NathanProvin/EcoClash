@@ -566,3 +566,22 @@ Template:
   - **UI:** the live bottom bar has Plants / Animals tabs. Clicking a card arms it, and the next map click plants or calls it. Notices show for 5 s.
   - **Not yet:** ids are sequential and never reused, with no generation counter, until orders need to hold references. There are no player orders for animals yet (they act on their own), and no flow fields.
 - **Consequences:** `npm run wasm:check` now includes spawn orders, so native and WASM agree on animal behaviour too. A seed-7 run has 145 animals at 2 min and 300 at 10 min (both earthworm caps reached).
+
+## D-053 · 2026-09-29 · Player orders for animals (M3)
+- **Status:** accepted
+- **Decision:**
+  - The `order` command `{ids, kind, row, col}` has three kinds (gamerules §9):
+    - `move`: walk to the cell, ignoring food and hunters, then act on its own again;
+    - `attack`: walk to the cell, seeking only enemy food or prey in sight on the way, then act on its own;
+    - `stop`: halt now and act on its own.
+  - The order takes effect at once (the target is set immediately). Only the commanding player's animals obey; unknown ids are ignored. An order is stored per agent (kind and goal) and hashed.
+  - Animals under orders do not flee. They still feed on the cell they stand on at each flora tick.
+  - Ids only grow and are never reused, and the agent list keeps creation order, so it is sorted and orders look ids up by binary search. No generation counter is needed.
+  - There are no flow fields: the V1 terrain has no obstacles, so straight lines reach every cell. Flow fields come with obstacles.
+  - **Controls:**
+    - A left click or drag selects own animals. A right-click orders a move, or an attack-move on an enemy cell (enemy land or enemy animals). A right-drag still pans.
+    - A + click is an attack-move; S stops.
+    - Shift or Ctrl + 1–9 assigns a control group and 1–9 recalls it. Chrome keeps Ctrl + 1–8 for its tabs; Ctrl will work in the Electron build.
+    - Arrows pan: WASD is dropped because A and S are orders in the gamerules controls table.
+  - While animals are selected, species cards filter the selection instead of arming a spawn.
+- **Consequences:** Fog of war (Q-007) stays at its default, none, which needs no code. The proptest streams include orders with random, enemy and unknown ids. The budget check is met: ≈1.0 ms per tick on average with 1,500 animals on a full 64² map (native release).

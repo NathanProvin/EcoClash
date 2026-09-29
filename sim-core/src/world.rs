@@ -9,7 +9,7 @@
 //! Ticks are never skipped (INSTRUCTIONS §6).
 
 use crate::balance::Balance;
-use crate::commands::{Command, CommandQueue, Payload, disc};
+use crate::commands::{Command, CommandQueue, OrderKind, Payload, disc};
 use crate::economy::Economy;
 use crate::fauna::{Fauna, FaunaParams};
 use crate::flora::{Flora, FloraParams, FloraState};
@@ -141,6 +141,22 @@ impl World {
                 if let Err(why) = spawned {
                     self.notices.push((c.player, format!("{species}: {why}")));
                 }
+            }
+            Payload::Order {
+                ids,
+                kind,
+                row,
+                col,
+            } => {
+                let n = self.state.n;
+                let goal = (usize::try_from(*row), usize::try_from(*col));
+                let inside = matches!(goal, (Ok(r), Ok(c2)) if r < n && c2 < n);
+                if !valid_player || (*kind != OrderKind::Stop && !inside) {
+                    self.rejected += 1;
+                    return;
+                }
+                let goal = (goal.0.unwrap_or(0), goal.1.unwrap_or(0));
+                self.fauna.order(c.player, ids, *kind, goal);
             }
         }
     }
@@ -385,13 +401,20 @@ mod perf {
 
         let mut w = World::new(&b, 1, n);
         let mut seq = 0;
-        for (player, row, col) in [(1, 40, 40), (2, 215, 215), (1, 60, 120), (2, 190, 130)] {
+        let m = u32::try_from(n).unwrap();
+        let spots = [
+            (1, m / 6, m / 6),
+            (2, m - m / 6, m - m / 6),
+            (1, m / 4, m / 2),
+            (2, m * 3 / 4, m / 2),
+        ];
+        for (player, row, col) in spots {
             for species in ["grasses", "lichen_and_moss", "nettle"] {
                 let payload = Payload::Plant {
                     species: species.into(),
                     row,
                     col,
-                    radius: 12,
+                    radius: (m / 20).max(2),
                 };
                 w.submit(Command {
                     tick: 0,
@@ -422,7 +445,7 @@ mod perf {
                 "beech",
             ] {
                 let s = w.flora.p.index(name).unwrap();
-                w.flora.p.cap[s] = i64::MAX; // no cap: every cell keeps every species
+                w.flora.p.cap[s] = i64::from(crate::fixed::ONE); // the whole map: no cap
                 w.flora.plant(&mut w.state, player, s, &cells);
             }
         }
@@ -431,6 +454,31 @@ mod perf {
             "{n}x{n} full map: {full:?} per flora tick, {owned} cells owned; one flora tick every \
              {every} ticks = {:?} per tick on average",
             full / u32::try_from(every).unwrap()
+        );
+
+        // The M3 budget (INSTRUCTIONS §5.5): the same full map plus 1,500 animals of every species,
+        // all behaviours running, timed over whole ticks (walks every tick, acts every flora tick).
+        let species = w.fauna.p.names.len();
+        for k in 0..1500 {
+            let (player, half) = if k % 2 == 0 { (1u8, 0) } else { (2u8, n / 2) };
+            let cell = (k * 7919) % (n * n / 2);
+            let (row, col) = (cell / (n / 2), half + cell % (n / 2));
+            let s = k % species;
+            let full = w.fauna.p.body[s] * i64::from(crate::fixed::ONE);
+            let at = |c: usize| i64::try_from(c).unwrap() * i64::from(crate::fixed::ONE) + 32768;
+            w.fauna.agents.push(s, player, at(row), at(col), full, 0);
+        }
+        let ticks = 10 * every;
+        let (mut worst, start) = (std::time::Duration::ZERO, std::time::Instant::now());
+        for _ in 0..ticks {
+            let t = std::time::Instant::now();
+            w.step();
+            worst = worst.max(t.elapsed());
+        }
+        println!(
+            "{n}x{n} full map + 1500 animals: {:?} per tick on average, worst tick {worst:?}, {} animals left",
+            start.elapsed() / u32::try_from(ticks).unwrap(),
+            w.fauna.agents.len()
         );
     }
 }

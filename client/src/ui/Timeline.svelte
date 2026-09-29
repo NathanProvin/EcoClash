@@ -7,6 +7,7 @@
     replay,
     live,
     simMs,
+    perf,
     tick = $bindable(),
     playing = $bindable(),
     speed = $bindable(),
@@ -15,6 +16,7 @@
     replay: Source;
     live: boolean;
     simMs: number;
+    perf: string;
     tick: number;
     playing: boolean;
     speed: number;
@@ -58,6 +60,7 @@
     {#each speeds as s (s)}<option value={s}>{s}×</option>{/each}
   </select>
   {#if result}<strong class="result" role="status">{result}</strong>{/if}
+  <span class="perf" title="Render rate (target: 60 fps on medium, D-040)">{perf}</span>
 </div>
 
 <style>
@@ -94,6 +97,12 @@
     font-variant-numeric: tabular-nums;
     font-size: 0.85em;
     min-width: 88px;
+  }
+  .perf {
+    font-size: 0.78em;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
   .result {
     font-size: 0.9em;

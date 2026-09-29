@@ -467,3 +467,17 @@ Template:
   - Each player's line runs one texel (0.5 m) inside its own cells, wherever a 4-neighbour is not its own; map edges get no line. P1 is solid, P2 is dashed (2 texels on, 2 off).
   - It is repainted with each field frame and toggled with the territory layer (`client/src/render/frontier.ts`, unit-tested).
 - **Consequences:** where the players touch, the two lines run side by side, blue solid next to orange dashed. That border reads without colour.
+
+## D-044 · 2026-09-29 · Field-frame repaint budget and fps readout (M2 perf)
+- **Status:** accepted
+- **Context:** A cap-bound late game at 256² (≈16k L1, 3.6k L2, 2.4k L3 cells over both players; ≈77k plant models) cost ≈97 ms of plant layout on the main thread per field frame (1.25 Hz), a visible hitch. Measured in Node:
+  - decode: 1 ms;
+  - live census: 12 ms;
+  - frontier: 8 ms.
+- **Decision:**
+  - `place` skips empty strata (no shuffle); the full layout plus instance writes drops to 41 ms.
+  - The viewer caches each cell's layout, keyed by its three cover bytes, and recomputes it only when they change. Steady-state repaint: 5 ms for 77k models.
+  - Instance matrices and colours are written in place with no allocation. Only the instances in use are uploaded (`addUpdateRange`), not the full-map capacity (≈40 MB).
+  - Single-pass live census; the frontier skips interior cells.
+  - The playback strip shows the fps and the worst frame over the last 0.5 s, plus the render backend, for the D-040 check on the reference laptop.
+- **Consequences:** A frame where many cells change cover at once (early growth) can still cost up to ≈40 ms. If the laptop shows hitches, the next steps are spreading the repaint over several frames or moving the layout to the worker.

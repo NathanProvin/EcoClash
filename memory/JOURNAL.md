@@ -210,3 +210,10 @@
 - **Done:** frontier overlay (P1 solid, P2 dashed), checked on the 20-minute replay and the live match.
 - **Note:** synthetic `change` events in browser tests must bubble: Svelte 5 delegates them to the root.
 - **Next:** perf check on the reference laptop.
+
+## 2026-09-29 · M2 perf pass (D-044)
+- **Done:**
+  - Field-frame repaint at 256² went from ≈97 ms to ≈5 ms in steady state (layout cache, skipped empty strata, in-place writes, partial uploads).
+  - The HUD shows fps, the worst frame and the backend. WebGPU is active on the Intel UHD.
+- **Not done:** the fps reading itself. The automated Chrome tab is hidden (`visibilityState` hidden, no animation frames), so the user reads it in a visible window.
+- **Next:** the user's fps reading; then terrain and instanced grass (rest of the M2 render item) or M3.

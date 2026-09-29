@@ -24,18 +24,25 @@ export function paintFrontier(
     out[t + 2] = rgb[2] ?? 0;
     out[t + 3] = 255;
   };
+  const other = (rr: number, cc: number, p: number) =>
+    rr >= 0 && rr < n && cc >= 0 && cc < n && owner[rr * n + cc] !== p;
   for (let r = 0; r < n; r++) {
     for (let c = 0; c < n; c++) {
       const p = owner[r * n + c];
       if (p !== 1 && p !== 2) continue;
-      const other = (rr: number, cc: number) =>
-        rr >= 0 && rr < n && cc >= 0 && cc < n && owner[rr * n + cc] !== p;
+      const [up, down, left, right] = [
+        other(r - 1, c, p),
+        other(r + 1, c, p),
+        other(r, c - 1, p),
+        other(r, c + 1, p),
+      ];
+      if (!(up || down || left || right)) continue; // interior cell
       const [x0, y0] = [c * TEXELS, r * TEXELS];
       for (let i = 0; i < TEXELS; i++) {
-        if (other(r - 1, c)) put(x0 + i, y0, p, x0 + i);
-        if (other(r + 1, c)) put(x0 + i, y0 + TEXELS - 1, p, x0 + i);
-        if (other(r, c - 1)) put(x0, y0 + i, p, y0 + i);
-        if (other(r, c + 1)) put(x0 + TEXELS - 1, y0 + i, p, y0 + i);
+        if (up) put(x0 + i, y0, p, x0 + i);
+        if (down) put(x0 + i, y0 + TEXELS - 1, p, x0 + i);
+        if (left) put(x0, y0 + i, p, y0 + i);
+        if (right) put(x0 + TEXELS - 1, y0 + i, p, y0 + i);
       }
     }
   }

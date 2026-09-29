@@ -19,6 +19,12 @@
   let replay: Source | undefined = $state();
   let live: Live | undefined = $state();
   let simMs = $state(0);
+  // Render rate for the perf check (D-040): frames per second over the last half second, and the
+  // longest frame in it (a field frame's repaint shows up there).
+  let perf = $state("");
+  let perfFrames = 0;
+  let perfStart = 0;
+  let perfWorst = 0;
   const LIVE = "live match";
   let viewer: Viewer | undefined;
   let error = $state("");
@@ -91,6 +97,13 @@
       }
       if (!techOpen) viewer.moveCamera(keys, seconds);
       viewer.render(tick);
+    }
+    perfFrames++;
+    perfWorst = Math.max(perfWorst, now - last);
+    if (now - perfStart >= 500) {
+      const fps = (perfFrames * 1000) / (now - perfStart);
+      perf = `${fps.toFixed(0)} fps · worst ${perfWorst.toFixed(0)} ms · ${viewer?.backend ?? ""}`;
+      [perfFrames, perfStart, perfWorst] = [0, now, 0];
     }
     last = now;
     raf = requestAnimationFrame(frame);
@@ -273,7 +286,7 @@
       bind:chosen
       onChoose={open}
     />
-    <Timeline {replay} live={!!live} {simMs} bind:tick bind:playing bind:speed {result} />
+    <Timeline {replay} live={!!live} {simMs} {perf} bind:tick bind:playing bind:speed {result} />
     <BottomBar
       {replay}
       {tick}

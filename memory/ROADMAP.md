@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M2 perf check on the reference laptop (60 fps "medium" at 256², D-040).
+- **Now:** M2 perf check: the user reads the HUD fps on the reference laptop, in a visible window (D-044). The automated browser tab is hidden, so it cannot measure fps.
 - **Next:** the rest of the M2 render item (terrain, instanced grass), then M3. Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
 - **Blocked:**
   - None on design questions for M0.
@@ -52,7 +52,7 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [x] Plant from the UI in the live match (commands main → worker, D-042).
 - [x] Territory frontier line, P1 solid / P2 dashed (D-040, D-043).
 - [ ] Three.js WebGPURenderer: terrain, flora textures, instanced grass, RTS camera.
-- [ ] Perf check: 60 fps at 256² on the reference machine ("medium"), 30 fps on "low" (D-040).
+- [ ] Perf check: 60 fps at 256² on the reference machine ("medium"), 30 fps on "low" (D-040). Field-frame repaint optimized and HUD fps readout added (D-044); the reading on the laptop is still to do.
 
 ## M3 · Agents and control
 - [ ] Resolve Q-007 (fog). (Q-006 and Q-012 resolved by D-018.)

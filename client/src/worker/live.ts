@@ -113,13 +113,21 @@ export class Live implements Source {
   private decode(frame: number, bytes: Uint8Array): Fields {
     const f = decodeFields(frame, bytes, this.meta);
     const cells = this.meta.n * this.meta.n;
+    const owned = [0, 0, 0];
+    const census = [0, 1, 2].map(() => new Array<number>(f.species.length).fill(0));
+    for (let k = 0; k < cells; k++) {
+      const o = f.owner[k] ?? 0;
+      const row = census[o];
+      if (!o || !row) continue;
+      owned[o] = (owned[o] ?? 0) + 1;
+      f.species.forEach((c, i) => {
+        if (c[k]) row[i] = (row[i] ?? 0) + 1;
+      });
+    }
     for (const p of [1, 2]) {
-      const owned = f.owner.reduce((n, o) => (o === p ? n + 1 : n), 0);
-      const row = f.species.map((c) =>
-        c.reduce((n, v, k) => (v && f.owner[k] === p ? n + 1 : n), 0),
-      );
+      const row = census[p] ?? [];
       this.census[p - 1] = row;
-      (this.meta.series[`territory_p${p}`] ??= []).push(owned / cells);
+      (this.meta.series[`territory_p${p}`] ??= []).push((owned[p] ?? 0) / cells);
       (this.meta.series[`species_p${p}`] ??= []).push(row.filter((c) => c > 0).length);
     }
     return f;

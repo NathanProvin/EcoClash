@@ -8,7 +8,17 @@ import { MapControls } from "three/addons/controls/MapControls.js";
 import * as THREE from "three/webgpu";
 import { interpolate, type Animal, type Source, type Role } from "../replay/replay";
 import { paintFrontier, TEXELS } from "./frontier";
-import { animalSlots, ANIMAL_BASE, CANOPY_Y, CELL, CONE, DOT, plantLayout, rand } from "./layout";
+import {
+  animalSlots,
+  ANIMAL_BASE,
+  CANOPY_Y,
+  CELL,
+  CONE,
+  DOT,
+  plantLayout,
+  rand,
+  type Placement,
+} from "./layout";
 import { hexToRgb, PLAYER, WORLD, type PlayerId } from "./palette";
 
 export type Layer = "territory" | "L1" | "L2" | "L3" | "animals";
@@ -42,6 +52,9 @@ export class Viewer {
   private readonly frontierTex: THREE.DataTexture;
   private readonly frontier: THREE.Mesh;
   private readonly strata: THREE.InstancedMesh[];
+  // Per-cell plant layout, recomputed only when the cell's three cover bytes change.
+  private readonly layoutKey: Int32Array;
+  private readonly layouts: Placement[][][] = [];
   private readonly animals: Record<Role, THREE.InstancedMesh>;
   private readonly roleOf: Role[];
   private readonly animalColor: Record<PlayerId, { animal: THREE.Color; predator: THREE.Color }> = {
@@ -119,6 +132,7 @@ export class Viewer {
     this.scene.add(this.frontier);
 
     const cells = n * n;
+    this.layoutKey = new Int32Array(cells).fill(-1);
     // Unit shapes, base on the ground (dots, cones) or centred (cubes); instances scale them to
     // their footprint and place them in their band (layout.ts).
     const dot = new THREE.SphereGeometry(1, 8, 4)
@@ -339,10 +353,14 @@ export class Viewer {
       if (!p) continue;
       const x0 = ((c % n) - n / 2) * CELL; // cell corner in world metres
       const z0 = (Math.floor(c / n) - n / 2) * CELL;
-      const layers = plantLayout(
-        c,
-        [0, 1, 2].map((k) => (cover[k]?.[c] ?? 0) / 255),
-      );
+      const [c0, c1, c2] = [cover[0]?.[c] ?? 0, cover[1]?.[c] ?? 0, cover[2]?.[c] ?? 0];
+      const key = c0 | (c1 << 8) | (c2 << 16);
+      let layers = this.layouts[c];
+      if (!layers || this.layoutKey[c] !== key) {
+        layers = plantLayout(c, [c0 / 255, c1 / 255, c2 / 255]);
+        this.layouts[c] = layers;
+        this.layoutKey[c] = key;
+      }
       layers.forEach((models, s) => {
         const mesh = this.strata[s];
         const color = strataColor[p - 1]?.[s];
@@ -467,12 +485,41 @@ function writeInstance(
 ): void {
   const [c, s] = [Math.cos(angle) * scale, Math.sin(angle) * scale];
   const m = mesh.instanceMatrix.array as Float32Array;
-  m.set([c, 0, -s, 0, 0, scale, 0, 0, s, 0, c, 0, x, y, z, 1], i * 16);
-  (mesh.instanceColor?.array as Float32Array | undefined)?.set([color.r, color.g, color.b], i * 3);
+  const o = i * 16; // column-major, written in place (this runs ~100k times per field frame)
+  m[o] = c;
+  m[o + 1] = 0;
+  m[o + 2] = -s;
+  m[o + 3] = 0;
+  m[o + 4] = 0;
+  m[o + 5] = scale;
+  m[o + 6] = 0;
+  m[o + 7] = 0;
+  m[o + 8] = s;
+  m[o + 9] = 0;
+  m[o + 10] = c;
+  m[o + 11] = 0;
+  m[o + 12] = x;
+  m[o + 13] = y;
+  m[o + 14] = z;
+  m[o + 15] = 1;
+  const col = mesh.instanceColor?.array as Float32Array | undefined;
+  if (col) {
+    col[i * 3] = color.r;
+    col[i * 3 + 1] = color.g;
+    col[i * 3 + 2] = color.b;
+  }
 }
 
 function finish(mesh: THREE.InstancedMesh, count: number): void {
   mesh.count = count;
-  mesh.instanceMatrix.needsUpdate = true;
-  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  // Upload only the instances in use: the buffers are sized for a full map.
+  for (const [attr, size] of [
+    [mesh.instanceMatrix, 16],
+    [mesh.instanceColor, 3],
+  ] as const) {
+    if (!attr) continue;
+    attr.clearUpdateRanges();
+    attr.addUpdateRange(0, Math.max(1, count) * size);
+    attr.needsUpdate = true;
+  }
 }

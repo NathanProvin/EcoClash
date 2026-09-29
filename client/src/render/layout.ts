@@ -58,8 +58,9 @@ function place(
   size: (k: number) => number,
   blocked: (x: number, z: number, r: number) => boolean = () => false,
 ): Placement[] {
-  const slot = CELL / g;
   const out: Placement[] = [];
+  if (count === 0) return out; // most strata of most cells: skip the shuffle
+  const slot = CELL / g;
   for (const s of order(cell, g * g, salt)) {
     if (out.length >= count) break;
     const k = out.length;

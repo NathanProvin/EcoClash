@@ -194,7 +194,7 @@ Required tests:
 
 ### 5.1 Grid
 
-- Default size **128×128**, 1 cell = 4 m, so the map is 512 m across (configurable: 64 for low-end, 256 as a stretch goal; D-047). One cell holds several plant models (up to 10 herbs, 5 shrubs, 3 trees), placed at random offsets for a natural look.
+- Default size **64×64**, 1 cell = 4 m, so the map is 256 m across (configurable; D-047, D-049). One cell holds several plant models (up to 10 herbs, 5 shrubs, 3 trees), placed at random offsets for a natural look.
 - Each field is a flat `Vec<u16>` (row-major). Per-player flora layers: `flora[player][species]`.
 - Rendering never sees the grid as pixels. Fields are uploaded as textures and sampled bilinearly.
 
@@ -234,7 +234,7 @@ Reference machine: the dev laptop, **Lenovo 83EQ: Intel i5-12450H (8 cores / 12 
 
 | Item | Budget |
 |---|---|
-| Sim tick at 128², 2 players, 1,500 agents | ≤ 8 ms on a single thread (in the Worker), on average; flora ticks (every 8 ticks) may spike, but must stay well below the 100 ms tick period |
+| Sim tick at 64², 2 players, 1,500 agents | ≤ 8 ms on a single thread (in the Worker), on average; flora ticks (every 8 ticks) may spike, but must stay well below the 100 ms tick period |
 | Render | 60 fps on the "medium" preset, 30 fps floor on "low" |
 | Initial download (web) | ≤ 30 MB |
 | WASM memory | ≤ 512 MB |
@@ -342,7 +342,7 @@ Each milestone ends with a playable or testable result and passing CI. The detai
 | M-1 | Environment bootstrap | Memory files, pinned toolchains, `npm run doctor` green, git initialized |
 | M0 | Ecological prototype (Python) | Float and quantized modes. Over 100 seeds, all trophic levels of both players coexist at t = 20 min in ≥ 90 % of runs. Tunables are in `balance.toml` |
 | M1 | `sim-core` fields | Growth/spread/competition in fixed-point. Determinism tests are green. `sim-cli` output matches M0's quantized-mode curves within tolerance. CI checks native vs WASM hashes |
-| M2 | Web render of fields | Worker + WASM + Three.js: terrain, flora textures, instanced grass, RTS camera. 60 fps at 128² on the reference machine ("medium" preset; D-040, D-047) |
+| M2 | Web render of fields | Worker + WASM + Three.js: terrain, flora textures, instanced grass, RTS camera. 60 fps at 64² on the reference machine ("medium" preset; D-040, D-049) |
 | M3 | Agents and control | Herbivores and predators, selection, orders, flow fields. The decomposer decision is taken |
 | M3.5 | Lockstep smoke test | Two browser tabs over a local relay play the same match for 5 min with identical hashes |
 | M4 | Full match vs AI | Economy, structures, territory, victory conditions. Scripted AI (command-only). End screen with charts |

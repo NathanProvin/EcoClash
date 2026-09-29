@@ -523,3 +523,8 @@ Template:
   - The tech tree and the cell inspector use the same style.
   - Species icon slot (`SpeciesIcon.svelte`): loads `public/icons/species/<name>.webp`, falls back to the glyph on a stratum or role colour, and remembers missing files for the session.
 - **Consequences:** Adding a species icon needs no code, only the file. The HUD covers more of the screen bottom (168 px); the camera still pans under it.
+
+## D-049 · 2026-09-29 · 64² map (a 256 m map of 4 m cells)
+- **Status:** accepted (user request: "the map is too big, divide it by two")
+- **Decision:** The grid goes from 128² to 64²; cells stay 4 m, so the map is 256 m across (a quarter of the area). Plant caps are map shares (D-045), so they scale with it. The live opening scales its offsets with n.
+- **Consequences:** Fronts meet sooner and the whole map fits one screen. The per-tick sim cost drops about 4×, which leaves room for the fauna port.

@@ -290,3 +290,11 @@
   - Herbivores: free on own land (no trigger, feed where their food is best); dropped on food near the click elsewhere. Predator drops are limited to `drop_radius`.
   - The bot calls at home and drops raiders.
   - Tests, fixture, `wasm:check` and the browser check all pass.
+
+## 2026-09-29 · M3.5 lockstep smoke test (D-062)
+- **Done:**
+  - Relay, lockstep core, relayed browser mode.
+  - `relay:test`: 5 minutes identical, a cheat caught; added to CI.
+  - Two-tab check in the browser: in sync, and the stall shows.
+  - Moved balance runs and `sim-py` to M7 (user).
+- **Next:** pause for the user's hands-on feedback round (and their fps reading), then M5/M6.

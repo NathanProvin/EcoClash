@@ -39,7 +39,10 @@
   let playing = $state(true);
   let speed = $state(4);
   let player: 1 | 2 = $state(1); // the viewed player
-  const me = 1; // the human's side: every command goes out as P1 (the bot plays P2, D-060)
+  // The human's side: P1 against the bot (D-060); in a relayed match, the seat the relay gave.
+  const me = $derived<1 | 2>(live?.me ?? 1);
+  let joining = $state(false); // relayed: waiting for the other player to join
+  let stalled = $state(false); // relayed: waiting for the other player's turn
   const mine = $derived(!!live && player === me); // viewing own side: orders allowed
   let techOpen = $state(false);
   let outcome: Outcome | null = $state(null); // the verdict of a live match
@@ -109,6 +112,8 @@
       tick = live.renderTick(now); // between the last two animal frames: animals glide
       simMs = live.simMs;
       if (live.error) error = live.error;
+      if (live.netProblem) error = live.netProblem;
+      if (live.stalled !== stalled) stalled = live.stalled;
       if (live.result !== outcome) outcome = live.result;
       const fresh = live.notices.filter((n) => n.player === me && now - n.at < 5000);
       if (fresh.length !== notices.length) notices = fresh;
@@ -147,12 +152,17 @@
       if (name === LIVE) {
         // ?seed=N&size=N (0 = the balance grid size); a fixed default seed keeps runs reproducible
         const q = new URLSearchParams(location.search);
+        const relay = q.get("relay") ?? undefined; // ?relay=ws://host:port: lockstep (D-062)
+        joining = !!relay;
         live = await Live.start(
           Number(q.get("seed") ?? 1),
           Number(q.get("size") ?? 0),
           q.get("sandbox") === "1", // ?sandbox=1: everything unlocked and free (D-058)
           q.get("bot") ?? "normal", // ?bot=easy|normal|hard|none: the P2 opponent (D-060)
+          relay,
         );
+        joining = false;
+        player = live.me; // view your own side
         replay = live;
       } else {
         replay = await loadReplay(`replays/${name}`);
@@ -443,6 +453,11 @@
       />
     {/if}
   {/if}
+  {#if joining || (stalled && live && !outcome)}
+    <p class="panel waiting" role="status">
+      {joining ? "Waiting for the other player to join…" : "Waiting for the other player…"}
+    </p>
+  {/if}
   {#if error}<p class="panel error" role="alert">{error}</p>{/if}
   {#if outcome && replay && !endDismissed && !inMenu}
     <EndScreen
@@ -507,6 +522,14 @@
     margin: 0;
     font-size: 0.85em;
     border-left: 3px solid var(--player);
+  }
+  .waiting {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    font-weight: 700;
   }
   .error {
     position: absolute;

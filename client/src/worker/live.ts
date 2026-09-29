@@ -16,7 +16,14 @@ import {
 } from "../replay/replay";
 
 export type ToWorker =
-  | { type: "start"; seed: number; size: number; sandbox: boolean; bot: string }
+  | {
+      type: "start";
+      seed: number;
+      size: number;
+      sandbox: boolean;
+      bot: string;
+      relay?: string; // a lockstep relay's URL (D-062)
+    }
   | { type: "pause"; paused: boolean }
   | { type: "speed"; speed: number }
   | { type: "command"; player: 1 | 2; payload: object };
@@ -24,6 +31,7 @@ export type ToWorker =
 export type ToMain =
   | {
       type: "ready";
+      me: number; // the player this client commands (the relay assigns it)
       species: string;
       n: number;
       tickHz: number;
@@ -39,6 +47,7 @@ export type ToMain =
       agents: ArrayBuffer;
       unlocked: number[][]; // per player, one flag per species (species-table order)
       result: string; // the verdict as JSON once the match is decided, else ""
+      stalled: boolean; // relayed: waiting for the other player's turn
     }
   | {
       type: "fields";
@@ -49,6 +58,7 @@ export type ToMain =
       standing: number[];
     }
   | { type: "notice"; notices: { player: number; text: string }[] }
+  | { type: "net"; event: "desync" | "left"; tick: number }
   | { type: "error"; message: string };
 
 /** Why an order did nothing, shown for a few seconds. */
@@ -90,6 +100,12 @@ export class Live implements Source {
   simMs = 0;
   error = "";
   notices: Notice[] = [];
+  /** The player this client commands (2 when a relay seats it second). */
+  readonly me: 1 | 2;
+  /** Relayed: waiting for the other player's turn. */
+  stalled = false;
+  /** Relayed: what went wrong with the link, for the HUD. */
+  netProblem = "";
   result: Outcome | null = null;
   readonly plantRadius: number;
   private readonly maxAgents: number;
@@ -107,6 +123,7 @@ export class Live implements Source {
     const plants = species.filter((s) => s.kind === "flora");
     const animals = species.filter((s) => s.kind === "fauna");
     this.plantRadius = ready.plantRadius;
+    this.me = ready.me === 2 ? 2 : 1;
     this.maxAgents = ready.maxAgents;
     this.meta = {
       version: REPLAY_VERSION,
@@ -128,8 +145,15 @@ export class Live implements Source {
 
   /** Start a match in a new worker: a bare map of `size` cells a side (0 = balance grid size).
    *  A sandbox match has every species unlocked and free (D-058). `bot` is the P2 opponent's level
-   *  ("easy", "normal", "hard"), or "none" for an idle P2 (D-060). */
-  static start(seed: number, size: number, sandbox = false, bot = "none"): Promise<Live> {
+   *  ("easy", "normal", "hard"), or "none" for an idle P2 (D-060). With a `relay` URL, the match
+   *  is a lockstep with another client: it starts once both have joined (D-062). */
+  static start(
+    seed: number,
+    size: number,
+    sandbox = false,
+    bot = "none",
+    relay?: string,
+  ): Promise<Live> {
     const worker = new Worker(new URL("./sim.worker.ts", import.meta.url), { type: "module" });
     return new Promise((resolve, reject) => {
       worker.onmessage = (e: MessageEvent<ToMain>) => {
@@ -137,7 +161,7 @@ export class Live implements Source {
         else if (e.data.type === "error") reject(new Error(e.data.message));
       };
       worker.onerror = (e) => reject(new Error(`sim worker: ${e.message}`));
-      worker.postMessage({ type: "start", seed, size, sandbox, bot } satisfies ToWorker);
+      worker.postMessage({ type: "start", seed, size, sandbox, bot, relay } satisfies ToWorker);
     });
   }
 
@@ -199,12 +223,18 @@ export class Live implements Source {
       this.prev = this.cur;
       this.cur = { tick: m.tick, at: performance.now(), animals: decodeAgents(m.agents) };
       this.unlockedFlags = m.unlocked;
+      this.stalled = m.stalled;
       if (m.result && !this.result) this.result = JSON.parse(m.result) as Outcome;
     } else if (m.type === "fields") {
       this.current = this.decode(this.current.frame + 1, new Uint8Array(m.frame), m);
     } else if (m.type === "notice") {
       const at = performance.now();
       this.notices = [...this.notices, ...m.notices.map((n) => ({ ...n, at }))].slice(-4);
+    } else if (m.type === "net") {
+      this.netProblem =
+        m.event === "desync"
+          ? `Desync at tick ${m.tick}: the two simulations disagree. The match is void.`
+          : "The other player left the match.";
     } else if (m.type === "error") {
       this.error = m.message;
     }

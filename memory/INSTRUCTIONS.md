@@ -120,7 +120,7 @@ EcoClash/
 ├── sim-cli/                 # (M1) headless runner: seed + balance + commands -> hashes / metrics (CSV/JSON)
 ├── sim-wasm/                # wasm-bindgen wrapper around sim-core (browser worker + node/ runner)
 ├── sim-py/                  # (M4+, only if needed) PyO3 + maturin bindings for AI training
-├── relay/                   # (M6) WebSocket lockstep relay server (forwards commands, compares hashes)
+├── relay/                   # WebSocket lockstep relay (orders + forwards turns, compares hashes; D-062)
 ├── client/                  # TypeScript + Vite front-end
 │   ├── src/
 │   │   ├── replay/          # replay loader (Python prototype replays until the worker exists, D-028)
@@ -128,7 +128,7 @@ EcoClash/
 │   │   ├── render/          # Three.js (WebGPURenderer), TSL shaders
 │   │   ├── ui/              # Svelte components (menus, HUD, minimap)
 │   │   ├── input/           # mouse/keyboard -> commands
-│   │   └── net/             # (M3.5/M6) WebSocket lockstep client
+│   │   └── net/             # lockstep client core (lockstep.ts; D-062)
 │   └── public/assets/       # optimized glTF / KTX2
 ├── tools/                   # Python tooling (uv-managed)
 │   ├── prototype/           # NumPy ecological model notebooks
@@ -326,6 +326,7 @@ Quality presets (low / medium / high): grass density, shadows, post-processing, 
   - Disconnect: the missing player loses (v1). Resign is a command.
   - Pause: a command that both players must confirm.
 - **Desync:** the hash mismatches are logged with the tick, and the match ends. A debug build dumps both states for diffing.
+- **Built (M3.5, D-062):** `relay/server.mjs` (one room of two, turns → bundles, hash compare), `client/src/net/lockstep.ts` (shared by the worker and the headless test), `?relay=` in the client, and `npm run relay:test` in CI. Still M6: deployment, lobby and handshake, the stall timeout and disconnect rules, replays, state dumps.
 - **Handshake:** peers exchange build version + balance hash + seed before the match. A mismatch refuses to start.
 - **Cheating:** lockstep gives every client the full state (maphack is possible). This is accepted for v1.
 - **Replays:** seed + balance hash + command stream.

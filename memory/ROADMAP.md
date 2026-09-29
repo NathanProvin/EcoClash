@@ -4,8 +4,8 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M4 done: main menu (D-057), spending and unlocks (D-058), victory and end screen (D-059), scripted bot (D-060), herbivore drops (D-061). Balance runs and `sim-py` moved to M7.
-- **Next:** M3.5, the lockstep smoke test (relay, two tabs). Then M5, art and UI polish (the Species catalog and Options screens behind the menu placeholders). M2's only leftover is the user's fps reading.
+- **Now:** M3.5 done (D-062). Pause for the user's hands-on round and feedback, including the M2 fps reading (Layers → Quality: Medium, then Low).
+- **Next (after the feedback):** M5, art and UI polish; M6, online multiplayer. M7 last: balance runs, `sim-py`.
 - **Blocked:**
   - None on design questions for M0.
   - None on the tooling side (Rust ready as of 2026-09-27).
@@ -63,9 +63,9 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [x] Sim tick ≤ 8 ms at 64² with 1,500 agents: ≈1.0 ms per tick on average, 7.9 ms worst tick (native release, full map; `flora_tick_time` ignored test). The HUD shows the in-browser figure.
 
 ## M3.5 · Lockstep smoke test (D-007)
-- [ ] Minimal `relay/` (Node WebSocket): order + forward commands, compare hashes.
-- [ ] `client/src/net/`: input delay `d`, stall handling.
-- [ ] Two tabs, 5 min, identical hashes. Automated in a Node test with two headless clients.
+- [x] Minimal `relay/` (Node WebSocket): order + forward commands, compare hashes (D-062).
+- [x] `client/src/net/`: input delay `d`, stall handling (the sim waits; the HUD says so) (D-062).
+- [x] Two tabs, 5 min, identical hashes. Automated in a Node test with two headless clients (`npm run relay:test`, in CI), plus a divergence caught at the next hash check.
 
 ## M4 · Full match vs AI
 - [x] Economy, structures, territory, victory conditions (per the resolved Q-002 and Q-003). Done: bank + income (D-046), spending: unlocks, planting and spawn costs (D-058), victory conditions (D-059).

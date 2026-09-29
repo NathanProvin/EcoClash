@@ -673,3 +673,15 @@ Template:
   - **Bot:** it calls herbivores and decomposers on its own land, near home, and drops raiders (`drop_raiders`: the most advanced unlocked herbivore with food on enemy land, onto the enemy food nearest home).
   - `FaunaParams::eats_plant` is public for the bot. Balance hash version 6; parity fixture regenerated.
 - **Consequences:** gamerules §5.2 and §6.3 and INSTRUCTIONS §5.4 are updated. Tests cover own-land calls without enemy food, drops on food, refused drops, the predator radius, no enemy-first seeking, and the ×1.5 charge. Checked in the browser: voles dropped on P2's meadow landed there.
+
+## D-062 · 2026-09-29 · Lockstep smoke test: relay, client core, two tabs (M3.5)
+- **Status:** accepted
+- **Decision:**
+  - **Relay** (`relay/server.mjs`, Node + `ws`): one room of two players. It seats them (P1, P2) and sends the match seed and the `[net]` rules (`input_delay_ticks`, `hash_every_ticks`, read from balance.toml). It collects each player's turn per tick and broadcasts the tick's bundle once both are in. It compares the hashes both report every `hash_every_ticks` ticks; a mismatch is broadcast as a desync with its tick. It never simulates.
+  - **Client core** (`client/src/net/lockstep.ts`, pure, erasable TypeScript so Node runs it directly): tick t runs only with its bundle, and every client submits the bundle's commands with the same (tick, player, seq).
+    - After tick t, the client sends its turn for t + delay; the first `delay` turns go out empty.
+    - While a bundle is missing the sim waits (stall), and the HUD shows "Waiting for the other player…".
+  - **Browser:** `?relay=ws://…` makes Launch game join the relay. The worker gets the seed and its seat from the relay, runs one tick per 10 Hz loop, and sends its player's orders as turns. Pause and speed do not apply. The human commands the seat the relay gave.
+  - **Test** (`npm run relay:test`, in CI after `wasm:check`): two headless players (sim-wasm + Lockstep) play 5 minutes with plants, unlocks, spawns and orders on both sides. They must have identical hashes at every tick and no desync, with the orders visibly applied. A second match makes one player submit a command outside the relay; the relay reports the desync at the next hash check.
+  - **Dependency:** `ws` 8, the standard Node WebSocket server (Node has a client, not a server).
+- **Consequences:** Checked in two browser tabs: the players were seated P1/P2, an unlock and a spawn applied on both sides, and 56 hash checks were in sync; the faster tab waited for the slower one. M6 keeps deployment, lobby and handshake, the stall timeout, disconnect rules, replays and state dumps.

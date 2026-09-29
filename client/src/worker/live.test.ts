@@ -21,6 +21,7 @@ class FakeWorker {
       queueMicrotask(() =>
         this.emit({
           type: "ready",
+          me: 1,
           species: JSON.stringify(species),
           n: 2,
           tickHz: 10,
@@ -85,7 +86,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     [1, 0, 1],
     [1, 0, 0],
   ];
-  const tick = { hash: "aa", ms: 2, unlocked, result: "" };
+  const tick = { hash: "aa", ms: 2, unlocked, result: "", stalled: false };
   worker.emit({ type: "tick", tick: 8, agents: agents([[1, 0, 0, 0, 1]]), ...tick });
   worker.emit({ type: "tick", tick: 9, agents: agents([[1, 0, 1, 0, 1]]), ...tick });
   expect(live.result).toBeNull();
@@ -124,4 +125,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
   const verdict = '{"winner":2,"reason":"territory","tick":10}';
   worker.emit({ type: "tick", tick: 10, agents: agents([]), ...tick, result: verdict });
   expect(live.result).toEqual({ winner: 2, reason: "territory", tick: 10 });
+  expect(live.me).toBe(1);
+  worker.emit({ type: "net", event: "desync", tick: 40 });
+  expect(live.netProblem).toContain("tick 40");
 });

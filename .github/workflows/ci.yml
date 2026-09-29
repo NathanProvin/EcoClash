@@ -32,6 +32,11 @@ jobs:
         run: command -v wasm-bindgen || cargo install wasm-bindgen-cli --version "=$WASM_BINDGEN" --locked
       - name: Native vs WASM hashes (INSTRUCTIONS §4)
         run: npm run wasm:check
+      - name: Lockstep smoke test (two headless players through the relay, M3.5)
+        run: |
+          npm ci
+          npm run relay:lint
+          npm run test -w relay
       - name: WASM package for the client job
         uses: actions/upload-artifact@v4
         with:

@@ -1,0 +1,13 @@
+{
+  "name": "ecoclash-relay",
+  "private": true,
+  "type": "module",
+  "description": "Lockstep relay: orders and forwards commands, compares state hashes; never simulates (INSTRUCTIONS §10)",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test test/lockstep.test.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
+  }
+}

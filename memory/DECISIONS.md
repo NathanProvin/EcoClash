@@ -539,3 +539,8 @@ Template:
   - Fauna diets and habitats follow: slugs eat lichen & moss, grasses, ferns and wildflowers; grasshoppers, voles and rabbits eat wildflowers instead of clover; caterpillars eat and live in nettle; pill bugs live under lichen & moss or ferns.
   - "_and_" in a species key shows as "&" in the UI.
 - **Consequences:** gamerules §4.2 and §5 are updated. Scripts, tests and fixtures use the new names; the parity fixture was regenerated and stays exact. The overyielding test threshold is now 1.1: the theory gives ×1.17 with wildflowers (k_max 6000), against ×1.25 with clover.
+
+## D-051 · 2026-09-29 · Ground colour follows soil development
+- **Status:** accepted (user request: "subtle color changes given the soil status")
+- **Decision:** Each cell's ground texel blends from bare, pale earth (`WORLD.soil`) to dark humus (`WORLD.soilRich`) with its soil development (0–255, already in every field frame). The territory tint (35 %) goes on top, so succession stays visible under both players' land. The function is `soilColor` in `palette.ts`, with a unit test.
+- **Consequences:** No extra data or sim cost; it repaints with each field frame (1.25 Hz).

@@ -19,7 +19,8 @@ export const PLAYER = {
 } as const;
 
 export const WORLD = {
-  soil: "#b8a88f", // bare ground
+  soil: "#c1b196", // bare, undeveloped ground (pale, sandy)
+  soilRich: "#7a6247", // fully developed soil (humus)
   sky: "#dfe8ec",
   horizon: "#c9d3cf",
   sun: "#fff4e0",
@@ -31,4 +32,16 @@ export type PlayerId = keyof typeof PLAYER;
 export function hexToRgb(hex: string): [number, number, number] {
   const v = parseInt(hex.slice(1), 16);
   return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+}
+
+const BARE = hexToRgb(WORLD.soil);
+const RICH = hexToRgb(WORLD.soilRich);
+
+/** Ground colour for a soil development of 0..255: from bare, pale earth to dark humus, so
+ *  succession shows under the plants (D-051). */
+export function soilColor(dev: number): [number, number, number] {
+  const f = Math.min(Math.max(dev, 0), 255) / 255;
+  return [0, 1, 2].map((j) =>
+    Math.round((BARE[j] ?? 0) + ((RICH[j] ?? 0) - (BARE[j] ?? 0)) * f),
+  ) as [number, number, number];
 }

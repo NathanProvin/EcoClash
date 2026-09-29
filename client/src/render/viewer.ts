@@ -20,7 +20,7 @@ import {
   rand,
   type Placement,
 } from "./layout";
-import { hexToRgb, PLAYER, WORLD, type PlayerId } from "./palette";
+import { hexToRgb, PLAYER, soilColor, WORLD, type PlayerId } from "./palette";
 
 export type Layer = "territory" | "L1" | "L2" | "L3" | "animals";
 
@@ -284,7 +284,7 @@ export class Viewer {
     const fields = this.replay.fields(tick);
     if (fields.frame !== this.lastFrame) {
       this.lastFrame = fields.frame;
-      this.paintFields(fields.owner, fields.cover);
+      this.paintFields(fields.owner, fields.soil, fields.cover);
     }
     this.placeAnimals(tick);
     animateAura(this.aura, now);
@@ -332,15 +332,15 @@ export class Viewer {
     return this.shown;
   }
 
-  private paintFields(owner: Uint8Array, cover: Uint8Array[]): void {
+  private paintFields(owner: Uint8Array, soilDev: Uint8Array, cover: Uint8Array[]): void {
     const n = this.replay.meta.n;
-    const soil = hexToRgb(WORLD.soil);
     const tint = { 1: hexToRgb(PLAYER[1].base), 2: hexToRgb(PLAYER[2].base) };
     const strataColor = ([1, 2] as PlayerId[]).map((p) =>
       PLAYER[p].strata.map((hex) => new THREE.Color(hex)),
     );
     const counts: Record<0 | 1 | 2, number> = { 0: 0, 1: 0, 2: 0 };
     for (let c = 0; c < n * n; c++) {
+      const soil = soilColor(soilDev[c] ?? 0);
       const p = owner[c] ?? 0;
       const t = p && this.showTerritory ? tint[p as PlayerId] : soil;
       const k = p && this.showTerritory ? 0.35 : 0;

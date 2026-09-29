@@ -225,7 +225,7 @@ Integer implementation constraint (it must already be modelled in the M0 prototy
 - Hand-rolled **Structure-of-Arrays** storage with **generational entity ids**. No external ECS in `sim-core`, to keep full control of ordering.
 - Positions and velocities are fixed-point.
 - Behaviours in v1: move to target, graze (herbivores), hunt (predators), flee, idle/wander, reproduce. Kept as simple state machines.
-- **Reproduction (D-023):** an agent whose energy crosses a threshold splits, which costs energy, under a per-player population cap. Players also spawn cards.
+- **Reproduction (D-023, D-066):** an agent whose energy crosses a threshold splits, which costs energy, if the food within its sight can carry one more (local carrying capacity, shared by every animal with an overlapping diet). The per-player and per-species caps are safety ceilings only. Players also spawn cards.
 - **Implementation (D-052):** `sim-core/src/fauna.rs`. Animals steer every tick toward a target (Q16 cells, any angle, at `speed` cells/s, plus a Brownian drift; D-065); they decide, feed, die and breed at each flora tick, before the flora step. Spawning is a `spawn` command with the gamerules §6.3 rules: herbivores come freely on own land and are dropped on food elsewhere; predators are dropped on prey; any animal landing outside own land costs ×1.5 (D-061). Orders that do nothing leave a notice for the UI (not hashed).
 - Group movement uses **flow fields** computed on a coarse grid (e.g. 64×64).
 - Budget: **1,000–2,000 agents** in v1.

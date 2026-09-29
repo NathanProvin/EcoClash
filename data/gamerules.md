@@ -321,6 +321,12 @@ A species can be spawned only when **all** of the following hold:
 ### 6.4 Energy, upkeep and reproduction
 
 - **Reproduction (D-023):** an animal whose energy crosses a threshold reproduces, which costs energy, under a per-player population cap. Players still spawn cards. The numbers below are [Proposed].
+- **Carrying capacity (author's decision, D-066):** a birth also needs food nearby. Within the animal's sight, the food must cover every animal of the same role with an overlapping diet, plus the newborn:
+  - grazers and decomposers: `food_reserve` seconds of bites each, from their diet plants (any land) or the litter, shared with the other player's animals that eat the same;
+  - predators: `prey_per_predator` huntable enemy prey each, counted over their owner's predators.
+  - The per-player and per-species caps stay only as safety ceilings. Populations then rise and fall with their food: prey with the plants, predators with the prey, in the manner of Lotka–Volterra cycles.
+- **Hunting (D-066):** a hungry predator (below full energy; a sated one does not hunt) with huntable prey within `strike_radius` cells kills one per flora tick with chance `catch_chance`.
+- **Grazing at home (D-066):** herbivores bite their owner's plants at `own_graze` of a full bite, but gain the energy of a full bite, so they live and breed at home without eating their owner's economy.
 - Every animal has an energy value. It regains energy by eating and loses it over time. At zero energy it dies and becomes dead biomass.
 - **Trophic transfer:** eating converts ~10 % of the consumed biomass into the eater's energy, and ~10 % into biomass points for its owner. This follows the ecological 10 % rule and keeps consumer armies expensive.
 

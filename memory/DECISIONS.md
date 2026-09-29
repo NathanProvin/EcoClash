@@ -714,3 +714,22 @@ Template:
   - New `[fauna]` keys: `wobble`, `wobble_keep`, `scatter`, `wander_radius`, validated. Balance hash version 7.
   - Client: fauna levels 1–2 (soil life, insects) are swarms (`isSwarm`, `species.ts`), drawn as small faint dots, not selectable. From small mammals up, animals are units. Every animal is drawn at its own sub-cell position (plus a fixed id offset for replays), with no slot grid.
 - **Consequences:** The native/WASM check and the prototype CLI parity still pass (the prototype has no movement to match). Sizes and models per type come with the model pass.
+
+## D-066 · 2026-09-29 · Food-limited carrying capacity, hunting success, feeding at home (feedback round 1)
+- **Status:** accepted (user feedback: "introduce an environmental load, capacity, over which the population stop growing, and it depends on the amount of food source available in neighboring cells … emerging food prey dynamics … like the Lotka Volterra equations"; answer: food rules, with the caps kept as a safety ceiling)
+- **Decision:**
+  - **Local carrying capacity** (`Fauna::reproduce`): a ready animal gives birth only if the food within its sight (square window, 2D prefix sums) covers the load of every rival, plus its young born this tick, plus itself.
+    - Rivals are animals of the same role with an overlapping diet. Grazers and decomposers count both players (same plants, same litter); predators count their owner's predators only.
+    - Each rival needs `food_reserve` seconds of its bites, or `prey_per_predator` huntable enemy prey.
+    - The per-player budget and the species caps stay as ceilings. Fauna caps are doubled so food binds first more often.
+  - **Hunting:**
+    - A predator catches prey within `strike_radius` cells (it was: same cell only, which almost never happened with moving prey), with chance `catch_chance` per flora tick (one RNG draw).
+    - A predator at full energy is sated and does not hunt (a handling limit). Without these, three foxes wiped out 60 voles in 40 s.
+  - **Grazing at home:** own plants are still bitten at `own_graze`, but they give the energy of a full bite. Before, the energy gained was below upkeep for every herbivore (voles 1.44 against 2.4 per flora tick), so herbivores at home slowly starved and never bred, against D-061.
+  - New `[fauna]` keys: `food_reserve` 900 s, `prey_per_predator` 4, `strike_radius` 1, `catch_chance` 0.5. Balance hash version 8.
+- **Evidence:** `lotka_volterra_report` (ignored test, `sim-core/src/fauna.rs`): a 64² meadow with every cap lifted.
+  - Voles alone grow logistically to about 1,450, a food limit.
+  - With five foxes and bramble refuges (capped at 3 % of the map), seeds 2 and 3 show a cycle: voles peak at about 1,200, foxes rise to 10–13, voles fall to about 550 and are held there by the refuges, then the foxes crash.
+  - In seeds 1 and 4 the foxes starve before the voles are dense enough (a small-population Allee effect).
+  - Uncapped bramble spreads over the voles' whole land and hides every vole, so the foxes starve: the refuge rule as designed.
+- **Consequences:** In bot-vs-bot matches, earthworms and voles still reach their (doubled) caps: litter and a full map feed more than the ceilings. Setting the magnitudes (`food_reserve`, caps, predator upkeep versus catch rate) is balance work for M7.

@@ -71,6 +71,13 @@ pub struct FaunaParams {
     flee: i64,
     refuge: u32,
     refuge_cover: i64,
+    /// Local carrying capacity (D-066): flora ticks of bites per animal, prey per predator.
+    reserve: i64,
+    prey_per: i64,
+    /// Catch distance (cells, each axis).
+    strike: usize,
+    /// Chance of a kill per flora tick (Q16).
+    catch: i64,
     /// Organic movement (D-065): drift kick per tick (Q16 share of speed), drift kept per tick
     /// (Q16), target scatter and stroll radius (Q16 cells).
     wobble: i64,
@@ -170,6 +177,10 @@ impl FaunaParams {
             flee,
             refuge: flora_mask(&fa.refuge_flora),
             refuge_cover: round(fa.refuge_cover * one),
+            reserve: round(fa.food_reserve / dt),
+            prey_per: i64::from(fa.prey_per_predator),
+            strike: usize::try_from(fa.strike_radius).unwrap_or(0),
+            catch: round(fa.catch_chance * one),
             wobble: round(fa.wobble * one),
             wobble_keep: round(fa.wobble_keep * one),
             scatter: round(fa.scatter * one),
@@ -226,6 +237,10 @@ impl FaunaParams {
             self.flee,
             i64::from(self.refuge),
             self.refuge_cover,
+            self.reserve,
+            self.prey_per,
+            i64::try_from(self.strike).unwrap_or(0),
+            self.catch,
             self.wobble,
             self.wobble_keep,
             self.scatter,
@@ -519,17 +534,20 @@ impl Fauna {
         let safe = self.safe(fl, st);
         self.graze(st);
         self.decompose(st);
-        let alive = self.hunt(st, &safe);
+        let alive = self.hunt(st, &safe, rng);
         self.starve_and_bury(st, alive);
-        self.reproduce();
+        self.reproduce(fl, st);
         self.decide(fl, st, rng);
     }
 
     /// Herbivores graze the richest diet species of their cell: enemy flora at a full bite, own
-    /// flora at `own_graze`. Bites on one stock are served pro rata when it runs short.
+    /// flora at `own_graze` of it, which feeds them as much as a full bite (they spare their own
+    /// economy without starving at home; D-066). Bites on one stock are served pro rata when it
+    /// runs short.
     fn graze(&mut self, st: &mut FloraState) {
         let (a, p, n, n2) = (&mut self.agents, &self.p, st.n, st.n * st.n);
         let mut orders: Vec<(usize, usize, i64)> = Vec::new(); // (agent, stock index, bite)
+        let mut home = vec![false; a.len()];
         for i in 0..a.len() {
             let s = usize::from(a.sp[i]);
             let k = a.cell(i, n);
@@ -549,13 +567,19 @@ impl Fauna {
                 let mut bite = p.bite[s];
                 if st.owner[k] == a.owner[i] {
                     bite = div_round(bite * p.own_graze, ONE_I);
+                    home[i] = true;
                 }
                 orders.push((i, j * n2 + k, bite));
             }
         }
         for (i, at, eaten) in share(&orders, |at| st.bio[at]) {
             st.bio[at] -= eaten;
-            a.energy[i] += eaten * p.transfer;
+            let fed = if home[i] && p.own_graze > 0 {
+                div_round(eaten * p.transfer * ONE_I, p.own_graze)
+            } else {
+                eaten * p.transfer
+            };
+            a.energy[i] += fed;
             st.dead[at % n2] += eaten - div_round(eaten * p.transfer, ONE_I);
         }
     }
@@ -574,13 +598,15 @@ impl Fauna {
         }
     }
 
-    /// Predators kill one huntable enemy prey in their cell, in index order. Returns who lives.
-    fn hunt(&mut self, st: &mut FloraState, safe: &[bool]) -> Vec<bool> {
+    /// Predators kill one huntable enemy prey in reach (`strike` cells on each axis), in index order. A
+    /// predator at full energy is sated and does not hunt (a handling limit, D-066). With prey in reach, a kill succeeds
+    /// with chance `catch` (one draw per predator that has prey in reach). Returns who lives.
+    fn hunt(&mut self, st: &mut FloraState, safe: &[bool], rng: &mut Pcg32) -> Vec<bool> {
         let (a, p, n) = (&mut self.agents, &self.p, st.n);
         let mut alive = vec![true; a.len()];
         for i in 0..a.len() {
             let s = usize::from(a.sp[i]);
-            if p.role[s] != Role::Predator || !alive[i] {
+            if p.role[s] != Role::Predator || !alive[i] || a.energy[i] >= p.body[s] * ONE_I {
                 continue;
             }
             let k = a.cell(i, n);
@@ -589,9 +615,11 @@ impl Fauna {
                     && !safe[j]
                     && a.owner[j] == 3 - a.owner[i]
                     && p.eats_fauna[s] >> a.sp[j] & 1 == 1
-                    && a.cell(j, n) == k
+                    && Window::within(a.cell(j, n), k, p.strike, n)
             });
-            if let Some(j) = prey {
+            if let Some(j) = prey
+                && i64::from(rng.below(1 << 16)) < p.catch
+            {
                 alive[j] = false;
                 let body = p.body[usize::from(a.sp[j])];
                 a.energy[i] += body * p.transfer;
@@ -613,10 +641,16 @@ impl Fauna {
         a.retain(&alive);
     }
 
-    /// At full energy, once its cooldown is over, an animal splits in two, under the player and
-    /// species caps (D-023, D-029).
-    fn reproduce(&mut self) {
-        let (a, p) = (&mut self.agents, &self.p);
+    /// At full energy, once its cooldown is over, an animal splits in two if the food within its
+    /// sight can carry one more (local carrying capacity, D-066). The food is shared by every
+    /// animal of the same role whose diet overlaps, each needing its share: grazers and
+    /// decomposers `reserve` bites of their food (diet flora on any land; dead biomass), counted
+    /// over both players since they eat the same plants and litter; predators `prey_per` huntable
+    /// enemy prey, counted over their owner's predators only (each player's predators hunt the
+    /// other's animals). The player and species caps stay as safety ceilings (D-023, D-029).
+    fn reproduce(&mut self, fl: &FloraParams, st: &FloraState) {
+        let safe = self.safe(fl, st);
+        let (a, p, n, n2) = (&mut self.agents, &self.p, st.n, st.n * st.n);
         let ns = p.names.len();
         let mut count = [0i64; 2];
         let mut kin = vec![[0i64; 2]; ns];
@@ -625,18 +659,81 @@ impl Fauna {
             count[pi] += 1;
             kin[usize::from(a.sp[i])][pi] += 1;
         }
-        for i in 0..a.len() {
-            let (s, pi) = (usize::from(a.sp[i]), usize::from(a.owner[i] - 1));
-            let ready = a.energy[i] >= p.body[s] * ONE_I && a.cooldown[i] == 0;
-            if ready && count[pi] < p.player_cap && kin[s][pi] < p.cap[s] {
-                let half = a.energy[i] / 2;
-                a.energy[i] -= half;
-                a.cooldown[i] = p.breed[s];
-                let (y, x, owner) = (a.y[i], a.x[i], a.owner[i]);
-                a.push(s, owner, y, x, half, p.breed[s]);
-                count[pi] += 1;
-                kin[s][pi] += 1;
+        let len = a.len();
+        let ready: Vec<bool> = (0..len)
+            .map(|i| a.energy[i] >= p.body[usize::from(a.sp[i])] * ONE_I && a.cooldown[i] == 0)
+            .collect();
+        let need = |s: usize| -> i64 {
+            if p.role[s] == Role::Predator {
+                p.prey_per
+            } else {
+                p.bite[s] * p.reserve
             }
+        };
+        // Whether animal species `j` (owned by `oj`) competes with `s` (owned by `pl`) for food.
+        let rival = |s: usize, pl: u8, j: usize, oj: u8| -> bool {
+            p.role[j] == p.role[s]
+                && match p.role[s] {
+                    Role::Herbivore => p.eats_flora[s] & p.eats_flora[j] != 0,
+                    Role::Decomposer => true,
+                    Role::Predator => oj == pl && p.eats_fauna[s] & p.eats_fauna[j] != 0,
+                }
+        };
+        // Food and load windows, built once per (species, player) with a ready animal.
+        let mut windows: BTreeMap<(usize, u8), (Window, Window)> = BTreeMap::new();
+        for i in (0..len).filter(|&i| ready[i]) {
+            let (s, pl) = (usize::from(a.sp[i]), a.owner[i]);
+            windows.entry((s, pl)).or_insert_with(|| {
+                let mut food = vec![0i64; n2];
+                let mut load = vec![0i64; n2];
+                for j in 0..len {
+                    let (k, sj) = (a.cell(j, n), usize::from(a.sp[j]));
+                    if rival(s, pl, sj, a.owner[j]) {
+                        load[k] += need(sj);
+                    }
+                    let prey = a.owner[j] == 3 - pl && !safe[j] && p.eats_fauna[s] >> sj & 1 == 1;
+                    if p.role[s] == Role::Predator && prey {
+                        food[k] += 1;
+                    }
+                }
+                for k in 0..n2 {
+                    food[k] += match p.role[s] {
+                        Role::Herbivore => (0..32)
+                            .filter(|j| p.eats_flora[s] >> j & 1 == 1)
+                            .map(|j| st.bio[j * n2 + k])
+                            .sum(),
+                        Role::Decomposer => st.dead[k],
+                        Role::Predator => 0,
+                    };
+                }
+                (Window::new(&food, n), Window::new(&load, n))
+            });
+        }
+        let mut born: Vec<(usize, u8, usize)> = Vec::new(); // (species, owner, cell) this tick
+        for i in (0..len).filter(|&i| ready[i]) {
+            let (s, pl) = (usize::from(a.sp[i]), a.owner[i]);
+            let pi = usize::from(pl - 1);
+            if count[pi] >= p.player_cap || kin[s][pi] >= p.cap[s] {
+                continue;
+            }
+            let (food, load) = &windows[&(s, pl)];
+            let (k, r) = (a.cell(i, n), usize::try_from(p.sight[s]).unwrap_or(0));
+            let young: i64 = born
+                .iter()
+                .filter(|&&(bs, bo, bk)| rival(s, pl, bs, bo) && Window::within(bk, k, r, n))
+                .map(|&(bs, _, _)| need(bs))
+                .sum();
+            if load.sum(k, r) + young + need(s) > food.sum(k, r) {
+                continue; // the neighbourhood cannot feed one more
+            }
+            let half = a.energy[i] / 2;
+            a.energy[i] -= half;
+            a.cooldown[i] = p.breed[s];
+            let (y, x) = (a.y[i], a.x[i]);
+            a.push(s, pl, y, x, half, p.breed[s]);
+            born.push((s, pl, k));
+            count[pi] += 1;
+            kin[s][pi] += 1;
         }
     }
 
@@ -936,6 +1033,41 @@ fn share(orders: &[(usize, usize, i64)], have: impl Fn(usize) -> i64) -> Vec<(us
         .collect()
 }
 
+/// Sums of a grid over square windows, in O(1) each (2D prefix sums).
+struct Window {
+    n: usize,
+    /// `acc[(y + 1) * (n + 1) + x + 1]` = sum of the cells above and left of (y, x), inclusive.
+    acc: Vec<i64>,
+}
+
+impl Window {
+    fn new(grid: &[i64], n: usize) -> Window {
+        let mut acc = vec![0i64; (n + 1) * (n + 1)];
+        for y in 0..n {
+            for x in 0..n {
+                acc[(y + 1) * (n + 1) + x + 1] =
+                    grid[y * n + x] + acc[y * (n + 1) + x + 1] + acc[(y + 1) * (n + 1) + x]
+                        - acc[y * (n + 1) + x];
+            }
+        }
+        Window { n, acc }
+    }
+
+    /// The sum over the cells within `r` of cell `k` on both axes (clipped to the map).
+    fn sum(&self, k: usize, r: usize) -> i64 {
+        let (n, w) = (self.n, self.n + 1);
+        let (y0, x0) = ((k / n).saturating_sub(r), (k % n).saturating_sub(r));
+        let (y1, x1) = ((k / n + r + 1).min(n), (k % n + r + 1).min(n));
+        self.acc[y1 * w + x1] - self.acc[y0 * w + x1] - self.acc[y1 * w + x0]
+            + self.acc[y0 * w + x0]
+    }
+
+    /// Whether cell `a` lies in the window of radius `r` around cell `b`.
+    fn within(a: usize, b: usize, r: usize, n: usize) -> bool {
+        (a / n).abs_diff(b / n) <= r && (a % n).abs_diff(b % n) <= r
+    }
+}
+
 /// Squared distance between cells `a` and `b` of an `n`-wide grid.
 fn dist2(a: usize, b: usize, n: usize) -> usize {
     (a / n).abs_diff(b / n).pow(2) + (a % n).abs_diff(b % n).pow(2)
@@ -1041,24 +1173,51 @@ mod tests {
     }
 
     #[test]
-    fn predators_eat_enemy_prey_but_not_in_a_refuge() {
+    fn predators_eat_enemy_prey_in_reach_but_not_in_a_refuge_nor_when_sated() {
+        let (fox, voles) = {
+            let (_, fa, _, _) = setup(8);
+            (fa.p.index("fox").unwrap(), fa.p.index("voles").unwrap())
+        };
+        // One hungry fox next to (not on) a vole; `plant` covers the map; `catch` in Q16.
+        let run = |plant: &str, fox_energy: i64, catch: i64| {
+            let (fl, mut fa, mut st, mut rng) = setup(8);
+            meadow(&fl, &mut st, plant);
+            fa.p.catch = catch;
+            fa.agents.push(fox, 1, centre(1), centre(5), fox_energy, 0);
+            fa.agents
+                .push(voles, 2, centre(2), centre(6), ONE_I * 100, 0);
+            fa.act(&fl.p, &mut st, &mut rng);
+            fa.census(2)[voles]
+        };
+        let hungry = ONE_I * 100;
+        assert_eq!(
+            run("grasses", hungry, ONE_I),
+            0,
+            "caught within strike reach"
+        );
+        assert_eq!(run("grasses", hungry, 0), 1, "a missed attack");
+        assert_eq!(run("bramble", hungry, ONE_I), 1, "hidden in the refuge");
+        let full = ONE_I * 3100; // above the fox's body after its upkeep
+        assert_eq!(run("grasses", full, ONE_I), 1, "a sated fox does not hunt");
+    }
+
+    #[test]
+    fn herbivores_feed_as_well_at_home_on_a_smaller_bite() {
         let (fl, mut fa, mut st, mut rng) = setup(8);
         meadow(&fl, &mut st, "grasses");
-        let (fox, voles) = (fa.p.index("fox").unwrap(), fa.p.index("voles").unwrap());
-        fa.agents.push(fox, 1, centre(1), centre(6), ONE_I * 100, 0);
-        fa.agents
-            .push(voles, 2, centre(1), centre(6), ONE_I * 100, 0);
+        let voles = fa.p.index("voles").unwrap();
+        let g = fl.p.index("grasses").unwrap();
+        fa.agents.push(voles, 1, centre(3), centre(1), ONE_I, 0); // own land
+        fa.agents.push(voles, 1, centre(3), centre(6), ONE_I, 0); // enemy land
+        let before = [st.bio[g * 64 + 3 * 8 + 1], st.bio[g * 64 + 3 * 8 + 6]];
         fa.act(&fl.p, &mut st, &mut rng);
-        assert_eq!(fa.census(2)[voles], 0, "caught");
-
-        // The same vole inside its own dense bramble is safe.
-        let (fl, mut fa, mut st, mut rng) = setup(8);
-        meadow(&fl, &mut st, "bramble");
-        fa.agents.push(fox, 1, centre(1), centre(6), ONE_I * 100, 0);
-        fa.agents
-            .push(voles, 2, centre(1), centre(6), ONE_I * 100, 0);
-        fa.act(&fl.p, &mut st, &mut rng);
-        assert_eq!(fa.census(2)[voles], 1, "hidden in the refuge");
+        let eaten = [
+            before[0] - st.bio[g * 64 + 3 * 8 + 1],
+            before[1] - st.bio[g * 64 + 3 * 8 + 6],
+        ];
+        assert!(eaten[0] * 4 < eaten[1], "own plants: a much smaller bite");
+        let gain = fa.agents.energy[0] - fa.agents.energy[1];
+        assert!(gain.abs() <= ONE_I, "but the same energy");
     }
 
     #[test]
@@ -1078,8 +1237,42 @@ mod tests {
             fa.agents.push(worms, 1, centre(1), centre(1), full, 0);
         }
         fa.act(&fl.p, &mut st, &mut rng);
-        assert_eq!(fa.census(1)[worms], 3, "one birth, then the species cap");
+        assert_eq!(
+            fa.census(1)[worms],
+            2,
+            "no litter around: no room for young"
+        );
+        st.dead.fill(1_000_000);
+        fa.agents.energy.fill(full);
+        fa.act(&fl.p, &mut st, &mut rng);
+        assert_eq!(
+            fa.census(1)[worms],
+            3,
+            "food: one birth, then the species cap"
+        );
         assert_eq!(fa.agents.id, vec![1, 2, 3], "new ids, creation order");
+    }
+
+    #[test]
+    fn births_stop_at_the_local_carrying_capacity() {
+        let (fl, mut fa, mut st, mut rng) = setup(16);
+        let worms = fa.p.index("earthworms").unwrap();
+        let need = fa.p.bite[worms] * fa.p.reserve; // litter per worm in sight
+        st.dead[8 * 16 + 8] = need * 3; // room for three worms around the centre
+        let full = fa.p.body[worms] * ONE_I * 2;
+        for _ in 0..3 {
+            fa.agents.push(worms, 1, centre(8), centre(8), full, 0);
+        }
+        fa.act(&fl.p, &mut st, &mut rng);
+        assert_eq!(fa.census(1)[worms], 3, "already at capacity: no birth");
+        st.dead[8 * 16 + 8] = need * 5 + 100; // (+ the bites eaten before breeding)
+        fa.agents.energy.fill(full);
+        fa.act(&fl.p, &mut st, &mut rng);
+        assert_eq!(
+            fa.census(1)[worms],
+            5,
+            "room for two more: two births, not three"
+        );
     }
 
     #[test]
@@ -1240,6 +1433,59 @@ mod tests {
             2,
             "attack-move: enemy food"
         );
+    }
+
+    /// Predator-prey runs on a 64² meadow with the caps lifted, so only food limits the
+    /// populations (D-066): P2 voles grazing at home among bramble clumps (refuges, capped at 3 % of the map), five P1 foxes
+    /// dropped among them after 2 minutes. One line per seed: voles/foxes every 160 s, 48 min.
+    /// Run: `cargo test -p sim-core --release -- --ignored --nocapture lotka_volterra_report`.
+    #[test]
+    #[ignore = "report, not a check"]
+    fn lotka_volterra_report() {
+        for seed in 1..=4 {
+            let (mut fl, mut fa, mut st, _) = setup(64);
+            let mut rng = Pcg32::new(seed, 2);
+            meadow(&fl, &mut st, "grasses");
+            let (fox, voles) = (fa.p.index("fox").unwrap(), fa.p.index("voles").unwrap());
+            let (g, b) = (
+                fl.p.index("grasses").unwrap(),
+                fl.p.index("bramble").unwrap(),
+            );
+            for k in 0..4096 {
+                st.gauge[g * 4096 + k] = ONE_I; // an established meadow on developed soil
+                st.soil[k] = U16;
+                if k % 64 >= 32 && k / 64 % 6 < 2 && k % 6 < 2 {
+                    st.bio[b * 4096 + k] = fl.p.kmax[b];
+                    st.gauge[b * 4096 + k] = ONE_I;
+                }
+            }
+            fl.p.cap[b] = ONE_I * 3 / 100; // refuges stay patches: 3 % of the map
+            fa.p.cap[voles] = 5000;
+            fa.p.player_cap = 5000;
+            fa.p.cap[fox] = 90;
+            for k in 0..12 {
+                fa.agents
+                    .push(voles, 2, centre(20 + k), centre(40 + k), ONE_I * 150, 0);
+            }
+            let mut line = format!("seed {seed}:");
+            for t in 0..3600 {
+                if t == 150 {
+                    for k in 0..5 {
+                        fa.agents
+                            .push(fox, 1, centre(22 + 3 * k), centre(45), ONE_I * 1500, 0);
+                    }
+                }
+                for _ in 0..8 {
+                    fa.walk(64, &mut rng);
+                }
+                fa.act(&fl.p, &mut st, &mut rng);
+                fl.step(&mut st);
+                if t % 200 == 0 {
+                    line += &format!(" {}/{}", fa.census(2)[voles], fa.census(1)[fox]);
+                }
+            }
+            println!("{line}");
+        }
     }
 
     #[test]

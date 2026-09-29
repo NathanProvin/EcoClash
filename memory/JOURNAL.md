@@ -310,3 +310,11 @@
   - Any-angle steering, Brownian drift, scattered targets, strolls. The slot grid in the renderer is removed; soil life and insects are faint unselectable dots.
   - Rust tests (new: straight steering at any angle; drift stays near the spot and on the map), `wasm:check`, `cli:check`, `relay:test` and the client checks all pass.
 - **Seen:** the bot report ends with earthworms and voles at their species caps and nothing else. The next step (food-limited carrying capacity) targets this.
+
+## 2026-09-29 · Carrying capacity and predator-prey dynamics (D-066)
+- **Done:**
+  - Food-limited births shared by rival diets; predators with a strike radius, a catch chance and satiation; herbivores fed at home on small bites.
+  - New tests: the local capacity, hunting (reach, a miss, a refuge, sated), home feeding. `lotka_volterra_report` shows logistic prey and a predator-prey cycle.
+  - All Rust tests, `wasm:check`, `cli:check`, `relay:test` pass; the fixture was regenerated.
+- **Seen:** in bot matches, earthworms and voles still hit their caps; tuning goes to M7. Foxes can starve out at low prey density.
+- **Next:** plant models and ground (step 5), then animal models (step 6).

@@ -18,12 +18,12 @@ import {
   uv,
   vec3,
 } from "three/tsl";
+import { isSwarm } from "../game/species";
 import { interpolate, type Animal, type Source, type Role } from "../replay/replay";
 import { paintFrontier, TEXELS } from "./frontier";
 import { makeGrass } from "./grass";
 import { QUALITY, type Quality } from "./quality";
 import {
-  animalSlots,
   ANIMAL_BASE,
   CANOPY_Y,
   CELL,
@@ -44,6 +44,12 @@ const ROLES: Role[] = ["herbivore", "decomposer", "predator"];
 /** Footprint radius (m) of each animal shape at scale 1; the band starts at ANIMAL_BASE. */
 const ANIMAL_R: Record<Role, number> = { herbivore: 0.35, decomposer: 0.18, predator: 0.4 };
 const HIGHLIGHT = new THREE.Color("#ffffff");
+/** Swarm dots (soil life, insects; D-065): radius (m) and opacity. */
+const SWARM_R = 0.12;
+const SWARM_OPACITY = 0.45;
+/** Each animal keeps a fixed offset inside its cell (share of a cell), so animals on the same
+ *  point (replays hold whole cells) do not stack. */
+const ANIMAL_SPREAD = 0.3;
 
 /** Keys held by the player, read each frame for keyboard camera moves. */
 export interface CameraKeys {
@@ -76,6 +82,8 @@ export class Viewer {
   private readonly layouts: Placement[][][] = [];
   private readonly animals: Record<Role, THREE.InstancedMesh>;
   private readonly roleOf: Role[];
+  private readonly swarmOf: boolean[];
+  private readonly swarm: THREE.InstancedMesh;
   private readonly animalColor: Record<PlayerId, { animal: THREE.Color; predator: THREE.Color }> = {
     1: { animal: new THREE.Color(PLAYER[1].animal), predator: new THREE.Color(PLAYER[1].predator) },
     2: { animal: new THREE.Color(PLAYER[2].animal), predator: new THREE.Color(PLAYER[2].predator) },
@@ -103,6 +111,7 @@ export class Viewer {
       ? "WebGPU"
       : "WebGL2";
     this.roleOf = replay.meta.fauna.role;
+    this.swarmOf = replay.meta.species.filter((s) => s.kind === "fauna").map(isSwarm);
 
     this.scene.background = new THREE.Color(WORLD.sky);
     this.scene.fog = new THREE.Fog(WORLD.horizon, size * 2.2, size * 5); // haze beyond the slab
@@ -206,6 +215,11 @@ export class Viewer {
       decomposer: this.instanced(new THREE.SphereGeometry(1, 8, 6).translate(0, 1, 0), most),
       predator: this.instanced(new THREE.ConeGeometry(1, 2.5, 3).translate(0, 1.25, 0), most),
     };
+    this.swarm = this.instanced(new THREE.SphereGeometry(1, 6, 4), most);
+    const faint = this.swarm.material as THREE.MeshBasicNodeMaterial;
+    faint.transparent = true;
+    faint.opacity = SWARM_OPACITY;
+    faint.depthWrite = false;
   }
 
   static async create(
@@ -275,7 +289,7 @@ export class Viewer {
       this.frontier.visible = on;
       this.lastFrame = -1; // repaint the ground
     } else if (layer === "animals") {
-      for (const m of Object.values(this.animals)) m.visible = on;
+      for (const m of [...Object.values(this.animals), this.swarm]) m.visible = on;
     } else if (layer === "L1") {
       this.grass.visible = on;
     } else {
@@ -459,34 +473,35 @@ export class Viewer {
     const t0 = Math.floor(tick);
     this.shown = interpolate(this.replay.animals(t0), this.replay.animals(t0 + 1), tick - t0);
     const n = this.replay.meta.n;
-    // Animals sharing a cell each get their own slot (by id order), shrinking as they crowd.
-    const byCell = new Map<number, Animal[]>();
-    for (const a of this.shown) {
-      const key = Math.round(a.y) * n + Math.round(a.x);
-      const list = byCell.get(key);
-      if (list) list.push(a);
-      else byCell.set(key, [a]);
-    }
     const counts: Record<Role, number> = { herbivore: 0, decomposer: 0, predator: 0 };
+    let swarms = 0;
     this.drawn = [];
-    for (const group of byCell.values()) {
-      group.sort((a, b) => a.id - b.id);
-      const slots = animalSlots(group.length, ANIMAL_R.predator);
-      group.forEach((a, k) => {
-        const slot = slots[k] ?? { x: CELL / 2, z: CELL / 2, scale: 1 };
-        const role = this.roleOf[a.species] ?? "herbivore";
-        const colors = this.animalColor[a.owner === 2 ? 2 : 1];
-        const picked = this.selected.has(a.id);
-        const color = picked ? HIGHLIGHT : role === "predator" ? colors.predator : colors.animal;
-        // The animal's (interpolated) cell corner, plus its slot inside the cell.
-        const x = (a.x - n / 2) * CELL + slot.x;
-        const z = (a.y - n / 2) * CELL + slot.z;
-        const size = ANIMAL_R[role] * slot.scale;
-        writeInstance(this.animals[role], counts[role]++, x, ANIMAL_BASE, z, size, 0, color);
-        this.drawn.push({ id: a.id, owner: a.owner, x, z });
-      });
+    for (const a of this.shown) {
+      const colors = this.animalColor[a.owner === 2 ? 2 : 1];
+      // Its (interpolated) position from the cell corner, plus its own fixed offset.
+      const x = (a.x - n / 2 + 0.5 + ANIMAL_SPREAD * unit(a.id, 1)) * CELL;
+      const z = (a.y - n / 2 + 0.5 + ANIMAL_SPREAD * unit(a.id, 2)) * CELL;
+      if (this.swarmOf[a.species]) {
+        writeInstance(this.swarm, swarms++, x, ANIMAL_BASE, z, SWARM_R, 0, colors.animal);
+        continue; // not selectable (D-065)
+      }
+      const role = this.roleOf[a.species] ?? "herbivore";
+      const picked = this.selected.has(a.id);
+      const color = picked ? HIGHLIGHT : role === "predator" ? colors.predator : colors.animal;
+      writeInstance(
+        this.animals[role],
+        counts[role]++,
+        x,
+        ANIMAL_BASE,
+        z,
+        ANIMAL_R[role],
+        0,
+        color,
+      );
+      this.drawn.push({ id: a.id, owner: a.owner, x, z });
     }
     for (const role of ROLES) finish(this.animals[role], counts[role]);
+    finish(this.swarm, swarms);
   }
 
   dispose(): void {
@@ -585,6 +600,12 @@ function writeInstance(
     col[i * 3 + 1] = color.g;
     col[i * 3 + 2] = color.b;
   }
+}
+
+/** A fixed pseudo-random value in [-0.5, 0.5) for animal `id` (multiplicative hash; `salt`
+ *  picks the axis). */
+function unit(id: number, salt: number): number {
+  return (Math.imul(id + salt * 0x9e3779b9, 0x9e3779b1) >>> 0) / 2 ** 32 - 0.5;
 }
 
 function finish(mesh: THREE.InstancedMesh, count: number): void {

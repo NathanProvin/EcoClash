@@ -304,3 +304,9 @@
   - Frosted translucent theme; a decluttered top bar (one capsule, three icon buttons, settings in one menu); a live clock pill; the performance readout on request only; hints only while something is armed.
   - Client check, lint and tests pass; checked in the browser.
 - **Next (feedback round):** organic animal movement and swarm species; food-limited carrying capacity; bigger, more natural plant models and ground; animal models with a player ring.
+
+## 2026-09-29 · Organic movement, swarms (D-065)
+- **Done:**
+  - Any-angle steering, Brownian drift, scattered targets, strolls. The slot grid in the renderer is removed; soil life and insects are faint unselectable dots.
+  - Rust tests (new: straight steering at any angle; drift stays near the spot and on the map), `wasm:check`, `cli:check`, `relay:test` and the client checks all pass.
+- **Seen:** the bot report ends with earthworms and voles at their species caps and nothing else. The next step (food-limited carrying capacity) targets this.

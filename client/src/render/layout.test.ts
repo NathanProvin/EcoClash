@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  animalSlots,
   CANOPY_BOTTOM,
   CANOPY_Y,
   CELL,
@@ -60,23 +59,5 @@ describe("plantLayout", () => {
     expect(full[1]).toHaveLength(MAX_MODELS[1]);
     expect(full[2]).toHaveLength(MAX_MODELS[2]);
     expect((full[0] ?? []).length).toBeGreaterThan(0);
-  });
-});
-
-describe("animalSlots", () => {
-  it("gives crowded animals distinct, non-overlapping spots inside the cell", () => {
-    for (const count of [1, 2, 4, 5, 9, 17]) {
-      const radius = 0.4;
-      const slots = animalSlots(count, radius);
-      const r = radius * (slots[0]?.scale ?? 1);
-      for (let i = 0; i < count; i++) {
-        const a = slots[i];
-        expect(a && a.x - r >= 0 && a.x + r <= CELL).toBe(true);
-        for (let j = i + 1; j < count; j++) {
-          const b = slots[j];
-          if (a && b) expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThanOrEqual(2 * r);
-        }
-      }
-    }
   });
 });

@@ -75,6 +75,12 @@ pub struct FaunaRules {
     pub flee_radius: u32,
     pub refuge_flora: Vec<String>,
     pub refuge_cover: f64,
+    /// Organic movement (D-065): drift kick (share of speed), drift kept per tick, target scatter
+    /// around cell centres (cells), idle stroll radius (cells).
+    pub wobble: f64,
+    pub wobble_keep: f64,
+    pub scatter: f64,
+    pub wander_radius: f64,
 }
 
 /// `[terrain]`: V1 constants and the soil types (gamerules §2.3).
@@ -319,6 +325,15 @@ impl Balance {
         check(
             self.agents.max_agents >= 2,
             "[agents] max_agents must be >= 2".into(),
+        )?;
+        let fa = &self.fauna;
+        check(
+            fa.wobble >= 0.0
+                && (0.0..1.0).contains(&fa.wobble_keep)
+                && (0.0..0.5).contains(&fa.scatter)
+                && fa.wander_radius >= 0.0,
+            "[fauna] wobble >= 0, wobble_keep in [0, 1), scatter in [0, 0.5), wander_radius >= 0"
+                .into(),
         )?;
         for r in &self.fauna.refuge_flora {
             check(flora(r), format!("[fauna] refuge_flora: unknown plant {r}"))?;

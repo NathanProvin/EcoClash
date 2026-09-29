@@ -60,6 +60,11 @@ drop_radius = 4         # a drop (herbivores off own land, predators) lands with
 flee_radius = 3         # prey flee enemy hunters closer than this
 refuge_flora = ["hawthorn", "bramble"]
 refuge_cover = 0.5      # summed cover of refuge flora that hides small fauna (D-023)
+# Organic movement (D-065): steering at any angle, plus a Brownian drift and scattered targets.
+wobble = 0.35           # random kick to an animal's drift each tick, as a share of its speed
+wobble_keep = 0.8       # share of the drift kept from one tick to the next (0 = white noise)
+scatter = 0.4           # food and order targets: random offset from the cell centre (cells, < 0.5)
+wander_radius = 1.5     # an idle animal strolls to a random point this far away at most (cells)
 
 # Economy (gamerules §4, §7; D-027, D-029). Costs and yields are per species (species.toml).
 [economy]

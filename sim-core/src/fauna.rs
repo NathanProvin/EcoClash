@@ -1,7 +1,8 @@
 //! Animals (gamerules §5.2, §6; D-023, D-026, D-052): agents on the flora grid, the Rust port of
 //! the prototype's rules (`tools/prototype/fauna.py`). Two deliberate differences (D-052):
-//! - movement is continuous: every tick an animal walks toward a target (fixed-point cells) at its
-//!   speed, while decisions and feeding happen at each flora tick, as in the prototype;
+//! - movement is continuous: every tick an animal steers toward a target (fixed-point cells) at its
+//!   speed, in any direction, plus a Brownian drift (D-065); targets are scattered inside cells.
+//!   Decisions and feeding happen at each flora tick, as in the prototype;
 //! - wandering draws from the world's PCG32, so the port is behaviour-equivalent, not bit-exact.
 //!
 //! At each flora tick, before the flora step: upkeep; feeding on the current cell (graze,
@@ -70,6 +71,12 @@ pub struct FaunaParams {
     flee: i64,
     refuge: u32,
     refuge_cover: i64,
+    /// Organic movement (D-065): drift kick per tick (Q16 share of speed), drift kept per tick
+    /// (Q16), target scatter and stroll radius (Q16 cells).
+    wobble: i64,
+    wobble_keep: i64,
+    scatter: i64,
+    wander: i64,
     /// Animals per player, all species.
     player_cap: i64,
     /// Ticks per flora tick.
@@ -163,6 +170,10 @@ impl FaunaParams {
             flee,
             refuge: flora_mask(&fa.refuge_flora),
             refuge_cover: round(fa.refuge_cover * one),
+            wobble: round(fa.wobble * one),
+            wobble_keep: round(fa.wobble_keep * one),
+            scatter: round(fa.scatter * one),
+            wander: round(fa.wander_radius * one),
             player_cap: i64::from(b.agents.max_agents / 2),
             every: i64::from(b.sim.flora_every_ticks),
             offs,
@@ -215,6 +226,10 @@ impl FaunaParams {
             self.flee,
             i64::from(self.refuge),
             self.refuge_cover,
+            self.wobble,
+            self.wobble_keep,
+            self.scatter,
+            self.wander,
             self.player_cap,
         ]);
     }
@@ -241,6 +256,9 @@ pub struct Agents {
     /// Destination of the order (Q16 cells).
     pub gy: Vec<i64>,
     pub gx: Vec<i64>,
+    /// Brownian drift added to the walk each tick (Q16 cells per tick; D-065).
+    pub wy: Vec<i64>,
+    pub wx: Vec<i64>,
     pub next_id: u32,
 }
 
@@ -283,6 +301,8 @@ impl Agents {
         self.order.push(FREE);
         self.gy.push(y);
         self.gx.push(x);
+        self.wy.push(0);
+        self.wx.push(0);
     }
 
     fn retain(&mut self, keep: &[bool]) {
@@ -302,6 +322,8 @@ impl Agents {
         filter(&mut self.order, keep);
         filter(&mut self.gy, keep);
         filter(&mut self.gx, keep);
+        filter(&mut self.wy, keep);
+        filter(&mut self.wx, keep);
     }
 
     pub fn hash_into(&self, h: &mut Hasher) {
@@ -321,6 +343,8 @@ impl Agents {
             &self.cooldown,
             &self.gy,
             &self.gx,
+            &self.wy,
+            &self.wx,
         ] {
             h.i64s(v);
         }
@@ -333,6 +357,22 @@ fn cell_of(q: i64) -> usize {
 
 fn centre(cell: usize) -> i64 {
     i64::try_from(cell).unwrap_or(0) * ONE_I + HALF
+}
+
+/// A uniform draw in `-r..=r`.
+fn spread(rng: &mut Pcg32, r: i64) -> i64 {
+    let bound = u32::try_from(2 * r.max(0) + 1).unwrap_or(u32::MAX);
+    i64::from(rng.below(bound)) - r.max(0)
+}
+
+/// A fixed per-animal offset in `-r..=r` (multiplicative hash of the id and a salt), so a group
+/// sent to one cell spreads inside it without an RNG draw.
+fn offset(id: u32, salt: u32, r: i64) -> i64 {
+    let h = id
+        .wrapping_add(salt.wrapping_mul(0x9E37_79B9))
+        .wrapping_mul(0x9E37_79B1)
+        >> 8;
+    i64::from(h) % (2 * r + 1).max(1) - r
 }
 
 /// All animals and their rules.
@@ -383,19 +423,37 @@ impl Fauna {
             } else {
                 ATTACK
             };
-            (a.gy[i], a.gx[i]) = (centre(goal.0), centre(goal.1));
+            let r = self.p.scatter;
+            (a.gy[i], a.gx[i]) = (
+                centre(goal.0) + offset(a.id[i], 1, r),
+                centre(goal.1) + offset(a.id[i], 2, r),
+            );
             (a.ty[i], a.tx[i]) = (a.gy[i], a.gx[i]);
         }
         taken
     }
 
-    /// Every tick: each animal walks toward its target, up to its speed on each axis.
-    pub fn walk(&mut self) {
-        let a = &mut self.agents;
+    /// Every tick, on an `n x n` map: each animal steers straight toward its target at its speed
+    /// (any direction, not per axis), plus its Brownian drift: a random kick each tick, of which
+    /// `wobble_keep` carries over (a discrete Ornstein-Uhlenbeck walk), so paths curve and idle
+    /// animals shuffle (D-065). Positions stay on the map.
+    pub fn walk(&mut self, n: usize, rng: &mut Pcg32) {
+        let (a, p) = (&mut self.agents, &self.p);
+        let edge = i64::try_from(n).unwrap_or(1) * ONE_I - 1;
         for i in 0..a.len() {
-            let v = self.p.speed[usize::from(a.sp[i])];
-            a.y[i] += (a.ty[i] - a.y[i]).clamp(-v, v);
-            a.x[i] += (a.tx[i] - a.x[i]).clamp(-v, v);
+            let v = p.speed[usize::from(a.sp[i])];
+            let (dy, dx) = (a.ty[i] - a.y[i], a.tx[i] - a.x[i]);
+            let len = i64::try_from((dy * dy + dx * dx).unsigned_abs().isqrt()).unwrap_or(i64::MAX);
+            let (sy, sx) = if len <= v {
+                (dy, dx)
+            } else {
+                (div_round(dy * v, len), div_round(dx * v, len))
+            };
+            let kick = div_round(v * p.wobble, ONE_I);
+            a.wy[i] = div_round(a.wy[i] * p.wobble_keep, ONE_I) + spread(rng, kick);
+            a.wx[i] = div_round(a.wx[i] * p.wobble_keep, ONE_I) + spread(rng, kick);
+            a.y[i] = (a.y[i] + sy + a.wy[i]).clamp(0, edge);
+            a.x[i] = (a.x[i] + sx + a.wx[i]).clamp(0, edge);
         }
     }
 
@@ -702,7 +760,11 @@ impl Fauna {
                         }
                         match self.nearest(m, n, a.cell(i, n), p.sight[s]) {
                             Some(k) => {
-                                target[i] = Some((centre(k / n), centre(k % n)));
+                                let r = p.scatter;
+                                target[i] = Some((
+                                    centre(k / n) + offset(a.id[i], 3, r),
+                                    centre(k % n) + offset(a.id[i], 4, r),
+                                ));
                                 false
                             }
                             None => true,
@@ -712,19 +774,18 @@ impl Fauna {
             }
         }
 
-        // 3. Attack-moves with nothing in sight head on; everyone else wanders to a neighbouring
-        //    cell (or stays).
+        // 3. Attack-moves with nothing in sight head on; everyone else strolls to a random point
+        //    within `wander` cells (D-065).
         let a = &mut self.agents;
         for i in 0..len {
             if target[i].is_none() && a.order[i] == ATTACK {
                 target[i] = Some((a.gy[i], a.gx[i]));
             }
             let (ty, tx) = target[i].unwrap_or_else(|| {
-                let dy = i64::from(rng.below(3)) - 1;
-                let dx = i64::from(rng.below(3)) - 1;
+                let w = self.p.wander;
                 (
-                    limit(centre(cell_of(a.y[i])) + dy * ONE_I),
-                    limit(centre(cell_of(a.x[i])) + dx * ONE_I),
+                    limit(a.y[i] + spread(rng, w)),
+                    limit(a.x[i] + spread(rng, w)),
                 )
             });
             a.ty[i] = ty;
@@ -914,18 +975,45 @@ mod tests {
     }
 
     #[test]
-    fn walking_reaches_the_target_at_the_species_speed() {
-        let (_, mut fa, _, _) = setup(8);
+    fn walking_steers_straight_at_the_species_speed() {
+        let (_, mut fa, _, mut rng) = setup(8);
+        fa.p.wobble = 0; // no drift: the pure steering
         fa.agents.push(0, 1, centre(1), centre(1), ONE_I, 0);
-        fa.agents.ty[0] = centre(5);
+        (fa.agents.ty[0], fa.agents.tx[0]) = (centre(5), centre(4)); // a 3-4-5 triangle
         let v = fa.p.speed[0];
-        fa.walk();
-        assert_eq!(fa.agents.y[0], centre(1) + v);
-        assert_eq!(fa.agents.x[0], centre(1), "no target on x: stays");
+        fa.walk(8, &mut rng);
+        let (dy, dx) = (fa.agents.y[0] - centre(1), fa.agents.x[0] - centre(1));
+        assert!(
+            (dy - v * 4 / 5).abs() <= 1 && (dx - v * 3 / 5).abs() <= 1,
+            "any angle, speed v"
+        );
         for _ in 0..1000 {
-            fa.walk();
+            fa.walk(8, &mut rng);
         }
-        assert_eq!(fa.agents.y[0], centre(5), "arrives and stops");
+        assert_eq!(
+            (fa.agents.y[0], fa.agents.x[0]),
+            (centre(5), centre(4)),
+            "arrives"
+        );
+    }
+
+    #[test]
+    fn the_drift_makes_idle_animals_shuffle_near_their_spot() {
+        let (_, mut fa, _, mut rng) = setup(8);
+        fa.agents.push(0, 1, centre(0), centre(0), ONE_I, 0); // a corner: the edge holds
+        let (mut moved, mut far) = (false, 0);
+        for _ in 0..500 {
+            fa.walk(8, &mut rng);
+            let a = &fa.agents;
+            moved |= a.y[0] != centre(0) || a.x[0] != centre(0);
+            far = far.max((a.y[0] - centre(0)).abs().max((a.x[0] - centre(0)).abs()));
+            assert!(a.y[0] >= 0 && a.x[0] >= 0, "stays on the map");
+        }
+        assert!(moved, "it shuffles");
+        assert!(
+            far < ONE_I,
+            "but the steering keeps it within a cell of its spot"
+        );
     }
 
     #[test]
@@ -1037,13 +1125,13 @@ mod tests {
             "own animals only"
         );
         assert_eq!(
-            (fa.agents.ty[0], fa.agents.tx[0]),
-            (centre(14), centre(2)),
-            "turns at once"
+            (cell_of(fa.agents.ty[0]), cell_of(fa.agents.tx[0])),
+            (14, 2),
+            "turns at once, to a point inside the goal cell"
         );
         assert_eq!(fa.agents.ty[1], centre(2), "the enemy vole ignores it");
         for t in 0..400 {
-            fa.walk();
+            fa.walk(16, &mut rng);
             if t % 8 == 0 {
                 fa.act(&fl.p, &mut st, &mut rng); // food all around: an order ignores it
             }
@@ -1062,7 +1150,7 @@ mod tests {
         fa.act(&fl.p, &mut st, &mut rng);
         let enemy_land = |ty: i64, tx: i64| st.owner[cell_of(ty) * 16 + cell_of(tx)] == 2;
         assert!(
-            enemy_land(fa.agents.ty[0], fa.agents.tx[0]) || fa.agents.ty[0] == centre(2),
+            enemy_land(fa.agents.ty[0], fa.agents.tx[0]) || cell_of(fa.agents.ty[0]) == 2,
             "attack-move: enemy food in sight, else the goal"
         );
         fa.order(1, &[0], OrderKind::Stop, (0, 0));

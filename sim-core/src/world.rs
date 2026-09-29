@@ -142,7 +142,7 @@ impl World {
         for c in self.queue.take(self.tick) {
             self.apply(&c);
         }
-        self.fauna.walk();
+        self.fauna.walk(self.state.n, &mut self.rng);
         if self.tick.is_multiple_of(self.flora_every) {
             self.fauna
                 .act(&self.flora.p, &mut self.state, &mut self.rng);

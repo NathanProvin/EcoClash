@@ -95,19 +95,3 @@ export function plantLayout(cell: number, cover: readonly number[]): Placement[]
   const dots = place(cell, 1000, 4, count(0), dotR, dotR, clash);
   return [dots, cones, cubes];
 }
-
-/** Offsets and scale for `count` animals sharing a cell: a g x g grid, shrinking as they crowd.
- *  `radius` is the largest animal footprint at scale 1. */
-export function animalSlots(
-  count: number,
-  radius: number,
-): { x: number; z: number; scale: number }[] {
-  const g = Math.max(1, Math.ceil(Math.sqrt(count)));
-  const slot = CELL / g;
-  const scale = Math.min(1, (slot / 2 - 0.02) / radius);
-  return Array.from({ length: count }, (_, k) => ({
-    x: (k % g) * slot + slot / 2,
-    z: Math.floor(k / g) * slot + slot / 2,
-    scale,
-  }));
-}

@@ -704,3 +704,13 @@ Template:
   - Time controls: a small clock pill at the top left in a live match (play/pause, clock, speed; "slowed" only when the sim lags). Replays keep a slim scrubber above the build card. Sim ms and fps show only with the performance readout on (off by default).
   - The idle controls hint is gone. A hint shows only while something is armed (planting, calling, attack-move). The order keys live in the selection strip.
 - **Consequences:** The HUD look in INSTRUCTIONS §8 changes from "dark panels with a gold trim" to translucent frosted panels.
+
+## D-065 · 2026-09-29 · Organic animal movement; insects and soil life as swarms (feedback round 1)
+- **Status:** accepted (user feedback: "avoid grid like and straight lines, introduce some noise, some brownian motion"; "insects and recyclers can stay as faint dots … from the vole size we want to control")
+- **Decision:**
+  - Steering (`Fauna::walk`): each tick an animal moves at its speed straight toward its target, in any direction (integer `isqrt`), instead of per axis (which gave 45° then straight paths).
+  - Brownian drift: per-animal drift `(wy, wx)` (hashed state). Each tick it keeps `wobble_keep` of itself and gains a uniform kick of ±`wobble` × speed from the world PCG32: a discrete Ornstein–Uhlenbeck walk, so paths curve and idle animals shuffle. Positions stay on the map.
+  - Scattered targets: food and order targets sit at a fixed per-animal offset (±`scatter` cell, id hash, no RNG) around the cell centre, so a group spreads in the cell. Idle animals stroll to a random point within `wander_radius` cells instead of a neighbouring cell centre.
+  - New `[fauna]` keys: `wobble`, `wobble_keep`, `scatter`, `wander_radius`, validated. Balance hash version 7.
+  - Client: fauna levels 1–2 (soil life, insects) are swarms (`isSwarm`, `species.ts`), drawn as small faint dots, not selectable. From small mammals up, animals are units. Every animal is drawn at its own sub-cell position (plus a fixed id offset for replays), with no slot grid.
+- **Consequences:** The native/WASM check and the prototype CLI parity still pass (the prototype has no movement to match). Sizes and models per type come with the model pass.

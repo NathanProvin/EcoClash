@@ -79,6 +79,11 @@ const FAMILY: Record<string, string> = {
   F5: "Carnivores",
 };
 
+/** Soil life and insects (fauna levels 1-2) are swarms (D-065): faint dots that show they are
+ *  there, not units to select or order. Control starts from small mammals (level 3). */
+export const SWARM_LEVEL = 2;
+export const isSwarm = (s: Species): boolean => s.kind === "fauna" && s.level <= SWARM_LEVEL;
+
 /** The build card's groups (D-063): per kind, one family per level (herbs, shrubs, trees; soil
  *  life … carnivores), species in tier order then stat-sheet order. */
 export function families(

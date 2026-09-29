@@ -585,3 +585,11 @@ Template:
     - Arrows pan: WASD is dropped because A and S are orders in the gamerules controls table.
   - While animals are selected, species cards filter the selection instead of arming a spawn.
 - **Consequences:** Fog of war (Q-007) stays at its default, none, which needs no code. The proptest streams include orders with random, enemy and unknown ids. The budget check is met: ≈1.0 ms per tick on average with 1,500 animals on a full 64² map (native release).
+
+## D-054 · 2026-09-29 · Flat diorama ground (M2 terrain)
+- **Status:** accepted (user choice: V1 stays flat, gamerules §2.3)
+- **Decision:**
+  - The ground keeps its per-cell texture (soil development and territory tint). A TSL colour node multiplies it by two-scale noise (`mx_noise_float` at 0.35 and 2.1 cycles per metre, ±6 % and ±4 %), so the earth never looks flat-shaded.
+  - The map sits on a slab, `SLAB_DEPTH` = 12 m. Its sides show an earth cross-section: topsoil, subsoil, then bedrock, with a little noise (`palette.ts` `earthTop` / `earthSub` / `earthStone`). The slab has no top face, because two coplanar faces z-fight.
+  - The default camera frames the whole slab above the bottom HUD. The fog now starts past the slab (2.2× to 5× the map size).
+- **Consequences:** Terrain relief, water and soil types stay post-V1, as data and a map generator (gamerules §2.3). Picking, the frontier overlay and the models are unchanged (top at y = 0).

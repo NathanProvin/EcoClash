@@ -7,6 +7,7 @@
 // is CELL metres wide and local coordinates run from 0 to CELL.
 
 export const CELL = 4; // metres (D-047)
+export const SLAB_DEPTH = 12; // the diorama slab under the map, metres (D-054)
 export const SHRUB_TOP = 1.3;
 export const CANOPY_Y = 2.0; // tree cube centre
 export const CANOPY_BOTTOM = 1.62;

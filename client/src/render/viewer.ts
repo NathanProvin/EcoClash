@@ -6,6 +6,18 @@
 
 import { MapControls } from "three/addons/controls/MapControls.js";
 import * as THREE from "three/webgpu";
+import {
+  color,
+  float,
+  mix,
+  mx_noise_float,
+  positionLocal,
+  positionWorld,
+  smoothstep,
+  texture,
+  uv,
+  vec3,
+} from "three/tsl";
 import { interpolate, type Animal, type Source, type Role } from "../replay/replay";
 import { paintFrontier, TEXELS } from "./frontier";
 import {
@@ -16,6 +28,7 @@ import {
   CONE,
   DOT,
   MAX_MODELS,
+  SLAB_DEPTH,
   plantLayout,
   rand,
   type Placement,
@@ -85,7 +98,7 @@ export class Viewer {
     this.roleOf = replay.meta.fauna.role;
 
     this.scene.background = new THREE.Color(WORLD.sky);
-    this.scene.fog = new THREE.Fog(WORLD.horizon, size * 1.2, size * 3);
+    this.scene.fog = new THREE.Fog(WORLD.horizon, size * 2.2, size * 5); // haze beyond the slab
     this.scene.add(new THREE.HemisphereLight(WORLD.sky, WORLD.groundLight, 1.4));
     const sun = new THREE.DirectionalLight(WORLD.sun, 2.2); // one low key light (§7.1)
     sun.position.set(-size, size * 0.6, -size * 0.4);
@@ -104,16 +117,37 @@ export class Viewer {
     this.controls.maxDistance = size * 2.2;
     this.resetView();
 
-    // Ground: one texel per cell, linearly filtered so cells never read as pixels (§5.1).
+    // Ground: one texel per cell, linearly filtered so cells never read as pixels (§5.1), with
+    // a two-scale noise so the earth never looks flat-shaded (D-054).
     this.groundData = new Uint8Array(n * n * 4);
     this.groundTex = new THREE.DataTexture(this.groundData, n, n);
     this.groundTex.magFilter = THREE.LinearFilter;
     this.groundTex.colorSpace = THREE.SRGBColorSpace;
+    const groundMat = new THREE.MeshStandardNodeMaterial({ roughness: 1 });
+    const grain = float(1)
+      .add(mx_noise_float(positionWorld.xz.mul(0.35)).mul(0.06))
+      .add(mx_noise_float(positionWorld.xz.mul(2.1)).mul(0.04));
+    groundMat.colorNode = texture(this.groundTex, uv()).rgb.mul(grain);
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2),
-      new THREE.MeshStandardNodeMaterial({ map: this.groundTex, roughness: 1 }),
+      groundMat,
     );
     this.scene.add(ground);
+
+    // The map as a diorama slab: an earth cross-section on its sides, topsoil to bedrock.
+    const slabMat = new THREE.MeshStandardNodeMaterial({ roughness: 1 });
+    const depth = positionLocal.y.negate().div(SLAB_DEPTH); // 0 at the top, 1 at the bottom
+    const soil = mix(color(WORLD.earthTop), color(WORLD.earthSub), smoothstep(0.05, 0.35, depth));
+    const layers = vec3(mix(soil, color(WORLD.earthStone), smoothstep(0.65, 0.85, depth)));
+    slabMat.colorNode = layers.mul(float(1).add(mx_noise_float(positionWorld.mul(1.5)).mul(0.08)));
+    // Box faces: +x, -x, +y, -y, +z, -z. No top face: the ground plane is the top, and two
+    // coplanar faces would z-fight.
+    const noTop = new THREE.MeshBasicNodeMaterial({ visible: false });
+    const slab = new THREE.Mesh(
+      new THREE.BoxGeometry(size, SLAB_DEPTH, size).translate(0, -SLAB_DEPTH / 2, 0),
+      [slabMat, slabMat, noTop, slabMat, slabMat, slabMat],
+    );
+    this.scene.add(slab);
 
     // Frontier overlay, a hair above the ground, under the plants; crisp texels up close.
     const side = n * TEXELS;
@@ -187,8 +221,9 @@ export class Viewer {
 
   resetView(): void {
     const size = this.replay.meta.n * CELL;
-    this.controls.target.set(0, 0, 0);
-    this.camera.position.set(0, size * 0.85, size * 0.75);
+    // The whole slab in view, its near side above the bottom HUD: aim a little past the centre.
+    this.controls.target.set(0, 0, size * 0.37);
+    this.camera.position.set(0, size * 1.4, size * 1.45);
     this.controls.update();
   }
 

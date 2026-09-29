@@ -21,6 +21,9 @@ export const PLAYER = {
 export const WORLD = {
   soil: "#c1b196", // bare, undeveloped ground (pale, sandy)
   soilRich: "#7a6247", // fully developed soil (humus)
+  earthTop: "#3f3024", // diorama slab sides: topsoil band (D-054)
+  earthSub: "#6d5840", // subsoil
+  earthStone: "#8b8479", // bedrock at the bottom
   sky: "#dfe8ec",
   horizon: "#c9d3cf",
   sun: "#fff4e0",

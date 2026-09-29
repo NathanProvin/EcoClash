@@ -593,3 +593,12 @@ Template:
   - The map sits on a slab, `SLAB_DEPTH` = 12 m. Its sides show an earth cross-section: topsoil, subsoil, then bedrock, with a little noise (`palette.ts` `earthTop` / `earthSub` / `earthStone`). The slab has no top face, because two coplanar faces z-fight.
   - The default camera frames the whole slab above the bottom HUD. The fog now starts past the slab (2.2× to 5× the map size).
 - **Consequences:** Terrain relief, water and soil types stay post-V1, as data and a map generator (gamerules §2.3). Picking, the frontier overlay and the models are unchanged (top at y = 0).
+
+## D-055 · 2026-09-29 · Instanced grass replaces the L1 placeholder dots (M2)
+- **Status:** accepted (user choice)
+- **Decision:**
+  - The herbaceous stratum (L1) is drawn as GPU grass (`client/src/render/grass.ts`): one merged static mesh of tufts of 3 blades (≈0.3–0.55 m high), jittered in their cell with `layout.rand`, 12 tufts per cell by default.
+  - The vertex shader reads `floraTex` (n × n RGBA, repainted with each field frame: RGB = owner's L1 colour, A = L1 cover) at each tuft's root. A tuft shows when its seed is below the cover, so density follows cover; hidden tufts collapse to a point. There is no per-frame CPU work.
+  - Normals point up and each blade is indexed with both windings, so grass lights like the ground under it on both faces.
+  - L1 dots are no longer laid out or drawn (the viewer passes L1 cover 0 to `plantLayout`). The L1 layer toggle shows or hides the grass. Shrub cones and tree cubes are unchanged.
+- **Consequences:** Seen from the whole map, grass reads as a fine grain over the territory tint; up close, as tufts. Wind sway is M5 (shader priority 1). `grassBlades` has unit tests: counts, roots inside their cell, determinism, seed range.

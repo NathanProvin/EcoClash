@@ -20,6 +20,7 @@ import {
 } from "three/tsl";
 import { interpolate, type Animal, type Source, type Role } from "../replay/replay";
 import { paintFrontier, TEXELS } from "./frontier";
+import { makeGrass } from "./grass";
 import {
   animalSlots,
   ANIMAL_BASE,
@@ -42,6 +43,7 @@ const ROLES: Role[] = ["herbivore", "decomposer", "predator"];
 /** Footprint radius (m) of each animal shape at scale 1; the band starts at ANIMAL_BASE. */
 const ANIMAL_R: Record<Role, number> = { herbivore: 0.35, decomposer: 0.18, predator: 0.4 };
 const HIGHLIGHT = new THREE.Color("#ffffff");
+const GRASS_PER_CELL = 12; // blades per cell (the quality presets set it, D-055)
 
 /** Keys held by the player, read each frame for keyboard camera moves. */
 export interface CameraKeys {
@@ -64,6 +66,10 @@ export class Viewer {
   private readonly frontierData: Uint8Array;
   private readonly frontierTex: THREE.DataTexture;
   private readonly frontier: THREE.Mesh;
+  // L1 as grass blades (grass.ts): RGB = owner's L1 colour, A = L1 cover, one texel per cell.
+  private readonly floraData: Uint8Array;
+  private readonly floraTex: THREE.DataTexture;
+  private grass: THREE.Mesh;
   private readonly strata: THREE.InstancedMesh[];
   // Per-cell plant layout, recomputed only when the cell's three cover bytes change.
   private readonly layoutKey: Int32Array;
@@ -165,6 +171,13 @@ export class Viewer {
     );
     this.scene.add(this.frontier);
 
+    this.floraData = new Uint8Array(n * n * 4);
+    this.floraTex = new THREE.DataTexture(this.floraData, n, n);
+    this.floraTex.magFilter = THREE.LinearFilter;
+    this.floraTex.colorSpace = THREE.SRGBColorSpace;
+    this.grass = makeGrass(n, GRASS_PER_CELL, this.floraTex);
+    this.scene.add(this.grass);
+
     const cells = n * n;
     this.layoutKey = new Int32Array(cells).fill(-1);
     // Unit shapes, base on the ground (dots, cones) or centred (cubes); instances scale them to
@@ -178,8 +191,9 @@ export class Viewer {
       0,
     );
     const cube = new THREE.BoxGeometry(1, 1, 1);
+    // L1 is drawn as grass: its dot mesh stays empty (capacity 1), cones and cubes as before.
     this.strata = [dot, cone, cube].map((g, s) =>
-      this.instanced(g, cells * MAX_MODELS[s as 0], 0.9),
+      this.instanced(g, s === 0 ? 1 : cells * MAX_MODELS[s as 0], 0.9),
     );
 
     this.aura = makeAura();
@@ -242,6 +256,8 @@ export class Viewer {
       this.lastFrame = -1; // repaint the ground
     } else if (layer === "animals") {
       for (const m of Object.values(this.animals)) m.visible = on;
+    } else if (layer === "L1") {
+      this.grass.visible = on;
     } else {
       const mesh = this.strata[Number(layer[1]) - 1];
       if (mesh) mesh.visible = on;
@@ -370,6 +386,7 @@ export class Viewer {
   private paintFields(owner: Uint8Array, soilDev: Uint8Array, cover: Uint8Array[]): void {
     const n = this.replay.meta.n;
     const tint = { 1: hexToRgb(PLAYER[1].base), 2: hexToRgb(PLAYER[2].base) };
+    const grassRgb = { 1: hexToRgb(PLAYER[1].strata[0]), 2: hexToRgb(PLAYER[2].strata[0]) };
     const strataColor = ([1, 2] as PlayerId[]).map((p) =>
       PLAYER[p].strata.map((hex) => new THREE.Color(hex)),
     );
@@ -385,10 +402,14 @@ export class Viewer {
         this.groundData[texel + j] = Math.round((soil[j] ?? 0) * (1 - k) + (t[j] ?? 0) * k);
       }
       this.groundData[texel + 3] = 255;
+      // Grass texel (rows not flipped: the grass shader maps world z to rows itself).
+      const g = p ? grassRgb[p as PlayerId] : [0, 0, 0];
+      this.floraData.set([g[0] ?? 0, g[1] ?? 0, g[2] ?? 0, p ? (cover[0]?.[c] ?? 0) : 0], c * 4);
       if (!p) continue;
       const x0 = ((c % n) - n / 2) * CELL; // cell corner in world metres
       const z0 = (Math.floor(c / n) - n / 2) * CELL;
-      const [c0, c1, c2] = [cover[0]?.[c] ?? 0, cover[1]?.[c] ?? 0, cover[2]?.[c] ?? 0];
+      const c0 = 0; // L1 is drawn as grass, not as dots
+      const [c1, c2] = [cover[1]?.[c] ?? 0, cover[2]?.[c] ?? 0];
       const key = c0 | (c1 << 8) | (c2 << 16);
       let layers = this.layouts[c];
       if (!layers || this.layoutKey[c] !== key) {
@@ -408,6 +429,7 @@ export class Viewer {
       });
     }
     this.strata.forEach((m, s) => finish(m, counts[s as 0 | 1 | 2]));
+    this.floraTex.needsUpdate = true;
     this.groundTex.needsUpdate = true;
     paintFrontier(owner, n, tint, this.frontierData);
     this.frontierTex.needsUpdate = true;

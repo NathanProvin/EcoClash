@@ -67,3 +67,47 @@ export function capText(s: Species): string {
     ? `${Math.round(s.stats.cap * 100)} % of map`
     : `${s.stats.cap} animals`;
 }
+
+const FAMILY: Record<string, string> = {
+  L1: "Herbs",
+  L2: "Shrubs",
+  L3: "Trees",
+  F1: "Soil life",
+  F2: "Insects",
+  F3: "Small mammals",
+  F4: "Birds",
+  F5: "Carnivores",
+};
+
+/** The build card's groups (D-063): per kind, one family per level (herbs, shrubs, trees; soil
+ *  life … carnivores), species in tier order then stat-sheet order. */
+export function families(
+  species: Species[],
+): { kind: Species["kind"]; name: string; species: Species[] }[] {
+  const out = new Map<string, { kind: Species["kind"]; name: string; species: Species[] }>();
+  const keyOf = (s: Species) => `${s.kind === "flora" ? "L" : "F"}${s.level}`;
+  const sorted = [...species].sort(
+    (a, b) =>
+      Number(a.kind === "fauna") - Number(b.kind === "fauna") ||
+      a.level - b.level ||
+      a.tier - b.tier,
+  );
+  for (const s of sorted) {
+    const key = keyOf(s);
+    const group = out.get(key) ?? { kind: s.kind, name: FAMILY[key] ?? key, species: [] };
+    group.species.push(s);
+    out.set(key, group);
+  }
+  return [...out.values()];
+}
+
+/** The stat lines of a species card's tooltip. */
+export function statLines(s: Species): string[] {
+  const { growth, yield: y, spawn_cost: cost } = s.stats;
+  return s.kind === "flora"
+    ? [`Spreads ${growth}/s · yields ${y}/s per cell`, `Costs ${cost} per cell · ${capText(s)}`]
+    : [
+        `Breeds every ${growth} s · yields ${y}/s`,
+        `Costs ${cost} each, ×1.5 off your land · ${capText(s)}`,
+      ];
+}

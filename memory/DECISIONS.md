@@ -685,3 +685,13 @@ Template:
   - **Test** (`npm run relay:test`, in CI after `wasm:check`): two headless players (sim-wasm + Lockstep) play 5 minutes with plants, unlocks, spawns and orders on both sides. They must have identical hashes at every tick and no desync, with the orders visibly applied. A second match makes one player submit a command outside the relay; the relay reports the desync at the next hash check.
   - **Dependency:** `ws` 8, the standard Node WebSocket server (Node has a client, not a server).
 - **Consequences:** Checked in two browser tabs: the players were seated P1/P2, an unlock and a spawn applied on both sides, and 56 hash checks were in sync; the faster tab waited for the slower one. M6 keeps deployment, lobby and handshake, the stall timeout, disconnect rules, replays and state dumps.
+
+## D-063 · 2026-09-29 · Build card, species tooltips, leave confirmation (feedback round 1)
+- **Status:** accepted (user feedback)
+- **Decision:**
+  - The bottom bar is a compact RTS build card: every species as an icon tile, in two rows (plants; animals), grouped by family in tier order: Herbs, Shrubs, Trees; Soil life, Insects, Small mammals, Birds, Carnivores (`families` in `species.ts`).
+  - Count badges; "+" on cards that can be unlocked (a click buys them); dimmed locked tiles. The Plants/Animals tabs and the bottom-left detail box are gone.
+  - Hovering a tile shows a tooltip just above it: name, tier and role, stats (`statLines`), effect, and what a click does (unlock cost, why it is locked, or "click, then the map · hold Shift to keep dropping"). Shift serial drops already worked; they are now stated where they matter.
+  - With animals selected, a small strip above the card shows them by species (a click narrows the selection), the order keys, and a clear button.
+  - The in-game Menu button asks "Leave the match? It will be lost." (Stay / Leave; Esc stays) while a live match is on; it leaves at once after the verdict or in a replay.
+- **Consequences:** No text labels on tiles (names are in the tooltip), which keeps the bar short and fits more RTS spirit.

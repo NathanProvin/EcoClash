@@ -50,7 +50,7 @@
   let inMenu = $state(true); // the main menu covers everything until a game is launched
   let quality: Quality = $state(loadQuality()); // render preset (D-056)
   let selection = $state(new Set<number>());
-  let focus: string | null = $state(null);
+  let confirmLeave = $state(false); // "leave the match?" dialog
   let planting: string | null = $state(null); // species armed for the next map click
   let attackArmed = $state(false); // A pressed: the next map click is an attack-move
   const groups = new SvelteMap<number, number[]>(); // control groups: digit -> animal ids
@@ -193,7 +193,6 @@
   function select(ids: number[]) {
     selection = new Set(ids);
     viewer?.setSelection(selection);
-    if (!ids.length) focus = null;
   }
 
   /** Select all the viewed player's animals of one species on screen (from the unit bar). */
@@ -264,7 +263,6 @@
       inspect(viewer.pickCell(box.x0, box.y0)); // click: inspect the cell under the cursor
     } else {
       select(viewer.pick(box.x0, box.y0, box.x1, box.y1, live ? me : player)); // own animals
-      focus = null;
     }
     box = null;
   }
@@ -299,7 +297,8 @@
     } else if (e.code === "KeyT") {
       techOpen = !techOpen;
     } else if (e.code === "Escape") {
-      if (techOpen) techOpen = false;
+      if (confirmLeave) confirmLeave = false;
+      else if (techOpen) techOpen = false;
       else if (attackArmed) attackArmed = false;
       else if (planting) planting = null;
       else if (cell) inspect(null);
@@ -332,6 +331,12 @@
     await open(LIVE);
   }
 
+  /** The Menu button: a live match still on asks first (it would be lost). */
+  function askMenu() {
+    if (live && !outcome) confirmLeave = true;
+    else toMenu();
+  }
+
   /** Back to the main menu: the match and its worker end. */
   function toMenu() {
     viewer?.dispose();
@@ -343,6 +348,7 @@
     inspect(null);
     select([]);
     inMenu = true;
+    confirmLeave = false;
   }
 
   onMount(() => {
@@ -388,7 +394,7 @@
       {tick}
       bind:player
       onTech={() => (techOpen = true)}
-      onMenu={toMenu}
+      onMenu={askMenu}
       {layers}
       {toggle}
       {quality}
@@ -403,7 +409,6 @@
       {tick}
       {player}
       {selection}
-      bind:focus
       live={mine}
       bind:planting
       {unlocked}
@@ -469,6 +474,18 @@
       onWatch={() => (endDismissed = true)}
     />
   {/if}
+  {#if confirmLeave}
+    <div class="veil" role="dialog" aria-modal="true" aria-label="Leave the match?">
+      <div class="panel confirm">
+        <strong>Leave the match?</strong>
+        <p>It will be lost.</p>
+        <div class="choices">
+          <button class="btn" onclick={() => (confirmLeave = false)}>Stay</button>
+          <button class="btn" onclick={toMenu}>Leave</button>
+        </div>
+      </div>
+    </div>
+  {/if}
   {#if inMenu}<MainMenu onLaunch={launch} />{/if}
 </main>
 
@@ -522,6 +539,31 @@
     margin: 0;
     font-size: 0.85em;
     border-left: 3px solid var(--player);
+  }
+  .veil {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    background: rgba(10, 14, 12, 0.35);
+    backdrop-filter: blur(3px);
+  }
+  .confirm {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 18px 26px;
+  }
+  .confirm p {
+    margin: 0;
+    color: var(--ink-soft);
+  }
+  .choices {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
   }
   .waiting {
     position: absolute;

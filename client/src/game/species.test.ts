@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ReplayMeta, Species } from "../replay/replay";
-import { capText, cardState, label, unlockedAt } from "./species";
+import { capText, cardState, families, label, statLines, unlockedAt } from "./species";
 
 function sp(
   name: string,
@@ -61,5 +61,23 @@ describe("species helpers", () => {
     expect(cardState(meta, elder, p1)).toBe("available"); // tier 1 of L2
     expect(cardState(meta, fox, p1)).toBe("locked"); // needs an L2 plant
     expect(cardState(meta, fox, unlockedAt(meta, 2, 300))).toBe("available");
+  });
+});
+
+describe("build card helpers", () => {
+  it("groups species by family, plants first, in tier order", () => {
+    const groups = families([
+      sp("fox", "fauna", 5, 1, 0),
+      sp("elder", "flora", 2, 1, 0),
+      sp("wildflowers", "flora", 1, 2, 0),
+      sp("grasses", "flora", 1, 1, 0),
+    ]);
+    expect(groups.map((g) => g.name)).toEqual(["Herbs", "Shrubs", "Carnivores"]);
+    expect(groups[0]?.species.map((s) => s.name)).toEqual(["grasses", "wildflowers"]);
+  });
+
+  it("describes a card in two short lines", () => {
+    expect(statLines(sp("grasses", "flora", 1, 1, 0))[1]).toContain("per cell");
+    expect(statLines(sp("fox", "fauna", 5, 1, 0))[1]).toContain("×1.5 off your land");
   });
 });

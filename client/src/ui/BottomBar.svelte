@@ -1,9 +1,10 @@
 <script lang="ts">
-  // RTS unit bar (D-030): the current selection grouped by species, or, when nothing is selected,
-  // the viewed player's living species. A card focuses a species; the left panel shows its stats.
-  // In a live match every species has a card, under a Plants / Animals tab; clicking one arms it,
-  // and the next map click plants it or calls the animal there (App).
-  import { capText, cardState, label, position } from "../game/species";
+  // RTS build card (D-030, D-063): every species as an icon tile, in two rows (plants, animals),
+  // grouped by family in tier order, so the whole tree is one glance away. Hovering a tile shows
+  // its stats; clicking arms it (the next map click plants it or calls the animal; Shift keeps it
+  // armed), buys it when it can be unlocked, or does nothing while locked. With animals selected, a
+  // selection strip sits above the card. Replays show the same card, read-only.
+  import { cardState, families, label, statLines } from "../game/species";
   import type { Source, Species } from "../replay/replay";
   import SpeciesIcon from "./SpeciesIcon.svelte";
 
@@ -12,7 +13,6 @@
     tick,
     player,
     selection,
-    focus = $bindable(),
     live,
     planting = $bindable(),
     unlocked,
@@ -24,7 +24,6 @@
     tick: number;
     player: 1 | 2;
     selection: Set<number>;
-    focus: string | null;
     live: boolean;
     planting: string | null;
     unlocked: Set<string>;
@@ -34,303 +33,249 @@
   } = $props();
 
   const species = $derived(replay.meta.species);
-  let tab: "flora" | "fauna" = $state("flora");
   const fauna = $derived(species.filter((s) => s.kind === "fauna"));
+  const groups = $derived(families(species));
+  const counts = $derived(replay.counts(tick, player));
+  const count = (s: Species) => counts[species.indexOf(s)] ?? 0;
 
-  /** Cards: selected animals by species, or the player's roster (cells / animals). */
-  const cards = $derived.by((): { s: Species; count: number }[] => {
-    if (selection.size) {
-      const by: Record<string, number> = {};
-      for (const a of replay.animals(Math.floor(tick))) {
-        const s = fauna[a.species];
-        if (s && selection.has(a.id)) by[s.name] = (by[s.name] ?? 0) + 1;
-      }
-      return species.filter((s) => s.name in by).map((s) => ({ s, count: by[s.name] ?? 0 }));
+  /** Selected animals by species. */
+  const picked = $derived.by(() => {
+    if (!selection.size) return [];
+    const by: Record<string, number> = {};
+    for (const a of replay.animals(Math.floor(tick))) {
+      const s = fauna[a.species];
+      if (s && selection.has(a.id)) by[s.name] = (by[s.name] ?? 0) + 1;
     }
-    const counts = replay.counts(tick, player);
-    return species
-      .map((s, i) => ({ s, count: counts[i] ?? 0 }))
-      .filter((c) => (live ? c.s.kind === tab : c.count > 0));
+    return fauna.filter((s) => s.name in by).map((s) => ({ s, n: by[s.name] ?? 0 }));
   });
-  const shown = $derived(species.find((s) => s.name === focus) ?? cards[0]?.s);
-  const unit = (s: Species) => (s.kind === "flora" ? "cells" : "animals");
+
   /** Live cards follow the tech tree: unlocked (arm it), available (buy it), locked. */
-  const cardOf = (s: Species) =>
-    live && !selection.size ? cardState(replay.meta, s, unlocked) : "unlocked";
-  const tip = (s: Species, count: number) =>
-    ({
-      unlocked: `${label(s.name)}: ${count} ${unit(s)}${live ? (s.kind === "fauna" ? " · click, then your land (base price) or enemy food or prey (×1.5)" : " · click, then click the map") : ""}`,
-      available: `${label(s.name)}: click to unlock for ${s.stats.unlock_cost} biomass`,
-      locked: `${label(s.name)}: locked. It needs a species of the tier below${s.kind === "fauna" ? " and one of its habitat plants" : ""} (T: tech tree)`,
-    })[cardOf(s)];
+  const cardOf = (s: Species) => (live ? cardState(replay.meta, s, unlocked) : "unlocked");
+  function click(s: Species) {
+    const state = cardOf(s);
+    if (state === "available") onUnlock(s.name);
+    else if (state === "unlocked" && live) planting = planting === s.name ? null : s.name;
+  }
+
+  let hover: { s: Species; x: number; y: number } | null = $state(null);
+  function show(e: PointerEvent, s: Species) {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    hover = { s, x: r.left + r.width / 2, y: r.top - 10 }; // just above the tile
+  }
 </script>
 
-<footer class="bar p{player}">
-  <section class="detail panel" aria-label="Selected species">
-    {#if shown}
-      <div class="head">
-        <SpeciesIcon s={shown} size={52} />
-        <div>
-          <h2>{label(shown.name)}</h2>
-          <p class="label">{position(shown)} · {shown.kind === "flora" ? "plant" : shown.role}</p>
-        </div>
-      </div>
-      <dl>
-        <div>
-          <dt class="label">Growth</dt>
-          <dd class="num">{shown.stats.growth}{shown.kind === "flora" ? "/s" : " s"}</dd>
-        </div>
-        <div>
-          <dt class="label">Yield</dt>
-          <dd class="num">{shown.stats.yield}/s</dd>
-        </div>
-        <div>
-          <dt class="label">Spawn</dt>
-          <dd class="num">{shown.stats.spawn_cost}</dd>
-        </div>
-        <div>
-          <dt class="label">Cap</dt>
-          <dd class="num">{capText(shown)}</dd>
-        </div>
-      </dl>
-      <p class="effect">{shown.stats.effect}</p>
-    {:else}
-      <p class="muted">Drag a box around your animals to select them.</p>
-    {/if}
-  </section>
-
-  <section class="cards panel" aria-label={selection.size ? "Selection" : "Your species"}>
-    <header>
-      {#if live && !selection.size}
-        <div class="tabs" role="tablist">
-          {#each [["flora", "Plants"], ["fauna", "Animals"]] as const as [kind, name] (kind)}
-            <button
-              role="tab"
-              aria-selected={tab === kind}
-              class:on={tab === kind}
-              onclick={() => (tab = kind)}>{name}</button
-            >
-          {/each}
-        </div>
-        <span class="label">
-          {tab === "flora"
-            ? "Pick a plant, then click the map to plant it"
-            : "Pick an animal, then click the map to call it"}
-        </span>
-      {:else}
-        <span class="label">
-          {selection.size ? `Selection · ${selection.size} animals` : "Your species"}
-        </span>
-      {/if}
-      {#if selection.size}<button class="btn clear" onclick={onClear}>Clear (Esc)</button>{/if}
-    </header>
-    <div class="list">
-      {#each cards as { s, count } (s.name)}
+<footer class="dock p{player}">
+  {#if picked.length}
+    <div class="selection panel" aria-label="Selection">
+      {#each picked as { s, n } (s.name)}
         <button
-          class="card"
-          class:on={shown?.name === s.name}
-          class:armed={planting === s.name}
-          class:none={count === 0}
-          class:locked={cardOf(s) === "locked"}
-          class:available={cardOf(s) === "available"}
-          onclick={() => {
-            focus = s.name;
-            if (cardOf(s) === "available") onUnlock(s.name);
-            else if (cardOf(s) === "locked") return;
-            else if (live && !selection.size) planting = planting === s.name ? null : s.name;
-            else if (s.kind === "fauna") onPickSpecies(s.name);
-          }}
-          title={tip(s, count)}
+          class="pick"
+          onclick={() => onPickSpecies(s.name)}
+          title="Select only {label(s.name)}"
         >
-          <SpeciesIcon {s} size={46} />
-          <span class="name">{label(s.name)}</span>
-          {#if count}<span class="count num">{count}</span>{/if}
-          {#if cardOf(s) === "available"}
-            <span class="ribbon">Unlock · {s.stats.unlock_cost}</span>
-          {:else if cardOf(s) === "locked"}
-            <span class="lock" aria-label="locked">🔒</span>
-          {/if}
+          <SpeciesIcon {s} size={30} />
+          <span class="num">×{n}</span>
         </button>
-      {:else}
-        <p class="muted">Nothing yet.</p>
       {/each}
+      <span class="keys">Right-click move · A attack · S stop</span>
+      <button class="x" onclick={onClear} aria-label="Clear selection">✕</button>
     </div>
-  </section>
+  {/if}
+
+  <nav class="card panel" aria-label="Species">
+    {#each ["flora", "fauna"] as const as kind (kind)}
+      <div class="row">
+        {#each groups.filter((g) => g.kind === kind) as g (g.name)}
+          <div class="family">
+            <span class="fam">{g.name}</span>
+            <div class="tiles">
+              {#each g.species as s (s.name)}
+                {@const state = cardOf(s)}
+                <button
+                  class="tile {state}"
+                  class:armed={planting === s.name}
+                  class:none={count(s) === 0 && state === "unlocked"}
+                  aria-label={label(s.name)}
+                  onclick={() => click(s)}
+                  onpointerenter={(e) => show(e, s)}
+                  onpointerleave={() => (hover = null)}
+                >
+                  <SpeciesIcon {s} size={38} />
+                  {#if count(s)}<span class="count num">{count(s)}</span>{/if}
+                  {#if state === "available"}<span class="plus">+</span>{/if}
+                </button>
+              {/each}
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/each}
+  </nav>
+
+  {#if hover}
+    {@const s = hover.s}
+    {@const state = cardOf(s)}
+    <div class="tip panel" style:left="{hover.x}px" style:top="{hover.y}px" role="tooltip">
+      <strong>{label(s.name)}</strong>
+      <span class="sub">tier {s.tier} · {s.kind === "flora" ? "plant" : s.role}</span>
+      {#each statLines(s) as line (line)}<span>{line}</span>{/each}
+      <em>{s.stats.effect}</em>
+      {#if state === "available"}
+        <span class="act">Click to unlock · {s.stats.unlock_cost}</span>
+      {:else if state === "locked"}
+        <span class="act dim"
+          >Locked: needs a tier {s.tier - 1}
+          {s.kind === "flora" ? "plant" : "animal"} of this family{s.kind === "fauna"
+            ? " and a habitat plant"
+            : ""}</span
+        >
+      {:else if live}
+        <span class="act">Click, then the map · hold Shift to keep dropping</span>
+      {/if}
+    </div>
+  {/if}
 </footer>
 
 <style>
-  .bar {
+  .dock {
     position: absolute;
-    inset: auto 10px 10px 10px;
-    height: 168px;
-    display: flex;
-    gap: 10px;
-  }
-  .detail {
-    width: 300px;
-    flex: none;
-    overflow: hidden auto;
-    border-top: 2px solid var(--player);
-  }
-  .head {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-  }
-  h2 {
-    margin: 0;
-    font-size: 1.15em;
-    font-weight: 800;
-  }
-  .head .label {
-    margin: 2px 0 0;
-  }
-  dl {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2px 12px;
-    margin: 6px 0 4px;
-  }
-  dl div {
+    left: 50%;
+    bottom: 12px;
+    transform: translateX(-50%);
     display: flex;
     flex-direction: column;
-  }
-  dd {
-    margin: 0;
-    font-weight: 700;
-    white-space: nowrap;
-  }
-  .effect {
-    margin: 0;
-    font-size: 0.8em;
-    color: var(--ink-soft);
-    font-style: italic;
-  }
-  .cards {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-  }
-  .cards header {
-    display: flex;
-    justify-content: space-between;
     align-items: center;
-    min-height: 22px;
-  }
-  .tabs {
-    display: flex;
-    gap: 4px;
-    margin-right: auto;
-  }
-  .tabs button {
-    border: 1px solid var(--line);
-    border-radius: 7px;
-    background: var(--well);
-    padding: 2px 12px;
-    cursor: pointer;
-    font-weight: 700;
-    font-size: 0.8em;
-    color: var(--ink-soft);
-  }
-  .tabs button.on {
-    color: var(--ink);
-    border-color: var(--gold);
-    box-shadow: 0 0 8px rgba(216, 180, 92, 0.35);
-  }
-  .clear {
-    padding: 1px 10px;
-    font-size: 0.8em;
-  }
-  .list {
-    display: flex;
-    flex-wrap: wrap;
-    align-content: flex-start;
-    gap: 6px;
-    overflow-y: auto;
-    padding: 2px;
+    gap: 8px;
+    max-width: calc(100% - 24px);
   }
   .card {
-    position: relative;
-    width: 76px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    padding: 5px 2px 4px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(0, 0, 0, 0.15));
+    gap: 6px;
+    padding: 8px 12px;
+  }
+  .row {
+    display: flex;
+    gap: 14px;
+  }
+  .family {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .fam {
+    font-size: 0.62em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .tiles {
+    display: flex;
+    gap: 4px;
+  }
+  .tile {
+    position: relative;
+    padding: 2px;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    background: none;
     cursor: pointer;
     transition:
-      transform 0.1s,
-      border-color 0.1s,
-      box-shadow 0.1s;
+      transform 0.12s,
+      border-color 0.12s,
+      opacity 0.12s;
   }
-  .card:hover {
+  .tile:hover {
     transform: translateY(-2px);
-    border-color: var(--gold);
+    border-color: var(--line);
   }
-  .card.none {
-    opacity: 0.6;
+  .tile.none {
+    opacity: 0.7;
   }
-  .card.on {
-    border-color: var(--player-glow);
-    box-shadow: 0 0 0 1px var(--player-glow);
-  }
-  .card.armed {
-    border-color: var(--gold);
-    box-shadow:
-      0 0 0 2px var(--gold),
-      0 0 14px var(--gold);
-    opacity: 1;
-  }
-  .card.locked {
-    opacity: 0.4;
-    filter: grayscale(0.8);
+  .tile.locked {
+    opacity: 0.28;
+    filter: grayscale(0.9);
     cursor: default;
   }
-  .card.available {
-    border-color: var(--gold-soft);
+  .tile.available {
+    opacity: 0.75;
   }
-  .ribbon {
-    position: absolute;
-    top: 38px;
-    left: 4px;
-    right: 4px;
-    border-radius: 4px;
-    font-size: 0.6em;
-    font-weight: 800;
-    text-align: center;
-    color: #1d160a;
-    background: var(--gold);
-  }
-  .lock {
-    position: absolute;
-    top: 2px;
-    left: 4px;
-    font-size: 0.7em;
-  }
-  .name {
-    font-size: 0.72em;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
+  .tile.armed {
+    border-color: var(--gold);
+    box-shadow: 0 0 12px var(--gold-soft);
   }
   .count {
     position: absolute;
-    top: 2px;
-    right: 3px;
-    min-width: 20px;
-    padding: 0 5px;
+    right: -2px;
+    bottom: -2px;
+    min-width: 18px;
+    padding: 0 4px;
     border-radius: 999px;
-    font-size: 0.68em;
-    font-weight: 800;
+    font-size: 0.62em;
+    font-weight: 700;
     color: white;
     background: var(--player);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  }
+  .plus {
+    position: absolute;
+    right: -2px;
+    top: -3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    font-size: 0.75em;
+    font-weight: 800;
+    line-height: 16px;
+    color: #1d160a;
+    background: var(--gold);
+  }
+  .selection {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+  }
+  .pick {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    font-size: 0.8em;
+  }
+  .keys {
+    margin-left: 6px;
+    font-size: 0.72em;
+    color: var(--ink-soft);
+  }
+  .x {
+    border: 0;
+    background: none;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .tip {
+    position: fixed;
+    transform: translate(-50%, -100%);
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-width: 280px;
+    font-size: 0.8em;
+    pointer-events: none;
+  }
+  .tip strong {
+    font-size: 1.1em;
+  }
+  .sub,
+  .dim,
+  em {
+    color: var(--ink-soft);
+  }
+  .act {
+    margin-top: 4px;
+    color: var(--gold);
   }
 </style>

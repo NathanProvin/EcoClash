@@ -2,8 +2,8 @@
 // solid and P2 dashed, so the two sides differ without relying on colour. Painted into an RGBA
 // overlay of TEXELS x TEXELS per cell, rows flipped like the ground texture (viewer.ts).
 
-export const TEXELS = 4; // per cell side: the line is one texel (CELL / 4 = 0.5 m) wide
-const DASH = 2; // P2 dashes: DASH texels on, DASH off
+export const TEXELS = 8; // per cell side: the line is one texel (CELL / 8 = 0.5 m) wide
+const DASH = 4; // P2 dashes: DASH texels (2 m) on, DASH off
 
 /** Paint the frontier of both players into `out` ((n * TEXELS)² RGBA texels, cleared first).
  *  `color[p]` is the RGB of player p. Map edges are not frontiers. */

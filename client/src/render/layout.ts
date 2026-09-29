@@ -6,7 +6,7 @@
 // CANOPY_BOTTOM and CANOPY_TOP, animals above ANIMAL_BASE. All distances are world metres; a cell
 // is CELL metres wide and local coordinates run from 0 to CELL.
 
-export const CELL = 2;
+export const CELL = 4; // metres (D-047)
 export const SHRUB_TOP = 1.3;
 export const CANOPY_Y = 2.0; // tree cube centre
 export const CANOPY_BOTTOM = 1.62;
@@ -18,7 +18,7 @@ export const CONE = { max: 0.42, min: 0.22, heightRatio: 3.0 } as const; // heig
 export const CUBE = { max: 0.7, min: 0.45 } as const; // edge length; rotated, so circle = edge / sqrt 2
 
 /** Models per cell at full cover. */
-export const MAX_MODELS = [5, 3, 2] as const; // dots, cones, cubes
+export const MAX_MODELS = [10, 5, 3] as const; // dots, cones, cubes (on 4x4, 3x3, 2x2 slots)
 
 /** One model in cell-local coordinates: centre (x, z), size (radius or edge), angle. */
 export interface Placement {
@@ -87,11 +87,11 @@ export function plantLayout(cell: number, cover: readonly number[]): Placement[]
   const cubeE = (k: number) => grow(CUBE.min, CUBE.max, v2, k, 30);
   const dotR = (k: number) => grow(DOT.min, DOT.max, v0, k, 10);
   const cubes = place(cell, 3000, 2, count(2), (k) => cubeE(k) / Math.SQRT2, cubeE);
-  const cones = place(cell, 2000, 2, count(1), coneR, coneR);
+  const cones = place(cell, 2000, 3, count(1), coneR, coneR);
   // Dots share the ground with cone bases: skip slots that would touch one.
   const clash = (x: number, z: number, r: number) =>
     cones.some((c) => Math.hypot(c.x - x, c.z - z) < c.size + r + 0.02);
-  const dots = place(cell, 1000, 3, count(0), dotR, dotR, clash);
+  const dots = place(cell, 1000, 4, count(0), dotR, dotR, clash);
   return [dots, cones, cubes];
 }
 

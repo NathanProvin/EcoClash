@@ -503,3 +503,13 @@ Template:
   - Bank values are hashed every tick. The start budget and the yields are in the balance hash (`BALANCE_HASH_VERSION` 2). `sim-wasm` exposes `bank(p)` and `income(p)` for display.
   - Spending is not ported yet (planting stays free, D-042): unlock and spawn costs come with the M4 economy.
 - **Consequences:** The HUD stock and rate work in the live match. There is no parity test against the float prototype economy; the rule is simple and has its own unit test.
+
+## D-047 · 2026-09-29 · 128² map of 4 m cells (supersedes the cell size of D-040)
+- **Status:** accepted (user request: "the game play is too slow")
+- **Decision:**
+  - The grid goes from 256² to 128² and a cell from 2 m to 4 m; the map stays 512 m across.
+  - The flora rules are per cell, so every front now moves twice as fast in metres, and the sim does a quarter of the work (≈3 ms per tick average).
+  - More models per cell: up to 10 herb dots, 5 shrub cones and 3 tree cubes, on 4×4, 3×3 and 2×2 slot grids (was 5, 3 and 2). The no-overlap test still covers 4,000 cells.
+  - Frontier overlay: 8 texels per cell (line 0.5 m, P2 dashes 2 m).
+  - Animal speeds in `species.toml` stay in cells per second, so animals also get twice as fast in metres, which fits the faster pace. Q-008's speeds (D-040) are to be re-read at the fauna port (M3).
+- **Consequences:** The perf target (D-040) now applies at 128². Worst-case plant instances on a fully covered map: ≈295k (18 per cell).

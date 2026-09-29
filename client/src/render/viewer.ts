@@ -2,7 +2,7 @@
 // Ground tinted by territory, with frontier lines (P1 solid, P2 dashed: frontier.ts, D-040); flora as instanced dots (L1), cones (L2) and cubes (L3), several per
 // cell in their own slots and height bands so models never overlap (layout.ts, D-033); animals as
 // spheres (herbivores), small dots (decomposers) and pyramids (predators), unlit, in a band above
-// the canopy, one slot each per cell. 1 cell = CELL world units (2 m, Q-008 default).
+// the canopy, one slot each per cell. 1 cell = CELL world units (4 m, D-047).
 
 import { MapControls } from "three/addons/controls/MapControls.js";
 import * as THREE from "three/webgpu";
@@ -15,6 +15,7 @@ import {
   CELL,
   CONE,
   DOT,
+  MAX_MODELS,
   plantLayout,
   rand,
   type Placement,
@@ -27,7 +28,6 @@ export { CELL };
 const ROLES: Role[] = ["herbivore", "decomposer", "predator"];
 /** Footprint radius (m) of each animal shape at scale 1; the band starts at ANIMAL_BASE. */
 const ANIMAL_R: Record<Role, number> = { herbivore: 0.35, decomposer: 0.18, predator: 0.4 };
-const MAX_PER_CELL = [5, 3, 2] as const; // instance capacity per cell and stratum
 const HIGHLIGHT = new THREE.Color("#ffffff");
 
 /** Keys held by the player, read each frame for keyboard camera moves. */
@@ -145,7 +145,7 @@ export class Viewer {
     );
     const cube = new THREE.BoxGeometry(1, 1, 1);
     this.strata = [dot, cone, cube].map((g, s) =>
-      this.instanced(g, cells * MAX_PER_CELL[s as 0], 0.9),
+      this.instanced(g, cells * MAX_MODELS[s as 0], 0.9),
     );
 
     this.aura = makeAura();

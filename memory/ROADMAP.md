@@ -52,7 +52,7 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [x] Plant from the UI in the live match (commands main → worker, D-042).
 - [x] Territory frontier line, P1 solid / P2 dashed (D-040, D-043).
 - [ ] Three.js WebGPURenderer: terrain, flora textures, instanced grass, RTS camera.
-- [ ] Perf check: 60 fps at 256² on the reference machine ("medium"), 30 fps on "low" (D-040). Field-frame repaint optimized and HUD fps readout added (D-044); the reading on the laptop is still to do.
+- [ ] Perf check: 60 fps at 128² (D-047) on the reference machine ("medium"), 30 fps on "low" (D-040). Field-frame repaint optimized and HUD fps readout added (D-044); the reading on the laptop is still to do.
 
 ## M3 · Agents and control
 - [ ] Resolve Q-007 (fog). (Q-006 and Q-012 resolved by D-018.)

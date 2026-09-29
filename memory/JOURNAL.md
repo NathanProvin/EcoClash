@@ -231,3 +231,6 @@
 ## 2026-09-29 · Biomass bank in sim-core (D-046)
 - **Done:** income and bank per player in sim-core, hashed; shown in the live HUD.
 - **Next:** grid 128² with 4 m cells, then the UI pass.
+
+## 2026-09-29 · 128² map, 4 m cells (D-047)
+- **Done:** Grid halved and cells doubled, with more models per cell. Live match at 32×: 34 % land at 9:47, sim 3–5 ms per tick.

@@ -6,6 +6,7 @@ import {
   CELL,
   CONE,
   CUBE,
+  MAX_MODELS,
   plantLayout,
   rand,
   SHRUB_TOP,
@@ -56,8 +57,8 @@ describe("plantLayout", () => {
   it("adds models as the cover grows, and none on bare ground", () => {
     expect(plantLayout(7, [0, 0, 0]).flat()).toHaveLength(0);
     const full = plantLayout(7, [1, 1, 1]);
-    expect(full[1]).toHaveLength(3);
-    expect(full[2]).toHaveLength(2);
+    expect(full[1]).toHaveLength(MAX_MODELS[1]);
+    expect(full[2]).toHaveLength(MAX_MODELS[2]);
     expect((full[0] ?? []).length).toBeGreaterThan(0);
   });
 });

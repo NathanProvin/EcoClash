@@ -318,3 +318,14 @@
   - All Rust tests, `wasm:check`, `cli:check`, `relay:test` pass; the fixture was regenerated.
 - **Seen:** in bot matches, earthworms and voles still hit their caps; tuning goes to M7. Foxes can starve out at low prey density.
 - **Next:** plant models and ground (step 5), then animal models (step 6).
+
+## 2026-09-29 · Plants with depth (D-067)
+- **Done:**
+  - Trees with trunks and blob crowns, bush clusters, per-species forms and natural colours with a light player tint, slots shared by the species of a cell, grass coloured by its herbs, a stronger ground, a lower camera tilt.
+  - The "oaks everywhere" look was the renderer (one cube per tree, one colour): the sim already mixes same-tier species.
+  - New layout tests (spacing, species shares). Client check, lint and tests pass.
+- **Next:** animal models per type with a player ring (step 6).
+
+## 2026-09-29 · Animal models (D-068)
+- **Done:** six body types (rodent, hedgehog, rabbit, canid, cat, bird) at true relative sizes (×2.5), in natural colours, facing their travel direction, on player-coloured rings; birds above the canopy; swarm dots in the herbs. New tests on the bodies and forms.
+- **Next:** the user's hands-on pass on feedback round 1 (and the fps reading, now with the heavier plant models).

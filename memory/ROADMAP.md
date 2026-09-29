@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** feedback round 1 (D-063, D-064 done): organic animal movement, food-limited carrying capacity, plant and animal models, ground texture. The M2 fps reading (Layers → Quality: Medium, then Low; tick "Performance readout") is still pending.
+- **Now:** feedback round 1 done (D-063 … D-068): build card and leave confirmation, calm HUD, organic movement and swarms, food-limited carrying capacity, plant and animal models, ground. Waiting on the user's hands-on pass and the M2 fps reading (Layers → Quality: Medium, then Low; tick "Performance readout"), to redo with the heavier plant models.
 - **Next (after the feedback):** M5, art and UI polish; M6, online multiplayer. M7 last: balance runs, `sim-py`.
 - **Blocked:**
   - None on design questions for M0.

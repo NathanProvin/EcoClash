@@ -733,3 +733,26 @@ Template:
   - In seeds 1 and 4 the foxes starve before the voles are dense enough (a small-population Allee effect).
   - Uncapped bramble spreads over the voles' whole land and hides every vole, so the foxes starve: the refuge rule as designed.
 - **Consequences:** In bot-vs-bot matches, earthworms and voles still reach their (doubled) caps: litter and a full map feed more than the ceilings. Setting the magnitudes (`food_reserve`, caps, predator upkeep versus catch rate) is balance work for M7.
+
+## D-067 · 2026-09-29 · Plants with depth: species forms, natural colours, mixed stands; stronger ground (feedback round 1)
+- **Status:** accepted (user feedback: "the scale of the models … seems flat, satellite view like … greatly increase the size of the models, while keeping the overlapping issue controlled … avoid invasion of only oaks … keep some room for other trees … natural, organic feeling"; "add texture and color that are more pronounced" to the ground; answer: natural colours, subtle player tint)
+- **Finding (oaks):** the sim already lets same-tier species share a cell (`niche_overlap` 0.5 gives about ⅔ cover each at equilibrium), and oak is capped at 10 % of the map per player. The oak monoculture was a rendering artefact: every tree was the same player-coloured cube, drawn from the stratum's total cover. No sim change.
+- **Decision (renderer only):**
+  - Per-species models: a cell's model slots are shared among the species present in proportion to their cover (largest remainder, `share` in `layout.ts`), so mixed woods and thickets show each species.
+  - Trees: a tapered trunk (1.6–2.6 m) and low-poly flat-shaded crown blobs, 0.9–1.4 m radius (≈3 m wide in a 4 m cell), up to 2 per cell. Crowns may overlap at different heights, like a canopy; trunks stay ≥ `TRUNK_GAP` (1.5 m) apart, so no two crowns merge.
+  - Shrubs: 2–3 blob clusters, up to 4 per cell, kept clear of trunks.
+  - Forms per species (`FORM`): oak broad, beech tall oval, chestnut round; elder loose, hazel upright, hawthorn compact.
+  - Colours (`palette.ts` `FLORA`): each species' natural colour, mixed with 15 % of its owner's hue (`PLAYER_TINT`); per-model brightness variety. Ownership reads from a lighter ground tint (15 %, was 35 %) and the frontier line.
+  - Grass blades take the cover-weighted colour of the cell's herbs.
+  - Ground: darker humus for developed soil, three noise scales (patches, clods, grit) and darker, warmer patches.
+  - Camera: the tilt limit goes from 1.05 to 1.2 rad, for a lower diorama view.
+- **Consequences:** Instances per full cell: at most 12 bush blobs, 6 crown blobs and 2 trunks (icosahedron detail 1 = 80 triangles per blob). The fps check on the reference laptop should be redone.
+
+## D-068 · 2026-09-29 · Animal models per body type, player rings (feedback round 1)
+- **Status:** accepted (user feedback: "from the vole size … the models must seem realistic, in size and behavior … the animal models must harbor their player color … and keep the model shape depending of the type of animal"; answer: realistic, plus a player-coloured ring)
+- **Decision (renderer only, `client/src/render/animals.ts`):**
+  - Six low-poly bodies, merged from a few primitives and flat shaded: rodent (voles, moles), hedgehog, rabbit, canid (fox), cat (lynx), bird (tits, woodpecker, tawny owl, buzzard). Unknown species fall back by role.
+  - Real lengths (vole 0.12 m … lynx 1 m) in natural colours, all drawn ×`ANIMAL_SCALE` (2.5), so proportions between animals stay true and a vole still shows next to a 3 m crown.
+  - Animals stand on the ground and face the way they go (the heading holds while they stand still). Birds fly at `FLIGHT_Y` (5.5 m, above the canopy) with a slight bob.
+  - Every controllable animal stands on a ring in its owner's colour (predators in the vivid predator tint), radius max(0.45 m, 0.75 × drawn length). A selected animal's ring turns white. Picking aims at the model's height.
+  - Soil life and insects stay faint dots (D-065), now in the herbs (0.15 m) instead of floating at 2.6 m.

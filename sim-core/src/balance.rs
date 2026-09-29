@@ -37,6 +37,12 @@ pub struct FloraRules {
     pub contested_cells: bool,
 }
 
+/// `[economy]`: the points bank (gamerules §4; D-046). Other keys are prototype-only for now.
+#[derive(Clone, Debug, Deserialize)]
+pub struct EconomyRules {
+    pub start_budget: f64,
+}
+
 /// `[terrain]`: V1 constants and the soil types (gamerules §2.3).
 #[derive(Clone, Debug, Deserialize)]
 pub struct Terrain {
@@ -86,6 +92,7 @@ pub struct Balance {
     pub sim: Sim,
     pub flora: FloraRules,
     pub terrain: Terrain,
+    pub economy: EconomyRules,
     /// Plant species in file order: the index is the species id.
     pub flora_species: Vec<(String, FloraSpecies)>,
 }
@@ -95,6 +102,7 @@ struct BalanceFile {
     sim: Sim,
     flora: FloraRules,
     terrain: Terrain,
+    economy: EconomyRules,
 }
 
 impl Balance {
@@ -117,6 +125,7 @@ impl Balance {
             sim: file.sim,
             flora: file.flora,
             terrain: file.terrain,
+            economy: file.economy,
             flora_species,
         };
         b.validate()?;
@@ -155,6 +164,10 @@ impl Balance {
         check(
             !self.flora_species.is_empty(),
             "species.toml: no [flora.*] species".into(),
+        )?;
+        check(
+            (0.0..=32767.0).contains(&self.economy.start_budget),
+            "economy.start_budget must be in 0..32767".into(),
         )?;
         let dt = self.flora_dt();
         for (n, s) in &self.flora_species {

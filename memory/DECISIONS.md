@@ -493,3 +493,13 @@ Template:
 - **Consequences:**
   - The same live-like run now grows territory steadily until the fronts meet: 2,159 cells at 4 min, 12,404 at 10 min, 28,693 at 20 min on 256².
   - Rule tests on tiny maps use `tests/helpers.py::uncapped()`; the cap rule keeps its own test.
+
+## D-046 · 2026-09-29 · Biomass bank and income in sim-core
+- **Status:** accepted
+- **Context:** The live match showed "Biomass stock 0 +0/s". The economy only existed in the Python prototype (D-027); sim-core had none.
+- **Decision:**
+  - `sim-core/src/economy.rs` keeps a Q16 bank and income per player. After each flora tick, the income is Σ over the player's cells of `yield × min(biomass / k_max, 1)` per second, as in the prototype's `Economy.income`.
+  - The bank gains one flora period of it (`income × flora_every / tick_hz`, with the §4 rounding).
+  - Bank values are hashed every tick. The start budget and the yields are in the balance hash (`BALANCE_HASH_VERSION` 2). `sim-wasm` exposes `bank(p)` and `income(p)` for display.
+  - Spending is not ported yet (planting stays free, D-042): unlock and spawn costs come with the M4 economy.
+- **Consequences:** The HUD stock and rate work in the live match. There is no parity test against the float prototype economy; the rule is simple and has its own unit test.

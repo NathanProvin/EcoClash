@@ -145,7 +145,7 @@ impl FieldHashes {
 }
 
 /// Bumped whenever the set or order of hashed balance values changes.
-pub const BALANCE_HASH_VERSION: u64 = 1;
+pub const BALANCE_HASH_VERSION: u64 = 2; // 2: economy values (D-046)
 
 /// The balance hash (INSTRUCTIONS §4, §10): the values the simulation uses, **after** conversion
 /// to fixed-point, never the file bytes. Formatting, comments, CRLF / LF and changes below the
@@ -166,6 +166,7 @@ pub fn balance_hash(b: &Balance) -> u64 {
         h.u64(u64::from(v));
     }
     FloraParams::from_balance(b).hash_into(&mut h);
+    crate::economy::Economy::new(b).hash_params(&mut h);
     h.finish()
 }
 

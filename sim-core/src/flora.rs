@@ -62,7 +62,7 @@ pub struct FloraParams {
 /// The prototype's `round_half_away`: `sign(x) * floor(|x| + 0.5)`, used for every load-time
 /// conversion so both sides produce the same integers.
 #[allow(clippy::float_arithmetic, clippy::cast_possible_truncation)]
-fn round(x: f64) -> i64 {
+pub(crate) fn round(x: f64) -> i64 {
     let r = (x.abs() + 0.5).floor() as i64;
     if x < 0.0 { -r } else { r }
 }

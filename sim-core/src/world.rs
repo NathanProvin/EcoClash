@@ -1,7 +1,7 @@
 //! The world and its tick loop (INSTRUCTIONS §4, §5.3). One `step()` = one fixed tick (10 Hz):
 //! 1. apply the tick's commands, in (player, seq) order;
 //! 2. agents (every tick; M3);
-//! 3. flora, every `flora_every_ticks` (default 5: 2 Hz);
+//! 3. flora, every `flora_every_ticks` (default 8: 1.25 Hz), then the income it yields;
 //! 4. environment, every `env_every_ticks` (nothing to update in V1);
 //! 5. refresh the dirty field-chunk hashes and return the tick hash.
 //!
@@ -9,6 +9,7 @@
 
 use crate::balance::Balance;
 use crate::commands::{Command, CommandQueue, Payload, disc};
+use crate::economy::Economy;
 use crate::flora::{Flora, FloraParams, FloraState};
 use crate::hash::{FieldHashes, Hasher};
 use crate::rng::Pcg32;
@@ -23,6 +24,7 @@ pub struct World {
     pub tick: u64,
     pub flora: Flora,
     pub state: FloraState,
+    pub economy: Economy,
     /// The only randomness of the simulation (INSTRUCTIONS §4); unused by the flora rules.
     pub rng: Pcg32,
     /// Commands refused so far (invalid, or due in the past); identical on every peer.
@@ -44,6 +46,7 @@ impl World {
             tick: 0,
             flora,
             state,
+            economy: Economy::new(balance),
             rng: Pcg32::new(seed, RNG_STREAM),
             rejected: 0,
             queue: CommandQueue::default(),
@@ -70,6 +73,7 @@ impl World {
         // (agents: M3)
         if self.tick.is_multiple_of(self.flora_every) {
             self.flora.step(&mut self.state);
+            self.economy.update(&self.flora.p, &self.state);
             self.fields.mark_all();
         }
         if self.tick.is_multiple_of(self.env_every) {
@@ -105,7 +109,7 @@ impl World {
         }
     }
 
-    /// Hash of the current state: tick, scalars, RNG, field digest (dirty chunks re-hashed).
+    /// Hash of the current state: tick, scalars (points banked included), RNG, field digest (dirty chunks re-hashed).
     pub fn hash(&mut self) -> u64 {
         let digest = self.fields.refresh(&self.state);
         let (state, inc) = self.rng.state();
@@ -113,6 +117,7 @@ impl World {
             .u64(self.tick)
             .u64(self.state.t)
             .u64(self.rejected)
+            .i64s(&self.economy.bank)
             .u64(state)
             .u64(inc)
             .u64(digest)

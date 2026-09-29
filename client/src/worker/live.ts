@@ -30,7 +30,7 @@ export type ToMain =
       balanceHash: string;
     }
   | { type: "tick"; tick: number; hash: string; ms: number }
-  | { type: "fields"; tick: number; frame: ArrayBuffer }
+  | { type: "fields"; tick: number; frame: ArrayBuffer; bank: number[]; income: number[] }
   | { type: "error"; message: string };
 
 export class Live implements Source {
@@ -103,14 +103,18 @@ export class Live implements Source {
       this.meta.ticks = m.tick + 1;
       this.simMs = this.simMs ? this.simMs * 0.9 + m.ms * 0.1 : m.ms;
     } else if (m.type === "fields") {
-      this.current = this.decode(this.current.frame + 1, new Uint8Array(m.frame));
+      this.current = this.decode(this.current.frame + 1, new Uint8Array(m.frame), m);
     } else if (m.type === "error") {
       this.error = m.message;
     }
   }
 
   /** Decode a frame, refresh the per-player census, and append a row to the HUD series. */
-  private decode(frame: number, bytes: Uint8Array): Fields {
+  private decode(
+    frame: number,
+    bytes: Uint8Array,
+    points: { bank: number[]; income: number[] } = { bank: [0, 0], income: [0, 0] },
+  ): Fields {
     const f = decodeFields(frame, bytes, this.meta);
     const cells = this.meta.n * this.meta.n;
     const owned = [0, 0, 0];
@@ -129,6 +133,8 @@ export class Live implements Source {
       this.census[p - 1] = row;
       (this.meta.series[`territory_p${p}`] ??= []).push((owned[p] ?? 0) / cells);
       (this.meta.series[`species_p${p}`] ??= []).push(row.filter((c) => c > 0).length);
+      (this.meta.series[`bank_p${p}`] ??= []).push(points.bank[p - 1] ?? 0);
+      (this.meta.series[`yield_p${p}`] ??= []).push(points.income[p - 1] ?? 0);
     }
     return f;
   }

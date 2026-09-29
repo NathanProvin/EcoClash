@@ -227,3 +227,7 @@
   - Non-pioneers only grow on soil developed by lichen and moss, with a gauge capped by suitability.
   - The planting brush (radius 2) is smaller than the opening patches (radius 3).
   - Mainly, a grasses patch planted after the cap was hit could not grow at all.
+
+## 2026-09-29 · Biomass bank in sim-core (D-046)
+- **Done:** income and bank per player in sim-core, hashed; shown in the live HUD.
+- **Next:** grid 128² with 4 m cells, then the UI pass.

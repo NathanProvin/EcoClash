@@ -46,7 +46,7 @@ test("live source decodes frames into census, HUD series and cells", async () =>
 
   // 2x2 map: owner, soil, grasses cover, oak cover (4 bytes each)
   const frame = new Uint8Array([1, 1, 2, 0, 9, 9, 9, 0, 200, 50, 80, 0, 0, 255, 0, 0]);
-  worker.emit({ type: "fields", tick: 8, frame: frame.buffer });
+  worker.emit({ type: "fields", tick: 8, frame: frame.buffer, bank: [1000, 990], income: [4, 2] });
   worker.emit({ type: "tick", tick: 9, hash: "ab", ms: 2 });
 
   expect(live.tick).toBe(9);
@@ -54,6 +54,8 @@ test("live source decodes frames into census, HUD series and cells", async () =>
   expect(live.counts(9, 2)).toEqual([1, 0]);
   expect(live.meta.series["territory_p1"]?.[live.seriesIndex()]).toBe(0.5);
   expect(live.meta.series["species_p2"]?.[live.seriesIndex()]).toBe(1);
+  expect(live.meta.series["bank_p2"]?.[live.seriesIndex()]).toBe(990);
+  expect(live.meta.series["yield_p1"]?.[live.seriesIndex()]).toBe(4);
   expect(live.cell(9, 0, 1).plants.map((p) => p.name)).toEqual(["grasses", "oak"]);
   expect(live.fields().cover[2]?.[1]).toBe(255);
 

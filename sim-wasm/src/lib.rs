@@ -82,6 +82,18 @@ impl Sim {
         self.plant_radius
     }
 
+    /// Points banked by a player (1 or 2), for display.
+    #[allow(clippy::float_arithmetic, clippy::cast_precision_loss)] // display only, never fed back
+    pub fn bank(&self, player: u8) -> f64 {
+        points(self.world.economy.bank, player)
+    }
+
+    /// A player's income over the last flora tick, in points per second, for display.
+    #[allow(clippy::float_arithmetic, clippy::cast_precision_loss)]
+    pub fn income(&self, player: u8) -> f64 {
+        points(self.world.economy.income, player)
+    }
+
     /// Commands refused so far.
     #[wasm_bindgen(getter)]
     pub fn rejected(&self) -> f64 {
@@ -127,6 +139,16 @@ fn species_table(b: &Balance) -> String {
         })
         .collect();
     serde_json::Value::Array(rows).to_string()
+}
+
+/// A player's Q16 value as a float (0 for an unknown player).
+#[allow(clippy::float_arithmetic, clippy::cast_precision_loss)]
+fn points(v: [i64; 2], player: u8) -> f64 {
+    let q = match player {
+        1 | 2 => v[usize::from(player) - 1],
+        _ => 0,
+    };
+    q as f64 / f64::from(sim_core::fixed::ONE)
 }
 
 fn hex(v: u64) -> String {

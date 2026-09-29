@@ -109,6 +109,7 @@ EcoClash/
 │   │   ├── pathing/         # flow fields
 │   │   ├── balance.rs       # balance.toml + species.toml, parsed and validated at runtime (D-034)
 │   │   ├── flora.rs         # flora cell model (exact port of the prototype's quant mode)
+│   │   ├── economy.rs       # biomass points: bank + income per player (D-046)
 │   │   ├── world.rs         # world + tick loop (multi-rate scheduler)
 │   │   ├── commands.rs      # player commands, timestamped by tick
 │   │   ├── snapshot.rs      # read-only view for renderers / tools

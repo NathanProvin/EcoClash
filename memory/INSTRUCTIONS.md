@@ -116,7 +116,7 @@ EcoClash/
 │   │   ├── snapshot.rs      # read-only view for renderers / tools
 │   │   └── hash.rs          # per-tick state checksum
 │   └── tests/               # unit + determinism tests
-├── sim-ai/                  # (M4) scripted bot: reads snapshots, emits commands only
+├── sim-ai/                  # scripted bot: reads the world, emits commands only (D-060)
 ├── sim-cli/                 # (M1) headless runner: seed + balance + commands -> hashes / metrics (CSV/JSON)
 ├── sim-wasm/                # wasm-bindgen wrapper around sim-core (browser worker + node/ runner)
 ├── sim-py/                  # (M4+, only if needed) PyO3 + maturin bindings for AI training

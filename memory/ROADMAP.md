@@ -4,9 +4,8 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M3 done except Q-007 (fog: default none, user thinking). Animals act on their own and obey orders (D-052, D-053).
-- **M2:** only the user's fps reading is left (Layers → Quality: Medium, then Low).
-- **Next:** M4: spending (unlock and spawn/plant costs), victory conditions, the scripted bot, the end screen. M2 leftovers: terrain, the instanced grass shader, the user's fps reading (D-044). Then M3.5, the lockstep smoke test. Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
+- **Now:** M4 core done: main menu (D-057), spending and unlocks (D-058), victory and end screen (D-059), scripted bot (D-060). Left in M4: `tools/balance/` batch runs and tuning (deferred: Q-013), and the `sim-py` decision.
+- **Next:** M3.5, the lockstep smoke test (relay, two tabs). Then M5, art and UI polish (the Species catalog and Options screens behind the menu placeholders). M2's only leftover is the user's fps reading.
 - **Blocked:**
   - None on design questions for M0.
   - None on the tooling side (Rust ready as of 2026-09-27).
@@ -70,7 +69,7 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 
 ## M4 · Full match vs AI
 - [x] Economy, structures, territory, victory conditions (per the resolved Q-002 and Q-003). Done: bank + income (D-046), spending: unlocks, planting and spawn costs (D-058), victory conditions (D-059).
-- [ ] `sim-ai` scripted bot, command-only (D-014), with difficulty levels.
+- [x] `sim-ai` scripted bot, command-only (D-014), with difficulty levels (D-060).
 - [x] Main menu (D-057).
 - [x] End screen with biomass and territory charts (D-059).
 - [ ] `tools/balance/` batch runs via `sim-cli` → Parquet; tune Q-013.

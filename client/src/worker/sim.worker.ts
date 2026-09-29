@@ -63,10 +63,11 @@ function loop() {
   setTimeout(loop, Math.max(0, 1000 / (s?.tickHz ?? 10) - (performance.now() - start)));
 }
 
-async function begin(seed: number, size: number, sandbox: boolean) {
+async function begin(seed: number, size: number, sandbox: boolean, bot: string) {
   await init({ module_or_path: wasmUrl });
   const s = new Sim(balance, species, BigInt(seed), size);
   s.setSandbox(sandbox);
+  if (bot !== "none") s.addBot(2, bot); // the scripted opponent plays P2 (D-060)
   const n = Math.sqrt(s.fieldFrame().length / (2 + s.speciesNames().length));
   const base = Math.floor(n / 4);
   for (const player of [1, 2]) {
@@ -93,7 +94,7 @@ async function begin(seed: number, size: number, sandbox: boolean) {
 onmessage = (e: MessageEvent<ToWorker>) => {
   const m = e.data;
   if (m.type === "start") {
-    begin(m.seed, m.size, m.sandbox).catch((err: unknown) =>
+    begin(m.seed, m.size, m.sandbox, m.bot).catch((err: unknown) =>
       post({ type: "error", message: String(err) }),
     );
   } else if (m.type === "pause") {

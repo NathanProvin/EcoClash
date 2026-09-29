@@ -16,7 +16,7 @@ import {
 } from "../replay/replay";
 
 export type ToWorker =
-  | { type: "start"; seed: number; size: number; sandbox: boolean }
+  | { type: "start"; seed: number; size: number; sandbox: boolean; bot: string }
   | { type: "pause"; paused: boolean }
   | { type: "speed"; speed: number }
   | { type: "command"; player: 1 | 2; payload: object };
@@ -127,8 +127,9 @@ export class Live implements Source {
   }
 
   /** Start a match in a new worker: a bare map of `size` cells a side (0 = balance grid size).
-   *  A sandbox match has every species unlocked and free (D-058). */
-  static start(seed: number, size: number, sandbox = false): Promise<Live> {
+   *  A sandbox match has every species unlocked and free (D-058). `bot` is the P2 opponent's level
+   *  ("easy", "normal", "hard"), or "none" for an idle P2 (D-060). */
+  static start(seed: number, size: number, sandbox = false, bot = "none"): Promise<Live> {
     const worker = new Worker(new URL("./sim.worker.ts", import.meta.url), { type: "module" });
     return new Promise((resolve, reject) => {
       worker.onmessage = (e: MessageEvent<ToMain>) => {
@@ -136,7 +137,7 @@ export class Live implements Source {
         else if (e.data.type === "error") reject(new Error(e.data.message));
       };
       worker.onerror = (e) => reject(new Error(`sim worker: ${e.message}`));
-      worker.postMessage({ type: "start", seed, size, sandbox } satisfies ToWorker);
+      worker.postMessage({ type: "start", seed, size, sandbox, bot } satisfies ToWorker);
     });
   }
 

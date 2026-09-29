@@ -19,6 +19,8 @@ pub struct Sim {
     tick_hz: u32,
     plant_radius: u32,
     max_agents: u32,
+    /// Scripted opponents, and the next sequence number of each one's commands.
+    bots: Vec<(sim_ai::Bot, u32)>,
 }
 
 #[wasm_bindgen]
@@ -36,6 +38,7 @@ impl Sim {
             tick_hz: b.sim.tick_hz,
             plant_radius: b.flora.plant_radius,
             max_agents: b.agents.max_agents,
+            bots: Vec::new(),
             world: World::new(&b, seed, n),
         })
     }
@@ -101,7 +104,33 @@ impl Sim {
 
     /// Run one tick; returns the state hash after it.
     pub fn step(&mut self) -> String {
+        // Bots decide before the tick and play through the command queue, like a human (D-014).
+        for (bot, seq) in &mut self.bots {
+            for payload in bot.think(&self.world) {
+                let c = Command {
+                    tick: self.world.tick,
+                    player: bot.player,
+                    seq: *seq,
+                    payload,
+                };
+                *seq += 1;
+                self.world.submit(c);
+            }
+        }
         hex(self.world.step())
+    }
+
+    /// Let a scripted bot play `player` ("easy", "normal" or "hard"; D-060). Its sequence numbers
+    /// start high so they never collide with commands the host sends for the same player.
+    #[wasm_bindgen(js_name = addBot)]
+    pub fn add_bot(&mut self, player: u8, level: &str) -> Result<(), JsError> {
+        let level = sim_ai::Level::parse(level).ok_or_else(|| JsError::new("unknown bot level"))?;
+        if !matches!(player, 1 | 2) {
+            return Err(JsError::new("player must be 1 or 2"));
+        }
+        let bot = sim_ai::Bot::new(player, level, self.plant_radius);
+        self.bots.push((bot, 1 << 30));
+        Ok(())
     }
 
     /// Ticks done so far.

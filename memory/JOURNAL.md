@@ -272,3 +272,14 @@
   - Browser checks: slab edge; grass up close for both players; the L1 toggle; the preset switch.
   - Fixed along the way: z-fighting (the slab has no top face) and dark back faces on blades (both windings, up normals).
 - **Left in M2:** the user's fps reading on the reference laptop (Medium, then Low).
+
+## 2026-09-29 · M4: menu, spending, victory, bot (D-057 to D-060)
+- **Done:**
+  - Main menu (Launch game; Species and Options placeholders).
+  - Unlocks and costs in sim-core, with a sandbox flag for tools and checks and a free match setup.
+  - Victory conditions, and an end screen with validated charts.
+  - `sim-ai` scripted bot on P2. Checked in the browser: an idle P1 loses to the Normal bot at 20:00.
+- **Notes:**
+  - The timing test ran ≈2× slower this session on both the new and the old code (machine state).
+  - The dataviz checker required a deeper P2 orange (`#C28000`) for charts on the dark HUD.
+- **Next:** M3.5 lockstep smoke test, or M5 polish; balance tuning when the user asks.

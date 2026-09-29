@@ -339,6 +339,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "sim-ai"
+version = "0.1.0"
+dependencies = [
+ "sim-core",
+]
+
+[[package]]
 name = "sim-cli"
 version = "0.1.0"
 dependencies = [
@@ -362,6 +369,7 @@ name = "sim-wasm"
 version = "0.1.0"
 dependencies = [
  "serde_json",
+ "sim-ai",
  "sim-core",
  "wasm-bindgen",
 ]

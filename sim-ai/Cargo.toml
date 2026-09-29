@@ -1,0 +1,13 @@
+[package]
+name = "sim-ai"
+description = "EcoClash scripted bot: reads the world, emits commands only (INSTRUCTIONS §6, D-014)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+sim-core = { path = "../sim-core" }

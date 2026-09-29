@@ -643,3 +643,20 @@ Template:
   - **Charts** (`LineChart.svelte`, per the dataviz rules): one measure per chart, a legend, direct end labels nudged apart when close, a recessive grid, and a hover crosshair with a tooltip.
   - **Chart colours:** P1 `#0072B2` and P2 `#C28000`, one step deeper than the game orange so it fits the dark-mode lightness band. Validated on `#18211c`: CVD ΔE 23.7, contrast ≥ 3:1. P2 is dashed.
 - **Consequences:** An idle match is a mirror, so it ends in a draw at 20:00 (checked in the browser). The bot (next) breaks the symmetry.
+
+## D-060 · 2026-09-29 · Scripted bot opponent (M4)
+- **Status:** accepted
+- **Decision:**
+  - The new `sim-ai` crate provides `Bot::think(&World) -> Vec<Payload>`. It only reads the world; the host submits its commands through the normal queue for the current tick (D-014), so bot matches replay and verify like any other.
+  - **Difficulty** is reaction time and actions per decision: Easy decides every 6 s with 1 action, Normal every 3 s with 2, Hard every 1.5 s with 3.
+  - **Each decision** tries a rotating list of plays and keeps the first that apply:
+    - unlock the next species of a fixed plan (meadow income, then succession, then the food web);
+    - plant the best unlocked spreader on the free cell next to own land nearest the enemy;
+    - plant the tallest unlocked shrub or tree on an own cell whose soil suits it (suitability ≥ ½), nearest the enemy;
+    - call decomposers (up to 8), herbivores (up to 12) and predators (up to 3, on the enemy prey nearest home);
+    - every fourth decision, attack-move own herbivores to the enemy land nearest home.
+  - There is no randomness. Its refusals leave notices like a player's, and the UI shows only the human's.
+  - `sim-wasm` gets `addBot(player, level)`; bot sequence numbers start at 2³⁰ so they never collide with the host's.
+  - **Client:** "Launch game" plays against a Normal bot on P2 (`?bot=easy|hard|none` to change). The human always commands P1; viewing P2 is read-only.
+  - **Tests:** the bot outgrows an idle player with no rejected commands and unlocks cards; bot-vs-bot matches replay identically. An ignored `bot_report` test plays Normal vs Hard for 20 minutes and prints the outcome.
+- **Consequences:** Measured: Normal vs Hard ends near-even at 20 min (1,955 vs 2,086 cells). In the browser, an idle human loses to the Normal bot (P2 53 % of the land). Balance tuning stays deferred (Q-013).

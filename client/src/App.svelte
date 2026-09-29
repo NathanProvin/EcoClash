@@ -38,7 +38,9 @@
   let tick = $state(0);
   let playing = $state(true);
   let speed = $state(4);
-  let player: 1 | 2 = $state(1);
+  let player: 1 | 2 = $state(1); // the viewed player
+  const me = 1; // the human's side: every command goes out as P1 (the bot plays P2, D-060)
+  const mine = $derived(!!live && player === me); // viewing own side: orders allowed
   let techOpen = $state(false);
   let outcome: Outcome | null = $state(null); // the verdict of a live match
   let endDismissed = $state(false); // "keep watching" hides the end screen
@@ -55,7 +57,7 @@
     void tick; // live unlocks arrive with the ticks
     return replay ? unlockedNow(replay, player, tick) : new Set<string>();
   });
-  const unlock = (name: string) => live?.unlock(player, name);
+  const unlock = (name: string) => live?.unlock(me, name);
   const armedKind = $derived(
     replay?.meta.species.find((s) => s.name === planting)?.kind ?? "flora",
   );
@@ -108,7 +110,7 @@
       simMs = live.simMs;
       if (live.error) error = live.error;
       if (live.result !== outcome) outcome = live.result;
-      const fresh = live.notices.filter((n) => now - n.at < 5000);
+      const fresh = live.notices.filter((n) => n.player === me && now - n.at < 5000);
       if (fresh.length !== notices.length) notices = fresh;
     }
     if (r && viewer) {
@@ -149,6 +151,7 @@
           Number(q.get("seed") ?? 1),
           Number(q.get("size") ?? 0),
           q.get("sandbox") === "1", // ?sandbox=1: everything unlocked and free (D-058)
+          q.get("bot") ?? "normal", // ?bot=easy|normal|hard|none: the P2 opponent (D-060)
         );
         replay = live;
       } else {
@@ -198,13 +201,13 @@
   /** Order the selected animals (live match only). */
   function order(kind: "move" | "attack" | "stop", at?: { row: number; col: number } | null) {
     if (!live || !selection.size) return;
-    live.order(player, [...selection], kind, at?.row ?? 0, at?.col ?? 0);
+    live.order(me, [...selection], kind, at?.row ?? 0, at?.col ?? 0);
   }
 
   /** An enemy cell: enemy land, or enemy animals on it (right-click there attacks). */
   function enemyAt(at: { row: number; col: number }): boolean {
     const info = replay?.cell(tick, at.row, at.col);
-    return !!info && (info.owner === 3 - player || info.animals.some((a) => a.owner !== player));
+    return !!info && (info.owner === 3 - me || info.animals.some((a) => a.owner !== me));
   }
 
   function onPointerDown(e: PointerEvent) {
@@ -244,13 +247,13 @@
     const at = click && planting && live ? viewer.pickCell(box.x0, box.y0) : null;
     if (at && planting && live) {
       // Shift keeps the order armed, like RTS build orders.
-      if (armedKind === "flora") live.plant(player, planting, at.row, at.col);
-      else live.spawn(player, planting, at.row, at.col);
+      if (armedKind === "flora") live.plant(me, planting, at.row, at.col);
+      else live.spawn(me, planting, at.row, at.col);
       if (!e.shiftKey) planting = null;
     } else if (click) {
       inspect(viewer.pickCell(box.x0, box.y0)); // click: inspect the cell under the cursor
     } else {
-      select(viewer.pick(box.x0, box.y0, box.x1, box.y1, player)); // drag: box-select animals
+      select(viewer.pick(box.x0, box.y0, box.x1, box.y1, live ? me : player)); // own animals
       focus = null;
     }
     box = null;
@@ -391,7 +394,7 @@
       {player}
       {selection}
       bind:focus
-      live={!!live}
+      live={mine}
       bind:planting
       {unlocked}
       onUnlock={unlock}
@@ -436,7 +439,7 @@
         {tick}
         {player}
         onClose={() => (techOpen = false)}
-        onUnlock={live ? unlock : undefined}
+        onUnlock={mine ? unlock : undefined}
       />
     {/if}
   {/if}

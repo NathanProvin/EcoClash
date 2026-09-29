@@ -11,6 +11,7 @@
   import { Live, type Notice } from "./worker/live";
   import { label } from "./game/species";
   import { Viewer, type CameraKeys, type Layer } from "./render/viewer";
+  import { loadQuality, saveQuality, type Quality } from "./render/quality";
   import BottomBar from "./ui/BottomBar.svelte";
   import CellPanel from "./ui/CellPanel.svelte";
   import TechTree from "./ui/TechTree.svelte";
@@ -37,6 +38,7 @@
   let speed = $state(4);
   let player: 1 | 2 = $state(1);
   let techOpen = $state(false);
+  let quality: Quality = $state(loadQuality()); // render preset (D-056)
   let selection = $state(new Set<number>());
   let focus: string | null = $state(null);
   let planting: string | null = $state(null); // species armed for the next map click
@@ -135,7 +137,7 @@
       } else {
         replay = await loadReplay(`replays/${name}`);
       }
-      viewer = await Viewer.create(canvas, replay);
+      viewer = await Viewer.create(canvas, replay, quality);
       viewer.resize();
       for (const [layer, on] of Object.entries(layers)) viewer.setVisible(layer as Layer, on);
       tick = 0;
@@ -145,6 +147,12 @@
     } catch (e) {
       error = String(e);
     }
+  }
+
+  function setQuality(q: Quality) {
+    quality = q;
+    saveQuality(q);
+    viewer?.setQuality(q);
   }
 
   function toggle(layer: Layer) {
@@ -334,6 +342,8 @@
       onTech={() => (techOpen = true)}
       {layers}
       {toggle}
+      {quality}
+      onQuality={setQuality}
       {replays}
       bind:chosen
       onChoose={open}

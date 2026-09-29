@@ -602,3 +602,8 @@ Template:
   - Normals point up and each blade is indexed with both windings, so grass lights like the ground under it on both faces.
   - L1 dots are no longer laid out or drawn (the viewer passes L1 cover 0 to `plantLayout`). The L1 layer toggle shows or hides the grass. Shrub cones and tree cubes are unchanged.
 - **Consequences:** Seen from the whole map, grass reads as a fine grain over the territory tint; up close, as tufts. Wind sway is M5 (shader priority 1). `grassBlades` has unit tests: counts, roots inside their cell, determinism, seed range.
+
+## D-056 · 2026-09-29 · Minimal quality presets (for the M2 perf check)
+- **Status:** accepted (user choice: presets now, not in M5)
+- **Decision:** `client/src/render/quality.ts`: Low / Medium / High set the grass tufts per cell (6 / 12 / 24) and cap the device pixel ratio (1 / 1.5 / 2). The preset is chosen in the Layers menu and remembered in `localStorage` (guarded: a blocked store falls back to Medium). Switching rebuilds the grass mesh and resizes the renderer.
+- **Consequences:** The D-040 targets (60 fps on Medium, 30 on Low) can now be checked. Shadows and post-processing join the presets in M5.

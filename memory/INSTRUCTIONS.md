@@ -287,7 +287,7 @@ Every third-party or AI-generated asset gets an entry in `ASSETS_LICENSES.md`.
 4. Player territory: subtle tint in the grass, and a soft glow on frontiers.
 5. Post-processing: SSAO, light bloom, tilt-shift DoF, LUT grading.
 
-Quality presets (low / medium / high): grass density, shadows, post-processing, and grid size where relevant.
+Quality presets (low / medium / high): grass density, shadows, post-processing, and grid size where relevant. Implemented so far (D-056): grass tufts per cell (6 / 12 / 24) and the render-resolution cap (1 / 1.5 / 2), in the Layers menu, remembered per browser. Shadows and post-processing join in M5.
 
 ### 7.4 Asset pipeline
 

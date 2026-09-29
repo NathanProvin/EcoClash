@@ -4,6 +4,7 @@
   // tree button, the source menu and the layers menu.
   import type { Source } from "../replay/replay";
   import type { Layer } from "../render/viewer";
+  import type { Quality } from "../render/quality";
   import Icon from "./Icon.svelte";
 
   let {
@@ -13,6 +14,8 @@
     onTech,
     layers,
     toggle,
+    quality,
+    onQuality,
     replays,
     chosen = $bindable(),
     onChoose,
@@ -23,6 +26,8 @@
     onTech: () => void;
     layers: Record<Layer, boolean>;
     toggle: (l: Layer) => void;
+    quality: Quality;
+    onQuality: (q: Quality) => void;
     replays: string[];
     chosen: string;
     onChoose: (name: string) => void;
@@ -37,7 +42,7 @@
   const land = $derived([value("territory_p1"), value("territory_p2")]);
   const layerNames: [Layer, string][] = [
     ["territory", "Territory tint"],
-    ["L1", "L1 herbaceous •"],
+    ["L1", "L1 herbaceous (grass)"],
     ["L2", "L2 shrubs ▲"],
     ["L3", "L3 trees ■"],
     ["animals", "Animals ● ▲"],
@@ -110,6 +115,19 @@
               {name}
             </label>
           {/each}
+          <label class="quality">
+            <span class="label">Quality</span>
+            <select
+              class="btn"
+              value={quality}
+              onchange={(e) => onQuality(e.currentTarget.value as Quality)}
+              aria-label="Quality preset"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
         </div>
       {/if}
     </div>
@@ -265,5 +283,12 @@
     display: flex;
     gap: 8px;
     cursor: pointer;
+  }
+  .drop .quality {
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 6px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
   }
 </style>

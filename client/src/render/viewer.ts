@@ -21,6 +21,7 @@ import {
 import { interpolate, type Animal, type Source, type Role } from "../replay/replay";
 import { paintFrontier, TEXELS } from "./frontier";
 import { makeGrass } from "./grass";
+import { QUALITY, type Quality } from "./quality";
 import {
   animalSlots,
   ANIMAL_BASE,
@@ -43,7 +44,6 @@ const ROLES: Role[] = ["herbivore", "decomposer", "predator"];
 /** Footprint radius (m) of each animal shape at scale 1; the band starts at ANIMAL_BASE. */
 const ANIMAL_R: Record<Role, number> = { herbivore: 0.35, decomposer: 0.18, predator: 0.4 };
 const HIGHLIGHT = new THREE.Color("#ffffff");
-const GRASS_PER_CELL = 12; // blades per cell (the quality presets set it, D-055)
 
 /** Keys held by the player, read each frame for keyboard camera moves. */
 export interface CameraKeys {
@@ -94,6 +94,7 @@ export class Viewer {
     private readonly canvas: HTMLCanvasElement,
     private readonly replay: Source,
     renderer: THREE.WebGPURenderer,
+    private quality: Quality,
   ) {
     const n = replay.meta.n;
     const size = n * CELL;
@@ -175,7 +176,7 @@ export class Viewer {
     this.floraTex = new THREE.DataTexture(this.floraData, n, n);
     this.floraTex.magFilter = THREE.LinearFilter;
     this.floraTex.colorSpace = THREE.SRGBColorSpace;
-    this.grass = makeGrass(n, GRASS_PER_CELL, this.floraTex);
+    this.grass = makeGrass(n, QUALITY[quality].grass, this.floraTex);
     this.scene.add(this.grass);
 
     const cells = n * n;
@@ -207,11 +208,15 @@ export class Viewer {
     };
   }
 
-  static async create(canvas: HTMLCanvasElement, replay: Source): Promise<Viewer> {
+  static async create(
+    canvas: HTMLCanvasElement,
+    replay: Source,
+    quality: Quality,
+  ): Promise<Viewer> {
     // WebGPU when available, WebGL2 otherwise (INSTRUCTIONS §3.1).
     const renderer = new THREE.WebGPURenderer({ canvas, antialias: true });
     await renderer.init();
-    return new Viewer(canvas, replay, renderer);
+    return new Viewer(canvas, replay, renderer, quality);
   }
 
   /** An instanced mesh; lit with `roughness`, or unlit (animals) without it. */
@@ -243,10 +248,25 @@ export class Viewer {
 
   resize(): void {
     const { clientWidth: w, clientHeight: h } = this.canvas;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(
+      Math.min(window.devicePixelRatio, QUALITY[this.quality].pixelRatio),
+    );
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / Math.max(h, 1);
     this.camera.updateProjectionMatrix();
+  }
+
+  /** Switch the quality preset: rebuild the grass at its density, apply its resolution. */
+  setQuality(q: Quality): void {
+    this.quality = q;
+    const visible = this.grass.visible;
+    this.scene.remove(this.grass);
+    this.grass.geometry.dispose();
+    (this.grass.material as THREE.Material).dispose();
+    this.grass = makeGrass(this.replay.meta.n, QUALITY[q].grass, this.floraTex);
+    this.grass.visible = visible;
+    this.scene.add(this.grass);
+    this.resize();
   }
 
   setVisible(layer: Layer, on: boolean): void {

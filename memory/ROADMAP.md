@@ -5,6 +5,7 @@
 
 ## Status
 - **Now:** M3 done except Q-007 (fog: default none, user thinking). Animals act on their own and obey orders (D-052, D-053).
+- **M2:** only the user's fps reading is left (Layers → Quality: Medium, then Low).
 - **Next:** M4: spending (unlock and spawn/plant costs), victory conditions, the scripted bot, the end screen. M2 leftovers: terrain, the instanced grass shader, the user's fps reading (D-044). Then M3.5, the lockstep smoke test. Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
 - **Blocked:**
   - None on design questions for M0.
@@ -51,8 +52,8 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [x] Worker hosting `sim-wasm` (D-041): the "live match" source; field frames only when the flora ticks, as transferable buffers (SharedArrayBuffer waits for per-tick agent data, M3).
 - [x] Plant from the UI in the live match (commands main → worker, D-042).
 - [x] Territory frontier line, P1 solid / P2 dashed (D-040, D-043).
-- [ ] Three.js WebGPURenderer: terrain, flora textures, instanced grass, RTS camera.
-- [ ] Perf check: 60 fps at 64² (D-049) on the reference machine ("medium"), 30 fps on "low" (D-040). Field-frame repaint optimized and HUD fps readout added (D-044); the reading on the laptop is still to do.
+- [x] Three.js WebGPURenderer: terrain (flat diorama ground, D-054), flora textures, instanced grass (D-055), RTS camera; quality presets (D-056).
+- [ ] Perf check (the user, on the reference laptop): the HUD fps with Layers → Quality on Medium (target 60) and Low (floor 30), at 64² (D-040, D-044, D-056).
 
 ## M3 · Agents and control
 - [ ] Resolve Q-007 (fog). (Q-006 and Q-012 resolved by D-018.)

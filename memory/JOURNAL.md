@@ -263,3 +263,12 @@
   - Checked in the browser: 6 voles called, box-selected, moved, then attack-moved toward enemy grass.
   - The timing test was fixed for 64² and map-share caps, and now includes 1,500 animals: ≈1.0 ms per tick on average, 7.9 ms worst tick.
 - **Next:** M4 spending and victory, the scripted bot; the M2 leftovers.
+
+## 2026-09-29 · M2 leftovers: diorama ground, grass, presets (D-054 to D-056)
+- **Done:**
+  - Flat diorama ground: noise-varied earth on a 12 m slab with an earth cross-section. The default view frames the whole slab above the HUD; the fog was pushed out.
+  - Instanced grass (tufts of 3 blades) driven by the flora texture, replacing the L1 dots.
+  - Low / Medium / High presets in the Layers menu.
+  - Browser checks: slab edge; grass up close for both players; the L1 toggle; the preset switch.
+  - Fixed along the way: z-fighting (the slab has no top face) and dark back faces on blades (both windings, up normals).
+- **Left in M2:** the user's fps reading on the reference laptop (Medium, then Low).

@@ -171,6 +171,11 @@ impl Balance {
                 (0.0..=1.0).contains(&s.shade_tolerance),
                 format!("{n}: shade_tolerance must be in 0..1"),
             )?;
+            // The fast flora step needs every established species to have biomass (D-038).
+            check(
+                s.k_max * f.establish_threshold >= 0.5,
+                format!("{n}: k_max x establish_threshold must be >= 1 after rounding"),
+            )?;
             check(
                 s.biomass_rate * dt < 1.0,
                 format!("{n}: biomass_rate * dt must stay < 1"),

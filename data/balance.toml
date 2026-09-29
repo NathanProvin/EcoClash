@@ -4,7 +4,7 @@
 
 [sim]
 tick_hz = 10             # §4 fixed tick
-flora_every_ticks = 5    # §5.3: flora fields at 2 Hz
+flora_every_ticks = 8    # §5.3: flora fields at 1.25 Hz (D-038; keep growth x dt <= 1)
 env_every_ticks = 10     # §5.3: nutrients / water at 1 Hz
 grid_size = 256          # §5.1: 128 low-end, 512 stretch (D-029: halved)
 chunk_size = 32          # §5.3 chunk sleeping, hashing

@@ -199,10 +199,16 @@ mod tests {
         assert_ne!(play(7, 20, 3, &[]).0, play(8, 20, 3, &[]).0);
     }
 
+    /// Ticks per flora step, from the balance (INSTRUCTIONS §5.3).
+    fn every() -> u64 {
+        u64::from(balance().sim.flora_every_ticks)
+    }
+
     #[test]
-    fn flora_runs_every_fifth_tick() {
-        let (_, w) = play(1, 20, 23, &orders());
-        assert_eq!(w.state.t, 5, "ticks 0, 5, 10, 15, 20");
+    fn flora_runs_every_flora_every_ticks() {
+        let ticks = 3 * every() + 1;
+        let (_, w) = play(1, 20, ticks, &orders());
+        assert_eq!(w.state.t, 4, "ticks 0, e, 2e and 3e");
     }
 
     #[test]
@@ -215,16 +221,17 @@ mod tests {
 
     #[test]
     fn incremental_chunk_hashes_match_a_full_recompute() {
-        let (_, mut w) = play(3, 70, 211, &orders()); // 70: chunks at the edge are partial
+        let ticks = 40 * every() + 1; // just after a flora tick
+        let (_, mut w) = play(3, 70, ticks, &orders()); // 70: chunks at the edge are partial
         let incremental = w.chunk_hashes().to_vec();
         let mut fresh = FieldHashes::new(70, 32);
         fresh.refresh(&w.state);
         assert_eq!(incremental, fresh.chunks());
         let before = full_hash(&w.state);
-        w.step(); // tick 211: not a flora tick, the fields stay
+        w.step(); // not a flora tick: the fields stay
         assert_eq!(before, full_hash(&w.state));
-        for _ in 0..4 {
-            w.step(); // up to tick 215: a flora tick
+        for _ in 0..every() {
+            w.step(); // through the next flora tick
         }
         assert_ne!(before, full_hash(&w.state));
     }
@@ -247,7 +254,8 @@ mod tests {
 
     #[test]
     fn snapshot_field_frame_uses_the_replay_layout() {
-        let (_, w) = play(1, 12, 11, &[plant(0, 1, 0, "grasses", 5, 5)]);
+        let ticks = 2 * every() + 1;
+        let (_, w) = play(1, 12, ticks, &[plant(0, 1, 0, "grasses", 5, 5)]);
         let snap = w.snapshot();
         let frame = snap.field_frame();
         let cells = 12 * 12;
@@ -256,25 +264,44 @@ mod tests {
         let grasses = w.flora.p.index("grasses").unwrap();
         let cover = &frame[(2 + grasses) * cells..(3 + grasses) * cells];
         assert!(cover[5 * 12 + 5] > 0 && cover[0] == 0);
-        assert_eq!((snap.tick, snap.flora_tick), (11, 3));
+        assert_eq!((snap.tick, snap.flora_tick), (ticks, 3));
     }
 }
 
 #[cfg(test)]
 mod perf {
     use super::*;
+    use crate::flora::U16;
 
-    /// Manual check against the tick budget (INSTRUCTIONS §5.5):
-    /// `cargo test -p sim-core --release -- --ignored --nocapture flora_tick_time`.
-    #[test]
-    #[ignore = "timing, run by hand in release"]
-    fn flora_tick_time_at_the_default_grid() {
-        let b = Balance::from_toml(
+    fn balance() -> Balance {
+        Balance::from_toml(
             include_str!("../../data/balance.toml"),
             include_str!("../../data/species.toml"),
         )
-        .unwrap();
+        .unwrap()
+    }
+
+    /// Mean time of one flora step over `steps`, and the owned cells at the end.
+    fn time_flora(w: &mut World, steps: u32) -> (std::time::Duration, usize) {
+        let start = std::time::Instant::now();
+        for _ in 0..steps {
+            w.flora.step(&mut w.state);
+        }
+        let owned = w.state.owner.iter().filter(|&&o| o != 0).count();
+        (start.elapsed() / steps, owned)
+    }
+
+    /// Manual check against the tick budget (INSTRUCTIONS §5.5; D-038):
+    /// `cargo test -p sim-core --release -- --ignored --nocapture flora_tick_time`.
+    /// Mid-game: four patches per player spreading. Worst case: the whole map owned, every cell
+    /// holding several species of all three strata.
+    #[test]
+    #[ignore = "timing, run by hand in release"]
+    fn flora_tick_time_at_the_default_grid() {
+        let b = balance();
         let n = usize::try_from(b.sim.grid_size).unwrap();
+        let every = u64::from(b.sim.flora_every_ticks);
+
         let mut w = World::new(&b, 1, n);
         let mut seq = 0;
         for (player, row, col) in [(1, 40, 40), (2, 215, 215), (1, 60, 120), (2, 190, 130)] {
@@ -297,15 +324,26 @@ mod perf {
         for _ in 0..600 {
             w.step(); // 60 s of play: the fronts spread
         }
-        let start = std::time::Instant::now();
-        let flora_ticks = 20;
-        for _ in 0..flora_ticks * 5 {
-            w.step();
+        let (mid, owned) = time_flora(&mut w, 20);
+        println!("{n}x{n} mid-game: {mid:?} per flora tick, {owned} cells owned");
+
+        let mut w = World::new(&b, 1, n);
+        w.state.soil.iter_mut().for_each(|s| *s = U16);
+        for (player, cols) in [(1u8, 0..n / 2), (2u8, n / 2..n)] {
+            let cells: Vec<usize> = (0..n * n).filter(|k| cols.contains(&(k % n))).collect();
+            for name in [
+                "grasses", "clover", "moss", "elder", "hazel", "oak", "beech",
+            ] {
+                let s = w.flora.p.index(name).unwrap();
+                w.flora.p.cap[s] = i64::MAX; // no cap: every cell keeps every species
+                w.flora.plant(&mut w.state, player, s, &cells);
+            }
         }
-        let per_flora_tick = start.elapsed() / flora_ticks;
-        let owned = w.state.owner.iter().filter(|&&o| o != 0).count();
+        let (full, owned) = time_flora(&mut w, 10);
         println!(
-            "{n}x{n}: {per_flora_tick:?} per flora tick (incl. 4 plain ticks), {owned} cells owned"
+            "{n}x{n} full map: {full:?} per flora tick, {owned} cells owned; one flora tick every \
+             {every} ticks = {:?} per tick on average",
+            full / u32::try_from(every).unwrap()
         );
     }
 }

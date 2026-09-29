@@ -399,3 +399,24 @@ Template:
   - **Balance hash** (`hash::balance_hash`): xxh64 over a version number, the `[sim]` integers and every converted flora value (species names in order, levels, per-species fixed-point arrays, global rules, switches). It is computed **after** conversion, never over file bytes. Tested: CRLF, spacing, comments and sub-resolution edits keep it; real stat or rule changes alter it. Stats not read by a ported system yet (costs, yields, fauna) join it with their system. Peers compare it in the handshake (M6); `sim-cli` prints it.
   - **`sim-cli`** (new workspace binary; deps `sim-core` + `serde_json`; std-only argument parsing): `run --seed --ticks [--commands file.jsonl] [--size] [--balance] [--species] [--out metrics.csv] [--hashes hashes.csv]`. It prints the balance hash and final state hash; metrics once per flora tick (territory, biomass, cells per species per player); hashes once per tick.
   - **Cross-check** (`tools/prototype/cli_check.py`, `npm run cli:check`, `tests/test_cli.py`): one command file (both players, an order between flora ticks, two orders in one tick) through `sim-cli` and through the quant prototype with the same command semantics. Every flora tick must match exactly (240 of 240 at 48²). Shifting one order by one flora tick is detected.
+
+## D-038 · 2026-09-29 · Fast flora step; flora every 8 ticks (M1.9)
+- **Status:** accepted (user: lowering the flora frequency is fine)
+- **Context:** The first port took 107 ms per flora tick at 256² (budget: 8 ms per tick).
+- **Decision:**
+  - **Exactness first:** `Flora::step` computes the same state as before, bit for bit. The previous version stays as `step_reference` (test only), and a test runs both on a busy 40×40 map (all strata, both players, a cap) for 400 ticks, comparing everything every 5 ticks. The prototype parity and the `sim-cli` cross-check still hold.
+  - **How:**
+    - One global pass computes cover, a per-cell species-presence bitmask, the dominant level and the cap counts.
+    - Then each cell is solved alone, since every rule reads only the cell and its 4 neighbours, over its relevant species only (present in the cell or next door). A bare cell with bare neighbours is skipped.
+    - Buffers are reused (no per-tick allocation), with a precomputed neighbour table.
+    - The neutral water and light responses are skipped (`div(x·ONE, ONE) = x`).
+  - **Guard:** the loader rejects `k_max × establish_threshold < 1` (the skip logic needs established species to have biomass).
+  - **`flora_every_ticks` 5 → 8** (1.25 Hz). `growth × dt ≤ 1` still holds (max 0.96).
+- **Result** (release, this machine, noisy runs):
+
+  | Case | Per flora tick | Per tick (average) |
+  |---|---|---|
+  | Mid-game (3,800 cells owned) | ~6 ms | ~0.75 ms |
+  | Worst case (all 65,536 cells owned, 7 species each) | 46–55 ms | 5.7–6.9 ms |
+
+  Both are within the 8 ms per tick budget; the largest single tick is far below the 100 ms tick period.

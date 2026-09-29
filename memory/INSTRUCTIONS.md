@@ -214,7 +214,7 @@ Integer implementation constraint (it must already be modelled in the M0 prototy
 ### 5.3 Multi-rate scheduling
 
 - Agents: every tick (10 Hz).
-- Flora fields: every N ticks (default 5, i.e. 2 Hz).
+- Flora fields: every N ticks (default 8, i.e. 1.25 Hz; D-038). Keep `growth × dt ≤ 1` (the loader checks it).
 - Nutrients / water: every M ticks (default 10).
 - Later: **chunk sleeping**. 32×32 chunks with no change above a threshold skip updates.
 
@@ -243,7 +243,7 @@ Optimisations, in order: algorithmic → multi-rate → chunk sleeping → WASM 
 ## 6. Client architecture
 
 - **Main thread:** rendering, UI, input. **Web Worker:** `sim-wasm`.
-- Worker → main: snapshots through `SharedArrayBuffer` (preferred) or transferable `ArrayBuffer`s. Agent data goes every tick. Field layers go only on the ticks where they update (2 Hz by default): the fields are about 4 MB, so every tick would be about 40 MB/s.
+- Worker → main: snapshots through `SharedArrayBuffer` (preferred) or transferable `ArrayBuffer`s. Agent data goes every tick. Field layers go only on the ticks where they update (1.25 Hz by default): sending them every tick would multiply the traffic by 8.
 - Main → worker: commands only.
 - **The bot AI is just another player.** It reads snapshots and emits commands through the same queue as humans, and never mutates state directly. This gives replays, fairness, and a clean worker boundary. Difficulty = reaction delay + APM cap.
 - **Tick overrun:** if the sim can't keep 10 Hz, game time slows down (every lockstep peer waits). The HUD reports it. Ticks are never skipped.

@@ -16,6 +16,7 @@ use crate::fixed::{ONE, div_round};
 const ONE_I: i64 = ONE as i64;
 /// Largest u16: the range of biomass, soil development, water and light.
 pub const U16: i64 = 65_535;
+#[cfg(test)] // only the reference step walks neighbours by offset
 const DIRS: [(isize, isize); 4] = [(-1, 0), (1, 0), (0, -1), (0, 1)];
 const PLAYERS: [u8; 2] = [1, 2];
 
@@ -259,12 +260,60 @@ fn response(x: i64, opt: i64, tol: i64) -> i64 {
 #[derive(Clone, Debug)]
 pub struct Flora {
     pub p: FloraParams,
+    scratch: Scratch,
+}
+
+/// Outside the map, in the neighbour table.
+const NONE: u32 = u32::MAX;
+
+/// Buffers reused from one flora tick to the next (no per-tick allocation).
+#[derive(Clone, Debug, Default)]
+struct Scratch {
+    n: usize,
+    /// The 4 neighbours of each cell (up, down, left, right), NONE outside.
+    nbr: Vec<[u32; 4]>,
+    cover: Vec<i64>,
+    /// Bit s set when species s has biomass in the cell.
+    present: Vec<u64>,
+    dom: Vec<u8>,
+    bio: Vec<i64>,
+    gauge: Vec<i64>,
+    owner: Vec<u8>,
+    soil: Vec<i64>,
+    prog: [Vec<i64>; 2],
+}
+
+impl Scratch {
+    fn prepare(&mut self, n: usize, ns: usize) {
+        let cells = n * n;
+        if self.n != n || self.nbr.len() != cells {
+            self.n = n;
+            let id = |y: usize, x: usize| u32::try_from(y * n + x).unwrap_or(NONE);
+            self.nbr = (0..cells)
+                .map(|k| {
+                    let (y, x) = (k / n, k % n);
+                    [
+                        if y > 0 { id(y - 1, x) } else { NONE },
+                        if y + 1 < n { id(y + 1, x) } else { NONE },
+                        if x > 0 { id(y, x - 1) } else { NONE },
+                        if x + 1 < n { id(y, x + 1) } else { NONE },
+                    ]
+                })
+                .collect();
+        }
+        self.cover.resize(ns * cells, 0);
+        self.present.resize(cells, 0);
+        self.dom.resize(cells, 0);
+    }
 }
 
 impl Flora {
     #[must_use]
     pub fn new(p: FloraParams) -> Flora {
-        Flora { p }
+        Flora {
+            p,
+            scratch: Scratch::default(),
+        }
     }
 
     /// The single site modifier (gamerules §2.3): f_dev x f_soil x f_water x f_light, 0..=ONE.
@@ -279,8 +328,14 @@ impl Flora {
             );
             suit = div(suit * dev.clamp(0, ONE_I), ONE_I);
         }
-        suit = div(suit * response(st.water[k], p.w_opt[s], p.w_tol[s]), ONE_I);
-        div(suit * response(st.light[k], p.l_opt[s], p.l_tol[s]), ONE_I)
+        // A neutral response is ONE, and div(x * ONE, ONE) == x exactly: skip it.
+        if p.w_tol[s] > 0 {
+            suit = div(suit * response(st.water[k], p.w_opt[s], p.w_tol[s]), ONE_I);
+        }
+        if p.l_tol[s] > 0 {
+            suit = div(suit * response(st.light[k], p.l_opt[s], p.l_tol[s]), ONE_I);
+        }
+        suit
     }
 
     /// Dominant level of each cell: the highest stratum with an established species (0 = none).
@@ -330,9 +385,274 @@ impl Flora {
         planted
     }
 
-    /// Advance one flora tick (tools/prototype/flora.py, `Flora.step`, quant mode).
-    #[allow(clippy::too_many_lines)] // one rule per numbered block, mirroring the prototype
-    pub fn step(&self, st: &mut FloraState) {
+    /// Advance one flora tick: the same rules and results as the prototype's quant mode
+    /// (tools/prototype/flora.py, `Flora.step`), computed fast (D-038).
+    ///
+    /// Every rule of a cell reads only that cell and its 4 neighbours in the previous state, and
+    /// a species absent from a cell and its neighbours contributes nothing there. So one global
+    /// pass computes cover, presence and the cap counts, then each cell is solved on its own,
+    /// over its relevant species only; a bare cell with bare neighbours is skipped. Buffers are
+    /// reused between ticks. `step_reference` (tests) is the readable original, kept as oracle.
+    pub fn step(&mut self, st: &mut FloraState) {
+        let mut sc = std::mem::take(&mut self.scratch);
+        self.step_with(st, &mut sc);
+        self.scratch = sc;
+    }
+
+    #[allow(clippy::too_many_lines)] // one rule per numbered block, as in the reference
+    fn step_with(&self, st: &mut FloraState, sc: &mut Scratch) {
+        let p = &self.p;
+        let (n, ns) = (st.n, p.species());
+        let cells = n * n;
+        assert!(ns <= 64, "at most 64 plant species (presence bitmask)");
+        sc.prepare(n, ns);
+
+        // Global pass: cover, presence bitmask, dominant level, cells held per species.
+        let mut held = [vec![0i64; ns], vec![0i64; ns]];
+        for k in 0..cells {
+            let (mut mask, mut dom) = (0u64, 0u8);
+            for s in 0..ns {
+                let i = s * cells + k;
+                let b = st.bio[i];
+                sc.cover[i] = if b > 0 { div(b * ONE_I, p.kmax[s]) } else { 0 };
+                if b >= p.est_thr[s] {
+                    dom = dom.max(p.level[s]);
+                }
+                if b > 0 {
+                    mask |= 1 << s;
+                    if let o @ 1..=2 = st.owner[k] {
+                        held[usize::from(o) - 1][s] += 1;
+                    }
+                }
+            }
+            sc.present[k] = mask;
+            sc.dom[k] = dom;
+        }
+        let full: [Vec<bool>; 2] =
+            [0, 1].map(|pi| (0..ns).map(|s| held[pi][s] >= p.cap[s]).collect());
+        sc.bio.clone_from(&st.bio);
+        sc.gauge.clone_from(&st.gauge);
+        sc.owner.clone_from(&st.owner);
+        sc.soil.clone_from(&st.soil);
+        sc.prog[0].clone_from(&st.prog[0]);
+        sc.prog[1].clone_from(&st.prog[1]);
+
+        let (bio, owner, cover) = (&st.bio, &st.owner, &sc.cover);
+        for k in 0..cells {
+            let nbr = sc.nbr[k];
+            let mut rel = sc.present[k];
+            for &m in &nbr {
+                if m != NONE {
+                    rel |= sc.present[m as usize];
+                }
+            }
+            if rel == 0 && owner[k] == 0 {
+                continue; // bare cell, bare neighbours: nothing changes
+            }
+            let species = || (0..ns).filter(move |&s| rel & (1 << s) != 0);
+            let at = |s: usize| s * cells + k;
+            let (mut suit, mut growth) = ([0i64; 64], [0i64; 64]);
+            for s in species() {
+                suit[s] = self.suitability(st, s, k);
+            }
+
+            // 1-2. Shade and logistic growth with competition, for the species present here.
+            let casts = [1usize, 2].map(|u| {
+                div(
+                    p.strata[u].iter().map(|&j| p.cast[j] * cover[at(j)]).sum(),
+                    ONE_I,
+                )
+            });
+            let totals: [i64; 3] =
+                [0, 1, 2].map(|l| p.strata[l].iter().map(|&j| cover[at(j)]).sum());
+            for s in species().filter(|&s| bio[at(s)] > 0) {
+                let mut shade = ONE_I;
+                if p.shade {
+                    for (u, cast) in [1usize, 2].into_iter().zip(casts) {
+                        if usize::from(p.level[s]) <= u {
+                            let block = div(cast * (ONE_I - p.tol[s]), ONE_I);
+                            shade = div(shade * (ONE_I - block).max(0), ONE_I);
+                        }
+                    }
+                }
+                let i = at(s);
+                let cap = div(shade * st.gauge[i], ONE_I).max(1);
+                let total = totals[usize::from(p.level[s]) - 1];
+                let comp = cover[i] + div(p.alpha * (total - cover[i]), ONE_I);
+                growth[s] = grow_div(p.rdt[s] * bio[i] * (cap - comp), cap * ONE_I);
+            }
+
+            // 3. Soil development.
+            if p.succession {
+                let gain = div(species().map(|s| p.soil_dt[s] * cover[at(s)]).sum(), ONE_I);
+                sc.soil[k] = (st.soil[k] + gain).min(U16);
+            }
+
+            // 4. Pressure, seeds and attack of each player.
+            let dom = sc.dom[k];
+            let can = |s: usize| p.level[s] > dom && suit[s] > 0;
+            let mut press = [[0i64; 64]; 2];
+            let mut seeds = [[false; 64]; 2];
+            let mut attack = [0i64; 2];
+            for (pi, pl) in PLAYERS.into_iter().enumerate() {
+                let cov = |s: usize, m: usize| {
+                    if owner[m] == pl {
+                        cover[s * cells + m]
+                    } else {
+                        0
+                    }
+                };
+                for s in species() {
+                    let mut sum = cov(s, k);
+                    let mut mine = false;
+                    for &m in &nbr {
+                        if m != NONE {
+                            let m = m as usize;
+                            sum += cov(s, m);
+                            mine |= owner[m] == pl && bio[s * cells + m] >= p.est_thr[s];
+                        }
+                    }
+                    press[pi][s] = div(sum, 5).min(ONE_I);
+                    seeds[pi][s] = mine && suit[s] > 0;
+                }
+                for &m in &nbr {
+                    if m != NONE {
+                        let m = m as usize;
+                        attack[pi] += species()
+                            .map(|s| if can(s) { cov(s, m) } else { 0 })
+                            .max()
+                            .unwrap_or(0);
+                    }
+                }
+            }
+
+            // 5. Growth minus litter and smothering; losses become dead biomass.
+            let mut dead = 0;
+            for s in species().filter(|&s| bio[at(s)] > 0) {
+                let i = at(s);
+                let litter = div(p.litter[s] * bio[i], ONE_I);
+                let grown = bio[i] + growth[s] - litter;
+                let mut smothered = 0;
+                for (pi, pl) in PLAYERS.into_iter().enumerate() {
+                    if owner[k] == 3 - pl {
+                        smothered += div(p.smother[s] * attack[pi], ONE_I);
+                    }
+                }
+                let smothered = smothered.min(grown.max(0));
+                dead += litter + smothered + (-growth[s]).max(0);
+                sc.bio[i] = (grown - smothered).clamp(0, U16);
+            }
+            for s in 0..ns {
+                if sc.bio[at(s)] == 0 {
+                    sc.gauge[at(s)] = 0;
+                }
+            }
+            let alive = |b: &[i64]| (0..ns).any(|s| b[s * cells + k] > 0);
+            let mut new_owner = if alive(&sc.bio) { owner[k] } else { 0 };
+
+            // 6. Own cell: gauge toward the suitability, driven by pressure; seed rain.
+            for (pi, pl) in PLAYERS.into_iter().enumerate() {
+                if owner[k] != pl || new_owner != pl {
+                    continue;
+                }
+                for s in species() {
+                    let i = at(s);
+                    if suit[s] <= 0 || (full[pi][s] && sc.bio[i] == 0) {
+                        continue;
+                    }
+                    let gap = (suit[s] - sc.gauge[i]).max(0);
+                    let dg = div(p.rate[s] * press[pi][s] * gap, ONE_I * ONE_I);
+                    sc.gauge[i] += dg;
+                    if dg > 0 {
+                        sc.bio[i] += div(p.seed_b[s] * dg, ONE_I);
+                    }
+                }
+            }
+
+            // The cell becomes player pi+1's; each candidate starts at gauge pressure x suit,
+            // established so the new owner can hold it.
+            let arrive =
+                |pi: usize, cand: &dyn Fn(usize) -> bool, gauge: &mut [i64], new: &mut [i64]| {
+                    for s in species().filter(|&s| cand(s)) {
+                        let i = at(s);
+                        let g = div(press[pi][s] * suit[s], ONE_I);
+                        gauge[i] = g;
+                        new[i] = grow_div(p.seed_b[s] * g, ONE_I).max(p.est_thr[s]);
+                    }
+                };
+
+            // 7. A smothered enemy cell flips to the attacker's higher-level species.
+            for (pi, pl) in PLAYERS.into_iter().enumerate() {
+                if owner[k] == 3 - pl && new_owner == 0 && attack[pi] > 0 {
+                    arrive(
+                        pi,
+                        &|s| can(s) && seeds[pi][s] && !full[pi][s],
+                        &mut sc.gauge,
+                        &mut sc.bio,
+                    );
+                    new_owner = pl;
+                }
+            }
+
+            // 8. Empty cell: claim progress; the first player to complete takes it.
+            if owner[k] == 0 {
+                let cand = |pi: usize, s: usize| seeds[pi][s] && !full[pi][s];
+                let (mut done, mut lvl) = ([false; 2], [0u8; 2]);
+                for pi in 0..2 {
+                    let push = species()
+                        .filter(|&s| cand(pi, s))
+                        .map(|s| div(p.rate[s] * press[pi][s] * suit[s], ONE_I * ONE_I))
+                        .max()
+                        .unwrap_or(0);
+                    sc.prog[pi][k] = st.prog[pi][k] + push;
+                    done[pi] = sc.prog[pi][k] >= ONE_I && species().any(|s| cand(pi, s));
+                    lvl[pi] = species()
+                        .filter(|&s| cand(pi, s))
+                        .map(|s| p.level[s])
+                        .max()
+                        .unwrap_or(0);
+                }
+                for pi in 0..2 {
+                    let q = 1 - pi;
+                    let both = done[0] && done[1];
+                    if (done[pi] && !done[q]) || (p.contested_cells && both && lvl[pi] > lvl[q]) {
+                        arrive(pi, &|s| cand(pi, s), &mut sc.gauge, &mut sc.bio);
+                        new_owner = PLAYERS[pi];
+                    }
+                }
+                if done[0] || done[1] {
+                    sc.prog[0][k] = 0;
+                    sc.prog[1][k] = 0;
+                }
+            } else {
+                sc.prog[0][k] = 0;
+                sc.prog[1][k] = 0;
+            }
+
+            // 9. Biomass below 1 is gone, with its gauge; no biomass, no owner.
+            for s in species() {
+                if sc.bio[at(s)] < 1 {
+                    sc.bio[at(s)] = 0;
+                    sc.gauge[at(s)] = 0;
+                }
+            }
+            sc.owner[k] = if alive(&sc.bio) { new_owner } else { 0 };
+            st.dead[k] += dead;
+        }
+
+        std::mem::swap(&mut st.bio, &mut sc.bio);
+        std::mem::swap(&mut st.gauge, &mut sc.gauge);
+        std::mem::swap(&mut st.owner, &mut sc.owner);
+        std::mem::swap(&mut st.soil, &mut sc.soil);
+        std::mem::swap(&mut st.prog, &mut sc.prog);
+        st.t += 1;
+    }
+
+    /// The readable original: one rule per numbered block over whole arrays, mirroring the
+    /// prototype line by line. Test oracle for `step`.
+    #[cfg(test)]
+    #[allow(clippy::too_many_lines)]
+    pub(crate) fn step_reference(&self, st: &mut FloraState) {
         let p = &self.p;
         let (n, ns) = (st.n, p.species());
         let cells = n * n;
@@ -610,6 +930,51 @@ mod tests {
         Flora::new(FloraParams::from_balance(&b))
     }
 
+    /// The fast step must equal the reference step exactly, on a busy map: soil gradient, all
+    /// three strata for both players, fronts meeting, a small cap, 400 ticks.
+    #[test]
+    fn fast_step_equals_the_reference_step() {
+        let mut fast = flora();
+        let grasses = fast.p.index("grasses").unwrap();
+        fast.p.cap[grasses] = 300; // the cap rule runs too
+        let slow = fast.clone();
+        let n = 40;
+        let mut st = FloraState::new(&fast.p, n);
+        for (k, soil) in st.soil.iter_mut().enumerate() {
+            *soil = i64::try_from(k / n).unwrap() * U16 / 39;
+        }
+        let side = |player: u8| -> Vec<usize> {
+            (0..n * n)
+                .filter(|k| {
+                    if player == 1 {
+                        k % n < 8
+                    } else {
+                        k % n >= n - 8
+                    }
+                })
+                .collect()
+        };
+        for (player, names) in [
+            (1u8, ["grasses", "clover", "elder", "oak", "moss"]),
+            (2u8, ["grasses", "bramble", "hawthorn", "beech", "lichen"]),
+        ] {
+            for name in names {
+                let s = fast.p.index(name).unwrap();
+                fast.plant(&mut st, player, s, &side(player));
+            }
+        }
+        let mut reference = st.clone();
+        for t in 0..400 {
+            fast.step(&mut st);
+            slow.step_reference(&mut reference);
+            if t % 5 == 4 {
+                assert_eq!(st, reference, "tick {t}");
+            }
+        }
+        let owned = st.owner.iter().filter(|&&o| o != 0).count();
+        assert!(owned > 400, "fronts spread and meet: {owned}");
+    }
+
     #[test]
     fn plant_respects_suitability_ownership_and_the_cell_cap() {
         let mut f = flora();
@@ -639,7 +1004,7 @@ mod tests {
 
     #[test]
     fn owned_cells_are_exactly_the_cells_with_biomass() {
-        let f = flora();
+        let mut f = flora();
         let n = 16;
         let mut st = FloraState::new(&f.p, n);
         st.soil.iter_mut().for_each(|s| *s = U16);

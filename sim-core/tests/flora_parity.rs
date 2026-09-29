@@ -109,7 +109,7 @@ fn params_convert_like_the_prototype() {
 #[test]
 fn flora_steps_match_the_prototype_exactly() {
     let fx = fixture();
-    let flora = Flora::new(FloraParams::from_balance(
+    let mut flora = Flora::new(FloraParams::from_balance(
         &Balance::from_toml(&fx.balance, &fx.species).unwrap(),
     ));
     let first = &fx.checkpoints[0];

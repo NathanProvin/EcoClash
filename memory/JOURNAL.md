@@ -177,3 +177,9 @@
 ## 2026-09-28 · M1.7 determinism property tests
 - **Done:** `proptest` over random command streams (invalid players, species, cells, duplicate / late commands): no panic, identical hashes on replay, submission order irrelevant, incremental chunk hashes = fresh recompute, owned cells = cells with biomass. 29 Rust tests green.
 - **Next:** M1.9 flora performance (user OK with a lower flora frequency, e.g. every 8 ticks; `growth * dt <= 1` still holds at dt 0.8), then M1.8 `sim-wasm` + native vs WASM hashes in CI.
+
+## 2026-09-29 · M1.9 fast flora step (D-038)
+- **Done:** Per-cell fused flora step over relevant species, reused buffers, neighbour table; the original kept as a test oracle (400-tick equivalence); flora every 8 ticks.
+- **Result:** 107 ms → ~6 ms mid-game; worst case 46–55 ms per flora tick = 5.7–6.9 ms per tick on average (budget 8).
+- **Checks:** 29 Rust + 40 Python tests; `cli:check` exact on 150 flora ticks.
+- **Next:** M1.8 `sim-wasm`.

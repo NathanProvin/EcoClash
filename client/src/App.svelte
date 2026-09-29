@@ -14,6 +14,7 @@
   import { loadQuality, saveQuality, type Quality } from "./render/quality";
   import BottomBar from "./ui/BottomBar.svelte";
   import CellPanel from "./ui/CellPanel.svelte";
+  import MainMenu from "./ui/MainMenu.svelte";
   import TechTree from "./ui/TechTree.svelte";
   import Timeline from "./ui/Timeline.svelte";
   import TopBar from "./ui/TopBar.svelte";
@@ -38,6 +39,7 @@
   let speed = $state(4);
   let player: 1 | 2 = $state(1);
   let techOpen = $state(false);
+  let inMenu = $state(true); // the main menu covers everything until a game is launched
   let quality: Quality = $state(loadQuality()); // render preset (D-056)
   let selection = $state(new Set<number>());
   let focus: string | null = $state(null);
@@ -252,7 +254,7 @@
       e.preventDefault();
       return;
     }
-    if (!down || typing) return;
+    if (!down || typing || inMenu) return;
     const digit = /^Digit([1-9])$/.exec(e.code)?.[1];
     if (digit) {
       // Chrome keeps Ctrl + 1-8 for its tabs: Shift + digit also sets a group.
@@ -293,8 +295,26 @@
     } catch {
       replays = [LIVE];
     }
+  }
+
+  /** From the main menu: start a live match. */
+  async function launch() {
+    inMenu = false;
     chosen = LIVE;
-    await open(chosen);
+    await open(LIVE);
+  }
+
+  /** Back to the main menu: the match and its worker end. */
+  function toMenu() {
+    viewer?.dispose();
+    viewer = undefined;
+    live?.dispose();
+    live = undefined;
+    replay = undefined;
+    techOpen = false;
+    inspect(null);
+    select([]);
+    inMenu = true;
   }
 
   onMount(() => {
@@ -340,6 +360,7 @@
       {tick}
       bind:player
       onTech={() => (techOpen = true)}
+      onMenu={toMenu}
       {layers}
       {toggle}
       {quality}
@@ -397,6 +418,7 @@
     {/if}
   {/if}
   {#if error}<p class="panel error" role="alert">{error}</p>{/if}
+  {#if inMenu}<MainMenu onLaunch={launch} />{/if}
 </main>
 
 <style>

@@ -607,3 +607,12 @@ Template:
 - **Status:** accepted (user choice: presets now, not in M5)
 - **Decision:** `client/src/render/quality.ts`: Low / Medium / High set the grass tufts per cell (6 / 12 / 24) and cap the device pixel ratio (1 / 1.5 / 2). The preset is chosen in the Layers menu and remembered in `localStorage` (guarded: a blocked store falls back to Medium). Switching rebuilds the grass mesh and resizes the renderer.
 - **Consequences:** The D-040 targets (60 fps on Medium, 30 on Low) can now be checked. Shadows and post-processing join the presets in M5.
+
+## D-057 · 2026-09-29 · Main menu (M4)
+- **Status:** accepted (user request)
+- **Decision:**
+  - The app opens on a main menu (`client/src/ui/MainMenu.svelte`): the title and tagline in a HUD panel over a painted placeholder background (sky gradient and rolling hills in CSS).
+  - An image dropped at `client/public/menu/background.webp` replaces the placeholder, with no code change.
+  - Buttons: "Launch game" starts a live match. "Species" (a catalog of every species) and "Options" (player settings) are shown disabled, marked "soon", as the user plans them for later.
+  - In a game, a Menu button in the top bar ends the match (worker and viewer disposed) and returns to the menu. Game keys are ignored while the menu is open.
+- **Consequences:** Replays stay reachable from the top-bar source menu once in a game.

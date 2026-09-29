@@ -12,6 +12,7 @@
     tick,
     player = $bindable(),
     onTech,
+    onMenu,
     layers,
     toggle,
     quality,
@@ -24,6 +25,7 @@
     tick: number;
     player: 1 | 2;
     onTech: () => void;
+    onMenu: () => void;
     layers: Record<Layer, boolean>;
     toggle: (l: Layer) => void;
     quality: Quality;
@@ -90,6 +92,8 @@
   </div>
 
   <div class="actions">
+    <button class="btn" onclick={onMenu} title="Back to the main menu (ends the match)">Menu</button
+    >
     <button class="btn" onclick={onTech} title="Tech tree (T)"
       ><Icon name="tree" /> Tech tree</button
     >

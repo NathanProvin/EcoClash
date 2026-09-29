@@ -6,7 +6,7 @@
 
 import { MapControls } from "three/addons/controls/MapControls.js";
 import * as THREE from "three/webgpu";
-import { interpolate, type Animal, type Replay, type Role } from "../replay/replay";
+import { interpolate, type Animal, type Source, type Role } from "../replay/replay";
 import { animalSlots, ANIMAL_BASE, CANOPY_Y, CELL, CONE, DOT, plantLayout, rand } from "./layout";
 import { hexToRgb, PLAYER, WORLD, type PlayerId } from "./palette";
 
@@ -56,7 +56,7 @@ export class Viewer {
 
   private constructor(
     private readonly canvas: HTMLCanvasElement,
-    private readonly replay: Replay,
+    private readonly replay: Source,
     renderer: THREE.WebGPURenderer,
   ) {
     const n = replay.meta.n;
@@ -125,7 +125,7 @@ export class Viewer {
     };
   }
 
-  static async create(canvas: HTMLCanvasElement, replay: Replay): Promise<Viewer> {
+  static async create(canvas: HTMLCanvasElement, replay: Source): Promise<Viewer> {
     // WebGPU when available, WebGL2 otherwise (INSTRUCTIONS §3.1).
     const renderer = new THREE.WebGPURenderer({ canvas, antialias: true });
     await renderer.init();

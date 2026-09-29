@@ -122,7 +122,7 @@ EcoClash/
 ├── client/                  # TypeScript + Vite front-end
 │   ├── src/
 │   │   ├── replay/          # replay loader (Python prototype replays until the worker exists, D-028)
-│   │   ├── worker/          # Web Worker hosting sim-wasm
+│   │   ├── worker/          # Web Worker hosting sim-wasm (sim.worker.ts) + its main-thread side (live.ts)
 │   │   ├── render/          # Three.js (WebGPURenderer), TSL shaders
 │   │   ├── ui/              # Svelte components (menus, HUD, minimap)
 │   │   ├── input/           # mouse/keyboard -> commands
@@ -245,7 +245,7 @@ Optimisations, in order: algorithmic → multi-rate → chunk sleeping → WASM 
 ## 6. Client architecture
 
 - **Main thread:** rendering, UI, input. **Web Worker:** `sim-wasm`.
-- Worker → main: snapshots through `SharedArrayBuffer` (preferred) or transferable `ArrayBuffer`s. Agent data goes every tick. Field layers go only on the ticks where they update (1.25 Hz by default): sending them every tick would multiply the traffic by 8.
+- Worker → main: snapshots through `SharedArrayBuffer` (preferred) or transferable `ArrayBuffer`s. Today (D-041) field frames go as transferable buffers; SharedArrayBuffer comes with the per-tick agent data (M3). Agent data goes every tick. Field layers go only on the ticks where they update (1.25 Hz by default): sending them every tick would multiply the traffic by 8.
 - Main → worker: commands only.
 - **The bot AI is just another player.** It reads snapshots and emits commands through the same queue as humans, and never mutates state directly. This gives replays, fairness, and a clean worker boundary. Difficulty = reaction delay + APM cap.
 - **Tick overrun:** if the sim can't keep 10 Hz, game time slows down (every lockstep peer waits). The HUD reports it. Ticks are never skipped.

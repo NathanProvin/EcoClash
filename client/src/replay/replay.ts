@@ -1,6 +1,6 @@
-// Replays exported by the Python prototype (tools/prototype/match.py, export_replay).
-// This is the renderer's data source until the WASM worker exists; the renderer only sees
-// `Replay` (INSTRUCTIONS §6: the renderer is an adapter over snapshots).
+// Replays exported by the Python prototype (tools/prototype/match.py, export_replay), and the
+// `Source` interface the renderer and HUD read: a Replay or a live match (worker/live.ts). The
+// renderer only sees a Source (INSTRUCTIONS §6: the renderer is an adapter over snapshots).
 
 export type Role = "decomposer" | "herbivore" | "predator";
 
@@ -68,6 +68,12 @@ export interface Animal {
   owner: number;
 }
 
+/** What the renderer and HUD read, from a replay file or from the live worker. */
+export type Source = Pick<
+  Replay,
+  "meta" | "animals" | "fields" | "cell" | "counts" | "maxAnimals" | "seriesIndex"
+>;
+
 const ANIMAL_BYTES = 10; // u32 id, u16 y, u16 x, u8 species, u8 owner
 
 export class Replay {
@@ -128,43 +134,16 @@ export class Replay {
     if (this.cached?.frame === frame) return this.cached;
     const cells = this.meta.n * this.meta.n;
     const at = this.fieldAt[frame] ?? 0;
-    const layer = (k: number) => new Uint8Array(this.view.buffer, at + k * cells, cells);
-    const species = this.meta.flora.names.map((_, i) => layer(2 + i));
-    const cover = [1, 2, 3].map((level) => {
-      const sum = new Uint8Array(cells);
-      species.forEach((c, i) => {
-        if (this.meta.flora.level[i] !== level) return;
-        for (let k = 0; k < cells; k++) sum[k] = Math.min(255, (sum[k] ?? 0) + (c[k] ?? 0));
-      });
-      return sum;
-    });
-    this.cached = { frame, owner: layer(0), soil: layer(1), species, cover };
+    this.cached = decodeFields(
+      frame,
+      new Uint8Array(this.view.buffer, at, this.layers * cells),
+      this.meta,
+    );
     return this.cached;
   }
 
-  /** Plants (cover per species) and animals (count per species and owner) on one cell. */
   cell(tick: number, row: number, col: number): CellInfo {
-    const f = this.fields(tick);
-    const k = row * this.meta.n + col;
-    const { names, level } = this.meta.flora;
-    const plants = names
-      .map((name, i) => ({ name, level: level[i] ?? 1, cover: (f.species[i]?.[k] ?? 0) / 255 }))
-      .filter((p) => p.cover > 0);
-    const herd: Record<string, { name: string; owner: number; count: number }> = {};
-    for (const a of this.animals(Math.round(tick))) {
-      if (a.y !== row || a.x !== col) continue;
-      const name = this.meta.fauna.names[a.species] ?? "?";
-      const key = `${name}:${a.owner}`;
-      herd[key] = { name, owner: a.owner, count: (herd[key]?.count ?? 0) + 1 };
-    }
-    return {
-      row,
-      col,
-      owner: f.owner[k] ?? 0,
-      soil: (f.soil[k] ?? 0) / 255,
-      plants,
-      animals: Object.values(herd),
-    };
+    return cellAt(this, tick, row, col);
   }
 
   /** Cells per plant species / animals per animal species for a player (1 or 2), from the latest
@@ -184,6 +163,57 @@ export class Replay {
   seriesIndex(tick: number): number {
     return Math.max(0, Math.min(Math.floor(tick) - 1, (this.meta.series["t_s"]?.length ?? 1) - 1));
   }
+}
+
+/** Split one field frame (owner, soil, cover per plant species; n*n bytes each) into layers,
+ *  plus the cover of each stratum (sum of its species, capped at 255). */
+export function decodeFields(
+  frame: number,
+  bytes: Uint8Array,
+  meta: Pick<ReplayMeta, "n" | "flora">,
+): Fields {
+  const cells = meta.n * meta.n;
+  const layer = (k: number) => bytes.subarray(k * cells, (k + 1) * cells);
+  const species = meta.flora.names.map((_, i) => layer(2 + i));
+  const cover = [1, 2, 3].map((level) => {
+    const sum = new Uint8Array(cells);
+    species.forEach((c, i) => {
+      if (meta.flora.level[i] !== level) return;
+      for (let k = 0; k < cells; k++) sum[k] = Math.min(255, (sum[k] ?? 0) + (c[k] ?? 0));
+    });
+    return sum;
+  });
+  return { frame, owner: layer(0), soil: layer(1), species, cover };
+}
+
+/** Plants (cover per species) and animals (count per species and owner) on one cell. */
+export function cellAt(
+  src: Pick<Source, "meta" | "fields" | "animals">,
+  tick: number,
+  row: number,
+  col: number,
+): CellInfo {
+  const f = src.fields(tick);
+  const k = row * src.meta.n + col;
+  const { names, level } = src.meta.flora;
+  const plants = names
+    .map((name, i) => ({ name, level: level[i] ?? 1, cover: (f.species[i]?.[k] ?? 0) / 255 }))
+    .filter((p) => p.cover > 0);
+  const herd: Record<string, { name: string; owner: number; count: number }> = {};
+  for (const a of src.animals(Math.round(tick))) {
+    if (a.y !== row || a.x !== col) continue;
+    const name = src.meta.fauna.names[a.species] ?? "?";
+    const key = `${name}:${a.owner}`;
+    herd[key] = { name, owner: a.owner, count: (herd[key]?.count ?? 0) + 1 };
+  }
+  return {
+    row,
+    col,
+    owner: f.owner[k] ?? 0,
+    soil: (f.soil[k] ?? 0) / 255,
+    plants,
+    animals: Object.values(herd),
+  };
 }
 
 export function clampTick(tick: number, ticks: number): number {

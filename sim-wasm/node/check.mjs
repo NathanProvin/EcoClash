@@ -2,7 +2,7 @@
 // package, run the same command file through sim-cli (native) and run.mjs (WASM), and demand the
 // same hash at every tick. `npm run wasm:check`; CI runs it on every push.
 
-import { execFileSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,12 +11,7 @@ const run = (cmd, args) => execFileSync(cmd, args, { stdio: ["ignore", "pipe", "
 const ticks = "1200"; // two minutes of play
 const common = ["--seed", "7", "--ticks", ticks, "--size", "64", "--commands", "sim-wasm/node/commands.jsonl"];
 
-run("cargo", ["build", "-q", "-p", "sim-wasm", "--target", "wasm32-unknown-unknown", "--release"]);
-run("wasm-bindgen", [
-  "target/wasm32-unknown-unknown/release/sim_wasm.wasm",
-  "--out-dir", "sim-wasm/pkg",
-  "--target", "web",
-]); // prettier-ignore
+execSync("npm run -s wasm:build", { stdio: "inherit" }); // the package the browser loads too
 
 const dir = mkdtempSync(join(tmpdir(), "ecoclash-"));
 const native = join(dir, "native.csv");

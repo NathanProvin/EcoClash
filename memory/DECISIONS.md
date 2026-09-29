@@ -437,3 +437,16 @@ Template:
   - **Q-009, colours:** P1 blue `#0072B2`, P2 orange `#E69F00` (Okabe–Ito; validator: ΔE 29 under red-green colour blindness, target ≥ 8). A non-colour cue is added: each player's frontier line has its own pattern (P1 solid, P2 dashed).
   - **Q-010, reference machine:** the dev laptop, Lenovo 83EQ (i5-12450H, 8 cores / 12 threads, 16 GB, Intel UHD integrated graphics, 1080p), for every budget: 60 fps on "medium", 30 fps on "low", sim ≤ 8 ms per tick on average.
 - **Consequences:** INSTRUCTIONS §5.5, §7.1 and §11 updated; the M2 perf check uses 256² and this machine. The frontier line pattern comes with the M2 territory border.
+
+## D-041 · 2026-09-29 · Live match in a Web Worker behind the viewer (M2)
+- **Status:** accepted
+- **Decision:**
+  - `client/src/worker/sim.worker.ts` runs `sim-wasm` at the fixed tick rate. When a tick overruns, the next one starts at once: game time slows down, ticks are never skipped. It posts the tick (hash, sim ms per tick) every loop, and the field frame only when the flora ticked.
+  - Field frames travel as transferable `ArrayBuffer`s (about 0.9 MB at 1.25 Hz). SharedArrayBuffer is deferred to M3, when agents need per-tick data. COOP/COEP headers are already set (Vite dev/preview, `public/_headers`).
+  - The renderer and HUD read a `Source` (the public surface of `Replay`); `Live` implements it from the latest frame, and its HUD series grows by one row per frame (end-screen charts later).
+  - `balance.toml` and `species.toml` are bundled into the worker (`?raw`); `sim-wasm` exposes `speciesTable()` (the replay species table, plants only) and `tickHz`.
+  - The worker stamps commands with the next tick to run and a per-player sequence number. There is no input delay locally; lockstep adds it (M3.5).
+  - Until match setup exists (M4), both players open with the prototype builds' tick-0 plants (grasses + lichen at the home point n/4, mirrored).
+  - `npm run wasm:build` builds the package the browser and `wasm:check` share; `client:dev` runs it first. In CI, the rust job uploads `sim-wasm/pkg` and the client job (now after it) downloads it.
+  - URL options: `?seed=N&size=N` (default seed 1, size = balance grid).
+- **Consequences:** the viewer opens on the live match; replays stay in the source menu.

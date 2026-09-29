@@ -1,7 +1,7 @@
 <script lang="ts">
   // RTS resource bar (D-030): land colonized, species alive, biomass stock and its rate, for the
   // viewed player; plus the view switch, the tech tree button and the layers menu.
-  import type { Replay } from "../replay/replay";
+  import type { Source } from "../replay/replay";
   import type { Layer } from "../render/viewer";
 
   let {
@@ -15,7 +15,7 @@
     chosen = $bindable(),
     onChoose,
   }: {
-    replay: Replay;
+    replay: Source;
     tick: number;
     player: 1 | 2;
     onTech: () => void;
@@ -23,7 +23,7 @@
     toggle: (l: Layer) => void;
     replays: string[];
     chosen: string;
-    onChoose: () => void;
+    onChoose: (name: string) => void;
   } = $props();
 
   let menu = $state(false);
@@ -74,7 +74,11 @@
   <div class="actions">
     <button onclick={onTech} title="Tech tree (T)">Tech tree</button>
     {#if replays.length > 1}
-      <select bind:value={chosen} onchange={onChoose} aria-label="Replay">
+      <select
+        bind:value={chosen}
+        onchange={(e) => onChoose(e.currentTarget.value)}
+        aria-label="Replay"
+      >
         {#each replays as name (name)}<option value={name}>{name}</option>{/each}
       </select>
     {/if}

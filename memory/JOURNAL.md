@@ -191,3 +191,11 @@
 ## 2026-09-29 · Q-008, Q-009, Q-010 resolved (D-040)
 - **Done:** The user chose 1 cell = 2 m (2–3 min to cross), blue/orange with a frontier pattern cue, and this laptop (i5-12450H, Intel UHD) as the reference for every budget.
 - **Next:** M2, the live worker behind the viewer.
+
+## 2026-09-29 · M2 live worker (D-041)
+- **Done:**
+  - The viewer runs a live `sim-wasm` match in a Web Worker: 256², about 7.5 ms per tick measured in the browser (HUD readout).
+  - COOP/COEP headers are set (`crossOriginIsolated` is true in dev).
+  - `Source` interface over Replay and Live; the cell inspector, bottom bar and top bar work on live data.
+  - Fixed: the source menu read the bound value before the binding updated it.
+- **Next:** planting from the UI, the frontier line, the perf check.

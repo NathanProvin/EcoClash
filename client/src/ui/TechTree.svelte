@@ -2,14 +2,14 @@
   // Full-screen tech tree (gamerules §4, D-029/D-030): flora L1..L3 and fauna F1..F5 as levels x
   // tiers; each card shows the stat sheet and its state for the viewed player at the current time.
   import { cardState, glyph, label, unlockedAt } from "../game/species";
-  import type { Replay, Species } from "../replay/replay";
+  import type { Source, Species } from "../replay/replay";
 
   let {
     replay,
     tick,
     player,
     onClose,
-  }: { replay: Replay; tick: number; player: 1 | 2; onClose: () => void } = $props();
+  }: { replay: Source; tick: number; player: 1 | 2; onClose: () => void } = $props();
 
   const meta = $derived(replay.meta);
   const unlocked = $derived(unlockedAt(meta, player, tick * meta.dt));

@@ -4,7 +4,8 @@
   // rotate, right-drag = pan, wheel = zoom. Keys: WASD / arrows = pan, Q / E = rotate, Home = reset view, Space = play,
   // T = tech tree, Esc = close / clear selection.
   import { onDestroy, onMount } from "svelte";
-  import { loadReplay, type Replay } from "./replay/replay";
+  import { loadReplay, type Source } from "./replay/replay";
+  import { Live } from "./worker/live";
   import { Viewer, type CameraKeys, type Layer } from "./render/viewer";
   import BottomBar from "./ui/BottomBar.svelte";
   import CellPanel from "./ui/CellPanel.svelte";
@@ -15,7 +16,10 @@
   let canvas: HTMLCanvasElement;
   let replays: string[] = $state([]);
   let chosen = $state("");
-  let replay: Replay | undefined = $state();
+  let replay: Source | undefined = $state();
+  let live: Live | undefined = $state();
+  let simMs = $state(0);
+  const LIVE = "live match";
   let viewer: Viewer | undefined;
   let error = $state("");
   let tick = $state(0);
@@ -72,8 +76,15 @@
   function frame(now: number) {
     const r = replay;
     const seconds = Math.min((now - last) / 1000, 0.1);
+    if (live) {
+      tick = live.tick;
+      simMs = live.simMs;
+      if (live.error) error = live.error;
+    }
     if (r && viewer) {
-      if (playing) {
+      if (live) {
+        // the worker keeps time
+      } else if (playing) {
         tick = Math.min(tick + (seconds / r.meta.dt) * speed, r.meta.ticks - 1);
         if (tick >= r.meta.ticks - 1) playing = false;
       }
@@ -88,8 +99,17 @@
     error = "";
     viewer?.dispose();
     viewer = undefined;
+    live?.dispose();
+    live = undefined;
     try {
-      replay = await loadReplay(`replays/${name}`);
+      if (name === LIVE) {
+        // ?seed=N&size=N (0 = the balance grid size); a fixed default seed keeps runs reproducible
+        const q = new URLSearchParams(location.search);
+        live = await Live.start(Number(q.get("seed") ?? 1), Number(q.get("size") ?? 0));
+        replay = live;
+      } else {
+        replay = await loadReplay(`replays/${name}`);
+      }
       viewer = await Viewer.create(canvas, replay);
       viewer.resize();
       for (const [layer, on] of Object.entries(layers)) viewer.setVisible(layer as Layer, on);
@@ -179,19 +199,22 @@
     }
   }
 
+  $effect(() => {
+    live?.send({ type: "pause", paused: !playing });
+    live?.send({ type: "speed", speed });
+  });
+
   const resize = () => viewer?.resize();
 
   async function start() {
     try {
       const res = await fetch("replays/index.json");
-      replays = res.ok ? ((await res.json()) as string[]) : [];
+      replays = [LIVE, ...(res.ok ? ((await res.json()) as string[]) : [])];
     } catch {
-      replays = [];
+      replays = [LIVE];
     }
-    if (replays[0]) {
-      chosen = replays[0];
-      await open(chosen);
-    }
+    chosen = LIVE;
+    await open(chosen);
   }
 
   onMount(() => {
@@ -204,6 +227,7 @@
     window.removeEventListener("resize", resize);
     cancelAnimationFrame(raf);
     viewer?.dispose();
+    live?.dispose();
   });
 </script>
 
@@ -229,13 +253,7 @@
     ></div>
   {/if}
 
-  {#if !replays.length}
-    <div class="panel empty">
-      <h1>No replay yet</h1>
-      <p>Generate one from the Python prototype, then reload:</p>
-      <code>npm run proto -- --replay</code>
-    </div>
-  {:else if replay}
+  {#if replay}
     <TopBar
       {replay}
       {tick}
@@ -245,9 +263,9 @@
       {toggle}
       {replays}
       bind:chosen
-      onChoose={() => open(chosen)}
+      onChoose={open}
     />
-    <Timeline {replay} bind:tick bind:playing bind:speed {result} />
+    <Timeline {replay} live={!!live} {simMs} bind:tick bind:playing bind:speed {result} />
     <BottomBar
       {replay}
       {tick}
@@ -302,13 +320,6 @@
     background: rgba(250, 250, 247, 0.7);
     padding: 2px 8px;
     border-radius: 6px;
-  }
-  .empty {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
   }
   .error {
     position: absolute;

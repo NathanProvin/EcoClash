@@ -28,7 +28,7 @@ Gameplay rules (strata, tech tree, species, fauna, endgame) live in `data/gameru
 - `npm run doctor`: check all toolchains. Run it first on a new machine.
 - `npm run py:sync` / `npm run py:test` / `npm run py:lint`: Python tools (uv project in `tools/`).
 - `npm run proto -- [--replay]`: the M0 prototype match (flora + fauna + economy, 64² by default); `--replay` exports to `client/public/replays/`. Species stats: `data/species.toml`.
-- `npm run client:dev` (viewer at http://localhost:5173), `client:build` / `client:check` / `client:lint` / `client:test`: the web client.
+- `npm run client:dev` (builds `sim-wasm`, then the viewer at http://localhost:5173: a live match, plus replays), `client:build` / `client:check` / `client:lint` / `client:test`: the web client. Build and check need `sim-wasm/pkg/` (`npm run wasm:build`).
 - `npm run rs:lint` (fmt + clippy -D warnings) / `rs:test` / `rs:wasm` (wasm32 build check): the Rust workspace (`sim-core`).
 - `npm run wasm:check`: build `sim-wasm` (wasm-bindgen, `--target web` into `sim-wasm/pkg/`) and require the same hash at every tick as native `sim-cli`. Needs `wasm-bindgen-cli` at the `Cargo.lock` version (`npm run doctor` says how).
 - `npm run cli:check`: run the same command file through `sim-cli` and the prototype; the metrics must match exactly (also in pytest).

@@ -1,15 +1,20 @@
 <script lang="ts">
-  // Replay playback strip: play / pause (Space), speed, scrubber. Sits above the unit bar.
-  import type { Replay } from "../replay/replay";
+  // Playback strip: play / pause (Space), speed, and the scrubber for a replay or the sim time per
+  // tick for a live match (INSTRUCTIONS §6: the HUD reports tick overruns). Above the unit bar.
+  import type { Source } from "../replay/replay";
 
   let {
     replay,
+    live,
+    simMs,
     tick = $bindable(),
     playing = $bindable(),
     speed = $bindable(),
     result,
   }: {
-    replay: Replay;
+    replay: Source;
+    live: boolean;
+    simMs: number;
     tick: number;
     playing: boolean;
     speed: number;
@@ -21,7 +26,7 @@
     `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
   function playPause() {
-    if (!playing && tick >= replay.meta.ticks - 1) tick = 0; // replay from the start
+    if (!live && !playing && tick >= replay.meta.ticks - 1) tick = 0; // replay from the start
     playing = !playing;
   }
 </script>
@@ -30,17 +35,25 @@
   <button onclick={playPause} aria-label={playing ? "Pause" : "Play"}>
     {playing ? "❚❚" : "▶"}
   </button>
-  <span class="clock"
-    >{clock(tick * replay.meta.dt)} / {clock(replay.meta.ticks * replay.meta.dt)}</span
-  >
-  <input
-    type="range"
-    min="0"
-    max={replay.meta.ticks - 1}
-    step="1"
-    bind:value={tick}
-    aria-label="Match time"
-  />
+  {#if live}
+    <span class="clock">{clock(tick * replay.meta.dt)}</span>
+    <span class:slow={simMs * speed > replay.meta.dt * 1000} title="Sim time per tick (budget 8 ms)"
+      >sim {simMs.toFixed(1)} ms/tick</span
+    >
+    <span class="grow"></span>
+  {:else}
+    <span class="clock"
+      >{clock(tick * replay.meta.dt)} / {clock(replay.meta.ticks * replay.meta.dt)}</span
+    >
+    <input
+      type="range"
+      min="0"
+      max={replay.meta.ticks - 1}
+      step="1"
+      bind:value={tick}
+      aria-label="Match time"
+    />
+  {/if}
   <select bind:value={speed} aria-label="Playback speed">
     {#each speeds as s (s)}<option value={s}>{s}×</option>{/each}
   </select>
@@ -61,8 +74,12 @@
     background: rgba(250, 250, 247, 0.72);
     border-top: 1px solid var(--line);
   }
-  input[type="range"] {
+  input[type="range"],
+  .grow {
     flex: 1;
+  }
+  .slow {
+    color: #a3261b;
   }
   button {
     width: 32px;

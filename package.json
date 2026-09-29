@@ -12,7 +12,7 @@
     "py:test": "uv run --directory tools pytest",
     "py:lint": "uv run --directory tools ruff check . && uv run --directory tools ruff format --check .",
     "proto": "uv run --directory tools python -m prototype.match",
-    "client:dev": "npm run dev -w client",
+    "client:dev": "npm run wasm:build && npm run dev -w client",
     "client:build": "npm run build -w client",
     "client:check": "npm run check -w client",
     "client:lint": "npm run lint -w client",
@@ -22,6 +22,7 @@
     "rs:wasm": "cargo build -p sim-core --target wasm32-unknown-unknown --release",
     "rs:fixture": "uv run --directory tools python -m prototype.fixture",
     "cli:check": "uv run --directory tools python -m prototype.cli_check",
+    "wasm:build": "cargo build -q -p sim-wasm --target wasm32-unknown-unknown --release && wasm-bindgen target/wasm32-unknown-unknown/release/sim_wasm.wasm --out-dir sim-wasm/pkg --target web",
     "wasm:check": "node sim-wasm/node/check.mjs"
   },
   "workspaces": [

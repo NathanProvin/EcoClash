@@ -15,6 +15,8 @@ use wasm_bindgen::prelude::*;
 pub struct Sim {
     world: World,
     balance_hash: u64,
+    species: String,
+    tick_hz: u32,
 }
 
 #[wasm_bindgen]
@@ -28,6 +30,8 @@ impl Sim {
         let n = usize::try_from(n).map_err(|e| JsError::new(&e.to_string()))?;
         Ok(Sim {
             balance_hash: balance_hash(&b),
+            species: species_table(&b),
+            tick_hz: b.sim.tick_hz,
             world: World::new(&b, seed, n),
         })
     }
@@ -64,6 +68,12 @@ impl Sim {
         hex(self.balance_hash)
     }
 
+    /// Sim ticks per second.
+    #[wasm_bindgen(getter, js_name = tickHz)]
+    pub fn tick_hz(&self) -> u32 {
+        self.tick_hz
+    }
+
     /// Commands refused so far.
     #[wasm_bindgen(getter)]
     pub fn rejected(&self) -> f64 {
@@ -84,6 +94,31 @@ impl Sim {
     pub fn species_names(&self) -> Vec<String> {
         self.world.flora.p.names.clone()
     }
+
+    /// The plant stat sheet as JSON, in id order and in the viewer's `Species` shape (the same
+    /// table the prototype writes into replays: tools/prototype/match.py, `species_table`).
+    #[wasm_bindgen(js_name = speciesTable)]
+    pub fn species_table(&self) -> String {
+        self.species.clone()
+    }
+}
+
+fn species_table(b: &Balance) -> String {
+    let rows: Vec<_> = b
+        .flora_species
+        .iter()
+        .map(|(name, s)| {
+            serde_json::json!({
+                "name": name, "kind": "flora", "level": s.level, "tier": s.tier,
+                "role": format!("L{}", s.level), "habitat": [], "eats": [],
+                "stats": {
+                    "growth": s.growth, "spawn_cost": s.spawn_cost, "unlock_cost": s.unlock_cost,
+                    "yield": s.yield_, "cap": s.cap, "effect": s.effect,
+                },
+            })
+        })
+        .collect();
+    serde_json::Value::Array(rows).to_string()
 }
 
 fn hex(v: u64) -> String {

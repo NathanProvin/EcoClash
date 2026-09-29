@@ -4,12 +4,12 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M2: the browser worker running `sim-wasm` live behind the existing viewer.
-- **Next:** M1 (`sim-core`). Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
+- **Now:** M2: planting from the UI in the live match, then the territory frontier line (D-040 pattern cue).
+- **Next:** M2 perf check on the reference laptop, then M3. Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
 - **Blocked:**
   - None on design questions for M0.
   - None on the tooling side (Rust ready as of 2026-09-27).
-- **Last updated:** 2026-09-27
+- **Last updated:** 2026-09-29
 
 ---
 
@@ -47,8 +47,10 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [x] RTS UI v1 on the replay viewer (D-030): top resource bar, bottom unit bar with box selection, full-screen tech tree, camera rotation.
 - [x] Replay viewer (early M2, D-028): the Python prototype exports replays; the Vite + TS + Svelte + Three.js client plays them back with placeholder shapes, an RTS camera and a HUD.
 - [x] Resolve Q-008 (scale), Q-009 (colours), Q-010 (reference machine) (D-040).
-- [ ] Vite + TS + Svelte scaffold as an npm workspace (`client/`) — done with the viewer; still to do: COOP/COEP headers in dev and `_headers`.
-- [ ] Worker hosting `sim-wasm`, SharedArrayBuffer snapshots (fields at their update rate only).
+- [x] Vite + TS + Svelte scaffold as an npm workspace (`client/`), COOP/COEP headers in dev/preview and `public/_headers`.
+- [x] Worker hosting `sim-wasm` (D-041): the "live match" source; field frames only when the flora ticks, as transferable buffers (SharedArrayBuffer waits for per-tick agent data, M3).
+- [ ] Plant from the UI in the live match (commands main → worker).
+- [ ] Territory frontier line, P1 solid / P2 dashed (D-040).
 - [ ] Three.js WebGPURenderer: terrain, flora textures, instanced grass, RTS camera.
 - [ ] Perf check: 60 fps at 256² on the reference machine ("medium"), 30 fps on "low" (D-040).
 

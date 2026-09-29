@@ -32,6 +32,11 @@ jobs:
         run: command -v wasm-bindgen || cargo install wasm-bindgen-cli --version "=$WASM_BINDGEN" --locked
       - name: Native vs WASM hashes (INSTRUCTIONS §4)
         run: npm run wasm:check
+      - name: WASM package for the client job
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-wasm-pkg
+          path: sim-wasm/pkg
 
   python:
     runs-on: ubuntu-latest
@@ -46,9 +51,14 @@ jobs:
       - run: npm run py:test
 
   client:
+    needs: rust # the live match imports the sim-wasm package built there
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: sim-wasm-pkg
+          path: sim-wasm/pkg
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc

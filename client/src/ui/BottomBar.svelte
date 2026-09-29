@@ -2,7 +2,7 @@
   // RTS unit bar (D-030): the current selection grouped by species, or, when nothing is selected,
   // the viewed player's living species. A card focuses a species; the left panel shows its stats.
   import { glyph, label, position } from "../game/species";
-  import type { Replay, Species } from "../replay/replay";
+  import type { Source, Species } from "../replay/replay";
 
   let {
     replay,
@@ -13,7 +13,7 @@
     onPickSpecies,
     onClear,
   }: {
-    replay: Replay;
+    replay: Source;
     tick: number;
     player: 1 | 2;
     selection: Set<number>;

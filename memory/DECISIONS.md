@@ -420,3 +420,12 @@ Template:
   | Worst case (all 65,536 cells owned, 7 species each) | 46–55 ms | 5.7–6.9 ms |
 
   Both are within the 8 ms per tick budget; the largest single tick is far below the 100 ms tick period.
+
+## D-039 · 2026-09-29 · `sim-wasm` and the native vs WASM check (M1.8)
+- **Status:** accepted
+- **Decision:**
+  - **`sim-wasm`** (cdylib): a thin wasm-bindgen wrapper with no rules of its own. `Sim::new(balance, species, seed, size)`, `submit(json)`, `step()` → hash, `tick` / `floraTick` / `balanceHash` / `rejected`, `fieldFrame()` (replay v3 layout, what the viewer decodes) and `speciesNames()`. Hashes cross as 16-digit hex strings (u64 would be a BigInt).
+  - **One package for Node and browser:** `wasm-bindgen --target web` into `sim-wasm/pkg/` (git-ignored). Node loads it with `initSync(bytes)`; the M2 worker will load the same package. (`--target nodejs` emits CommonJS, which clashes with the repo's `"type": "module"`.)
+  - **`npm run wasm:check`** (`sim-wasm/node/check.mjs`) builds the package, runs `sim-wasm/node/commands.jsonl` (both players, an order between flora ticks, an invalid player) for 1200 ticks through `sim-cli` and `run.mjs`, and requires the same hash on every tick. CI's rust job runs it, with `wasm-bindgen-cli` cached per version.
+  - **Pinning (D-008):** `wasm-bindgen = "=0.2.129"`. `npm run doctor` checks that the installed CLI matches the version in `Cargo.lock` and prints the install command.
+- **Deps (rule 5):** `wasm-bindgen` (the browser binding, INSTRUCTIONS §3.1) and `serde_json` (commands arrive as JSON).

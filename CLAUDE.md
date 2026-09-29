@@ -30,6 +30,7 @@ Gameplay rules (strata, tech tree, species, fauna, endgame) live in `data/gameru
 - `npm run proto -- [--replay]`: the M0 prototype match (flora + fauna + economy, 64² by default); `--replay` exports to `client/public/replays/`. Species stats: `data/species.toml`.
 - `npm run client:dev` (viewer at http://localhost:5173), `client:build` / `client:check` / `client:lint` / `client:test`: the web client.
 - `npm run rs:lint` (fmt + clippy -D warnings) / `rs:test` / `rs:wasm` (wasm32 build check): the Rust workspace (`sim-core`).
+- `npm run wasm:check`: build `sim-wasm` (wasm-bindgen, `--target web` into `sim-wasm/pkg/`) and require the same hash at every tick as native `sim-cli`. Needs `wasm-bindgen-cli` at the `Cargo.lock` version (`npm run doctor` says how).
 - `npm run cli:check`: run the same command file through `sim-cli` and the prototype; the metrics must match exactly (also in pytest).
 - `npm run rs:fixture`: regenerate the flora parity fixture from the prototype. **A flora rule change goes into both `tools/prototype/flora.py` (quant mode) and `sim-core/src/flora.rs`, then regenerate; the parity test must stay exact (D-034).** Tuning values in `data/*.toml` needs no code change and no regeneration.
 - Python: always go through `uv run` (the bare `python` on this machine is the Microsoft Store stub).

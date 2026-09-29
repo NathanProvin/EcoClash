@@ -183,3 +183,7 @@
 - **Result:** 107 ms → ~6 ms mid-game; worst case 46–55 ms per flora tick = 5.7–6.9 ms per tick on average (budget 8).
 - **Checks:** 29 Rust + 40 Python tests; `cli:check` exact on 150 flora ticks.
 - **Next:** M1.8 `sim-wasm`.
+
+## 2026-09-29 · M1.8 sim-wasm, native vs WASM hashes (D-039)
+- **Done:** `sim-wasm` wrapper; Node runner on the `--target web` package; `npm run wasm:check` identical on 1200 ticks; doctor checks the wasm-bindgen CLI version; CI runs the check. M1 complete.
+- **Next:** M2, the live worker behind the viewer (open questions Q-008 / Q-009 / Q-010 first).

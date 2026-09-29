@@ -17,6 +17,8 @@ const nodeMajor = Number(read('.nvmrc'));
 const python = read('.python-version');
 const rust = read('rust-toolchain.toml').match(/channel\s*=\s*"([^"]+)"/)[1];
 const vswhere = 'C:/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe';
+// The wasm-bindgen CLI must match the wasm-bindgen crate exactly (D-008).
+const bindgen = read('Cargo.lock').match(/name = "wasm-bindgen"\nversion = "([^"]+)"/)?.[1];
 
 // [name, check() -> found version / true when OK, falsy when not, fix hint]
 const checks = [
@@ -31,6 +33,8 @@ const checks = [
     'rustup toolchain install   (reads rust-toolchain.toml)'],
   ['wasm32 target', () => run('rustup target list --installed')?.includes('wasm32-unknown-unknown'),
     'rustup toolchain install   (reads rust-toolchain.toml)'],
+  [`wasm-bindgen-cli ${bindgen}`, () => bindgen && run('wasm-bindgen --version')?.endsWith(bindgen) && bindgen,
+    `cargo install wasm-bindgen-cli --version =${bindgen} --locked`],
 ];
 if (process.platform === 'win32') {
   checks.push(['MSVC C++ build tools', () => existsSync(vswhere)

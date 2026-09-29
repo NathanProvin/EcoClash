@@ -116,7 +116,7 @@ EcoClash/
 │   └── tests/               # unit + determinism tests
 ├── sim-ai/                  # (M4) scripted bot: reads snapshots, emits commands only
 ├── sim-cli/                 # (M1) headless runner: seed + balance + commands -> hashes / metrics (CSV/JSON)
-├── sim-wasm/                # wasm-bindgen wrapper around sim-core (browser)
+├── sim-wasm/                # wasm-bindgen wrapper around sim-core (browser worker + node/ runner)
 ├── sim-py/                  # (M4+, only if needed) PyO3 + maturin bindings for AI training
 ├── relay/                   # (M6) WebSocket lockstep relay server (forwards commands, compares hashes)
 ├── client/                  # TypeScript + Vite front-end

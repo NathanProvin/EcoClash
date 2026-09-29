@@ -20,6 +20,18 @@ jobs:
       - run: npm run rs:lint
       - run: npm run rs:test
       - run: npm run rs:wasm
+      - name: wasm-bindgen version from Cargo.lock (the CLI must match it, D-008)
+        run: |
+          v=$(grep -A1 '^name = "wasm-bindgen"$' Cargo.lock | sed -n 's/^version = "\(.*\)"/\1/p')
+          echo "WASM_BINDGEN=$v" >> "$GITHUB_ENV"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/wasm-bindgen
+          key: wasm-bindgen-cli-${{ env.WASM_BINDGEN }}
+      - name: wasm-bindgen-cli
+        run: command -v wasm-bindgen || cargo install wasm-bindgen-cli --version "=$WASM_BINDGEN" --locked
+      - name: Native vs WASM hashes (INSTRUCTIONS §4)
+        run: npm run wasm:check
 
   python:
     runs-on: ubuntu-latest

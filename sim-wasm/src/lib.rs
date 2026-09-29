@@ -1,0 +1,91 @@
+//! The simulation for the browser (Web Worker) and Node (INSTRUCTIONS §3.1, §6): a thin
+//! wasm-bindgen wrapper over `sim_core::world::World`. It holds no rules of its own, so native
+//! (`sim-cli`) and WASM runs give the same hash at every tick (checked by `npm run wasm:check`).
+//!
+//! Hashes cross the boundary as 16-digit hex strings (u64 would become a JS BigInt).
+
+use sim_core::balance::Balance;
+use sim_core::commands::Command;
+use sim_core::hash::balance_hash;
+use sim_core::world::World;
+use wasm_bindgen::prelude::*;
+
+/// One running match.
+#[wasm_bindgen]
+pub struct Sim {
+    world: World,
+    balance_hash: u64,
+}
+
+#[wasm_bindgen]
+impl Sim {
+    /// A bare `size x size` map (0 = the balance's grid size), from the contents of
+    /// `balance.toml` and `species.toml`, with a match seed.
+    #[wasm_bindgen(constructor)]
+    pub fn new(balance: &str, species: &str, seed: u64, size: u32) -> Result<Sim, JsError> {
+        let b = Balance::from_toml(balance, species).map_err(|e| JsError::new(&e))?;
+        let n = if size == 0 { b.sim.grid_size } else { size };
+        let n = usize::try_from(n).map_err(|e| JsError::new(&e.to_string()))?;
+        Ok(Sim {
+            balance_hash: balance_hash(&b),
+            world: World::new(&b, seed, n),
+        })
+    }
+
+    /// Queue one command (JSON, as in command files). False if refused (late or duplicate).
+    pub fn submit(&mut self, command: &str) -> Result<bool, JsError> {
+        let c: Command = serde_json::from_str(command).map_err(|e| JsError::new(&e.to_string()))?;
+        Ok(self.world.submit(c))
+    }
+
+    /// Run one tick; returns the state hash after it.
+    pub fn step(&mut self) -> String {
+        hex(self.world.step())
+    }
+
+    /// Ticks done so far.
+    #[wasm_bindgen(getter)]
+    pub fn tick(&self) -> f64 {
+        #[allow(clippy::cast_precision_loss)] // exact below 2^53 ticks (~28 000 years at 10 Hz)
+        let t = self.world.tick as f64;
+        t
+    }
+
+    /// Flora ticks done so far: the field frame changes only when this does.
+    #[wasm_bindgen(getter, js_name = floraTick)]
+    pub fn flora_tick(&self) -> f64 {
+        #[allow(clippy::cast_precision_loss)]
+        let t = self.world.state.t as f64;
+        t
+    }
+
+    #[wasm_bindgen(getter, js_name = balanceHash)]
+    pub fn balance_hash(&self) -> String {
+        hex(self.balance_hash)
+    }
+
+    /// Commands refused so far.
+    #[wasm_bindgen(getter)]
+    pub fn rejected(&self) -> f64 {
+        #[allow(clippy::cast_precision_loss)]
+        let r = self.world.rejected as f64;
+        r
+    }
+
+    /// The current field frame, in the replay v3 layout the viewer decodes: owner, soil, then the
+    /// cover of each plant species, `n * n` bytes each.
+    #[wasm_bindgen(js_name = fieldFrame)]
+    pub fn field_frame(&self) -> Vec<u8> {
+        self.world.snapshot().field_frame()
+    }
+
+    /// Plant species names, in id order (the order of the cover layers).
+    #[wasm_bindgen(js_name = speciesNames)]
+    pub fn species_names(&self) -> Vec<String> {
+        self.world.flora.p.names.clone()
+    }
+}
+
+fn hex(v: u64) -> String {
+    format!("{v:016x}")
+}

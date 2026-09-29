@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M1.8 `sim-wasm` + Node runner, native vs WASM hashes in CI.
+- **Now:** M1 complete. Next: M2, the browser worker running `sim-wasm` live behind the existing viewer (Q-008 / Q-009 / Q-010 first).
 - **Next:** M1 (`sim-core`). Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
 - **Blocked:**
   - None on design questions for M0.
@@ -41,7 +41,7 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [x] M1.6 `sim-cli run` → per-tick hash + metrics CSV. `npm run cli:check` / pytest compare it with the M0 quant mode: identical on every flora tick (D-037).
 - [x] M1.7 Determinism tests: run twice, `proptest` command streams (invalid ones included), chunk-hash and ownership invariants (`sim-core/tests/determinism.rs`).
 - [x] M1.9 Flora step performance (D-038): 107 → ~6 ms per flora tick mid-game, 46–55 ms on a fully owned 256² map; flora every 8 ticks → ≤ 7 ms per tick on average in the worst case. Measure: `cargo test -p sim-core --release -- --ignored --nocapture flora_tick_time`.
-- [ ] M1.8 `sim-wasm` + Node headless runner. CI checks the native vs WASM hash. `npm run doctor` checks that the `wasm-bindgen-cli` version matches `Cargo.lock` (D-008).
+- [x] M1.8 `sim-wasm` + Node headless runner. CI checks the native vs WASM hash (`npm run wasm:check`: identical on 1200 ticks). `npm run doctor` checks that the `wasm-bindgen-cli` version matches `Cargo.lock` (D-008, D-039).
 
 ## M2 · Web render of fields
 - [x] RTS UI v1 on the replay viewer (D-030): top resource bar, bottom unit bar with box selection, full-screen tech tree, camera rotation.

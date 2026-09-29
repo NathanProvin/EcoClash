@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["sim-core", "sim-cli"]
+members = ["sim-core", "sim-cli", "sim-wasm"]
 
 [workspace.package]
 version = "0.1.0"

@@ -4,8 +4,8 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M2: the territory frontier line (D-040 pattern cue).
-- **Next:** M2 perf check on the reference laptop, then M3. Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
+- **Now:** M2 perf check on the reference laptop (60 fps "medium" at 256², D-040).
+- **Next:** the rest of the M2 render item (terrain, instanced grass), then M3. Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
 - **Blocked:**
   - None on design questions for M0.
   - None on the tooling side (Rust ready as of 2026-09-27).
@@ -50,7 +50,7 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [x] Vite + TS + Svelte scaffold as an npm workspace (`client/`), COOP/COEP headers in dev/preview and `public/_headers`.
 - [x] Worker hosting `sim-wasm` (D-041): the "live match" source; field frames only when the flora ticks, as transferable buffers (SharedArrayBuffer waits for per-tick agent data, M3).
 - [x] Plant from the UI in the live match (commands main → worker, D-042).
-- [ ] Territory frontier line, P1 solid / P2 dashed (D-040).
+- [x] Territory frontier line, P1 solid / P2 dashed (D-040, D-043).
 - [ ] Three.js WebGPURenderer: terrain, flora textures, instanced grass, RTS camera.
 - [ ] Perf check: 60 fps at 256² on the reference machine ("medium"), 30 fps on "low" (D-040).
 

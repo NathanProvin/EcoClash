@@ -205,3 +205,8 @@
   - Plant cards arm planting; a map click sends the command through the worker, and new patches appear on the next flora frame.
   - `plant_radius` is in balance.toml; the parity fixture was regenerated (only its embedded balance text changed).
 - **Next:** the frontier line, then the perf check.
+
+## 2026-09-29 · M2 frontier line (D-043)
+- **Done:** frontier overlay (P1 solid, P2 dashed), checked on the 20-minute replay and the live match.
+- **Note:** synthetic `change` events in browser tests must bubble: Svelte 5 delegates them to the root.
+- **Next:** perf check on the reference laptop.

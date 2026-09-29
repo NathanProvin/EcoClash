@@ -1,5 +1,5 @@
-// Placeholder diorama over a Replay (INSTRUCTIONS §6: the renderer only reads snapshots).
-// Ground tinted by territory; flora as instanced dots (L1), cones (L2) and cubes (L3), several per
+// Placeholder diorama over a Source (INSTRUCTIONS §6: the renderer only reads snapshots).
+// Ground tinted by territory, with frontier lines (P1 solid, P2 dashed: frontier.ts, D-040); flora as instanced dots (L1), cones (L2) and cubes (L3), several per
 // cell in their own slots and height bands so models never overlap (layout.ts, D-033); animals as
 // spheres (herbivores), small dots (decomposers) and pyramids (predators), unlit, in a band above
 // the canopy, one slot each per cell. 1 cell = CELL world units (2 m, Q-008 default).
@@ -7,6 +7,7 @@
 import { MapControls } from "three/addons/controls/MapControls.js";
 import * as THREE from "three/webgpu";
 import { interpolate, type Animal, type Source, type Role } from "../replay/replay";
+import { paintFrontier, TEXELS } from "./frontier";
 import { animalSlots, ANIMAL_BASE, CANOPY_Y, CELL, CONE, DOT, plantLayout, rand } from "./layout";
 import { hexToRgb, PLAYER, WORLD, type PlayerId } from "./palette";
 
@@ -37,6 +38,9 @@ export class Viewer {
   private readonly controls: MapControls;
   private readonly groundData: Uint8Array;
   private readonly groundTex: THREE.DataTexture;
+  private readonly frontierData: Uint8Array;
+  private readonly frontierTex: THREE.DataTexture;
+  private readonly frontier: THREE.Mesh;
   private readonly strata: THREE.InstancedMesh[];
   private readonly animals: Record<Role, THREE.InstancedMesh>;
   private readonly roleOf: Role[];
@@ -97,6 +101,22 @@ export class Viewer {
       new THREE.MeshStandardNodeMaterial({ map: this.groundTex, roughness: 1 }),
     );
     this.scene.add(ground);
+
+    // Frontier overlay, a hair above the ground, under the plants; crisp texels up close.
+    const side = n * TEXELS;
+    this.frontierData = new Uint8Array(side * side * 4);
+    this.frontierTex = new THREE.DataTexture(this.frontierData, side, side);
+    this.frontierTex.magFilter = THREE.NearestFilter;
+    this.frontierTex.colorSpace = THREE.SRGBColorSpace;
+    this.frontier = new THREE.Mesh(
+      new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2).translate(0, 0.02, 0),
+      new THREE.MeshBasicNodeMaterial({
+        map: this.frontierTex,
+        transparent: true,
+        depthWrite: false,
+      }),
+    );
+    this.scene.add(this.frontier);
 
     const cells = n * n;
     // Unit shapes, base on the ground (dots, cones) or centred (cubes); instances scale them to
@@ -169,6 +189,7 @@ export class Viewer {
   setVisible(layer: Layer, on: boolean): void {
     if (layer === "territory") {
       this.showTerritory = on;
+      this.frontier.visible = on;
       this.lastFrame = -1; // repaint the ground
     } else if (layer === "animals") {
       for (const m of Object.values(this.animals)) m.visible = on;
@@ -335,6 +356,8 @@ export class Viewer {
     }
     this.strata.forEach((m, s) => finish(m, counts[s as 0 | 1 | 2]));
     this.groundTex.needsUpdate = true;
+    paintFrontier(owner, n, tint, this.frontierData);
+    this.frontierTex.needsUpdate = true;
   }
 
   private placeAnimals(tick: number): void {

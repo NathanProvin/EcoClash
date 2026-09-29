@@ -459,3 +459,11 @@ Template:
   - The sim decides what takes: free or own cells, suitable soil, under the species cap. The UI does not predict it.
   - Until the economy and unlocks are ported (M4), every plant species can be planted, at no cost: the live match is a sandbox for the flora rules.
 - **Consequences:** there is no feedback when an order plants nothing (enemy land, soil too poor); a placement preview or refusal notice can come with the economy (M4).
+
+## D-043 · 2026-09-29 · Frontier line rendering (M2)
+- **Status:** accepted
+- **Decision:**
+  - The frontier (D-040) is an RGBA overlay texture with 4 texels per cell side, laid just above the ground and under the plants. It is unlit and uses nearest filtering up close, so dashes stay crisp.
+  - Each player's line runs one texel (0.5 m) inside its own cells, wherever a 4-neighbour is not its own; map edges get no line. P1 is solid, P2 is dashed (2 texels on, 2 off).
+  - It is repainted with each field frame and toggled with the territory layer (`client/src/render/frontier.ts`, unit-tested).
+- **Consequences:** where the players touch, the two lines run side by side, blue solid next to orange dashed. That border reads without colour.

@@ -7,7 +7,7 @@
 //! unlocked per player (unlock cost 0 = unlocked at start). A card needs one unlocked species on
 //! the previous tier of its tree and level and, for an animal, one unlocked habitat plant. Planting
 //! costs `spawn_cost` per cell planted; spawning costs `spawn_cost` per animal, times
-//! `drop_surcharge` for a predator landing outside own land. A sandbox match (tools, checks) has
+//! `drop_surcharge` for any animal landing outside own land (D-061). A sandbox match (tools, checks) has
 //! everything unlocked and free.
 //!
 //! Species indices here run over the whole stat sheet: plants first, then animals.
@@ -180,7 +180,7 @@ impl Economy {
     }
 
     /// Cost of one planted cell or one spawned animal of species `i` (0 in a sandbox), with the
-    /// predator drop surcharge when `outside` own land.
+    /// drop surcharge when the animal lands `outside` own land.
     #[must_use]
     pub fn unit_cost(&self, i: usize, outside: bool) -> i64 {
         if self.sandbox {

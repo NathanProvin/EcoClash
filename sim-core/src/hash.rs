@@ -145,7 +145,7 @@ impl FieldHashes {
 }
 
 /// Bumped whenever the set or order of hashed balance values changes.
-pub const BALANCE_HASH_VERSION: u64 = 5; // 2: economy; 3: fauna; 4: costs; 5: victory (D-059)
+pub const BALANCE_HASH_VERSION: u64 = 6; // 2: economy; 3: fauna; 4: costs; 5: victory; 6: drops
 
 /// The balance hash (INSTRUCTIONS §4, §10): the values the simulation uses, **after** conversion
 /// to fixed-point, never the file bytes. Formatting, comments, CRLF / LF and changes below the

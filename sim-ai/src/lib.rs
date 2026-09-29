@@ -123,13 +123,14 @@ impl Bot {
             home: centroid(w, self.player).unwrap_or((n / 2, n / 2)),
             enemy: centroid(w, 3 - self.player).unwrap_or((n / 2, n / 2)),
         };
-        let plays: [Play; 7] = [
+        let plays: [Play; 8] = [
             Bot::unlock,
             Bot::expand,
             Bot::succession,
             Bot::decomposers,
             Bot::herbivores,
             Bot::predators,
+            Bot::drop_raiders,
             Bot::raid,
         ];
         let mut out = Vec::new();
@@ -213,12 +214,52 @@ impl Bot {
 
     /// A card of decomposers on own land, while there are few.
     fn decomposers(&self, v: &View) -> Option<Payload> {
-        self.call(v, Role::Decomposer, 8, v.home)
+        self.call(v, Role::Decomposer, 8, self.own_near(v, v.home)?)
     }
 
-    /// Grazers toward the enemy side of own land, while there are few.
+    /// Grazers on own land (base price) to build biomass, while there are few (D-061).
     fn herbivores(&self, v: &View) -> Option<Payload> {
-        self.call(v, Role::Herbivore, 12, v.enemy)
+        self.call(v, Role::Herbivore, 12, self.own_near(v, v.home)?)
+    }
+
+    /// A raid by drop (×1.5, D-061): the most advanced unlocked herbivore that has food on enemy
+    /// land, dropped on the enemy cell with its food nearest home.
+    fn drop_raiders(&self, v: &View) -> Option<Payload> {
+        let (w, n, n2) = (v.w, v.n, v.n * v.n);
+        let fa = &w.fauna.p;
+        (0..fa.names.len()).rev().find_map(|s| {
+            let i = w.economy.animal(s);
+            let ready = fa.role[s] == Role::Herbivore
+                && w.economy.is_unlocked(self.player, i)
+                && w.economy
+                    .affordable(self.player, w.economy.unit_cost(i, true))
+                    >= 1;
+            if !ready {
+                return None;
+            }
+            let food = |k: usize| {
+                w.state.owner[k] == 3 - self.player
+                    && (0..w.flora.p.species())
+                        .any(|j| fa.eats_plant(s, j) && w.state.bio[j * n2 + k] >= 1)
+            };
+            let k = (0..n2)
+                .filter(|&k| food(k))
+                .min_by_key(|&k| (dist2(k, n, v.home), k))?;
+            Some(Payload::Spawn {
+                species: fa.names[s].clone(),
+                row: u32::try_from(k / n).unwrap_or(0),
+                col: u32::try_from(k % n).unwrap_or(0),
+            })
+        })
+    }
+
+    /// The own cell nearest `at` (a call there costs the base price).
+    fn own_near(&self, v: &View, at: (usize, usize)) -> Option<(usize, usize)> {
+        let n = v.n;
+        (0..n * n)
+            .filter(|&k| v.w.state.owner[k] == self.player)
+            .min_by_key(|&k| (dist2(k, n, at), k))
+            .map(|k| (k / n, k % n))
     }
 
     /// A predator on the enemy prey nearest own land (the sim drops it on the nearest match).

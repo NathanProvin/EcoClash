@@ -55,7 +55,8 @@ contested_cells = true
 transfer = 0.1          # share of eaten biomass that becomes the eater's energy (10 % rule)
 own_graze = 0.2         # bite on own flora, relative to enemy flora (gamerules §10)
 soil_per_dead = 0.5     # soil development (u16 units) per unit of dead biomass decomposed
-herbivore_range = 10    # spawn trigger: enemy food within this many cells of own land (§6.3)
+herbivore_range = 10    # prototype only (tools/prototype): sim-core drops herbivores near the click
+drop_radius = 4         # a drop (herbivores off own land, predators) lands within this many cells of the click (D-061)
 flee_radius = 3         # prey flee enemy hunters closer than this
 refuge_flora = ["hawthorn", "bramble"]
 refuge_cover = 0.5      # summed cover of refuge flora that hides small fauna (D-023)
@@ -63,4 +64,4 @@ refuge_cover = 0.5      # summed cover of refuge flora that hides small fauna (D
 # Economy (gamerules §4, §7; D-027, D-029). Costs and yields are per species (species.toml).
 [economy]
 start_budget = 1000
-drop_surcharge = 1.5         # predators dropped outside own land cost more (§6.3)
+drop_surcharge = 1.5         # any animal landing outside own land costs more (§6.3; D-061)

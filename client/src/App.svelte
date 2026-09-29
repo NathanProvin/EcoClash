@@ -412,8 +412,8 @@
         <strong>{armedKind === "flora" ? "Planting" : "Calling"} {label(planting)}:</strong>
         {armedKind === "flora"
           ? "click a cell"
-          : "click near where it should go (predators land on enemy prey)"} · Shift: keep going · Esc:
-        cancel
+          : "click your land (base price), or enemy ground to drop them on food or prey (×1.5)"} · Shift:
+        keep going · Esc: cancel
       {:else}
         Click: inspect cell · Drag: select · Middle-drag / Q E: rotate · Right-drag / arrows: pan ·
         Wheel: zoom · T: tech tree

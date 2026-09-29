@@ -65,7 +65,8 @@ pub struct FaunaParams {
     transfer: i64,
     own_graze: i64,
     soil_per_dead: i64,
-    herb_range: usize,
+    /// A drop lands within this many cells of the click (D-061).
+    drop_radius: i64,
     flee: i64,
     refuge: u32,
     refuge_cover: i64,
@@ -158,7 +159,7 @@ impl FaunaParams {
             transfer: round(fa.transfer * one),
             own_graze: round(fa.own_graze * one),
             soil_per_dead: round(fa.soil_per_dead * one),
-            herb_range: usize::try_from(fa.herbivore_range).unwrap_or(0),
+            drop_radius: i64::from(fa.drop_radius),
             flee,
             refuge: flora_mask(&fa.refuge_flora),
             refuge_cover: round(fa.refuge_cover * one),
@@ -167,6 +168,12 @@ impl FaunaParams {
             offs,
             names,
         }
+    }
+
+    /// Whether herbivore species `s` eats plant species `plant`.
+    #[must_use]
+    pub fn eats_plant(&self, s: usize, plant: usize) -> bool {
+        self.eats_flora.get(s).is_some_and(|m| m >> plant & 1 == 1)
     }
 
     #[must_use]
@@ -204,7 +211,7 @@ impl FaunaParams {
             self.transfer,
             self.own_graze,
             self.soil_per_dead,
-            self.herb_range as i64,
+            self.drop_radius,
             self.flee,
             i64::from(self.refuge),
             self.refuge_cover,
@@ -680,15 +687,18 @@ impl Fauna {
                         (0..n2).map(|k| enough[k] && pred(st.owner[k])).collect()
                     };
                     if p.role[s] == Role::Herbivore {
-                        vec![on(&|o| o == 3 - pl), on(&|o| o == pl)]
+                        // [enemy food, food on any land]: an attack-move hunts the first, a free
+                        // herbivore the second, with no enemy-first preference (D-061).
+                        vec![on(&|o| o == 3 - pl), on(&|_| true)]
                     } else {
                         vec![on(&|o| o != 3 - pl)]
                     }
                 };
                 for (mi, m) in masks.iter().enumerate() {
                     idx.retain(|&i| {
-                        if mi > 0 && a.order[i] == ATTACK {
-                            return true; // attack-move: enemy food only (the first mask)
+                        let herbivore = p.role[s] == Role::Herbivore;
+                        if herbivore && ((mi == 0) != (a.order[i] == ATTACK)) {
+                            return true; // see the masks: attack-move 0, free 1
                         }
                         match self.nearest(m, n, a.cell(i, n), p.sight[s]) {
                             Some(k) => {
@@ -722,10 +732,11 @@ impl Fauna {
         }
     }
 
-    /// Spawn a card of species `s` for `player` near the clicked cell (gamerules §6.3): its
-    /// habitat on own land, then the trigger. Predators land on the enemy prey nearest the click;
-    /// herbivores need enemy food within `herbivore_range` of own land and land on the own habitat
-    /// cell nearest that food; decomposers land on the own habitat cell nearest the click.
+    /// Spawn a card of species `s` for `player` near the clicked cell (gamerules §6.3; D-061): it
+    /// needs its habitat plants on own land. Decomposers, and herbivores called on own land, land
+    /// on the own habitat cell nearest the click. Herbivores clicked elsewhere are dropped on the
+    /// not-own cell with their food nearest the click, and predators on the huntable enemy prey
+    /// nearest it, both within `drop_radius` cells of the click.
     /// Returns the number spawned, or why nothing was.
     pub fn spawn(
         &mut self,
@@ -773,48 +784,43 @@ impl Fauna {
             return Err("needs its habitat plants on your land".into());
         }
         let click = row * n + col;
+        // Drops land within `drop_radius` cells of the click (gamerules §6.3 r_prey; D-061).
+        let r2 = p.drop_radius * p.drop_radius;
+        let near_click = |k: usize| i64::try_from(dist2(k, click, n)).unwrap_or(i64::MAX) <= r2;
         let at = match p.role[s] {
             Role::Predator => {
                 let safe = self.safe(fl, st);
                 let prey: Vec<bool> = {
                     let mut m = vec![false; n2];
                     for j in 0..a.len() {
+                        let k = a.cell(j, n);
                         if a.owner[j] == 3 - player
                             && !safe[j]
                             && p.eats_fauna[s] >> a.sp[j] & 1 == 1
+                            && near_click(k)
                         {
-                            m[a.cell(j, n)] = true;
+                            m[k] = true;
                         }
                     }
                     m
                 };
-                closest(&prey, n, click).ok_or("no enemy prey to hunt")?
+                closest(&prey, n, click).ok_or("no enemy prey near that spot")?
+            }
+            // On own land: the own habitat cell nearest the click, to build biomass. Elsewhere: a
+            // drop on the food of its diet nearest the click (D-061).
+            Role::Herbivore if st.owner[click] == player => {
+                closest(&home, n, click).ok_or("needs its habitat plants on your land")?
             }
             Role::Herbivore => {
-                let mut reach: Vec<bool> = (0..n2).map(|k| st.owner[k] == player).collect();
-                for _ in 0..p.herb_range {
-                    reach = (0..n2)
-                        .map(|k| {
-                            let (y, x) = (k / n, k % n);
-                            reach[k]
-                                || (y > 0 && reach[k - n])
-                                || (y + 1 < n && reach[k + n])
-                                || (x > 0 && reach[k - 1])
-                                || (x + 1 < n && reach[k + 1])
-                        })
-                        .collect();
-                }
                 let food: Vec<bool> = (0..n2)
                     .map(|k| {
-                        reach[k]
-                            && st.owner[k] == 3 - player
+                        st.owner[k] != player
+                            && near_click(k)
                             && (0..fl.names.len())
                                 .any(|j| p.eats_flora[s] >> j & 1 == 1 && st.bio[j * n2 + k] >= 1)
                     })
                     .collect();
-                let near =
-                    closest(&food, n, click).ok_or("no enemy food it eats near your land")?;
-                closest(&home, n, near).ok_or("needs its habitat plants on your land")?
+                closest(&food, n, click).ok_or("no food it eats near that spot")?
             }
             Role::Decomposer => {
                 closest(&home, n, click).ok_or("needs its habitat plants on your land")?
@@ -869,12 +875,16 @@ fn share(orders: &[(usize, usize, i64)], have: impl Fn(usize) -> i64) -> Vec<(us
         .collect()
 }
 
+/// Squared distance between cells `a` and `b` of an `n`-wide grid.
+fn dist2(a: usize, b: usize, n: usize) -> usize {
+    (a / n).abs_diff(b / n).pow(2) + (a % n).abs_diff(b % n).pow(2)
+}
+
 /// The `true` cell of `mask` closest to `to` (squared distance; ties: row-major order).
 fn closest(mask: &[bool], n: usize, to: usize) -> Option<usize> {
-    let d2 = |k: usize| (k / n).abs_diff(to / n).pow(2) + (k % n).abs_diff(to % n).pow(2);
     (0..mask.len())
         .filter(|&k| mask[k])
-        .min_by_key(|&k| (d2(k), k))
+        .min_by_key(|&k| (dist2(k, to, n), k))
 }
 
 #[cfg(test)]
@@ -1060,6 +1070,87 @@ mod tests {
             (fa.agents.order[0], fa.agents.ty[0]),
             (FREE, fa.agents.y[0]),
             "stops now"
+        );
+    }
+
+    #[test]
+    fn herbivores_come_on_own_land_or_are_dropped_on_food_near_the_click() {
+        let (fl, fa, mut st, _) = setup(16);
+        let (voles, caterpillars) = (
+            fa.p.index("voles").unwrap(),
+            fa.p.index("caterpillars").unwrap(),
+        );
+        let g = fl.p.index("grasses").unwrap();
+        for k in 0..256 {
+            if k % 16 < 8 {
+                st.owner[k] = 1; // P1: the left half, grass
+                st.bio[g * 256 + k] = fl.p.kmax[g];
+            }
+        }
+        // Own land, no enemy food anywhere: the call still works (no trigger any more).
+        let (at, _) = fa.spawn_site(&fl.p, &st, 1, voles, (2, 3)).unwrap();
+        assert_eq!(at, 2 * 16 + 3, "own habitat cell nearest the click");
+        // P2 grass on the right half: a click there drops the voles on it, where clicked.
+        for k in 0..256 {
+            if k % 16 >= 8 {
+                st.owner[k] = 2;
+                st.bio[g * 256 + k] = fl.p.kmax[g];
+            }
+        }
+        let (at, _) = fa.spawn_site(&fl.p, &st, 1, voles, (5, 12)).unwrap();
+        assert_eq!(
+            (at, st.owner[at]),
+            (5 * 16 + 12, 2),
+            "dropped on enemy food"
+        );
+        // Caterpillars eat nettle, bramble, shrubs and trees: none near that spot.
+        let nettle = fl.p.index("nettle").unwrap();
+        st.bio[nettle * 256 + 16] = fl.p.kmax[nettle]; // their habitat, on P1's land
+        let err = fa
+            .spawn_site(&fl.p, &st, 1, caterpillars, (5, 12))
+            .unwrap_err();
+        assert!(err.contains("no food"), "{err}");
+        st.bio[nettle * 256 + 5 * 16 + 14] = fl.p.kmax[nettle]; // enemy nettle, 2 cells away
+        let (at, _) = fa.spawn_site(&fl.p, &st, 1, caterpillars, (5, 12)).unwrap();
+        assert_eq!(at, 5 * 16 + 14, "on the enemy nettle nearest the click");
+    }
+
+    #[test]
+    fn predators_are_dropped_on_prey_near_the_click_only() {
+        let (fl, mut fa, mut st, _) = setup(16);
+        meadow(&fl, &mut st, "elder"); // L2: the fox's habitat (not a refuge)
+        let (fox, voles) = (fa.p.index("fox").unwrap(), fa.p.index("voles").unwrap());
+        fa.agents.push(voles, 2, centre(3), centre(13), ONE_I, 0);
+        assert!(
+            fa.spawn_site(&fl.p, &st, 1, fox, (12, 3))
+                .unwrap_err()
+                .contains("near that spot")
+        );
+        let (at, _) = fa.spawn_site(&fl.p, &st, 1, fox, (4, 12)).unwrap();
+        assert_eq!(at, 3 * 16 + 13, "on the prey");
+    }
+
+    #[test]
+    fn free_herbivores_feed_on_the_nearest_food_not_on_the_enemy_first() {
+        let (fl, mut fa, mut st, mut rng) = setup(16);
+        meadow(&fl, &mut st, "grasses");
+        let voles = fa.p.index("voles").unwrap();
+        fa.agents
+            .push(voles, 1, centre(8), centre(4), ONE_I * 100, 0); // 4 cells from P2's land
+        fa.act(&fl.p, &mut st, &mut rng);
+        let a = &fa.agents;
+        assert_eq!(
+            st.owner[cell_of(a.ty[0]) * 16 + cell_of(a.tx[0])],
+            1,
+            "stays on own food"
+        );
+        fa.order(1, &[a.id[0]], OrderKind::Attack, (8, 12));
+        fa.act(&fl.p, &mut st, &mut rng);
+        let a = &fa.agents;
+        assert_eq!(
+            st.owner[cell_of(a.ty[0]) * 16 + cell_of(a.tx[0])],
+            2,
+            "attack-move: enemy food"
         );
     }
 

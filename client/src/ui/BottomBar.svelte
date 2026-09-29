@@ -59,7 +59,7 @@
     live && !selection.size ? cardState(replay.meta, s, unlocked) : "unlocked";
   const tip = (s: Species, count: number) =>
     ({
-      unlocked: `${label(s.name)}: ${count} ${unit(s)}${live ? " · click, then click the map" : ""}`,
+      unlocked: `${label(s.name)}: ${count} ${unit(s)}${live ? (s.kind === "fauna" ? " · click, then your land (base price) or enemy food or prey (×1.5)" : " · click, then click the map") : ""}`,
       available: `${label(s.name)}: click to unlock for ${s.stats.unlock_cost} biomass`,
       locked: `${label(s.name)}: locked. It needs a species of the tier below${s.kind === "fauna" ? " and one of its habitat plants" : ""} (T: tech tree)`,
     })[cardOf(s)];

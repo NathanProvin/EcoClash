@@ -660,3 +660,16 @@ Template:
   - **Client:** "Launch game" plays against a Normal bot on P2 (`?bot=easy|hard|none` to change). The human always commands P1; viewing P2 is read-only.
   - **Tests:** the bot outgrows an idle player with no rejected commands and unlocks cards; bot-vs-bot matches replay identically. An ignored `bot_report` test plays Normal vs Hard for 20 minutes and prints the outcome.
 - **Consequences:** Measured: Normal vs Hard ends near-even at 20 min (1,955 vs 2,086 cells). In the browser, an idle human loses to the Normal bot (P2 53 % of the land). Balance tuning stays deferred (Q-013).
+
+## D-061 · 2026-09-29 · Herbivore drops, the ×1.5 surcharge for every role, calmer own-land herbivores
+- **Status:** accepted (user decision)
+- **Context:** Only predators could land outside own land, so the ×1.5 drop surcharge never applied to herbivores, and caterpillars could not be sent onto an enemy tree or nettle patch. Herbivores also needed enemy food within 10 cells of own land before they could be called at all, and they went for enemy flora first.
+- **Decision:**
+  - Every animal landing outside own land costs `spawn_cost` × `drop_surcharge` (1.5), whatever its role.
+  - **Herbivores clicked on own land:** they land on the own habitat cell nearest the click, at base price, with no trigger (the `herbivore_range` rule is gone from sim-core; the key stays for the Python prototype).
+  - **Herbivores clicked elsewhere:** they are dropped on the not-own cell with their diet flora nearest the click, within the new `[fauna] drop_radius` (4 cells). Otherwise the spawn is refused with "no food it eats near that spot".
+  - **Predators:** dropped on the huntable enemy prey nearest the click within `drop_radius` (gamerules `r_prey`; before, prey anywhere counted).
+  - **Behaviour:** a free herbivore seeks the nearest food on any land, with no enemy-first preference. It keeps the reduced own-flora bite (`own_graze`), its passive yield and its breeding. Dropped raiders feed where they land; attack-move still hunts enemy food only.
+  - **Bot:** it calls herbivores and decomposers on its own land, near home, and drops raiders (`drop_raiders`: the most advanced unlocked herbivore with food on enemy land, onto the enemy food nearest home).
+  - `FaunaParams::eats_plant` is public for the bot. Balance hash version 6; parity fixture regenerated.
+- **Consequences:** gamerules §5.2 and §6.3 and INSTRUCTIONS §5.4 are updated. Tests cover own-land calls without enemy food, drops on food, refused drops, the predator radius, no enemy-first seeking, and the ×1.5 charge. Checked in the browser: voles dropped on P2's meadow landed there.

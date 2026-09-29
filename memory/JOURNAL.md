@@ -283,3 +283,10 @@
   - The timing test ran ≈2× slower this session on both the new and the old code (machine state).
   - The dataviz checker required a deeper P2 orange (`#C28000`) for charts on the dark HUD.
 - **Next:** M3.5 lockstep smoke test, or M5 polish; balance tuning when the user asks.
+
+## 2026-09-29 · Herbivore drops at ×1.5 (D-061)
+- **Done:**
+  - Any animal outside own land pays ×1.5.
+  - Herbivores: free on own land (no trigger, feed where their food is best); dropped on food near the click elsewhere. Predator drops are limited to `drop_radius`.
+  - The bot calls at home and drops raiders.
+  - Tests, fixture, `wasm:check` and the browser check all pass.

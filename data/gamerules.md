@@ -219,7 +219,7 @@ In V1 the only soil requirement is the soil development threshold of the level (
 
 "Habitat" means what the spawning player must own. "Spawn trigger" is the enemy-side condition (§6.3).
 
-Biomes: F = temperate forest, M = meadow & bocage, W = wet meadow. "Herbivore" trigger: matching enemy flora within `R` cells of own territory. "Drop" trigger: predator placed on or within `r_prey` of matching enemy prey (§6.3). All entries are [Proposed] except the author's example that the tawny owl needs trees (L3), and the hedgehog as the slug counter.
+Biomes: F = temperate forest, M = meadow & bocage, W = wet meadow. "Herbivore": called freely on own land, or dropped on matching food off own land (×1.5, D-061). "Drop" trigger: predator placed on or within `r_prey` of matching enemy prey (§6.3). All entries are [Proposed] except the author's example that the tawny owl needs trees (L3), and the hedgehog as the slug counter.
 
 | Species | Lvl | Tier | Biomes | Eats | Eaten by | Habitat (own) | Spawn trigger |
 |---|---|---|---|---|---|---|---|
@@ -309,8 +309,11 @@ A species can be spawned only when **all** of the following hold:
 2. Its **habitat** exists on the spawning player's side (§5.2, "Habitat (own)").
 3. Its **spawn trigger** is met (§5.2, "Spawn trigger"):
    - **Predators are placed with the cursor directly on the cell of interest** (author's rule). Positioning is the core skill here: you drop the predator where its prey is. The target cell must contain enemy prey matching the predator's diet, or be within `r_prey` cells of it. Example: **a fox dropped on the patch where enemy voles or rabbits are feeding on your plants.**
-   - **[Proposed]** Dropping in own territory costs the base price. Dropping in neutral or enemy territory costs more (e.g. ×1.5): an offensive raid.
-   - **[Proposed] Herbivores:** enemy flora matching their diet must exist within `R` cells of the spawner's territory.
+   - **Cost (author's rule, D-061):** an animal landing on own territory costs the base price. Landing on neutral or enemy territory costs ×`drop_surcharge` (1.5): an offensive raid. This applies to every role.
+   - **Herbivores (author's rule, D-061):**
+     - Called on own land: no trigger. They land on the own habitat cell nearest the click, at base price, to build biomass. They graze own plants at a much reduced bite (`own_graze`), yield biomass passively, and breed. They do not go looking for enemy cells: they move, feed and breed where their food is best.
+     - Clicked on enemy or neutral ground: they are **dropped** on the food of their diet nearest the click (within `drop_radius` cells), at ×1.5. Example: caterpillars dropped on an enemy oak or nettle patch.
+   - **Predators:** dropped on the huntable enemy prey nearest the click, within `drop_radius` cells (`r_prey`).
    - **Decomposers:** no trigger, habitat only.
 - **[Proposed] UI.** Unavailable cards are greyed out, with the reason shown (e.g. "No enemy prey in your territory").
 - **[Proposed] Spawn location (non-predators).** Other fauna spawns on the own cell closest to the clicked point that satisfies its habitat. This replaces "fauna spawns from trees" in `INSTRUCTIONS.md` §2.4, so that early fauna is possible before trees exist.

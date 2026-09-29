@@ -236,9 +236,8 @@ impl World {
                         return;
                     }
                 };
-                // Predators dropped outside own land cost more (gamerules §6.3).
-                let predator = self.fauna.p.role[s] == crate::fauna::Role::Predator;
-                let outside = predator && self.state.owner[at] != c.player;
+                // Any animal landing outside own land costs more (gamerules §6.3; D-061).
+                let outside = self.state.owner[at] != c.player;
                 let unit = self.economy.unit_cost(self.economy.animal(s), outside);
                 let count = count.min(self.economy.affordable(c.player, unit));
                 if count == 0 {
@@ -559,6 +558,53 @@ mod tests {
         let o = w.result.unwrap();
         assert_eq!((o.winner, o.reason), (1, Reason::Biomass));
         assert!(o.tick >= limit);
+    }
+
+    #[test]
+    fn animals_landing_outside_own_land_cost_the_drop_surcharge() {
+        let b = balance();
+        let mut w = World::new(&b, 1, 20);
+        w.setup_plant(1, "grasses", 4, 4, 3);
+        w.setup_plant(2, "grasses", 15, 15, 3);
+        let voles = w.economy.animal(w.fauna.p.index("voles").unwrap());
+        w.economy.bank[0] = 100_000 << 16;
+        w.economy.unlock(1, voles).unwrap();
+        let (base, drop) = (
+            w.economy.unit_cost(voles, false),
+            w.economy.unit_cost(voles, true),
+        );
+        assert!(drop > base, "the drop costs more");
+        let spawn = |seq, row, col| Command {
+            tick: 0,
+            player: 1,
+            seq,
+            payload: Payload::Spawn {
+                species: "voles".into(),
+                row,
+                col,
+            },
+        };
+        w.submit(spawn(0, 4, 4)); // own land: base price
+        w.submit(spawn(1, 15, 15)); // enemy grass: dropped there
+        let bank = w.economy.bank[0];
+        w.step();
+        let group = w
+            .fauna
+            .p
+            .index("voles")
+            .map(|s| w.fauna.census(1)[s])
+            .unwrap();
+        let per_card = group / 2;
+        let income = div_round(w.economy.income[0] * 8, 10); // the tick-0 flora period
+        assert_eq!(bank - w.economy.bank[0] + income, per_card * (base + drop));
+        assert!(w.fauna.agents.owner.iter().all(|&o| o == 1));
+        let on_enemy =
+            (0..w.fauna.agents.len()).filter(|&i| w.state.owner[w.fauna.agents.cell(i, 20)] == 2);
+        assert_eq!(
+            i64::try_from(on_enemy.count()).unwrap(),
+            per_card,
+            "half of them landed on P2 grass"
+        );
     }
 
     #[test]

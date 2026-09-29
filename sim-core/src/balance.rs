@@ -41,7 +41,7 @@ pub struct FloraRules {
 #[derive(Clone, Debug, Deserialize)]
 pub struct EconomyRules {
     pub start_budget: f64,
-    /// Predators dropped outside own land cost this much more (gamerules §6.3).
+    /// Animals landing outside own land cost this much more (gamerules §6.3; D-061).
     pub drop_surcharge: f64,
 }
 
@@ -70,7 +70,8 @@ pub struct FaunaRules {
     pub transfer: f64,
     pub own_graze: f64,
     pub soil_per_dead: f64,
-    pub herbivore_range: u32,
+    /// A drop lands within this many cells of the click (D-061).
+    pub drop_radius: u32,
     pub flee_radius: u32,
     pub refuge_flora: Vec<String>,
     pub refuge_cover: f64,

@@ -1,7 +1,7 @@
 <script lang="ts">
-  // RTS resource bar (D-030, D-048): land colonized (with a P1 / P2 tug-of-war gauge), species
-  // alive, biomass stock and its rate, for the viewed player; plus the player switch, the tech
-  // tree button, the source menu and the layers menu.
+  // Resource bar (D-030, D-048, D-064): land (with a P1 / P2 tug-of-war gauge), species alive,
+  // biomass and its rate, for the viewed player. Icon buttons on the right: tech tree, view and
+  // display (layers, quality, viewed player, source, performance readout), main menu.
   import type { Source } from "../replay/replay";
   import type { Layer } from "../render/viewer";
   import type { Quality } from "../render/quality";
@@ -17,6 +17,7 @@
     toggle,
     quality,
     onQuality,
+    perf = $bindable(),
     replays,
     chosen = $bindable(),
     onChoose,
@@ -30,6 +31,7 @@
     toggle: (l: Layer) => void;
     quality: Quality;
     onQuality: (q: Quality) => void;
+    perf: boolean;
     replays: string[];
     chosen: string;
     onChoose: (name: string) => void;
@@ -39,77 +41,51 @@
   const row = $derived(replay.seriesIndex(tick));
   const value = (key: string) => replay.meta.series[key]?.[row] ?? 0;
   const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
-  const other = $derived(player === 1 ? 2 : 1);
   const rate = $derived(value(`yield_p${player}`));
   const land = $derived([value("territory_p1"), value("territory_p2")]);
   const layerNames: [Layer, string][] = [
-    ["territory", "Territory tint"],
-    ["L1", "L1 herbaceous (grass)"],
-    ["L2", "L2 shrubs ▲"],
-    ["L3", "L3 trees ■"],
-    ["animals", "Animals ● ▲"],
+    ["territory", "Territory"],
+    ["L1", "Grass"],
+    ["L2", "Shrubs"],
+    ["L3", "Trees"],
+    ["animals", "Animals"],
   ];
 </script>
 
 <header class="bar">
-  <div class="left">
-    <strong class="brand">ECO<span>CLASH</span></strong>
-    <div class="seg" role="group" aria-label="Viewed player">
-      {#each [1, 2] as const as p (p)}
-        <button class="p{p}" class:on={player === p} onclick={() => (player = p)}>P{p}</button>
-      {/each}
-    </div>
-  </div>
-
   <div class="resources panel p{player}">
-    <div class="res" title="Land: share of the map you hold">
-      <span class="ico"><Icon name="land" /></span>
-      <div>
-        <span class="label">Land</span>
-        <span class="value num">{((land[player - 1] ?? 0) * 100).toFixed(1)}%</span>
-      </div>
+    <div class="res" title="Land: your share of the map (the gauge: you vs the other player)">
+      <Icon name="land" />
+      <span class="value num">{((land[player - 1] ?? 0) * 100).toFixed(0)}%</span>
       <span class="tug" aria-hidden="true">
         <span class="t1" style:width="{(land[0] ?? 0) * 100}%"></span>
         <span class="t2" style:width="{(land[1] ?? 0) * 100}%"></span>
       </span>
-      <span class="vs num">vs {((land[other - 1] ?? 0) * 100).toFixed(0)}%</span>
     </div>
     <div class="res" title="Species alive">
-      <span class="ico"><Icon name="species" /></span>
-      <div>
-        <span class="label">Species</span>
-        <span class="value num">{value(`species_p${player}`)}</span>
-      </div>
+      <Icon name="species" />
+      <span class="value num">{value(`species_p${player}`)}</span>
     </div>
-    <div class="res" title="Biomass points banked, and income per second">
-      <span class="ico"><Icon name="biomass" /></span>
-      <div>
-        <span class="label">Biomass</span>
-        <span class="value num">{compact.format(value(`bank_p${player}`))}</span>
-      </div>
-      <span class="rate num">{rate >= 0 ? "+" : ""}{compact.format(rate)}/s</span>
+    <div class="res" title="Biomass banked, and earned per second">
+      <Icon name="biomass" />
+      <span class="value num">{compact.format(value(`bank_p${player}`))}</span>
+      <span class="rate num">+{compact.format(Math.max(rate, 0))}</span>
     </div>
   </div>
 
   <div class="actions">
-    <button class="btn" onclick={onMenu} title="Back to the main menu (ends the match)">Menu</button
-    >
-    <button class="btn" onclick={onTech} title="Tech tree (T)"
-      ><Icon name="tree" /> Tech tree</button
-    >
-    {#if replays.length > 1}
-      <select
-        class="btn"
-        bind:value={chosen}
-        onchange={(e) => onChoose(e.currentTarget.value)}
-        aria-label="Replay"
-      >
-        {#each replays as name (name)}<option value={name}>{name}</option>{/each}
-      </select>
-    {/if}
+    <button class="icon" onclick={onTech} title="Tech tree (T)" aria-label="Tech tree">
+      <Icon name="tree" />
+    </button>
     <div class="menu">
-      <button class="btn" onclick={() => (menu = !menu)} aria-expanded={menu}>
-        <Icon name="layers" /> Layers
+      <button
+        class="icon"
+        onclick={() => (menu = !menu)}
+        aria-expanded={menu}
+        title="View and display"
+        aria-label="View and display"
+      >
+        <Icon name="layers" />
       </button>
       {#if menu}
         <div class="drop panel" role="menu">
@@ -119,10 +95,10 @@
               {name}
             </label>
           {/each}
-          <label class="quality">
-            <span class="label">Quality</span>
+          <hr />
+          <label class="pair">
+            Quality
             <select
-              class="btn"
               value={quality}
               onchange={(e) => onQuality(e.currentTarget.value as Quality)}
               aria-label="Quality preset"
@@ -132,9 +108,32 @@
               <option value="high">High</option>
             </select>
           </label>
+          <label class="pair">
+            View
+            <select bind:value={player} aria-label="Viewed player">
+              <option value={1}>Player 1</option>
+              <option value={2}>Player 2</option>
+            </select>
+          </label>
+          {#if replays.length > 1}
+            <label class="pair">
+              Source
+              <select
+                bind:value={chosen}
+                onchange={(e) => onChoose(e.currentTarget.value)}
+                aria-label="Replay"
+              >
+                {#each replays as name (name)}<option value={name}>{name}</option>{/each}
+              </select>
+            </label>
+          {/if}
+          <label><input type="checkbox" bind:checked={perf} /> Performance readout</label>
         </div>
       {/if}
     </div>
+    <button class="icon" onclick={onMenu} title="Main menu" aria-label="Main menu">
+      <Icon name="menu" />
+    </button>
   </div>
 </header>
 
@@ -142,107 +141,42 @@
   .bar {
     position: absolute;
     inset: 0 0 auto 0;
-    height: 64px;
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 10px 14px 0;
-    pointer-events: none; /* the map stays clickable between the pieces */
+    justify-content: center;
+    padding: 12px 14px 0;
+    pointer-events: none; /* the map stays clickable around the pieces */
   }
   .bar > * {
     pointer-events: auto;
   }
-  .left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 4px 4px 4px 14px;
-    border-radius: 12px;
-    background: var(--panel);
-    box-shadow: var(--trim);
-  }
-  .brand {
-    font-size: 1.15em;
-    font-weight: 900;
-    letter-spacing: 0.08em;
-    color: var(--ink);
-    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
-  }
-  .brand span {
-    color: var(--gold);
-  }
-  .seg {
-    display: flex;
-    gap: 4px;
-    padding: 3px;
-    border-radius: 10px;
-    background: var(--well);
-  }
-  .seg button {
-    border: 0;
-    border-radius: 7px;
-    background: transparent;
-    padding: 4px 12px;
-    cursor: pointer;
-    font-weight: 800;
-    color: var(--ink-soft);
-  }
-  .seg button.on {
-    color: white;
-    background: linear-gradient(180deg, var(--player-glow), var(--player));
-    box-shadow: 0 0 10px var(--player);
-  }
   .resources {
     display: flex;
-    gap: 6px;
-    padding: 6px 10px;
-    border-top: 2px solid var(--player);
+    gap: 4px;
+    padding: 6px 14px;
+    border-radius: 999px;
   }
   .res {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
     padding: 0 10px;
+    color: var(--ink-soft);
     white-space: nowrap;
-  }
-  .res + .res {
-    border-left: 1px solid var(--line);
-  }
-  .res > div {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.1;
-  }
-  .ico {
-    display: grid;
-    place-items: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    color: var(--gold);
-    background: var(--well);
-    box-shadow: inset 0 0 0 1px var(--gold-soft);
   }
   .value {
-    font-size: 1.25em;
-    font-weight: 800;
+    color: var(--ink);
+    font-size: 1.05em;
+    font-weight: 600;
   }
   .rate {
-    font-weight: 700;
     color: var(--good);
-    font-size: 0.9em;
-  }
-  .vs {
-    white-space: nowrap;
-    font-size: 0.8em;
-    color: var(--ink-soft);
+    font-size: 0.85em;
   }
   .tug {
     position: relative;
-    width: 64px;
-    height: 8px;
-    border-radius: 4px;
+    width: 56px;
+    height: 5px;
+    border-radius: 3px;
     background: var(--well);
     overflow: hidden;
   }
@@ -260,16 +194,27 @@
     background: var(--p2);
   }
   .actions {
+    position: absolute;
+    right: 14px;
+    top: 12px;
     display: flex;
-    gap: 8px;
-  }
-  .actions .btn {
-    white-space: nowrap;
-    display: flex;
-    align-items: center;
     gap: 6px;
-    background-color: var(--panel-flat);
-    box-shadow: var(--trim);
+  }
+  .icon {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--panel);
+    backdrop-filter: var(--blur);
+    color: var(--ink);
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .icon:hover {
+    border-color: var(--accent);
   }
   .menu {
     position: relative;
@@ -277,22 +222,36 @@
   .drop {
     position: absolute;
     right: 0;
-    top: 40px;
+    top: 46px;
     display: flex;
     flex-direction: column;
     gap: 6px;
+    min-width: 190px;
     white-space: nowrap;
+    font-size: 0.9em;
   }
   .drop label {
     display: flex;
+    align-items: center;
     gap: 8px;
     cursor: pointer;
   }
-  .drop .quality {
-    align-items: center;
+  .drop .pair {
     justify-content: space-between;
-    margin-top: 6px;
-    padding-top: 8px;
+  }
+  .drop select {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--well);
+    padding: 2px 6px;
+  }
+  .drop select option {
+    background: #1f2823;
+  }
+  hr {
+    width: 100%;
+    border: 0;
     border-top: 1px solid var(--line);
+    margin: 2px 0;
   }
 </style>

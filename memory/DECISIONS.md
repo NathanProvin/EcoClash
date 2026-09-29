@@ -695,3 +695,12 @@ Template:
   - With animals selected, a small strip above the card shows them by species (a click narrows the selection), the order keys, and a clear button.
   - The in-game Menu button asks "Leave the match? It will be lost." (Stay / Leave; Esc stays) while a live match is on; it leaves at once after the verdict or in a replay.
 - **Consequences:** No text labels on tiles (names are in the tooltip), which keeps the bar short and fits more RTS spirit.
+
+## D-064 · 2026-09-29 · Calm translucent HUD, decluttered (feedback round 1)
+- **Status:** accepted (user feedback: "more soft, blurry, translucent and calm; remove bloating text or buttons")
+- **Decision:**
+  - Theme tokens (`app.css`): light panels (`--panel` at 40 % over the scene) with `backdrop-filter: blur(18px)`, a thin light border instead of the gold trim, pill buttons, softer ink and accent colours, lighter label weight.
+  - Top bar: one centred resource capsule (land with the tug gauge, species, biomass and rate; no text labels, tooltips carry the names). Three round icon buttons on the right: tech tree, view and display, menu. The quality preset, viewed player, replay source and performance readout moved into the view and display menu.
+  - Time controls: a small clock pill at the top left in a live match (play/pause, clock, speed; "slowed" only when the sim lags). Replays keep a slim scrubber above the build card. Sim ms and fps show only with the performance readout on (off by default).
+  - The idle controls hint is gone. A hint shows only while something is armed (planting, calling, attack-move). The order keys live in the selection strip.
+- **Consequences:** The HUD look in INSTRUCTIONS §8 changes from "dark panels with a gold trim" to translucent frosted panels.

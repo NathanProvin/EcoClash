@@ -1,25 +1,26 @@
-/* Game HUD theme (INSTRUCTIONS §8, D-048): dark translucent panels with a thin gold trim over the
-   diorama, bold numbers, small caps labels; one sans-serif font and the players' colours. */
+/* Calm HUD theme (INSTRUCTIONS §8, D-048, D-064): frosted, translucent panels that let the
+   diorama show through, soft borders and shadows, light type; one sans-serif font and the
+   players' colours. */
 :root {
-  --ink: #f3eedb; /* parchment white */
-  --ink-soft: #a9b19c;
-  --gold: #d8b45c;
-  --gold-soft: rgba(216, 180, 92, 0.4);
-  --good: #9bd76a;
-  --bad: #ff7b6b;
-  --panel: linear-gradient(180deg, rgba(30, 40, 33, 0.92), rgba(14, 20, 17, 0.94));
-  --panel-flat: rgba(18, 25, 21, 0.92);
-  --line: rgba(255, 255, 255, 0.12);
-  --well: rgba(0, 0, 0, 0.35); /* recessed areas: bars, slots */
+  --ink: #f4f1e6;
+  --ink-soft: rgba(244, 241, 230, 0.62);
+  --gold: #e6cf94; /* soft warm accent: armed cards, unlock marks */
+  --gold-soft: rgba(230, 207, 148, 0.35);
+  --accent: rgba(207, 224, 168, 0.8); /* sage: hover */
+  --good: #b6de8f;
+  --bad: #ff9a8a;
+  --panel: rgba(26, 34, 30, 0.4);
+  --panel-flat: rgba(26, 34, 30, 0.62);
+  --blur: blur(18px) saturate(1.3);
+  --line: rgba(255, 255, 255, 0.14);
+  --well: rgba(255, 255, 255, 0.08); /* recessed areas: gauges, selects */
   --p1: #0072b2;
   --p2: #e69f00;
   --p1-glow: #3aa9ec;
   --p2-glow: #ffc04a;
-  --focus: #f5d27a;
-  --radius: 10px;
-  --trim:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px var(--gold-soft),
-    0 6px 18px rgba(0, 0, 0, 0.35);
+  --focus: #e6cf94;
+  --radius: 16px;
+  --trim: 0 8px 30px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   font-family:
     Inter,
     system-ui,
@@ -56,12 +57,13 @@ input {
   outline-offset: 2px;
 }
 
-/* A framed HUD panel. */
+/* A frosted HUD panel. */
 .panel {
   background: var(--panel);
+  border: 1px solid var(--line);
   box-shadow: var(--trim);
   border-radius: var(--radius);
-  backdrop-filter: blur(6px);
+  backdrop-filter: var(--blur);
   padding: 8px 12px;
 }
 
@@ -69,22 +71,18 @@ input {
 .btn,
 select.btn {
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
-  border-radius: 8px;
-  padding: 5px 12px;
+  background: var(--well);
+  border-radius: 999px;
+  padding: 5px 14px;
   cursor: pointer;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  font-weight: 500;
   transition:
-    border-color 0.12s,
-    box-shadow 0.12s;
+    border-color 0.15s,
+    background 0.15s;
 }
 .btn:hover {
-  border-color: var(--gold);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 0 10px rgba(216, 180, 92, 0.35);
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.12);
 }
 select.btn option {
   background: #18211c;
@@ -93,7 +91,7 @@ select.btn option {
 /* Small caps label above or before a value. */
 .label {
   font-size: 0.68em;
-  font-weight: 700;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--ink-soft);

@@ -6,6 +6,7 @@
     biomass: "M12 21v-7m0 0c-4 0-7-2-7-7 4 0 7 2 7 7zm0 0c0-4 3-7 7-7 0 4-3 7-7 7z",
     tree: "M12 22v-6m0 0H7l3-4H8l4-6 4 6h-2l3 4z",
     layers: "M12 4 3 9l9 5 9-5zm-9 9 9 5 9-5",
+    menu: "M4 7h16M4 12h16M4 17h16",
   } as const;
 
   let { name, size = 18 }: { name: keyof typeof PATHS; size?: number } = $props();

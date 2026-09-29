@@ -29,6 +29,7 @@
   // Render rate for the perf check (D-040): frames per second over the last half second, and the
   // longest frame in it (a field frame's repaint shows up there).
   let perf = $state("");
+  let showPerf = $state(false); // the performance readout, off by default (D-064)
   let perfFrames = 0;
   let perfStart = 0;
   let perfWorst = 0;
@@ -399,11 +400,22 @@
       {toggle}
       {quality}
       onQuality={setQuality}
+      bind:perf={showPerf}
       {replays}
       bind:chosen
       onChoose={open}
     />
-    <Timeline {replay} live={!!live} {simMs} {perf} bind:tick bind:playing bind:speed {result} />
+    <Timeline
+      {replay}
+      live={!!live}
+      {simMs}
+      {perf}
+      {showPerf}
+      bind:tick
+      bind:playing
+      bind:speed
+      {result}
+    />
     <BottomBar
       {replay}
       {tick}
@@ -416,24 +428,20 @@
       onPickSpecies={pickSpecies}
       onClear={() => select([])}
     />
-    <p class="hint">
-      {#if attackArmed}
-        <strong>Attack-move:</strong> click a cell: your animals go there, feeding on any enemy food on
-        the way · Esc: cancel
-      {:else if live && selection.size && !planting}
-        <strong>{selection.size} selected:</strong> right-click: move (enemy cell: attack) · A + click:
-        attack-move · S: stop · Shift + 1-9: set group · 1-9: recall
-      {:else if planting}
-        <strong>{armedKind === "flora" ? "Planting" : "Calling"} {label(planting)}:</strong>
-        {armedKind === "flora"
-          ? "click a cell"
-          : "click your land (base price), or enemy ground to drop them on food or prey (×1.5)"} · Shift:
-        keep going · Esc: cancel
-      {:else}
-        Click: inspect cell · Drag: select · Middle-drag / Q E: rotate · Right-drag / arrows: pan ·
-        Wheel: zoom · T: tech tree
-      {/if}
-    </p>
+    {#if attackArmed || planting}
+      <p class="hint">
+        {#if attackArmed}
+          <strong>Attack-move:</strong> click a cell: your animals go there, feeding on any enemy food
+          on the way · Esc: cancel
+        {:else if planting}
+          <strong>{armedKind === "flora" ? "Planting" : "Calling"} {label(planting)}:</strong>
+          {armedKind === "flora"
+            ? "click a cell"
+            : "click your land (base price), or enemy ground to drop them on food or prey (×1.5)"} · Shift:
+          keep going · Esc: cancel
+        {/if}
+      </p>
+    {/if}
     {#if notices.length}
       <div class="notices" role="status">
         {#each notices as n (n.at + n.text)}
@@ -517,8 +525,8 @@
     margin: 0;
     font-size: 0.76em;
     color: var(--ink-soft);
-    background: var(--panel-flat);
-    box-shadow: var(--trim);
+    background: var(--panel);
+    backdrop-filter: var(--blur);
     padding: 3px 10px;
     border-radius: 999px;
   }

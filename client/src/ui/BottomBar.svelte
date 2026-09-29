@@ -77,7 +77,7 @@
           <span class="num">×{n}</span>
         </button>
       {/each}
-      <span class="keys">Right-click move · A attack · S stop</span>
+      <span class="keys">Right-click move · A attack · S stop · Ctrl 1-9 group</span>
       <button class="x" onclick={onClear} aria-label="Clear selection">✕</button>
     </div>
   {/if}

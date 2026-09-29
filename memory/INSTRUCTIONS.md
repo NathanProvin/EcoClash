@@ -297,7 +297,7 @@ Quality presets (low / medium / high): grass density, shadows, post-processing, 
 
 ## 8. UI
 
-- Svelte + CSS, a **game HUD** look (D-048): dark translucent panels with a thin gold trim over the diorama, bold numbers, small caps labels, one sans-serif font (e.g. Inter), and the player colours from §7.1. Theme tokens live in `client/src/app.css`.
+- Svelte + CSS, a calm **frosted HUD** (D-048, D-064): translucent blurred panels with a thin light border over the diorama, bold numbers, few words (names in tooltips), settings grouped in one menu, one sans-serif font (e.g. Inter), and the player colours from §7.1. Theme tokens live in `client/src/app.css`.
 - **Species icons:** every species card has an icon slot (`client/src/ui/SpeciesIcon.svelte`). Put a square image with a transparent background, 128 px or more, at `client/public/icons/species/<species name>.webp`; until then the slot shows a placeholder glyph on the species' stratum or role colour.
 - Screens: main menu, settings (quality presets, keybinds), match setup (vs AI / vs player), in-game HUD (biomass, territory %, selected units, minimap), end screen with **live biomass/territory charts** of the match.
 - Built so far: main menu (D-057; Launch game works, Species catalog and Options are placeholders), in-game HUD (D-048), end screen with territory and standing-biomass charts (D-059).

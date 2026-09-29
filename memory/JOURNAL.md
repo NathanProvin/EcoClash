@@ -298,3 +298,9 @@
   - Two-tab check in the browser: in sync, and the stall shows.
   - Moved balance runs and `sim-py` to M7 (user).
 - **Next:** pause for the user's hands-on feedback round (and their fps reading), then M5/M6.
+
+## 2026-09-29 · Feedback round 1: soft HUD (D-064)
+- **Done:**
+  - Frosted translucent theme; a decluttered top bar (one capsule, three icon buttons, settings in one menu); a live clock pill; the performance readout on request only; hints only while something is armed.
+  - Client check, lint and tests pass; checked in the browser.
+- **Next (feedback round):** organic animal movement and swarm species; food-limited carrying capacity; bigger, more natural plant models and ground; animal models with a player ring.

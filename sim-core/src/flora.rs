@@ -52,7 +52,7 @@ pub struct FloraParams {
     pub l_tol: Vec<i64>,
     /// Soil-type affinity per species (Q16), indexed `[species][soil type]`.
     pub aff: Vec<Vec<i64>>,
-    /// Max cells per player (D-029).
+    /// Share of the map's cells each player may hold, per species (Q16; D-029, D-045).
     pub cap: Vec<i64>,
     pub succession: bool,
     pub shade: bool,
@@ -132,12 +132,18 @@ impl FloraParams {
             l_opt: v(col(&|s| s.light_optimum, u16f)),
             l_tol: v(col(&|s| s.light_tolerance, u16f)),
             aff,
-            cap: sp.iter().map(|s| i64::from(s.cap)).collect(),
+            cap: v(col(&|s| s.cap, one)),
             level,
             succession: f.succession,
             shade: f.shade,
             contested_cells: f.contested_cells,
         }
+    }
+
+    /// Cell cap of species `s` on a map of `n2` cells: its share times the cell count.
+    #[must_use]
+    pub fn cap_cells(&self, s: usize, n2: usize) -> i64 {
+        div(self.cap[s] * i64::try_from(n2).unwrap_or(i64::MAX), ONE_I)
     }
 
     #[must_use]
@@ -363,7 +369,7 @@ impl Flora {
         let held = (0..n2)
             .filter(|&k| st.bio[s * n2 + k] > 0 && st.owner[k] == player)
             .count();
-        let mut room = p.cap[s] - i64::try_from(held).unwrap_or(i64::MAX);
+        let mut room = p.cap_cells(s, n2) - i64::try_from(held).unwrap_or(i64::MAX);
         let mut planted = 0;
         for &k in cells {
             let free = st.owner[k] == 0 || st.owner[k] == player;
@@ -428,8 +434,11 @@ impl Flora {
             sc.present[k] = mask;
             sc.dom[k] = dom;
         }
-        let full: [Vec<bool>; 2] =
-            [0, 1].map(|pi| (0..ns).map(|s| held[pi][s] >= p.cap[s]).collect());
+        let full: [Vec<bool>; 2] = [0, 1].map(|pi| {
+            (0..ns)
+                .map(|s| held[pi][s] >= p.cap_cells(s, cells))
+                .collect()
+        });
         sc.bio.clone_from(&st.bio);
         sc.gauge.clone_from(&st.gauge);
         sc.owner.clone_from(&st.owner);
@@ -755,7 +764,7 @@ impl Flora {
                 let held = (0..cells)
                     .filter(|&k| present(s, k) && owner[k] == pl)
                     .count();
-                full[pi][s] = i64::try_from(held).unwrap_or(i64::MAX) >= p.cap[s];
+                full[pi][s] = i64::try_from(held).unwrap_or(i64::MAX) >= p.cap_cells(s, cells);
             }
         }
 
@@ -936,7 +945,7 @@ mod tests {
     fn fast_step_equals_the_reference_step() {
         let mut fast = flora();
         let grasses = fast.p.index("grasses").unwrap();
-        fast.p.cap[grasses] = 300; // the cap rule runs too
+        fast.p.cap[grasses] = 300 * ONE_I / 1600; // 300 of the 1600 cells: the cap rule runs too
         let slow = fast.clone();
         let n = 40;
         let mut st = FloraState::new(&fast.p, n);
@@ -992,7 +1001,7 @@ mod tests {
             8,
             "P1's cells are not free"
         );
-        f.p.cap[grasses] = 10;
+        f.p.cap[grasses] = 10 * ONE_I / 16; // 10 of the 16 cells
         let mut st = FloraState::new(&f.p, 4);
         assert_eq!(f.plant(&mut st, 1, grasses, &all), 10, "cell cap");
         assert_eq!(

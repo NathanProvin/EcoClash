@@ -1,14 +1,15 @@
 """Rule checks for the M0.4 fauna agents (gamerules §6; D-023)."""
 
 import numpy as np
+from helpers import uncapped
 
 from prototype.fauna import Agents, Fauna
-from prototype.flora import ONE, U16, Flora, load_balance
+from prototype.flora import ONE, U16, Flora
 from prototype.match import run
 
 
 def world(n=8, bal=None):
-    bal = bal or load_balance()
+    bal = bal or uncapped()
     fl = Flora(bal)
     return bal, fl, Fauna(bal, fl), fl.new_state(n)
 
@@ -71,7 +72,7 @@ def test_starvation_leaves_a_carcass():
 
 
 def test_reproduction_respects_the_player_cap():
-    bal = load_balance()
+    bal = uncapped()
     bal["agents"]["max_agents"] = 6  # 3 per player
     _, fl, fa, st = world(bal=bal)
     body = int(fa.body[fa.idx("earthworms")])
@@ -110,7 +111,7 @@ def test_spawn_conditions():
 
 def test_match_with_animals_is_repeatable():
     def play():
-        bal = load_balance()
+        bal = uncapped()
         fl = Flora(bal, "quant", seed=2)
         rows, _, _, log = run(fl, 48, 10, seed=2, fauna=Fauna(bal, fl, 2))
         return rows, log
@@ -122,7 +123,7 @@ def test_match_with_animals_is_repeatable():
 
 
 def test_breeding_waits_for_the_cooldown_and_the_species_cap():
-    bal = load_balance()
+    bal = uncapped()
     bal["fauna"]["earthworms"]["cap"] = 3
     _, fl, fa, st = world(bal=bal)
     body = int(fa.body[fa.idx("earthworms")])
@@ -137,7 +138,7 @@ def test_breeding_waits_for_the_cooldown_and_the_species_cap():
 
 
 def test_spawn_respects_the_species_cap():
-    bal = load_balance()
+    bal = uncapped()
     bal["fauna"]["earthworms"]["cap"] = 4
     _, fl, fa, st = world(bal=bal)
     fl.plant(st, 1, "grasses", everywhere(8), frac=1.0)

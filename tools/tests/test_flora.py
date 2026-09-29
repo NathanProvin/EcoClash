@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+from helpers import uncapped
 
 from prototype.flora import U16, Flora, load_balance
 from prototype.match import run
@@ -14,7 +15,7 @@ def halves(n):
 
 
 def test_same_level_frontier_freezes():
-    fl = Flora(load_balance())
+    fl = Flora(uncapped())
     st = fl.new_state(16)
     left, right = halves(16)
     fl.plant(st, 1, "grasses", left, frac=1.0)
@@ -26,7 +27,7 @@ def test_same_level_frontier_freezes():
 
 
 def test_higher_level_smothers_lower_enemy():
-    fl = Flora(load_balance())
+    fl = Flora(uncapped())
     st = fl.new_state(16)
     st.soil[:] = U16
     left, right = halves(16)
@@ -40,7 +41,7 @@ def test_higher_level_smothers_lower_enemy():
 
 @pytest.mark.parametrize("succession", [True, False])
 def test_trees_need_developed_soil(succession):
-    fl = Flora(load_balance(), succession=succession)
+    fl = Flora(uncapped(), succession=succession)
     st = fl.new_state(8)
     left, _ = halves(8)
     st.soil[left] = U16
@@ -51,7 +52,7 @@ def test_trees_need_developed_soil(succession):
 
 
 def test_pioneers_establish_on_bare_soil_trees_do_not():
-    fl = Flora(load_balance())
+    fl = Flora(uncapped())
     st = fl.new_state(8)
     everywhere = np.ones((8, 8), bool)
     assert fl.plant(st, 1, "oak", everywhere) == 0
@@ -60,7 +61,7 @@ def test_pioneers_establish_on_bare_soil_trees_do_not():
 
 @pytest.mark.parametrize("mode", ["float", "quant"])
 def test_mirrored_scenario_is_symmetric(mode):
-    fl = Flora(load_balance(), mode, rounding="floor")  # floor: no random draws, exact mirror
+    fl = Flora(uncapped(), mode, rounding="floor")  # floor: no random draws, exact mirror
     rows, _, st, _ = run(fl, 32, 4, seed=3, builds=("forest", "forest"))
     assert rows[-1]["territory_p1"] == rows[-1]["territory_p2"] > 0
     assert np.array_equal(st.owner == 1, np.rot90(st.owner == 2, 2))
@@ -68,7 +69,7 @@ def test_mirrored_scenario_is_symmetric(mode):
 
 def test_quant_stochastic_is_repeatable():
     def final():
-        fl = Flora(load_balance(), "quant", "stochastic", seed=7)
+        fl = Flora(uncapped(), "quant", "stochastic", seed=7)
         rows, _, st, _ = run(fl, 32, 4, seed=7)
         return rows, st
 
@@ -80,7 +81,7 @@ def test_quant_stochastic_is_repeatable():
 
 @pytest.mark.parametrize("rounding", ["stochastic", "floor"])
 def test_quant_low_density_still_grows(rounding):
-    fl = Flora(load_balance(), "quant", rounding, seed=1)
+    fl = Flora(uncapped(), "quant", rounding, seed=1)
     st = fl.new_state(4)
     st.soil[:] = U16
     one_cell = np.zeros((4, 4), bool)
@@ -94,7 +95,7 @@ def test_quant_low_density_still_grows(rounding):
 
 
 def test_same_stratum_species_interpenetrate_and_spread():
-    fl = Flora(load_balance())
+    fl = Flora(uncapped())
     st = fl.new_state(16)
     st.soil[:] = U16
     everywhere = np.ones((16, 16), bool)
@@ -110,7 +111,7 @@ def test_same_stratum_species_interpenetrate_and_spread():
 
 
 def test_mixed_stand_outgrows_monoculture():
-    fl = Flora(load_balance())
+    fl = Flora(uncapped())
     mono, mixed = fl.new_state(4), fl.new_state(4)
     cells = np.ones((4, 4), bool)
     for st in (mono, mixed):
@@ -126,7 +127,7 @@ def test_mixed_stand_outgrows_monoculture():
 def test_float_and_quant_agree_on_territory():
     final = {}
     for mode in ("float", "quant"):
-        rows, _, _, _ = run(Flora(load_balance(), mode, seed=5), 48, 6, seed=5)
+        rows, _, _, _ = run(Flora(uncapped(), mode, seed=5), 48, 6, seed=5)
         final[mode] = rows[-1]
     for p in (1, 2):
         key = f"territory_p{p}"
@@ -134,7 +135,7 @@ def test_float_and_quant_agree_on_territory():
 
 
 def test_gauge_rises_faster_with_more_neighbours():
-    fl = Flora(load_balance())
+    fl = Flora(uncapped())
     gains = []
     for neighbours in (1, 3):
         st = fl.new_state(5)
@@ -151,7 +152,7 @@ def test_gauge_rises_faster_with_more_neighbours():
 
 @pytest.mark.parametrize("mode", ["float", "quant"])
 def test_biomass_stays_under_gauge_capacity(mode):
-    fl = Flora(load_balance(), mode, shade=False)
+    fl = Flora(uncapped(), mode, shade=False)
     st = fl.new_state(4)
     fl.plant(st, 1, "grasses", np.ones((4, 4), bool))  # gauge = plant_gauge (0.5)
     i = fl.idx("grasses")
@@ -163,7 +164,7 @@ def test_biomass_stays_under_gauge_capacity(mode):
 
 
 def test_bioclimate_hooks_are_neutral_in_v1_and_bite_when_set():
-    bal = load_balance()
+    bal = uncapped()
     fl = Flora(bal, succession=False)
     assert (fl.suitability(fl.new_state(4)) == 1 << 16).all()
     bal["flora"]["grasses"] |= {"water_optimum": 0.9, "water_tolerance": 0.5}  # field is 0.5
@@ -172,7 +173,7 @@ def test_bioclimate_hooks_are_neutral_in_v1_and_bite_when_set():
 
 
 def test_soft_succession_ramp():
-    fl = Flora(load_balance())
+    fl = Flora(uncapped())
     st = fl.new_state(3)
     oak = fl.idx("oak")
     lo = fl.soil_min[oak] - fl.soil_ramp
@@ -186,7 +187,7 @@ def test_soft_succession_ramp():
 
 def test_plant_cap_limits_cells_per_player():
     bal = load_balance()
-    bal["flora"]["grasses"]["cap"] = 10
+    bal["flora"]["grasses"]["cap"] = 10 / 64  # 10 cells of the 8 x 8 map
     fl = Flora(bal)
     st = fl.new_state(8)
     assert fl.plant(st, 1, "grasses", np.ones((8, 8), bool), frac=1.0) == 10

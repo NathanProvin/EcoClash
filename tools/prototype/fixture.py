@@ -27,7 +27,9 @@ PARAMS = ("kmax", "rdt", "rate", "soil_dt", "cast", "tol", "seed_b", "est_thr", 
 def texts() -> tuple[str, str]:
     """The real data files, with a small grasses cap so the cap rule runs in a 14 x 14 map."""
     species = SPECIES.read_text(encoding="utf-8")
-    species = re.sub(r"(\[flora\.grasses\][^\[]*?\ncap = )\d+", r"\g<1>30", species, count=1)
+    species = re.sub(  # 30 of the 196 cells
+        r"(\[flora\.grasses\][^\[]*?\ncap = )[\d.]+", r"\g<1>0.1531", species, count=1
+    )
     return BALANCE.read_text(encoding="utf-8"), species
 
 

@@ -481,3 +481,15 @@ Template:
   - Single-pass live census; the frontier skips interior cells.
   - The playback strip shows the fps and the worst frame over the last 0.5 s, plus the render backend, for the D-040 check on the reference laptop.
 - **Consequences:** A frame where many cells change cover at once (early growth) can still cost up to ≈40 ms. If the laptop shows hitches, the next steps are spreading the repaint over several frames or moving the layout to the worker.
+
+## D-045 · 2026-09-29 · Plant caps are a share of the map (fixes the growth cliff)
+- **Status:** accepted
+- **Context:** The user saw plant growth "hit a cliff" around 10 minutes, and new patches stop spreading. Cause: plant caps were absolute cell counts written for the 64² prototype map, where grasses' 2000 cells was half the map. On a 256² map, grasses reached 2000 cells about 4 minutes into a live-like run and froze. Territory then crawled on lichen alone (+25 cells per minute), and any later grasses patch could not gain a cell.
+- **Decision:**
+  - The flora `cap` in `species.toml` is a share of the map's cells per player, in (0, 1]. The old values were converted at 64² scale (cells / 4096, rounded): 2000 → 0.5, 800 → 0.2, 600 → 0.15, 400 → 0.1.
+  - It is converted to Q16 at load, and the cell cap is `div(cap × n², ONE)` with the §4 rounding, identical in the prototype and `sim-core` (parity fixture regenerated, exact).
+  - Animal caps stay head counts.
+  - The UI shows plant caps as "% of map".
+- **Consequences:**
+  - The same live-like run now grows territory steadily until the fronts meet: 2,159 cells at 4 min, 12,404 at 10 min, 28,693 at 20 min on 256².
+  - Rule tests on tiny maps use `tests/helpers.py::uncapped()`; the cap rule keeps its own test.

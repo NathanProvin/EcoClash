@@ -55,7 +55,8 @@ pub struct FloraSpecies {
     pub unlock_cost: f64,
     #[serde(rename = "yield")]
     pub yield_: f64,
-    pub cap: u32,
+    /// Share of the map's cells per player (D-045).
+    pub cap: f64,
     pub effect: String,
     // Model.
     pub level: u8,
@@ -164,6 +165,10 @@ impl Balance {
             check(
                 s.k_max > 0.0 && s.k_max <= 65535.0,
                 format!("{n}: k_max must be in 1..65535"),
+            )?;
+            check(
+                s.cap > 0.0 && s.cap <= 1.0,
+                format!("{n}: cap is a share of the map, in 0..1 (D-045)"),
             )?;
             check(
                 (0.0..1.0).contains(&s.shade_cast),

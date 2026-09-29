@@ -95,6 +95,7 @@ class Flora:
             assert 0 <= s["shade_cast"] < 1 and 0 <= s["shade_tolerance"] <= 1, n
             assert s["biomass_rate"] * self.dt < 1, f"{n}: biomass_rate * dt must stay < 1"
             assert s["growth"] * self.dt <= 1, f"{n}: growth * dt must stay <= 1"
+            assert 0 < s["cap"] <= 1, f"{n}: cap is a share of the map (D-045)"
             assert set(s.get("soil_affinity", {})) <= set(soil_types), n
 
         def col(key, scale=1.0, default=None):
@@ -106,7 +107,7 @@ class Flora:
         self.rdt = col("biomass_rate", self.dt * ONE)
         self.rate = col("growth", self.dt * ONE)  # colonization gauge speed (D-029 stat)
         self.yld = col("yield")  # points per second per fully covered cell (economy)
-        self.cap = np.array([s["cap"] for s in sp], np.int64)  # max cells per player
+        self.cap = col("cap", ONE)  # share of the map's cells per player (Q16, D-045)
         self.soil_dt = col("soil_gain", self.dt * U16)
         self.cast = col("shade_cast", ONE)
         self.tol = col("shade_tolerance", ONE)
@@ -130,7 +131,7 @@ class Flora:
         if mode == "quant":  # converted once at load, after which everything is integer
             for k in ("kmax", "rdt", "rate", "soil_dt", "cast", "tol", "alpha", "seed_b",
                       "est_thr", "smother", "litter", "plant_g", "soil_min", "soil_ramp", "water0",
-                      "light0", "w_opt", "w_tol", "l_opt", "l_tol", "aff"):  # fmt: skip
+                      "light0", "w_opt", "w_tol", "l_opt", "l_tol", "aff", "cap"):  # fmt: skip
                 setattr(self, k, round_half_away(getattr(self, k)))
 
     def div(self, a, b):
@@ -148,6 +149,10 @@ class Flora:
             return np.where((q == 0) & (a > 0), 1, q)
         q, r = np.divmod(np.abs(a), b)  # stochastic: the remainder is the probability of +1
         return np.sign(a) * (q + (self.rng.integers(0, b, size=np.shape(a)) < r))
+
+    def cap_cells(self, n2: int):
+        """Cell cap per species (D-045): its map share times the map's cell count."""
+        return self.div(self.cap * n2, ONE)
 
     def idx(self, name: str) -> int:
         return self.names.index(name)
@@ -187,7 +192,8 @@ class Flora:
         grows there. Sets its gauge to at least `plant_gauge`. Returns the cells planted."""
         i = self.idx(name)
         ok = mask & ((st.owner == 0) | (st.owner == player)) & (self.suitability(st)[i] > 0)
-        room = self.cap[i] - int(((st.bio[i] > 0) & (st.owner == player)).sum())
+        held = int(((st.bio[i] > 0) & (st.owner == player)).sum())
+        room = self.cap_cells(st.owner.size)[i] - held
         new = ok & (st.bio[i] == 0)
         ok &= ~new | (
             np.cumsum(new).reshape(ok.shape) <= room
@@ -254,7 +260,8 @@ class Flora:
             seeds[p] = np.logical_or.reduce([nb(mine, dy, dx) for dy, dx in DIRS]) & (suit > 0)
         # Species at their cell cap (D-029) cannot enter new cells this tick. The check uses the
         # previous state, so simultaneous arrivals may overshoot by one tick's worth.
-        full = {p: X(((bio > 0) & (owner == p)).sum((1, 2)) >= self.cap) for p in PLAYERS}
+        caps = self.cap_cells(owner.size)
+        full = {p: X(((bio > 0) & (owner == p)).sum((1, 2)) >= caps) for p in PLAYERS}
 
         # 5. Growth, minus litter (turnover) and smothering by higher enemy levels. Litter,
         #    die-back (negative growth) and smothered biomass become dead biomass.

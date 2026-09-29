@@ -217,3 +217,13 @@
   - The HUD shows fps, the worst frame and the backend. WebGPU is active on the Intel UHD.
 - **Not done:** the fps reading itself. The automated Chrome tab is hidden (`visibilityState` hidden, no animation frames), so the user reads it in a visible window.
 - **Next:** the user's fps reading; then terrain and instanced grass (rest of the M2 render item) or M3.
+
+## 2026-09-29 · Growth cliff = plant caps (D-045)
+- **Done:**
+  - Diagnosed the ~10 min cliff with a headless 20-minute run: grasses stopped at the 2000-cell cap, a 64²-era value.
+  - Plant caps are now map shares, in the prototype and sim-core; parity stays exact.
+- **Why new patches spread slower (user question):**
+  - Species speeds differ (`growth`: grasses 1.2, clover 0.48, lichen and oak 0.24).
+  - Non-pioneers only grow on soil developed by lichen and moss, with a gauge capped by suitability.
+  - The planting brush (radius 2) is smaller than the opening patches (radius 3).
+  - Mainly, a grasses patch planted after the cap was hit could not grow at all.

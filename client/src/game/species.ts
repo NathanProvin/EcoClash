@@ -54,3 +54,10 @@ export function cardState(meta: ReplayMeta, s: Species, unlocked: Set<string>): 
     );
   return tierOk && habitatOk ? "available" : "locked";
 }
+
+/** The population cap as shown: a share of the map for plants (D-045), a head count for animals. */
+export function capText(s: Species): string {
+  return s.kind === "flora"
+    ? `${Math.round(s.stats.cap * 100)} % of map`
+    : `${s.stats.cap} animals`;
+}

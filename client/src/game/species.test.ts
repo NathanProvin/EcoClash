@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ReplayMeta, Species } from "../replay/replay";
-import { cardState, label, unlockedAt } from "./species";
+import { capText, cardState, label, unlockedAt } from "./species";
 
 function sp(
   name: string,
@@ -34,6 +34,16 @@ const meta = {
 describe("species helpers", () => {
   it("formats names", () => {
     expect(label("tawny_owl")).toBe("Tawny owl");
+  });
+
+  it("shows plant caps as map shares and animal caps as counts", () => {
+    expect(
+      capText({
+        ...sp("grasses", "flora", 1, 1, 0),
+        stats: { ...sp("g", "flora", 1, 1, 0).stats, cap: 0.15 },
+      }),
+    ).toBe("15 % of map");
+    expect(capText(sp("fox", "fauna", 5, 1, 0))).toBe("1 animals");
   });
 
   it("tracks unlocks over time and per player", () => {

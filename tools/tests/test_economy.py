@@ -1,15 +1,16 @@
 """Rule checks for the M0.5 economy (gamerules §4, §7, §11.3; D-018, D-023)."""
 
 import numpy as np
+from helpers import uncapped
 
 from prototype.economy import Economy
 from prototype.fauna import Agents, Fauna
-from prototype.flora import Flora, load_balance
+from prototype.flora import Flora
 from prototype.match import run
 
 
 def economy(bal=None):
-    bal = bal or load_balance()
+    bal = bal or uncapped()
     fl = Flora(bal)
     return Economy(bal, fl, Fauna(bal, fl))
 
@@ -47,7 +48,7 @@ def test_costs_come_from_the_stat_sheet():
 
 
 def test_income_is_the_sum_of_species_yields():
-    bal = load_balance()
+    bal = uncapped()
     fl = Flora(bal)
     fa = Fauna(bal, fl)
     ec = Economy(bal, fl, fa)
@@ -71,7 +72,7 @@ def test_victory_rules():
 
 
 def test_decaying_threshold_switch():
-    bal = load_balance()
+    bal = uncapped()
     bal["match"]["territory_decay"] = True
     ec = economy(bal)
     assert ec.threshold(0) == 0.75
@@ -80,7 +81,7 @@ def test_decaying_threshold_switch():
 
 
 def test_match_with_economy_ends_at_the_time_limit():
-    bal = load_balance()
+    bal = uncapped()
     bal["match"]["time_limit_s"] = 120
     fl = Flora(bal)
     fa = Fauna(bal, fl)
@@ -96,7 +97,7 @@ def test_replay_export_round_trips(tmp_path):
 
     from prototype.match import FIELD_EVERY, export_replay
 
-    bal = load_balance()
+    bal = uncapped()
     fl = Flora(bal)
     fa = Fauna(bal, fl)
     record = []

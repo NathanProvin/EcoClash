@@ -1,7 +1,7 @@
 <script lang="ts">
   // Full-screen tech tree (gamerules §4, D-029/D-030): flora L1..L3 and fauna F1..F5 as levels x
   // tiers; each card shows the stat sheet and its state for the viewed player at the current time.
-  import { cardState, glyph, label, unlockedAt } from "../game/species";
+  import { capText, cardState, glyph, label, unlockedAt } from "../game/species";
   import type { Source, Species } from "../replay/replay";
 
   let {
@@ -69,7 +69,7 @@
                       <dt>Unlock</dt>
                       <dd>{s.stats.unlock_cost || "free"}</dd>
                       <dt>Cap</dt>
-                      <dd>{s.stats.cap}</dd>
+                      <dd>{capText(s)}</dd>
                       <dt>Owned</dt>
                       <dd>{count(s)}</dd>
                     </dl>

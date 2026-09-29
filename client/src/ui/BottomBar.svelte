@@ -2,7 +2,7 @@
   // RTS unit bar (D-030): the current selection grouped by species, or, when nothing is selected,
   // the viewed player's living species. A card focuses a species; the left panel shows its stats.
   // In a live match every plant has a card, and clicking one arms planting (App plants on click).
-  import { glyph, label, position } from "../game/species";
+  import { capText, glyph, label, position } from "../game/species";
   import type { Source, Species } from "../replay/replay";
 
   let {
@@ -62,7 +62,7 @@
         <dt>Spawn</dt>
         <dd>{shown.stats.spawn_cost}</dd>
         <dt>Cap</dt>
-        <dd>{shown.stats.cap} {unit(shown)}</dd>
+        <dd>{capText(shown)}</dd>
       </dl>
       <p class="effect">{shown.stats.effect}</p>
     {:else}

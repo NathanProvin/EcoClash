@@ -616,3 +616,16 @@ Template:
   - Buttons: "Launch game" starts a live match. "Species" (a catalog of every species) and "Options" (player settings) are shown disabled, marked "soon", as the user plans them for later.
   - In a game, a Menu button in the top bar ends the match (worker and viewer disposed) and returns to the menu. Game keys are ignored while the menu is open.
 - **Consequences:** Replays stay reachable from the top-bar source menu once in a game.
+
+## D-058 · 2026-09-29 · Spending: unlocks and costs in sim-core (M4)
+- **Status:** accepted
+- **Decision:**
+  - `sim-core/src/economy.rs` ports the prototype's spending rules (D-027, D-029). Each player has an unlocked flag per species (plants, then animals); species with unlock cost 0 start unlocked.
+  - A new `unlock {species}` command pays the unlock cost. It needs one unlocked species on the previous tier of the same tree and level and, for an animal, one unlocked habitat plant.
+  - Planting a locked species is refused with a notice. Otherwise the order plants cell by cell, paying `spawn_cost` per cell planted, and stops when the bank runs dry.
+  - A spawn pays `spawn_cost` per animal, times `drop_surcharge` (1.5) for a predator landing outside own land, with fewer animals if the bank cannot pay for the whole card. `Fauna::spawn` is split into `spawn_site` and `place` so the world can charge in between.
+  - The unlocked flags and the bank are in the tick hash; costs and the surcharge are in the balance hash (version 4).
+  - **Sandbox:** a world flag (in the tick hash) makes everything unlocked and free. It is used by `sim-cli --sandbox 1` (the prototype cross-check), the native-vs-WASM check, the timing tests, and the client's `?sandbox=1`.
+  - **Match setup:** `World::setup_plant` plants the starting patches for free before the first tick. It is not a player action; every peer runs the same setup.
+  - **Client:** the worker sends each player's unlocked flags every tick. In a live match, bottom-bar cards are unlocked (arm them), available ("Unlock · cost": a click buys it) or locked (dimmed, with the reason in the tooltip). The tech tree has Unlock buttons on available cards.
+- **Consequences:** The Python prototype keeps its own float economy (no parity requirement for the economy). A measurement note: the timing test ran ≈2× slower this session on both the new and the old commit, so machine state, not code; D-053's figures are the reference.

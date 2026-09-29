@@ -3,7 +3,7 @@
   // the viewed player's living species. A card focuses a species; the left panel shows its stats.
   // In a live match every species has a card, under a Plants / Animals tab; clicking one arms it,
   // and the next map click plants it or calls the animal there (App).
-  import { capText, label, position } from "../game/species";
+  import { capText, cardState, label, position } from "../game/species";
   import type { Source, Species } from "../replay/replay";
   import SpeciesIcon from "./SpeciesIcon.svelte";
 
@@ -15,6 +15,8 @@
     focus = $bindable(),
     live,
     planting = $bindable(),
+    unlocked,
+    onUnlock,
     onPickSpecies,
     onClear,
   }: {
@@ -25,6 +27,8 @@
     focus: string | null;
     live: boolean;
     planting: string | null;
+    unlocked: Set<string>;
+    onUnlock: (name: string) => void;
     onPickSpecies: (name: string) => void;
     onClear: () => void;
   } = $props();
@@ -50,6 +54,15 @@
   });
   const shown = $derived(species.find((s) => s.name === focus) ?? cards[0]?.s);
   const unit = (s: Species) => (s.kind === "flora" ? "cells" : "animals");
+  /** Live cards follow the tech tree: unlocked (arm it), available (buy it), locked. */
+  const cardOf = (s: Species) =>
+    live && !selection.size ? cardState(replay.meta, s, unlocked) : "unlocked";
+  const tip = (s: Species, count: number) =>
+    ({
+      unlocked: `${label(s.name)}: ${count} ${unit(s)}${live ? " · click, then click the map" : ""}`,
+      available: `${label(s.name)}: click to unlock for ${s.stats.unlock_cost} biomass`,
+      locked: `${label(s.name)}: locked. It needs a species of the tier below${s.kind === "fauna" ? " and one of its habitat plants" : ""} (T: tech tree)`,
+    })[cardOf(s)];
 </script>
 
 <footer class="bar p{player}">
@@ -118,16 +131,25 @@
           class:on={shown?.name === s.name}
           class:armed={planting === s.name}
           class:none={count === 0}
+          class:locked={cardOf(s) === "locked"}
+          class:available={cardOf(s) === "available"}
           onclick={() => {
             focus = s.name;
-            if (live && !selection.size) planting = planting === s.name ? null : s.name;
+            if (cardOf(s) === "available") onUnlock(s.name);
+            else if (cardOf(s) === "locked") return;
+            else if (live && !selection.size) planting = planting === s.name ? null : s.name;
             else if (s.kind === "fauna") onPickSpecies(s.name);
           }}
-          title="{label(s.name)}: {count} {unit(s)}{live ? ' · click, then click the map' : ''}"
+          title={tip(s, count)}
         >
           <SpeciesIcon {s} size={46} />
           <span class="name">{label(s.name)}</span>
           {#if count}<span class="count num">{count}</span>{/if}
+          {#if cardOf(s) === "available"}
+            <span class="ribbon">Unlock · {s.stats.unlock_cost}</span>
+          {:else if cardOf(s) === "locked"}
+            <span class="lock" aria-label="locked">🔒</span>
+          {/if}
         </button>
       {:else}
         <p class="muted">Nothing yet.</p>
@@ -263,6 +285,32 @@
       0 0 0 2px var(--gold),
       0 0 14px var(--gold);
     opacity: 1;
+  }
+  .card.locked {
+    opacity: 0.4;
+    filter: grayscale(0.8);
+    cursor: default;
+  }
+  .card.available {
+    border-color: var(--gold-soft);
+  }
+  .ribbon {
+    position: absolute;
+    top: 38px;
+    left: 4px;
+    right: 4px;
+    border-radius: 4px;
+    font-size: 0.6em;
+    font-weight: 800;
+    text-align: center;
+    color: #1d160a;
+    background: var(--gold);
+  }
+  .lock {
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    font-size: 0.7em;
   }
   .name {
     font-size: 0.72em;

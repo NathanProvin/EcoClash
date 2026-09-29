@@ -41,7 +41,7 @@ pub struct FaunaParams {
     pub names: Vec<String>,
     pub role: Vec<Role>,
     /// Flora the player must own (bitmask over flora species).
-    habitat: Vec<u32>,
+    pub(crate) habitat: Vec<u32>,
     /// Flora eaten (herbivores), fauna eaten (predators): bitmasks.
     eats_flora: Vec<u32>,
     eats_fauna: Vec<u32>,
@@ -733,8 +733,23 @@ impl Fauna {
         st: &FloraState,
         player: u8,
         s: usize,
-        (row, col): (usize, usize),
+        click: (usize, usize),
     ) -> Result<usize, String> {
+        let (at, count) = self.spawn_site(fl, st, player, s, click)?;
+        self.place(s, player, at, count, st.n);
+        Ok(usize::try_from(count).unwrap_or(0))
+    }
+
+    /// Where a card of species `s` would land for `player` and how many animals it would bring
+    /// (gamerules §6.3, see `spawn`), without placing them: the caller may charge first.
+    pub fn spawn_site(
+        &self,
+        fl: &FloraParams,
+        st: &FloraState,
+        player: u8,
+        s: usize,
+        (row, col): (usize, usize),
+    ) -> Result<(usize, i64), String> {
         let (p, n, n2) = (&self.p, st.n, st.n * st.n);
         let a = &self.agents;
         let mine = (0..a.len()).filter(|&i| a.owner[i] == player).count();
@@ -805,12 +820,16 @@ impl Fauna {
                 closest(&home, n, click).ok_or("needs its habitat plants on your land")?
             }
         };
-        let energy = p.body[s] * ONE_I / 2;
+        Ok((at, count))
+    }
+
+    /// Place `count` animals of species `s` for `player` on cell `at`, at half energy.
+    pub fn place(&mut self, s: usize, player: u8, at: usize, count: i64, n: usize) {
+        let energy = self.p.body[s] * ONE_I / 2;
         for _ in 0..count {
             self.agents
                 .push(s, player, centre(at / n), centre(at % n), energy, 0);
         }
-        Ok(usize::try_from(count).unwrap_or(0))
     }
 
     /// The animals for renderers: u32 count, then per animal u32 id, u16 y, u16 x (position in

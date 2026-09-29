@@ -46,7 +46,8 @@ def run_cli(cmds: list[dict], n: int, ticks: int, work: Path) -> list[dict]:
     out = work / "metrics.csv"
     subprocess.run(
         ["cargo", "run", "-q", "--release", "-p", "sim-cli", "--", "run", "--seed", "1",
-         "--ticks", str(ticks), "--size", str(n), "--commands", str(path), "--out", str(out)],
+         "--ticks", str(ticks), "--size", str(n), "--commands", str(path), "--out", str(out),
+         "--sandbox", "1"],  # the prototype plants freely: no costs, no unlocks
         cwd=ROOT, check=True, capture_output=True, text=True,
     )  # fmt: skip
     with open(out, encoding="utf-8") as fh:

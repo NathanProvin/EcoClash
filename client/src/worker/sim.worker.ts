@@ -49,7 +49,8 @@ function loop() {
     for (let i = 0; i < speed; i++) hash = s.step();
     const ms = (performance.now() - start) / speed;
     const agents = s.agentFrame().buffer as ArrayBuffer;
-    post({ type: "tick", tick: s.tick, hash, ms, agents }, [agents]);
+    const unlocked = [[...s.unlocked(1)], [...s.unlocked(2)]];
+    post({ type: "tick", tick: s.tick, hash, ms, agents, unlocked }, [agents]);
     if (s.floraTick !== floraTick) sendFields(s);
     const notices = JSON.parse(s.takeNotices()) as { player: number; text: string }[];
     if (notices.length) post({ type: "notice", notices });
@@ -57,16 +58,17 @@ function loop() {
   setTimeout(loop, Math.max(0, 1000 / (s?.tickHz ?? 10) - (performance.now() - start)));
 }
 
-async function begin(seed: number, size: number) {
+async function begin(seed: number, size: number, sandbox: boolean) {
   await init({ module_or_path: wasmUrl });
   const s = new Sim(balance, species, BigInt(seed), size);
+  s.setSandbox(sandbox);
   const n = Math.sqrt(s.fieldFrame().length / (2 + s.speciesNames().length));
   const base = Math.floor(n / 4);
   for (const player of [1, 2]) {
     for (const [name, dr, dc, radius] of OPENING) {
       let [row, col] = [base + Math.round((dr * n) / 128), base + Math.round((dc * n) / 128)];
       if (player === 2) [row, col] = [n - 1 - row, n - 1 - col];
-      command(s, player, { type: "plant", species: name, row, col, radius });
+      s.setupPlant(player, name, row, col, radius); // match setup: free (D-058)
     }
   }
   sim = s;
@@ -86,7 +88,9 @@ async function begin(seed: number, size: number) {
 onmessage = (e: MessageEvent<ToWorker>) => {
   const m = e.data;
   if (m.type === "start") {
-    begin(m.seed, m.size).catch((err: unknown) => post({ type: "error", message: String(err) }));
+    begin(m.seed, m.size, m.sandbox).catch((err: unknown) =>
+      post({ type: "error", message: String(err) }),
+    );
   } else if (m.type === "pause") {
     paused = m.paused;
   } else if (m.type === "speed") {

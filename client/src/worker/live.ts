@@ -16,7 +16,7 @@ import {
 } from "../replay/replay";
 
 export type ToWorker =
-  | { type: "start"; seed: number; size: number }
+  | { type: "start"; seed: number; size: number; sandbox: boolean }
   | { type: "pause"; paused: boolean }
   | { type: "speed"; speed: number }
   | { type: "command"; player: 1 | 2; payload: object };
@@ -31,7 +31,14 @@ export type ToMain =
       maxAgents: number;
       balanceHash: string;
     }
-  | { type: "tick"; tick: number; hash: string; ms: number; agents: ArrayBuffer }
+  | {
+      type: "tick";
+      tick: number;
+      hash: string;
+      ms: number;
+      agents: ArrayBuffer;
+      unlocked: number[][]; // per player, one flag per species (species-table order)
+    }
   | { type: "fields"; tick: number; frame: ArrayBuffer; bank: number[]; income: number[] }
   | { type: "notice"; notices: { player: number; text: string }[] }
   | { type: "error"; message: string };
@@ -72,6 +79,7 @@ export class Live implements Source {
   private readonly maxAgents: number;
   private current: Fields;
   private flora: number[][] = [[], []]; // cells per plant species, per player, current frame
+  private unlockedFlags: number[][] = [[], []];
   private prev = { tick: 0, at: 0, animals: [] as Animal[] };
   private cur = { tick: 0, at: 0, animals: [] as Animal[] };
 
@@ -102,8 +110,9 @@ export class Live implements Source {
     worker.onmessage = (e: MessageEvent<ToMain>) => this.receive(e.data);
   }
 
-  /** Start a match in a new worker: a bare map of `size` cells a side (0 = balance grid size). */
-  static start(seed: number, size: number): Promise<Live> {
+  /** Start a match in a new worker: a bare map of `size` cells a side (0 = balance grid size).
+   *  A sandbox match has every species unlocked and free (D-058). */
+  static start(seed: number, size: number, sandbox = false): Promise<Live> {
     const worker = new Worker(new URL("./sim.worker.ts", import.meta.url), { type: "module" });
     return new Promise((resolve, reject) => {
       worker.onmessage = (e: MessageEvent<ToMain>) => {
@@ -111,7 +120,7 @@ export class Live implements Source {
         else if (e.data.type === "error") reject(new Error(e.data.message));
       };
       worker.onerror = (e) => reject(new Error(`sim worker: ${e.message}`));
-      worker.postMessage({ type: "start", seed, size } satisfies ToWorker);
+      worker.postMessage({ type: "start", seed, size, sandbox } satisfies ToWorker);
     });
   }
 
@@ -130,6 +139,17 @@ export class Live implements Source {
    *  lands, or says why it cannot come). */
   spawn(player: 1 | 2, species: string, row: number, col: number): void {
     this.send({ type: "command", player, payload: { type: "spawn", species, row, col } });
+  }
+
+  /** Unlock a species card (gamerules §4); the sim refuses it, with a notice, if not allowed. */
+  unlock(player: 1 | 2, species: string): void {
+    this.send({ type: "command", player, payload: { type: "unlock", species } });
+  }
+
+  /** Species cards a player has unlocked, as the sim last reported. */
+  unlocked(player: number): Set<string> {
+    const flags = this.unlockedFlags[player - 1] ?? [];
+    return new Set(this.meta.species.filter((_, i) => flags[i]).map((s) => s.name));
   }
 
   /** Give own animals an order (gamerules §9): move to a cell, attack-move to it, or stop. */
@@ -161,6 +181,7 @@ export class Live implements Source {
       this.simMs = this.simMs ? this.simMs * 0.9 + m.ms * 0.1 : m.ms;
       this.prev = this.cur;
       this.cur = { tick: m.tick, at: performance.now(), animals: decodeAgents(m.agents) };
+      this.unlockedFlags = m.unlocked;
     } else if (m.type === "fields") {
       this.current = this.decode(this.current.frame + 1, new Uint8Array(m.frame), m);
     } else if (m.type === "notice") {

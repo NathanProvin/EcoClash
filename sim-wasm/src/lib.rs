@@ -40,6 +40,35 @@ impl Sim {
         })
     }
 
+    /// Match setup: a free starting patch, before the first step (D-058). Returns cells planted.
+    #[wasm_bindgen(js_name = setupPlant)]
+    pub fn setup_plant(
+        &mut self,
+        player: u8,
+        species: &str,
+        row: u32,
+        col: u32,
+        radius: u32,
+    ) -> u32 {
+        u32::try_from(self.world.setup_plant(player, species, row, col, radius)).unwrap_or(0)
+    }
+
+    /// A sandbox match: every species unlocked and free (D-058). Call it before the first step.
+    #[wasm_bindgen(js_name = setSandbox)]
+    pub fn set_sandbox(&mut self, on: bool) {
+        self.world.set_sandbox(on);
+    }
+
+    /// Species cards a player (1 or 2) has unlocked: one flag per species, plants then animals
+    /// (the species-table order).
+    pub fn unlocked(&self, player: u8) -> Vec<u8> {
+        let e = &self.world.economy;
+        let species = self.world.flora.p.species() + self.world.fauna.p.names.len();
+        (0..species)
+            .map(|i| u8::from(matches!(player, 1 | 2) && e.is_unlocked(player, i)))
+            .collect()
+    }
+
     /// Queue one command (JSON, as in command files). False if refused (late or duplicate).
     pub fn submit(&mut self, command: &str) -> Result<bool, JsError> {
         let c: Command = serde_json::from_str(command).map_err(|e| JsError::new(&e.to_string()))?;

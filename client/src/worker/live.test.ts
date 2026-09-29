@@ -80,8 +80,28 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     bank: [1000, 990],
     income: [4, 2],
   });
-  worker.emit({ type: "tick", tick: 8, hash: "aa", ms: 2, agents: agents([[1, 0, 0, 0, 1]]) });
-  worker.emit({ type: "tick", tick: 9, hash: "ab", ms: 2, agents: agents([[1, 0, 1, 0, 1]]) });
+  const unlocked = [
+    [1, 0, 1],
+    [1, 0, 0],
+  ];
+  worker.emit({
+    type: "tick",
+    tick: 8,
+    hash: "aa",
+    ms: 2,
+    agents: agents([[1, 0, 0, 0, 1]]),
+    unlocked,
+  });
+  worker.emit({
+    type: "tick",
+    tick: 9,
+    hash: "ab",
+    ms: 2,
+    agents: agents([[1, 0, 1, 0, 1]]),
+    unlocked,
+  });
+  expect([...live.unlocked(1)]).toEqual(["grasses", "voles"]);
+  expect([...live.unlocked(2)]).toEqual(["grasses"]);
 
   expect(live.tick).toBe(9);
   expect(live.counts(9, 1)).toEqual([2, 1, 1]);

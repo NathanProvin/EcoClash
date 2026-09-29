@@ -1,7 +1,7 @@
 // Species helpers shared by the UI: display names, glyphs, and tech-tree state at a given time.
 // Mirrors the unlock rules of tools/prototype/economy.py (D-029).
 
-import type { ReplayMeta, Species } from "../replay/replay";
+import type { ReplayMeta, Source, Species } from "../replay/replay";
 
 /** "tawny_owl" -> "Tawny owl", "lichen_and_moss" -> "Lichen & moss". */
 export function label(name: string): string {
@@ -18,6 +18,12 @@ export function glyph(s: Species): string {
 /** Short tech-tree position, e.g. "L2 · tier 1" or "F5 · tier 1". */
 export function position(s: Species): string {
   return `${s.kind === "flora" ? "L" : "F"}${s.level} · tier ${s.tier}`;
+}
+
+/** Species a player has unlocked at tick `tick`: what a live match reports, or, for a replay,
+ *  the free species plus the unlocks in its log. */
+export function unlockedNow(src: Source, player: number, tick: number): Set<string> {
+  return src.unlocked?.(player) ?? unlockedAt(src.meta, player, tick * src.meta.dt);
 }
 
 /** Species a player has unlocked at time `t` (seconds): free species plus logged unlocks. */

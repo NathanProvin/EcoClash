@@ -69,8 +69,9 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [ ] Two tabs, 5 min, identical hashes. Automated in a Node test with two headless clients.
 
 ## M4 · Full match vs AI
-- [ ] Economy, structures, territory, victory conditions (per the resolved Q-002 and Q-003). Done so far: bank + income in sim-core (D-046); still to do: spending (unlocks, planting and spawn costs).
+- [ ] Economy, structures, territory, victory conditions (per the resolved Q-002 and Q-003). Done: bank + income (D-046), spending: unlocks, planting and spawn costs (D-058). Still to do: victory conditions.
 - [ ] `sim-ai` scripted bot, command-only (D-014), with difficulty levels.
+- [x] Main menu (D-057).
 - [ ] End screen with biomass and territory charts.
 - [ ] `tools/balance/` batch runs via `sim-cli` → Parquet; tune Q-013.
 - [ ] Decide whether `sim-py` is needed (D-010).

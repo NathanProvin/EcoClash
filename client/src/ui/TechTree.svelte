@@ -1,7 +1,7 @@
 <script lang="ts">
   // Full-screen tech tree (gamerules §4, D-029/D-030): flora L1..L3 and fauna F1..F5 as levels x
   // tiers; each card shows the stat sheet and its state for the viewed player at the current time.
-  import { capText, cardState, label, unlockedAt } from "../game/species";
+  import { capText, cardState, label, unlockedNow } from "../game/species";
   import type { Source, Species } from "../replay/replay";
   import SpeciesIcon from "./SpeciesIcon.svelte";
 
@@ -10,10 +10,17 @@
     tick,
     player,
     onClose,
-  }: { replay: Source; tick: number; player: 1 | 2; onClose: () => void } = $props();
+    onUnlock,
+  }: {
+    replay: Source;
+    tick: number;
+    player: 1 | 2;
+    onClose: () => void;
+    onUnlock?: (name: string) => void; // live matches: buy an available card
+  } = $props();
 
   const meta = $derived(replay.meta);
-  const unlocked = $derived(unlockedAt(meta, player, tick * meta.dt));
+  const unlocked = $derived(unlockedNow(replay, player, tick));
   const counts = $derived(replay.counts(tick, player));
   const trees = [
     { kind: "flora", title: "Flora", prefix: "L", levels: [1, 2, 3], names: ["Herbaceous", "Shrubs", "Trees"] },
@@ -79,6 +86,11 @@
                       <p class="small">Habitat {s.habitat.map(label).join(", ")}</p>
                     {/if}
                     <p class="effect">{s.stats.effect}</p>
+                    {#if onUnlock && state === "available"}
+                      <button class="btn buy" onclick={() => onUnlock(s.name)}>
+                        Unlock · {s.stats.unlock_cost}
+                      </button>
+                    {/if}
                   </article>
                 {/each}
               </div>
@@ -233,6 +245,11 @@
     margin: 4px 0 0;
     font-style: italic;
     color: var(--ink-soft);
+  }
+  .buy {
+    margin-top: 6px;
+    width: 100%;
+    border-color: var(--gold);
   }
   .badge {
     font-size: 0.68em;

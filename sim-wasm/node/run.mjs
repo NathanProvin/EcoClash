@@ -4,6 +4,7 @@
 //
 // node sim-wasm/node/run.mjs --seed N --ticks T [--commands file.jsonl] [--size N]
 //      [--balance data/balance.toml] [--species data/species.toml] [--hashes hashes.csv]
+//      [--sandbox 1]
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { initSync, Sim } from "../pkg/sim_wasm.js";
@@ -22,6 +23,7 @@ const sim = new Sim(
   BigInt(opt("seed", "1")),
   Number(opt("size", "0")),
 );
+sim.setSandbox(opt("sandbox", "0") !== "0");
 const commands = opt("commands");
 if (commands) {
   for (const line of readFileSync(commands, "utf8").split("\n")) {

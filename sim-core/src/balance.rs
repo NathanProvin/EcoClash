@@ -41,6 +41,8 @@ pub struct FloraRules {
 #[derive(Clone, Debug, Deserialize)]
 pub struct EconomyRules {
     pub start_budget: f64,
+    /// Predators dropped outside own land cost this much more (gamerules §6.3).
+    pub drop_surcharge: f64,
 }
 
 /// `[agents]`: the agent budget (INSTRUCTIONS §5.4).
@@ -227,6 +229,10 @@ impl Balance {
         check(
             (0.0..=32767.0).contains(&self.economy.start_budget),
             "economy.start_budget must be in 0..32767".into(),
+        )?;
+        check(
+            self.economy.drop_surcharge >= 1.0,
+            "economy.drop_surcharge must be >= 1".into(),
         )?;
         let dt = self.flora_dt();
         self.validate_fauna()?;

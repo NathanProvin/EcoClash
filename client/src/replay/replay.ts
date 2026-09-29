@@ -72,7 +72,10 @@ export interface Animal {
 export type Source = Pick<
   Replay,
   "meta" | "animals" | "fields" | "cell" | "counts" | "maxAnimals" | "seriesIndex"
->;
+> & {
+  /** Species cards a player has unlocked (live matches; replays rebuild it from their log). */
+  unlocked?: (player: number) => Set<string>;
+};
 
 const ANIMAL_BYTES = 10; // u32 id, u16 y, u16 x, u8 species, u8 owner
 

@@ -9,7 +9,7 @@
   import { SvelteMap } from "svelte/reactivity";
   import { loadReplay, type Source } from "./replay/replay";
   import { Live, type Notice } from "./worker/live";
-  import { label } from "./game/species";
+  import { label, unlockedNow } from "./game/species";
   import { Viewer, type CameraKeys, type Layer } from "./render/viewer";
   import { loadQuality, saveQuality, type Quality } from "./render/quality";
   import BottomBar from "./ui/BottomBar.svelte";
@@ -48,6 +48,11 @@
   const groups = new SvelteMap<number, number[]>(); // control groups: digit -> animal ids
   let rightDown: { x: number; y: number } | null = null;
   let notices: Notice[] = $state([]); // recent orders that did nothing
+  const unlocked = $derived.by(() => {
+    void tick; // live unlocks arrive with the ticks
+    return replay ? unlockedNow(replay, player, tick) : new Set<string>();
+  });
+  const unlock = (name: string) => live?.unlock(player, name);
   const armedKind = $derived(
     replay?.meta.species.find((s) => s.name === planting)?.kind ?? "flora",
   );
@@ -134,7 +139,11 @@
       if (name === LIVE) {
         // ?seed=N&size=N (0 = the balance grid size); a fixed default seed keeps runs reproducible
         const q = new URLSearchParams(location.search);
-        live = await Live.start(Number(q.get("seed") ?? 1), Number(q.get("size") ?? 0));
+        live = await Live.start(
+          Number(q.get("seed") ?? 1),
+          Number(q.get("size") ?? 0),
+          q.get("sandbox") === "1", // ?sandbox=1: everything unlocked and free (D-058)
+        );
         replay = live;
       } else {
         replay = await loadReplay(`replays/${name}`);
@@ -378,6 +387,8 @@
       bind:focus
       live={!!live}
       bind:planting
+      {unlocked}
+      onUnlock={unlock}
       onPickSpecies={pickSpecies}
       onClear={() => select([])}
     />
@@ -414,7 +425,13 @@
       />
     {/if}
     {#if techOpen}
-      <TechTree {replay} {tick} {player} onClose={() => (techOpen = false)} />
+      <TechTree
+        {replay}
+        {tick}
+        {player}
+        onClose={() => (techOpen = false)}
+        onUnlock={live ? unlock : undefined}
+      />
     {/if}
   {/if}
   {#if error}<p class="panel error" role="alert">{error}</p>{/if}

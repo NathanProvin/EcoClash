@@ -53,7 +53,7 @@ impl World {
             tick: 0,
             flora,
             state,
-            economy: Economy::new(balance),
+            economy: Economy::new(balance, &fauna.p),
             fauna,
             notices: Vec::new(),
             rng: Pcg32::new(seed, RNG_STREAM),
@@ -111,12 +111,32 @@ impl World {
                     self.rejected += 1;
                     return;
                 };
-                let cells = disc(n, *row, *col, *radius);
-                let planted = self.flora.plant(&mut self.state, c.player, s, &cells);
-                for &k in &cells {
+                if !self.economy.is_unlocked(c.player, s) {
+                    let why = "locked: unlock it in the tech tree first";
+                    self.notices.push((c.player, format!("{species}: {why}")));
+                    return;
+                }
+                // Cell by cell, paying `spawn_cost` for each cell planted, while the bank allows.
+                let unit = self.economy.unit_cost(s, false);
+                let mut planted = 0;
+                let mut broke = false;
+                for k in disc(n, *row, *col, *radius) {
+                    if self.economy.affordable(c.player, unit) == 0 {
+                        broke = true;
+                        break;
+                    }
+                    let got = self.flora.plant(&mut self.state, c.player, s, &[k]);
+                    self.economy
+                        .pay(c.player, unit * i64::try_from(got).unwrap_or(0));
+                    planted += got;
                     self.fields.mark_cell(k);
                 }
-                if planted == 0 {
+                if broke {
+                    self.notices.push((
+                        c.player,
+                        format!("{species}: not enough biomass for more cells"),
+                    ));
+                } else if planted == 0 {
                     self.notices.push((
                         c.player,
                         format!("{species}: nothing took there (soil too poor, land taken, or cap reached)"),
@@ -135,10 +155,42 @@ impl World {
                     self.rejected += 1;
                     return;
                 }
-                let spawned = self
+                if !self.economy.is_unlocked(c.player, self.economy.animal(s)) {
+                    let why = "locked: unlock it in the tech tree first";
+                    self.notices.push((c.player, format!("{species}: {why}")));
+                    return;
+                }
+                let site = self
                     .fauna
-                    .spawn(&self.flora.p, &self.state, c.player, s, (r, c2));
-                if let Err(why) = spawned {
+                    .spawn_site(&self.flora.p, &self.state, c.player, s, (r, c2));
+                let (at, count) = match site {
+                    Ok(site) => site,
+                    Err(why) => {
+                        self.notices.push((c.player, format!("{species}: {why}")));
+                        return;
+                    }
+                };
+                // Predators dropped outside own land cost more (gamerules §6.3).
+                let predator = self.fauna.p.role[s] == crate::fauna::Role::Predator;
+                let outside = predator && self.state.owner[at] != c.player;
+                let unit = self.economy.unit_cost(self.economy.animal(s), outside);
+                let count = count.min(self.economy.affordable(c.player, unit));
+                if count == 0 {
+                    self.notices
+                        .push((c.player, format!("{species}: not enough biomass")));
+                    return;
+                }
+                self.fauna.place(s, c.player, at, count, n);
+                self.economy.pay(c.player, unit * count);
+            }
+            Payload::Unlock { species } => {
+                let i = (self.flora.p.index(species))
+                    .or_else(|| self.fauna.p.index(species).map(|s| self.economy.animal(s)));
+                let Some(i) = i.filter(|_| valid_player) else {
+                    self.rejected += 1;
+                    return;
+                };
+                if let Err(why) = self.economy.unlock(c.player, i) {
                     self.notices.push((c.player, format!("{species}: {why}")));
                 }
             }
@@ -161,6 +213,39 @@ impl World {
         }
     }
 
+    /// Match setup (D-058): plant a starting patch for free, before the first tick. It is not a
+    /// player action, so it costs nothing and needs no unlock; every peer runs the same setup.
+    /// Unknown species or cells off the map plant nothing. Returns the cells planted.
+    pub fn setup_plant(
+        &mut self,
+        player: u8,
+        species: &str,
+        row: u32,
+        col: u32,
+        radius: u32,
+    ) -> usize {
+        let n = self.state.n;
+        let (Some(s), true) = (self.flora.p.index(species), matches!(player, 1 | 2)) else {
+            return 0;
+        };
+        if usize::try_from(row).map_or(true, |r| r >= n)
+            || usize::try_from(col).map_or(true, |c| c >= n)
+        {
+            return 0;
+        }
+        let cells = disc(n, row, col, radius);
+        for &k in &cells {
+            self.fields.mark_cell(k);
+        }
+        self.flora.plant(&mut self.state, player, s, &cells)
+    }
+
+    /// A sandbox match: every species unlocked and free (tools, checks; D-058). Set it before the
+    /// first tick; it is part of the state hash, so peers must agree on it.
+    pub fn set_sandbox(&mut self, on: bool) {
+        self.economy.sandbox = on;
+    }
+
     /// Why recent orders did nothing, oldest first; the list is emptied.
     pub fn take_notices(&mut self) -> Vec<(u8, String)> {
         std::mem::take(&mut self.notices)
@@ -174,10 +259,10 @@ impl World {
         h.u64(self.tick)
             .u64(self.state.t)
             .u64(self.rejected)
-            .i64s(&self.economy.bank)
             .u64(state)
             .u64(inc)
             .u64(digest);
+        self.economy.hash_state(&mut h);
         self.fauna.agents.hash_into(&mut h);
         h.finish()
     }
@@ -282,6 +367,26 @@ mod tests {
             "{notices:?}"
         );
         assert!(w.take_notices().is_empty(), "drained");
+    }
+
+    #[test]
+    fn plants_cost_points_locked_ones_are_refused_and_setup_is_free() {
+        let b = balance();
+        let mut w = World::new(&b, 1, 40);
+        assert!(w.setup_plant(1, "grasses", 5, 5, 3) > 0, "setup plants...");
+        let bank = w.economy.bank[0];
+        w.submit(plant(0, 1, 0, "grasses", 20, 20)); // a paid order
+        w.submit(plant(0, 1, 1, "wildflowers", 30, 30)); // locked at start
+        w.step();
+        // The order paid for its cells (the same tick's income is far smaller); setup did not.
+        assert!(bank - w.economy.bank[0] > 0);
+        let notices = w.take_notices();
+        assert!(
+            notices
+                .iter()
+                .any(|(_, t)| t.starts_with("wildflowers: locked")),
+            "{notices:?}"
+        );
     }
 
     #[test]
@@ -400,6 +505,7 @@ mod perf {
         let every = u64::from(b.sim.flora_every_ticks);
 
         let mut w = World::new(&b, 1, n);
+        w.set_sandbox(true); // plants any species
         let mut seq = 0;
         let m = u32::try_from(n).unwrap();
         let spots = [
@@ -432,6 +538,7 @@ mod perf {
         println!("{n}x{n} mid-game: {mid:?} per flora tick, {owned} cells owned");
 
         let mut w = World::new(&b, 1, n);
+        w.set_sandbox(true);
         w.state.soil.iter_mut().for_each(|s| *s = U16);
         for (player, cols) in [(1u8, 0..n / 2), (2u8, n / 2..n)] {
             let cells: Vec<usize> = (0..n * n).filter(|k| cols.contains(&(k % n))).collect();

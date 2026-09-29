@@ -3,8 +3,11 @@
 //! ```text
 //! sim-cli run --seed N --ticks T [--commands file.jsonl] [--size N]
 //!             [--balance data/balance.toml] [--species data/species.toml]
-//!             [--out metrics.csv] [--hashes hashes.csv]
+//!             [--out metrics.csv] [--hashes hashes.csv] [--sandbox 1]
 //! ```
+//!
+//! `--sandbox 1` plays with every species unlocked and free (D-058): command files that plant any
+//! species, like the prototype cross-check, need it.
 //!
 //! Prints the balance hash and the final state hash. `--hashes` writes the hash of every tick;
 //! `--out` writes metrics once per flora tick (territory, biomass, cells of each plant species per
@@ -21,7 +24,8 @@ use sim_core::hash::balance_hash;
 use sim_core::world::World;
 
 const USAGE: &str = "usage: sim-cli run --seed N --ticks T [--commands file.jsonl] [--size N] \
-[--balance data/balance.toml] [--species data/species.toml] [--out metrics.csv] [--hashes hashes.csv]";
+[--balance data/balance.toml] [--species data/species.toml] [--out metrics.csv] [--hashes hashes.csv] \
+[--sandbox 1]";
 
 fn main() -> ExitCode {
     match run(std::env::args().skip(1).collect()) {
@@ -59,6 +63,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
     let size = usize::try_from(size).map_err(|e| format!("--size: {e}"))?;
 
     let mut world = World::new(&balance, seed, size);
+    world.set_sandbox(number("sandbox", "0")? != 0);
     if let Some(path) = opts.get("commands") {
         for (i, line) in read(path.clone())?.lines().enumerate() {
             if line.trim().is_empty() {

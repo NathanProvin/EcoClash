@@ -9,7 +9,7 @@ import { join } from "node:path";
 
 const run = (cmd, args) => execFileSync(cmd, args, { stdio: ["ignore", "pipe", "inherit"] });
 const ticks = "1200"; // two minutes of play
-const common = ["--seed", "7", "--ticks", ticks, "--size", "64", "--commands", "sim-wasm/node/commands.jsonl"];
+const common = ["--seed", "7", "--ticks", ticks, "--size", "64", "--sandbox", "1", "--commands", "sim-wasm/node/commands.jsonl"]; // prettier-ignore
 
 execSync("npm run -s wasm:build", { stdio: "inherit" }); // the package the browser loads too
 

@@ -11,10 +11,10 @@
   const owner = $derived(info.owner ? `P${info.owner}` : "Nobody");
 </script>
 
-<aside class="panel cell" aria-label="Selected cell">
+<aside class="panel cell p{info.owner}" aria-label="Selected cell">
   <header>
     <h2>Cell {info.row} · {info.col}</h2>
-    <button class="x" onclick={onClose} aria-label="Close">×</button>
+    <button class="x" onclick={onClose} aria-label="Close">✕</button>
   </header>
   <p class="line">
     <span class="dot p{info.owner}"></span>
@@ -24,7 +24,7 @@
     <span class="muted">{pct(info.soil)}</span>
   </p>
 
-  <h3>Plants</h3>
+  <h3 class="label">Plants</h3>
   {#each info.plants as p (p.name)}
     <p class="line">
       <span class="glyph p{info.owner}">{glyph(p.level)}</span>
@@ -36,7 +36,7 @@
     <p class="muted">Bare ground.</p>
   {/each}
 
-  <h3>Animals</h3>
+  <h3 class="label">Animals</h3>
   {#each info.animals as a (`${a.name}:${a.owner}`)}
     <p class="line">
       <span class="dot p{a.owner}"></span>
@@ -47,16 +47,17 @@
     <p class="muted">None here right now.</p>
   {/each}
 
-  <button class="zoom" onclick={onZoom}>Zoom to plant scale</button>
+  <button class="btn zoom" onclick={onZoom}>Zoom to plant scale</button>
 </aside>
 
 <style>
   .cell {
     position: absolute;
-    top: 56px;
-    right: 16px;
-    width: 260px;
+    top: 74px;
+    right: 14px;
+    width: 270px;
     font-size: 0.88em;
+    border-top: 2px solid var(--player, var(--gold));
   }
   header {
     display: flex;
@@ -64,28 +65,27 @@
   }
   h2 {
     margin: 0;
-    font-size: 1em;
+    font-size: 1.05em;
+    font-weight: 800;
   }
   h3 {
-    margin: 10px 0 4px;
-    font-size: 0.8em;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--ink-soft);
+    margin: 12px 0 4px;
   }
   .x {
     margin-left: auto;
     border: 0;
     background: none;
-    font-size: 1.3em;
     cursor: pointer;
     color: var(--ink-soft);
+  }
+  .x:hover {
+    color: var(--ink);
   }
   .line {
     display: flex;
     align-items: center;
     gap: 6px;
-    margin: 2px 0;
+    margin: 3px 0;
   }
   .name {
     flex: 1;
@@ -94,24 +94,26 @@
     font-variant-numeric: tabular-nums;
     min-width: 3.2em;
     text-align: right;
+    font-weight: 700;
   }
   .bar {
     width: 70px;
-    height: 6px;
-    background: #e6e6e0;
-    border-radius: 3px;
+    height: 7px;
+    background: var(--well);
+    border-radius: 4px;
     overflow: hidden;
   }
   .bar span {
     display: block;
     height: 100%;
-    background: #7aa37e;
+    background: linear-gradient(90deg, #6f9f4e, var(--good));
   }
   .dot {
-    width: 9px;
-    height: 9px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
-    background: #bbb;
+    background: #777;
+    box-shadow: 0 0 6px currentColor;
   }
   .dot.p1 {
     background: var(--p1);
@@ -124,22 +126,16 @@
     text-align: center;
   }
   .glyph.p1 {
-    color: var(--p1);
+    color: var(--p1-glow);
   }
   .glyph.p2 {
-    color: var(--p2);
+    color: var(--p2-glow);
   }
   .muted {
-    color: var(--ink-soft);
     margin: 0;
   }
   .zoom {
-    margin-top: 10px;
+    margin-top: 12px;
     width: 100%;
-    border: 1px solid var(--line);
-    background: white;
-    border-radius: 6px;
-    padding: 5px 8px;
-    cursor: pointer;
   }
 </style>

@@ -33,14 +33,16 @@
   }
 </script>
 
-<div class="strip">
-  <button onclick={playPause} aria-label={playing ? "Pause" : "Play"}>
+<div class="strip panel">
+  <button class="btn play" onclick={playPause} aria-label={playing ? "Pause" : "Play"}>
     {playing ? "❚❚" : "▶"}
   </button>
   {#if live}
-    <span class="clock">{clock(tick * replay.meta.dt)}</span>
-    <span class:slow={simMs * speed > replay.meta.dt * 1000} title="Sim time per tick (budget 8 ms)"
-      >sim {simMs.toFixed(1)} ms/tick</span
+    <span class="clock num">{clock(tick * replay.meta.dt)}</span>
+    <span
+      class="sim num"
+      class:slow={simMs * speed > replay.meta.dt * 1000}
+      title="Sim time per tick (budget 8 ms)">sim {simMs.toFixed(1)} ms/tick</span
     >
     <span class="grow"></span>
   {:else}
@@ -56,7 +58,7 @@
       aria-label="Match time"
     />
   {/if}
-  <select bind:value={speed} aria-label="Playback speed">
+  <select class="btn" bind:value={speed} aria-label="Playback speed">
     {#each speeds as s (s)}<option value={s}>{s}×</option>{/each}
   </select>
   {#if result}<strong class="result" role="status">{result}</strong>{/if}
@@ -66,45 +68,53 @@
 <style>
   .strip {
     position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 132px;
-    height: 34px;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 188px;
+    width: min(760px, calc(100% - 20px));
+    height: 40px;
     display: flex;
-    gap: 10px;
+    gap: 12px;
     align-items: center;
-    padding: 0 16px;
-    background: rgba(250, 250, 247, 0.72);
-    border-top: 1px solid var(--line);
+    padding: 0 10px;
+    border-radius: 999px;
   }
   input[type="range"],
   .grow {
     flex: 1;
   }
-  .slow {
-    color: #a3261b;
+  input[type="range"] {
+    accent-color: var(--gold);
   }
-  button {
-    width: 32px;
-    height: 24px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: white;
-    cursor: pointer;
+  .play {
+    width: 34px;
+    height: 28px;
+    padding: 0;
+    border-radius: 999px;
     font-size: 0.8em;
   }
+  .btn {
+    padding: 3px 8px;
+  }
   .clock {
-    font-variant-numeric: tabular-nums;
-    font-size: 0.85em;
+    font-size: 1.05em;
+    font-weight: 800;
     min-width: 88px;
   }
-  .perf {
-    font-size: 0.78em;
+  .sim {
+    font-size: 0.8em;
     color: var(--ink-soft);
-    font-variant-numeric: tabular-nums;
+  }
+  .slow {
+    color: var(--bad);
+  }
+  .perf {
+    font-size: 0.72em;
+    color: var(--ink-soft);
     white-space: nowrap;
   }
   .result {
     font-size: 0.9em;
+    color: var(--gold);
   }
 </style>

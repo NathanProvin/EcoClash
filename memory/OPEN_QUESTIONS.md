@@ -17,7 +17,7 @@
 | Q-005 | Counter loop: what kills predators, friendly fire | M0 (agents part) | resolved → D-023 |
 | Q-006 | Unit control at 1–2k agents: per-unit or swarm/zone orders | M3 | resolved → D-018 |
 | Q-007 | Fog of war in v1? | M3 | user thinking |
-| Q-008 | Map scale: world units per cell, agent size, speeds | M2 | resolved → D-040 |
+| Q-008 | Map scale: world units per cell, agent size, speeds | M2 | resolved → D-040 (cell size: D-047) |
 | Q-009 | Colour-blind-safe player colours | M2 | resolved → D-040 |
 | Q-010 | Reference machine for performance budgets | M2 | resolved → D-040 |
 | Q-011 | Final game name | before store page | open |

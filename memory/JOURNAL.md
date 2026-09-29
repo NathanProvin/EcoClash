@@ -234,3 +234,7 @@
 
 ## 2026-09-29 · 128² map, 4 m cells (D-047)
 - **Done:** Grid halved and cells doubled, with more models per cell. Live match at 32×: 34 % land at 9:47, sim 3–5 ms per tick.
+
+## 2026-09-29 · Game HUD pass (D-048)
+- **Done:** New dark HUD theme, resource capsule with icons, tile cards with icon slots, restyled tech tree, cell inspector and playback strip. Checked in the browser at 1540×784.
+- **Next:** the user's fps reading; terrain and instanced grass, or M3.

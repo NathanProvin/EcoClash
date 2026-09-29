@@ -337,25 +337,31 @@
   }
   .box {
     position: absolute;
-    border: 1px solid white;
-    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid var(--gold);
+    background: rgba(216, 180, 92, 0.12);
+    box-shadow: 0 0 10px rgba(216, 180, 92, 0.4);
     pointer-events: none;
   }
   .hint {
     position: absolute;
-    top: 52px;
-    left: 16px;
+    top: 64px;
+    left: 14px;
     margin: 0;
-    font-size: 0.78em;
+    font-size: 0.76em;
     color: var(--ink-soft);
-    background: rgba(250, 250, 247, 0.7);
-    padding: 2px 8px;
-    border-radius: 6px;
+    background: var(--panel-flat);
+    box-shadow: var(--trim);
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+  .hint strong {
+    color: var(--gold);
   }
   .error {
     position: absolute;
-    top: 56px;
-    right: 16px;
-    color: #a3261b;
+    top: 74px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--bad);
   }
 </style>

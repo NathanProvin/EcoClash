@@ -1,8 +1,9 @@
 <script lang="ts">
   // Full-screen tech tree (gamerules §4, D-029/D-030): flora L1..L3 and fauna F1..F5 as levels x
   // tiers; each card shows the stat sheet and its state for the viewed player at the current time.
-  import { capText, cardState, glyph, label, unlockedAt } from "../game/species";
+  import { capText, cardState, label, unlockedAt } from "../game/species";
   import type { Source, Species } from "../replay/replay";
+  import SpeciesIcon from "./SpeciesIcon.svelte";
 
   let {
     replay,
@@ -26,7 +27,7 @@
     s.kind === "flora" ? `${s.stats.growth} /s` : `${s.stats.growth} s/birth`;
 </script>
 
-<div class="page" role="dialog" aria-modal="true" aria-label="Tech tree">
+<div class="page p{player}" role="dialog" aria-modal="true" aria-label="Tech tree">
   <header>
     <h1>Tech tree <span class="muted">· P{player}</span></h1>
     <p class="legend">
@@ -37,7 +38,7 @@
         >A species needs one species of the previous tier; animals also need a habitat plant.</span
       >
     </p>
-    <button onclick={onClose}>Close (Esc)</button>
+    <button class="btn" onclick={onClose}>Close (Esc)</button>
   </header>
 
   <div class="trees">
@@ -55,7 +56,7 @@
                   {@const state = cardState(meta, s, unlocked)}
                   <article class="card {state}">
                     <h3>
-                      <span class="glyph p{player}">{glyph(s)}</span>
+                      <SpeciesIcon {s} size={36} />
                       {label(s.name)}
                       <span class="badge {state}">{state}</span>
                     </h3>
@@ -94,7 +95,9 @@
     position: absolute;
     inset: 0;
     z-index: 10;
-    background: #f6f6f2;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(216, 180, 92, 0.12), transparent 60%),
+      linear-gradient(180deg, #17211b, #0b100d);
     display: flex;
     flex-direction: column;
   }
@@ -102,20 +105,22 @@
     display: flex;
     align-items: center;
     gap: 24px;
-    padding: 12px 24px;
-    border-bottom: 1px solid var(--line);
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--gold-soft);
   }
   h1 {
     margin: 0;
-    font-size: 1.2em;
+    font-size: 1.4em;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gold);
   }
-  header button {
+  h1 .muted {
+    color: var(--player-glow);
+  }
+  header .btn {
     margin-left: auto;
-    border: 1px solid var(--line);
-    background: white;
-    border-radius: 6px;
-    padding: 4px 12px;
-    cursor: pointer;
   }
   .legend {
     display: flex;
@@ -133,53 +138,74 @@
     align-content: start;
   }
   h2 {
-    margin: 0 0 8px;
-    font-size: 1em;
+    margin: 0 0 10px;
+    font-size: 0.9em;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-soft);
   }
   .grid {
     display: grid;
-    grid-template-columns: 88px repeat(3, 1fr);
-    gap: 8px;
+    grid-template-columns: 92px repeat(3, 1fr);
+    gap: 10px;
   }
   .col {
-    color: var(--ink-soft);
-    font-size: 0.8em;
+    color: var(--gold);
+    font-size: 0.72em;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.12em;
+    text-align: center;
   }
   .row {
-    font-weight: 600;
+    font-weight: 900;
+    font-size: 1.2em;
     display: flex;
     flex-direction: column;
+    justify-content: center;
+    color: var(--gold);
   }
   .row small {
-    font-weight: 400;
+    font-weight: 500;
+    font-size: 0.6em;
     color: var(--ink-soft);
   }
   .cell {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
   }
   .card {
-    background: white;
-    border: 1px solid var(--line);
-    border-radius: 8px;
+    background: var(--panel);
+    box-shadow: var(--trim);
+    border-radius: var(--radius);
     padding: 8px 10px;
     font-size: 0.82em;
   }
   .card.locked {
-    opacity: 0.55;
+    opacity: 0.45;
+    filter: grayscale(0.7);
   }
   .card.unlocked {
-    border-color: #7aa37e;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 0 0 1px var(--good),
+      0 0 12px rgba(155, 215, 106, 0.25);
+  }
+  .card.available {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 0 0 1px var(--gold),
+      0 0 12px rgba(216, 180, 92, 0.3);
   }
   h3 {
-    margin: 0 0 4px;
-    font-size: 1.05em;
+    margin: 0 0 6px;
+    font-size: 1.1em;
+    font-weight: 800;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
   }
   h3 .badge {
     margin-left: auto;
@@ -195,6 +221,7 @@
   }
   dd {
     margin: 0;
+    font-weight: 700;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
@@ -208,31 +235,28 @@
     color: var(--ink-soft);
   }
   .badge {
-    font-size: 0.75em;
+    font-size: 0.68em;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
     border-radius: 999px;
-    padding: 1px 7px;
+    padding: 2px 8px;
+    background: var(--well);
     border: 1px solid var(--line);
   }
   .badge.unlocked {
-    background: #e3f1e4;
-    border-color: #7aa37e;
+    color: var(--good);
+    border-color: var(--good);
   }
   .badge.available {
-    background: #fff5d6;
-    border-color: #d9b44a;
+    color: var(--gold);
+    border-color: var(--gold);
   }
   .badge.locked {
-    background: #eee;
+    color: var(--ink-soft);
   }
   .muted {
-    color: var(--ink-soft);
     font-weight: 400;
     font-size: 0.85em;
-  }
-  .glyph.p1 {
-    color: var(--p1);
-  }
-  .glyph.p2 {
-    color: var(--p2);
   }
 </style>

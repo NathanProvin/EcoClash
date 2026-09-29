@@ -513,3 +513,13 @@ Template:
   - Frontier overlay: 8 texels per cell (line 0.5 m, P2 dashes 2 m).
   - Animal speeds in `species.toml` stay in cells per second, so animals also get twice as fast in metres, which fits the faster pace. Q-008's speeds (D-040) are to be re-read at the fauna port (M3).
 - **Consequences:** The perf target (D-040) now applies at 128². Worst-case plant instances on a fully covered map: ≈295k (18 per cell).
+
+## D-048 · 2026-09-29 · Game HUD style and species icon slots
+- **Status:** accepted (user request: "more video game like and less corporate dashboard like")
+- **Decision:**
+  - Theme: dark translucent panels with a thin gold trim and drop shadow over the diorama; bold tabular numbers; small caps labels; game buttons with a gold hover glow; dark thin scrollbars. Tokens are in `app.css`.
+  - Top bar: brand and player switch on the left; a resource capsule in the centre (icons, land with a P1/P2 tug-of-war gauge, species, biomass and income); tech tree, source and layers buttons on the right.
+  - Bottom: a portrait panel (icon, name, 2×2 stats, effect) and square tile cards (icon slot, name, count badge in the player colour, gold glow when armed for planting). A floating playback capsule sits above them.
+  - The tech tree and the cell inspector use the same style.
+  - Species icon slot (`SpeciesIcon.svelte`): loads `public/icons/species/<name>.webp`, falls back to the glyph on a stratum or role colour, and remembers missing files for the session.
+- **Consequences:** Adding a species icon needs no code, only the file. The HUD covers more of the screen bottom (168 px); the camera still pans under it.

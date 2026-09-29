@@ -2,8 +2,9 @@
   // RTS unit bar (D-030): the current selection grouped by species, or, when nothing is selected,
   // the viewed player's living species. A card focuses a species; the left panel shows its stats.
   // In a live match every plant has a card, and clicking one arms planting (App plants on click).
-  import { capText, glyph, label, position } from "../game/species";
+  import { capText, label, position } from "../game/species";
   import type { Source, Species } from "../replay/replay";
+  import SpeciesIcon from "./SpeciesIcon.svelte";
 
   let {
     replay,
@@ -49,20 +50,33 @@
   const unit = (s: Species) => (s.kind === "flora" ? "cells" : "animals");
 </script>
 
-<footer class="bar">
-  <section class="detail" aria-label="Selected species">
+<footer class="bar p{player}">
+  <section class="detail panel" aria-label="Selected species">
     {#if shown}
-      <h2><span class="glyph p{player}">{glyph(shown)}</span> {label(shown.name)}</h2>
-      <p class="muted">{position(shown)} · {shown.kind === "flora" ? "plant" : shown.role}</p>
+      <div class="head">
+        <SpeciesIcon s={shown} size={52} />
+        <div>
+          <h2>{label(shown.name)}</h2>
+          <p class="label">{position(shown)} · {shown.kind === "flora" ? "plant" : shown.role}</p>
+        </div>
+      </div>
       <dl>
-        <dt>Growth</dt>
-        <dd>{shown.stats.growth}{shown.kind === "flora" ? " /s" : " s/birth"}</dd>
-        <dt>Yield</dt>
-        <dd>{shown.stats.yield} /s</dd>
-        <dt>Spawn</dt>
-        <dd>{shown.stats.spawn_cost}</dd>
-        <dt>Cap</dt>
-        <dd>{capText(shown)}</dd>
+        <div>
+          <dt class="label">Growth</dt>
+          <dd class="num">{shown.stats.growth}{shown.kind === "flora" ? "/s" : " s"}</dd>
+        </div>
+        <div>
+          <dt class="label">Yield</dt>
+          <dd class="num">{shown.stats.yield}/s</dd>
+        </div>
+        <div>
+          <dt class="label">Spawn</dt>
+          <dd class="num">{shown.stats.spawn_cost}</dd>
+        </div>
+        <div>
+          <dt class="label">Cap</dt>
+          <dd class="num">{capText(shown)}</dd>
+        </div>
       </dl>
       <p class="effect">{shown.stats.effect}</p>
     {:else}
@@ -70,12 +84,16 @@
     {/if}
   </section>
 
-  <section class="cards" aria-label={selection.size ? "Selection" : "Your species"}>
+  <section class="cards panel" aria-label={selection.size ? "Selection" : "Your species"}>
     <header>
-      <span class="muted">
-        {selection.size ? `Selection · ${selection.size} animals` : "Your species"}
+      <span class="label">
+        {selection.size
+          ? `Selection · ${selection.size} animals`
+          : live
+            ? "Your species · pick a plant, then click the map to plant it"
+            : "Your species"}
       </span>
-      {#if selection.size}<button class="clear" onclick={onClear}>Clear (Esc)</button>{/if}
+      {#if selection.size}<button class="btn clear" onclick={onClear}>Clear (Esc)</button>{/if}
     </header>
     <div class="list">
       {#each cards as { s, count } (s.name)}
@@ -83,6 +101,7 @@
           class="card"
           class:on={shown?.name === s.name}
           class:armed={planting === s.name}
+          class:none={count === 0}
           onclick={() => {
             focus = s.name;
             if (s.kind === "fauna") onPickSpecies(s.name);
@@ -92,9 +111,9 @@
             ? ' · click, then click the map to plant'
             : ''}"
         >
-          <span class="glyph p{player}">{glyph(s)}</span>
+          <SpeciesIcon {s} size={46} />
           <span class="name">{label(s.name)}</span>
-          <span class="count">{count}</span>
+          {#if count}<span class="count num">{count}</span>{/if}
         </button>
       {:else}
         <p class="muted">Nothing yet.</p>
@@ -106,50 +125,50 @@
 <style>
   .bar {
     position: absolute;
-    inset: auto 0 0 0;
-    height: 132px;
+    inset: auto 10px 10px 10px;
+    height: 168px;
     display: flex;
-    gap: 16px;
-    padding: 10px 16px;
-    background: var(--panel);
-    border-top: 1px solid var(--line);
-    backdrop-filter: blur(6px);
+    gap: 10px;
   }
   .detail {
     width: 300px;
     flex: none;
-    overflow-y: auto;
-    border-right: 1px solid var(--line);
-    padding-right: 16px;
+    overflow: hidden auto;
+    border-top: 2px solid var(--player);
+  }
+  .head {
+    display: flex;
+    gap: 12px;
+    align-items: center;
   }
   h2 {
     margin: 0;
-    font-size: 1em;
+    font-size: 1.15em;
+    font-weight: 800;
+  }
+  .head .label {
+    margin: 2px 0 0;
   }
   dl {
     display: grid;
-    grid-template-columns: auto 1fr auto 1fr;
-    gap: 2px 8px;
-    margin: 6px 0;
-    font-size: 0.85em;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 12px;
+    margin: 6px 0 4px;
   }
-  dt {
-    color: var(--ink-soft);
+  dl div {
+    display: flex;
+    flex-direction: column;
   }
   dd {
     margin: 0;
-    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    white-space: nowrap;
   }
   .effect {
     margin: 0;
-    font-size: 0.82em;
+    font-size: 0.8em;
     color: var(--ink-soft);
     font-style: italic;
-  }
-  .muted {
-    margin: 0;
-    color: var(--ink-soft);
-    font-size: 0.85em;
   }
   .cards {
     flex: 1;
@@ -162,54 +181,74 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    min-height: 22px;
   }
   .clear {
-    border: 1px solid var(--line);
-    background: white;
-    border-radius: 6px;
-    padding: 2px 8px;
-    cursor: pointer;
-    font-size: 0.85em;
+    padding: 1px 10px;
+    font-size: 0.8em;
   }
   .list {
     display: flex;
     flex-wrap: wrap;
+    align-content: flex-start;
     gap: 6px;
     overflow-y: auto;
+    padding: 2px;
   }
   .card {
+    position: relative;
+    width: 76px;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 3px;
+    padding: 5px 2px 4px;
     border: 1px solid var(--line);
-    background: white;
-    border-radius: 6px;
-    padding: 4px 8px;
+    border-radius: 10px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(0, 0, 0, 0.15));
     cursor: pointer;
+    transition:
+      transform 0.1s,
+      border-color 0.1s,
+      box-shadow 0.1s;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    border-color: var(--gold);
+  }
+  .card.none {
+    opacity: 0.6;
   }
   .card.on {
-    border-color: var(--ink);
-    box-shadow: inset 0 0 0 1px var(--ink);
+    border-color: var(--player-glow);
+    box-shadow: 0 0 0 1px var(--player-glow);
   }
-  .card.armed,
-  .card.armed .count {
-    background: var(--ink);
-    color: white;
+  .card.armed {
+    border-color: var(--gold);
+    box-shadow:
+      0 0 0 2px var(--gold),
+      0 0 14px var(--gold);
+    opacity: 1;
+  }
+  .name {
+    font-size: 0.72em;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
   .count {
-    color: var(--ink-soft);
-    font-variant-numeric: tabular-nums;
-    font-size: 0.85em;
-  }
-  .glyph {
-    display: inline-block;
-    width: 1.1em;
-    text-align: center;
-  }
-  .glyph.p1 {
-    color: var(--p1);
-  }
-  .glyph.p2 {
-    color: var(--p2);
+    position: absolute;
+    top: 2px;
+    right: 3px;
+    min-width: 20px;
+    padding: 0 5px;
+    border-radius: 999px;
+    font-size: 0.68em;
+    font-weight: 800;
+    color: white;
+    background: var(--player);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   }
 </style>

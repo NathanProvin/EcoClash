@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M2 perf check: the user reads the HUD fps on the reference laptop, in a visible window (D-044). The automated browser tab is hidden, so it cannot measure fps.
+- **Now:** (UI game pass done, D-048.) M2 perf check: the user reads the HUD fps on the reference laptop, in a visible window (D-044). The automated browser tab is hidden, so it cannot measure fps.
 - **Next:** the rest of the M2 render item (terrain, instanced grass), then M3. Balance tuning (M0.6 sweep, M0.7) is deferred: the user wants a working prototype, not tuned values.
 - **Blocked:**
   - None on design questions for M0.

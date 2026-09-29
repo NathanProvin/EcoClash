@@ -48,3 +48,9 @@ export function soilColor(dev: number): [number, number, number] {
     Math.round((BARE[j] ?? 0) + ((RICH[j] ?? 0) - (BARE[j] ?? 0)) * f),
   ) as [number, number, number];
 }
+
+/** Player line colours for charts on the dark HUD surface (D-059): P1 as in the game, P2 one step
+ *  deeper than its game orange so it sits in the dark-mode lightness band. Validated with the
+ *  dataviz palette checker on #18211c: CVD ΔE 23.7 (protan), contrast ≥ 3:1. P2 lines are also
+ *  dashed, like its frontier (D-040), so identity never rests on colour alone. */
+export const CHART = { 1: "#0072B2", 2: "#C28000" } as const;

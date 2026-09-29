@@ -8,13 +8,14 @@
   import { onDestroy, onMount } from "svelte";
   import { SvelteMap } from "svelte/reactivity";
   import { loadReplay, type Source } from "./replay/replay";
-  import { Live, type Notice } from "./worker/live";
+  import { Live, type Notice, type Outcome } from "./worker/live";
   import { label, unlockedNow } from "./game/species";
   import { Viewer, type CameraKeys, type Layer } from "./render/viewer";
   import { loadQuality, saveQuality, type Quality } from "./render/quality";
   import BottomBar from "./ui/BottomBar.svelte";
   import CellPanel from "./ui/CellPanel.svelte";
   import MainMenu from "./ui/MainMenu.svelte";
+  import EndScreen from "./ui/EndScreen.svelte";
   import TechTree from "./ui/TechTree.svelte";
   import Timeline from "./ui/Timeline.svelte";
   import TopBar from "./ui/TopBar.svelte";
@@ -39,6 +40,8 @@
   let speed = $state(4);
   let player: 1 | 2 = $state(1);
   let techOpen = $state(false);
+  let outcome: Outcome | null = $state(null); // the verdict of a live match
+  let endDismissed = $state(false); // "keep watching" hides the end screen
   let inMenu = $state(true); // the main menu covers everything until a game is launched
   let quality: Quality = $state(loadQuality()); // render preset (D-056)
   let selection = $state(new Set<number>());
@@ -104,6 +107,7 @@
       tick = live.renderTick(now); // between the last two animal frames: animals glide
       simMs = live.simMs;
       if (live.error) error = live.error;
+      if (live.result !== outcome) outcome = live.result;
       const fresh = live.notices.filter((n) => now - n.at < 5000);
       if (fresh.length !== notices.length) notices = fresh;
     }
@@ -135,6 +139,8 @@
     live?.dispose();
     live = undefined;
     planting = null;
+    outcome = null;
+    endDismissed = false;
     try {
       if (name === LIVE) {
         // ?seed=N&size=N (0 = the balance grid size); a fixed default seed keeps runs reproducible
@@ -435,6 +441,16 @@
     {/if}
   {/if}
   {#if error}<p class="panel error" role="alert">{error}</p>{/if}
+  {#if outcome && replay && !endDismissed && !inMenu}
+    <EndScreen
+      {outcome}
+      human={1}
+      series={replay.meta.series}
+      dt={replay.meta.dt}
+      onMenu={toMenu}
+      onWatch={() => (endDismissed = true)}
+    />
+  {/if}
   {#if inMenu}<MainMenu onLaunch={launch} />{/if}
 </main>
 

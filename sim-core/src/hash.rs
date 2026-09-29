@@ -145,7 +145,7 @@ impl FieldHashes {
 }
 
 /// Bumped whenever the set or order of hashed balance values changes.
-pub const BALANCE_HASH_VERSION: u64 = 4; // 2: economy (D-046); 3: fauna (D-052); 4: costs (D-058)
+pub const BALANCE_HASH_VERSION: u64 = 5; // 2: economy; 3: fauna; 4: costs; 5: victory (D-059)
 
 /// The balance hash (INSTRUCTIONS §4, §10): the values the simulation uses, **after** conversion
 /// to fixed-point, never the file bytes. Formatting, comments, CRLF / LF and changes below the
@@ -170,6 +170,7 @@ pub fn balance_hash(b: &Balance) -> u64 {
     let fauna = crate::fauna::FaunaParams::from_balance(b, &flora);
     crate::economy::Economy::new(b, &fauna).hash_params(&mut h);
     fauna.hash_into(&mut h);
+    crate::world::hash_victory(b, &mut h);
     h.finish()
 }
 

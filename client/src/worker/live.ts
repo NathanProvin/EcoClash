@@ -38,8 +38,16 @@ export type ToMain =
       ms: number;
       agents: ArrayBuffer;
       unlocked: number[][]; // per player, one flag per species (species-table order)
+      result: string; // the verdict as JSON once the match is decided, else ""
     }
-  | { type: "fields"; tick: number; frame: ArrayBuffer; bank: number[]; income: number[] }
+  | {
+      type: "fields";
+      tick: number;
+      frame: ArrayBuffer;
+      bank: number[];
+      income: number[];
+      standing: number[];
+    }
   | { type: "notice"; notices: { player: number; text: string }[] }
   | { type: "error"; message: string };
 
@@ -67,6 +75,13 @@ export function decodeAgents(buf: ArrayBuffer): Animal[] {
   return out;
 }
 
+/** How a live match ended (sim-core `Outcome`): winner 0 is a draw. */
+export interface Outcome {
+  winner: number;
+  reason: string;
+  tick: number;
+}
+
 export class Live implements Source {
   readonly meta: ReplayMeta;
   tick = 0;
@@ -75,6 +90,7 @@ export class Live implements Source {
   simMs = 0;
   error = "";
   notices: Notice[] = [];
+  result: Outcome | null = null;
   readonly plantRadius: number;
   private readonly maxAgents: number;
   private current: Fields;
@@ -182,6 +198,7 @@ export class Live implements Source {
       this.prev = this.cur;
       this.cur = { tick: m.tick, at: performance.now(), animals: decodeAgents(m.agents) };
       this.unlockedFlags = m.unlocked;
+      if (m.result && !this.result) this.result = JSON.parse(m.result) as Outcome;
     } else if (m.type === "fields") {
       this.current = this.decode(this.current.frame + 1, new Uint8Array(m.frame), m);
     } else if (m.type === "notice") {
@@ -196,7 +213,10 @@ export class Live implements Source {
   private decode(
     frame: number,
     bytes: Uint8Array,
-    points: { bank: number[]; income: number[] } = { bank: [0, 0], income: [0, 0] },
+    points: { bank: number[]; income: number[]; standing?: number[]; tick?: number } = {
+      bank: [0, 0],
+      income: [0, 0],
+    },
   ): Fields {
     const f = decodeFields(frame, bytes, this.meta);
     const cells = this.meta.n * this.meta.n;
@@ -211,6 +231,7 @@ export class Live implements Source {
         if (c[k]) row[i] = (row[i] ?? 0) + 1;
       });
     }
+    (this.meta.series["t_s"] ??= []).push((points.tick ?? 0) * this.meta.dt);
     for (const p of [1, 2]) {
       this.flora[p - 1] = census[p] ?? [];
       const alive = this.counts(0, p).filter((c) => c > 0).length;
@@ -218,6 +239,7 @@ export class Live implements Source {
       (this.meta.series[`species_p${p}`] ??= []).push(alive);
       (this.meta.series[`bank_p${p}`] ??= []).push(points.bank[p - 1] ?? 0);
       (this.meta.series[`yield_p${p}`] ??= []).push(points.income[p - 1] ?? 0);
+      (this.meta.series[`standing_p${p}`] ??= []).push(points.standing?.[p - 1] ?? 0);
     }
     return f;
   }

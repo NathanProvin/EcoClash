@@ -59,6 +59,30 @@ impl Sim {
         self.world.set_sandbox(on);
     }
 
+    /// The verdict once the match is decided, as JSON `{"winner": 1, "reason": "territory",
+    /// "tick": 1234}` (winner 0 = draw); an empty string while it is still on.
+    pub fn result(&self) -> String {
+        use sim_core::world::Reason;
+        self.world.result.map_or(String::new(), |o| {
+            let reason = match o.reason {
+                Reason::Territory => "territory",
+                Reason::Biomass => "biomass",
+                Reason::TerritoryShare => "territory share",
+                Reason::Draw => "draw",
+            };
+            serde_json::json!({ "winner": o.winner, "reason": reason, "tick": o.tick }).to_string()
+        })
+    }
+
+    /// Standing biomass (plants of its cells plus animal bodies) of a player, for charts.
+    #[allow(clippy::cast_precision_loss)] // display only
+    pub fn standing(&self, player: u8) -> f64 {
+        match player {
+            1 | 2 => self.world.standing()[usize::from(player) - 1] as f64,
+            _ => 0.0,
+        }
+    }
+
     /// Species cards a player (1 or 2) has unlocked: one flag per species, plants then animals
     /// (the species-table order).
     pub fn unlocked(&self, player: u8) -> Vec<u8> {

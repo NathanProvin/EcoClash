@@ -12,6 +12,7 @@ use crate::balance::Balance;
 use crate::commands::{Command, CommandQueue, OrderKind, Payload, disc};
 use crate::economy::Economy;
 use crate::fauna::{Fauna, FaunaParams};
+use crate::fixed::{ONE, div_round};
 use crate::flora::{Flora, FloraParams, FloraState};
 use crate::hash::{FieldHashes, Hasher};
 use crate::rng::Pcg32;
@@ -19,6 +20,35 @@ use crate::snapshot::Snapshot;
 
 /// Stream of the world's RNG (the seed comes from the match).
 const RNG_STREAM: u64 = 0x0ec0_c1a5;
+
+/// How a match ended (gamerules §11.3; D-059).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Reason {
+    /// A player held the territory threshold.
+    Territory,
+    /// Time limit: the highest standing biomass.
+    Biomass,
+    /// Time limit, standing biomass tied: the larger territory.
+    TerritoryShare,
+    /// Time limit, everything tied.
+    Draw,
+}
+
+/// The verdict: the winner (0 for a draw), why, and the tick it was reached.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Outcome {
+    pub winner: u8,
+    pub reason: Reason,
+    pub tick: u64,
+}
+
+/// Victory rules, converted once (Q16 shares, ticks).
+#[derive(Clone, Debug)]
+struct Victory {
+    fixed: i64,
+    decay: Option<(i64, i64)>,
+    limit: u64,
+}
 
 #[derive(Clone, Debug)]
 pub struct World {
@@ -31,6 +61,10 @@ pub struct World {
     /// Why recent orders did nothing, for the UI: (player, text). Not part of the state hash;
     /// callers drain it (`take_notices`).
     pub notices: Vec<(u8, String)>,
+    /// Set once the match is decided (checked after every flora tick); the world keeps running if
+    /// stepped, callers stop there.
+    pub result: Option<Outcome>,
+    victory: Victory,
     /// The only randomness of the simulation (INSTRUCTIONS §4); unused by the flora rules.
     pub rng: Pcg32,
     /// Commands refused so far (invalid, or due in the past); identical on every peer.
@@ -39,6 +73,33 @@ pub struct World {
     fields: FieldHashes,
     flora_every: u64,
     env_every: u64,
+}
+
+impl Victory {
+    #[allow(clippy::float_arithmetic)] // load-time conversion, see fixed::Q16::from_balance
+    fn from_balance(b: &Balance) -> Victory {
+        let (m, one) = (&b.r#match, f64::from(ONE));
+        let q = |x: f64| crate::flora::round(x * one);
+        Victory {
+            fixed: q(m.victory_territory),
+            decay: m
+                .territory_decay
+                .then(|| (q(m.territory_start), q(m.territory_end))),
+            limit: u64::from(m.time_limit_s) * u64::from(b.sim.tick_hz),
+        }
+    }
+
+    fn hash_into(&self, h: &mut Hasher) {
+        h.i64(self.fixed).u64(self.limit);
+        if let Some((a, b)) = self.decay {
+            h.i64(a).i64(b);
+        }
+    }
+}
+
+/// The victory rules' converted values, for the balance hash.
+pub(crate) fn hash_victory(b: &Balance, h: &mut Hasher) {
+    Victory::from_balance(b).hash_into(h);
 }
 
 impl World {
@@ -56,6 +117,8 @@ impl World {
             economy: Economy::new(balance, &fauna.p),
             fauna,
             notices: Vec::new(),
+            result: None,
+            victory: Victory::from_balance(balance),
             rng: Pcg32::new(seed, RNG_STREAM),
             rejected: 0,
             queue: CommandQueue::default(),
@@ -85,6 +148,9 @@ impl World {
                 .act(&self.flora.p, &mut self.state, &mut self.rng);
             self.flora.step(&mut self.state);
             self.economy.update(&self.flora.p, &self.state, &self.fauna);
+            if self.result.is_none() {
+                self.result = self.judge();
+            }
             self.fields.mark_all();
         }
         if self.tick.is_multiple_of(self.env_every) {
@@ -213,6 +279,77 @@ impl World {
         }
     }
 
+    /// Cells owned per player.
+    #[must_use]
+    pub fn territory(&self) -> [i64; 2] {
+        let mut t = [0i64; 2];
+        for &o in &self.state.owner {
+            if let o @ 1..=2 = o {
+                t[usize::from(o) - 1] += 1;
+            }
+        }
+        t
+    }
+
+    /// Standing biomass per player (gamerules §11.3.5, D-023): the plant biomass of its cells plus
+    /// the bodies of its animals, in biomass units.
+    #[must_use]
+    pub fn standing(&self) -> [i64; 2] {
+        let (st, n2) = (&self.state, self.state.n * self.state.n);
+        let mut s = [0i64; 2];
+        for (i, &b) in st.bio.iter().enumerate() {
+            if let o @ 1..=2 = st.owner[i % n2] {
+                s[usize::from(o) - 1] += b;
+            }
+        }
+        let a = &self.fauna.agents;
+        for i in 0..a.len() {
+            s[usize::from(a.owner[i] - 1)] += self.fauna.p.body[usize::from(a.sp[i])];
+        }
+        s
+    }
+
+    /// The verdict, if the match is decided now (the prototype's `Economy.winner`): the
+    /// territory threshold at any time; at the time limit, standing biomass, then territory, else
+    /// a draw.
+    fn judge(&self) -> Option<Outcome> {
+        let v = &self.victory;
+        let n2 = i64::try_from(self.state.n * self.state.n).unwrap_or(i64::MAX);
+        let (tick, t) = (self.tick, self.territory());
+        let threshold = match v.decay {
+            None => v.fixed,
+            Some((start, end)) => {
+                let done = i64::try_from(tick.min(v.limit)).unwrap_or(0);
+                start + div_round((end - start) * done, i64::try_from(v.limit).unwrap_or(1))
+            }
+        };
+        let top = if t[1] > t[0] { 2 } else { 1 }; // ties: P1, as the prototype
+        let outcome = |winner, reason| {
+            Some(Outcome {
+                winner,
+                reason,
+                tick,
+            })
+        };
+        if t[usize::from(top - 1)] * i64::from(ONE) >= threshold * n2 {
+            return outcome(top, Reason::Territory);
+        }
+        if tick < v.limit {
+            return None;
+        }
+        let (s, pick) = (
+            self.standing(),
+            |x: [i64; 2]| if x[0] > x[1] { 1 } else { 2 },
+        );
+        if s[0] != s[1] {
+            return outcome(pick(s), Reason::Biomass);
+        }
+        if t[0] != t[1] {
+            return outcome(pick(t), Reason::TerritoryShare);
+        }
+        outcome(0, Reason::Draw)
+    }
+
     /// Match setup (D-058): plant a starting patch for free, before the first tick. It is not a
     /// player action, so it costs nothing and needs no unlock; every peer runs the same setup.
     /// Unknown species or cells off the map plant nothing. Returns the cells planted.
@@ -263,6 +400,9 @@ impl World {
             .u64(inc)
             .u64(digest);
         self.economy.hash_state(&mut h);
+        if let Some(o) = self.result {
+            h.u64(u64::from(o.winner)).u64(o.reason as u64).u64(o.tick);
+        }
         self.fauna.agents.hash_into(&mut h);
         h.finish()
     }
@@ -387,6 +527,38 @@ mod tests {
                 .any(|(_, t)| t.starts_with("wildflowers: locked")),
             "{notices:?}"
         );
+    }
+
+    #[test]
+    fn the_match_ends_on_the_territory_threshold_or_at_the_time_limit() {
+        let b = balance();
+        let mut w = World::new(&b, 1, 20);
+        let every = u64::from(b.sim.flora_every_ticks);
+        // P1 owns everything: the territory threshold wins at the first flora tick.
+        w.set_sandbox(true);
+        let cells: Vec<usize> = (0..400).collect();
+        let g = w.flora.p.index("grasses").unwrap();
+        w.flora.p.cap[g] = i64::from(ONE); // the whole map (grasses stop at half otherwise)
+        w.flora.plant(&mut w.state, 1, g, &cells);
+        w.step();
+        let o = w.result.expect("decided");
+        assert_eq!((o.winner, o.reason), (1, Reason::Territory));
+
+        // A small patch each: nobody reaches the threshold; at the time limit, biomass decides.
+        let mut w = World::new(&b, 1, 20);
+        w.setup_plant(1, "grasses", 3, 3, 2);
+        w.setup_plant(2, "lichen_and_moss", 16, 16, 2); // slower, lighter: P1 stands taller
+        let limit = u64::from(b.r#match.time_limit_s) * u64::from(b.sim.tick_hz);
+        while w.tick < limit - every {
+            w.step();
+            assert!(w.result.is_none(), "tick {}", w.tick);
+        }
+        while w.result.is_none() {
+            w.step();
+        }
+        let o = w.result.unwrap();
+        assert_eq!((o.winner, o.reason), (1, Reason::Biomass));
+        assert!(o.tick >= limit);
     }
 
     #[test]

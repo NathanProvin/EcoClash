@@ -79,27 +79,18 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     frame: frame.buffer,
     bank: [1000, 990],
     income: [4, 2],
+    standing: [5000, 4000],
   });
   const unlocked = [
     [1, 0, 1],
     [1, 0, 0],
   ];
-  worker.emit({
-    type: "tick",
-    tick: 8,
-    hash: "aa",
-    ms: 2,
-    agents: agents([[1, 0, 0, 0, 1]]),
-    unlocked,
-  });
-  worker.emit({
-    type: "tick",
-    tick: 9,
-    hash: "ab",
-    ms: 2,
-    agents: agents([[1, 0, 1, 0, 1]]),
-    unlocked,
-  });
+  const tick = { hash: "aa", ms: 2, unlocked, result: "" };
+  worker.emit({ type: "tick", tick: 8, agents: agents([[1, 0, 0, 0, 1]]), ...tick });
+  worker.emit({ type: "tick", tick: 9, agents: agents([[1, 0, 1, 0, 1]]), ...tick });
+  expect(live.result).toBeNull();
+  expect(live.meta.series["standing_p1"]?.[live.seriesIndex()]).toBe(5000);
+  expect(live.meta.series["t_s"]?.[live.seriesIndex()]).toBeCloseTo(0.8);
   expect([...live.unlocked(1)]).toEqual(["grasses", "voles"]);
   expect([...live.unlocked(2)]).toEqual(["grasses"]);
 
@@ -130,4 +121,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
   });
   worker.emit({ type: "notice", notices: [{ player: 2, text: "voles: no enemy food" }] });
   expect(live.notices.map((n) => n.text)).toEqual(["voles: no enemy food"]);
+  const verdict = '{"winner":2,"reason":"territory","tick":10}';
+  worker.emit({ type: "tick", tick: 10, agents: agents([]), ...tick, result: verdict });
+  expect(live.result).toEqual({ winner: 2, reason: "territory", tick: 10 });
 });

@@ -21,6 +21,7 @@ let sim: Sim | undefined;
 let paused = false;
 let speed = 1;
 let floraTick = -1;
+let over = ""; // the verdict (JSON) once the match is decided
 const seq = new Map<number, number>(); // next command sequence number per player
 
 const post = (m: ToMain, transfer: Transferable[] = []) => postMessage(m, { transfer });
@@ -38,19 +39,23 @@ function sendFields(s: Sim) {
   const frame = s.fieldFrame().buffer as ArrayBuffer; // a fresh copy out of WASM memory
   const bank = [s.bank(1), s.bank(2)];
   const income = [s.income(1), s.income(2)];
-  post({ type: "fields", tick: s.tick, frame, bank, income }, [frame]);
+  const standing = [s.standing(1), s.standing(2)];
+  post({ type: "fields", tick: s.tick, frame, bank, income, standing }, [frame]);
 }
 
 function loop() {
   const start = performance.now();
   const s = sim;
-  if (s && !paused) {
+  if (s && !paused && !over) {
     let hash = "";
-    for (let i = 0; i < speed; i++) hash = s.step();
+    for (let i = 0; i < speed && !over; i++) {
+      hash = s.step();
+      over = s.result(); // the match is decided: stop right there
+    }
     const ms = (performance.now() - start) / speed;
     const agents = s.agentFrame().buffer as ArrayBuffer;
     const unlocked = [[...s.unlocked(1)], [...s.unlocked(2)]];
-    post({ type: "tick", tick: s.tick, hash, ms, agents, unlocked }, [agents]);
+    post({ type: "tick", tick: s.tick, hash, ms, agents, unlocked, result: over }, [agents]);
     if (s.floraTick !== floraTick) sendFields(s);
     const notices = JSON.parse(s.takeNotices()) as { player: number; text: string }[];
     if (notices.length) post({ type: "notice", notices });

@@ -629,3 +629,17 @@ Template:
   - **Match setup:** `World::setup_plant` plants the starting patches for free before the first tick. It is not a player action; every peer runs the same setup.
   - **Client:** the worker sends each player's unlocked flags every tick. In a live match, bottom-bar cards are unlocked (arm them), available ("Unlock · cost": a click buys it) or locked (dimmed, with the reason in the tooltip). The tech tree has Unlock buttons on available cards.
 - **Consequences:** The Python prototype keeps its own float economy (no parity requirement for the economy). A measurement note: the timing test ran ≈2× slower this session on both the new and the old commit, so machine state, not code; D-053's figures are the reference.
+
+## D-059 · 2026-09-29 · Victory conditions and end screen (M4)
+- **Status:** accepted
+- **Decision:**
+  - **In sim-core:** after every flora tick, `World::judge` follows the prototype's `Economy.winner` and gamerules §11.3.5:
+    - a player owning at least the territory threshold of the map wins at once (`[match] victory_territory`, 60 %; optional linear decay from `territory_start` to `territory_end`, `[Proposed]` switch off);
+    - otherwise, at `time_limit_s` (20 min), the highest standing biomass wins (plant biomass of own cells plus animal bodies), then the larger territory, else a draw.
+  - The verdict (`World::result`: winner, reason, tick) is in the tick hash; the victory values are in the balance hash (version 5).
+  - The world keeps running if stepped; the worker stops stepping at the verdict.
+  - **`sim-wasm`:** `result()` (JSON) and `standing(p)`. The live source records `t_s` and `standing_p*` series per field frame.
+  - **End screen:** Victory, Defeat or Draw for the human (P1), with the reason and match time; charts of territory (% of the map) and standing biomass over time for both players; buttons Keep watching and Main menu.
+  - **Charts** (`LineChart.svelte`, per the dataviz rules): one measure per chart, a legend, direct end labels nudged apart when close, a recessive grid, and a hover crosshair with a tooltip.
+  - **Chart colours:** P1 `#0072B2` and P2 `#C28000`, one step deeper than the game orange so it fits the dark-mode lightness band. Validated on `#18211c`: CVD ΔE 23.7, contrast ≥ 3:1. P2 is dashed.
+- **Consequences:** An idle match is a mirror, so it ends in a draw at 20:00 (checked in the browser). The bot (next) breaks the symmetry.

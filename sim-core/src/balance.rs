@@ -45,6 +45,18 @@ pub struct EconomyRules {
     pub drop_surcharge: f64,
 }
 
+/// `[match]`: victory (INSTRUCTIONS §2.3, gamerules §11.3; D-059).
+#[derive(Clone, Debug, Deserialize)]
+pub struct MatchRules {
+    /// Share of the map that wins at once.
+    pub victory_territory: f64,
+    pub time_limit_s: u32,
+    /// [Proposed] switch: the threshold decays from `territory_start` to `territory_end`.
+    pub territory_decay: bool,
+    pub territory_start: f64,
+    pub territory_end: f64,
+}
+
 /// `[agents]`: the agent budget (INSTRUCTIONS §5.4).
 #[derive(Clone, Debug, Deserialize)]
 pub struct AgentRules {
@@ -157,6 +169,8 @@ pub struct Balance {
     pub economy: EconomyRules,
     pub agents: AgentRules,
     pub fauna: FaunaRules,
+    #[allow(clippy::struct_field_names)]
+    pub r#match: MatchRules,
     /// Plant species in file order: the index is the species id.
     pub flora_species: Vec<(String, FloraSpecies)>,
     /// Animal species in file order: the index is the species id.
@@ -171,6 +185,7 @@ struct BalanceFile {
     economy: EconomyRules,
     agents: AgentRules,
     fauna: FaunaRules,
+    r#match: MatchRules,
 }
 
 impl Balance {
@@ -186,6 +201,7 @@ impl Balance {
             economy: file.economy,
             agents: file.agents,
             fauna: file.fauna,
+            r#match: file.r#match,
             flora_species: section(&doc, "flora")?,
             fauna_species: section(&doc, "fauna")?,
         };
@@ -229,6 +245,14 @@ impl Balance {
         check(
             (0.0..=32767.0).contains(&self.economy.start_budget),
             "economy.start_budget must be in 0..32767".into(),
+        )?;
+        let m = &self.r#match;
+        check(
+            [m.victory_territory, m.territory_start, m.territory_end]
+                .iter()
+                .all(|v| (0.0..=1.0).contains(v))
+                && m.time_limit_s > 0,
+            "[match] territory shares must be in 0..1 and time_limit_s > 0".into(),
         )?;
         check(
             self.economy.drop_surcharge >= 1.0,

@@ -23,6 +23,7 @@ class FakeWorker {
           species: JSON.stringify(species),
           n: 2,
           tickHz: 10,
+          plantRadius: 2,
           balanceHash: "0",
         }),
       );
@@ -56,6 +57,10 @@ test("live source decodes frames into census, HUD series and cells", async () =>
   expect(live.cell(9, 0, 1).plants.map((p) => p.name)).toEqual(["grasses", "oak"]);
   expect(live.fields().cover[2]?.[1]).toBe(255);
 
-  live.send({ type: "pause", paused: true });
-  expect(worker.sent.at(-1)).toEqual({ type: "pause", paused: true });
+  live.plant(2, "oak", 1, 0);
+  expect(worker.sent.at(-1)).toEqual({
+    type: "command",
+    player: 2,
+    payload: { type: "plant", species: "oak", row: 1, col: 0, radius: 2 },
+  });
 });

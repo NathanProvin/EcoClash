@@ -29,6 +29,7 @@
   let techOpen = $state(false);
   let selection = $state(new Set<number>());
   let focus: string | null = $state(null);
+  let planting: string | null = $state(null); // plant species armed for the next map click
   let cell = $state<{ row: number; col: number } | null>(null);
   const cellInfo = $derived(replay && cell ? replay.cell(tick, cell.row, cell.col) : null);
   let box: { x0: number; y0: number; x1: number; y1: number } | null = $state(null);
@@ -101,6 +102,7 @@
     viewer = undefined;
     live?.dispose();
     live = undefined;
+    planting = null;
     try {
       if (name === LIVE) {
         // ?seed=N&size=N (0 = the balance grid size); a fixed default seed keeps runs reproducible
@@ -159,10 +161,14 @@
     box = { ...box, x1: e.clientX - r.left, y1: e.clientY - r.top };
   }
 
-  function onPointerUp() {
+  function onPointerUp(e: PointerEvent) {
     if (!box || !viewer) return;
     const click = Math.abs(box.x1 - box.x0) < 4 && Math.abs(box.y1 - box.y0) < 4;
-    if (click) {
+    const at = click && planting && live ? viewer.pickCell(box.x0, box.y0) : null;
+    if (at && planting && live) {
+      live.plant(player, planting, at.row, at.col); // Shift keeps planting, like RTS build orders
+      if (!e.shiftKey) planting = null;
+    } else if (click) {
       inspect(viewer.pickCell(box.x0, box.y0)); // click: inspect the cell under the cursor
     } else {
       select(viewer.pick(box.x0, box.y0, box.x1, box.y1, player)); // drag: box-select animals
@@ -192,6 +198,7 @@
       techOpen = !techOpen;
     } else if (e.code === "Escape") {
       if (techOpen) techOpen = false;
+      else if (planting) planting = null;
       else if (cell) inspect(null);
       else select([]);
     } else if (e.code === "Home") {
@@ -237,6 +244,7 @@
   <canvas
     bind:this={canvas}
     aria-label="Match view: click a cell to inspect it, drag to select your animals"
+    class:planting
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}
@@ -272,12 +280,19 @@
       {player}
       {selection}
       bind:focus
+      live={!!live}
+      bind:planting
       onPickSpecies={pickSpecies}
       onClear={() => select([])}
     />
     <p class="hint">
-      Click: inspect cell · Drag: select · Middle-drag / Q E: rotate · Right-drag / WASD: pan ·
-      Wheel: zoom · T: tech tree
+      {#if planting}
+        <strong>Planting {planting.replace(/_/g, " ")}:</strong> click a cell · Shift: keep planting ·
+        Esc: cancel
+      {:else}
+        Click: inspect cell · Drag: select · Middle-drag / Q E: rotate · Right-drag / WASD: pan ·
+        Wheel: zoom · T: tech tree
+      {/if}
     </p>
     {#if cellInfo && cell}
       <CellPanel
@@ -303,6 +318,9 @@
     width: 100%;
     height: 100%;
     touch-action: none;
+  }
+  canvas.planting {
+    cursor: crosshair;
   }
   .box {
     position: absolute;

@@ -199,3 +199,9 @@
   - `Source` interface over Replay and Live; the cell inspector, bottom bar and top bar work on live data.
   - Fixed: the source menu read the bound value before the binding updated it.
 - **Next:** planting from the UI, the frontier line, the perf check.
+
+## 2026-09-29 · M2 planting from the UI (D-042)
+- **Done:**
+  - Plant cards arm planting; a map click sends the command through the worker, and new patches appear on the next flora frame.
+  - `plant_radius` is in balance.toml; the parity fixture was regenerated (only its embedded balance text changed).
+- **Next:** the frontier line, then the perf check.

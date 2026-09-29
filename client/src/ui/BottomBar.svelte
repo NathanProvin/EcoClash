@@ -1,6 +1,7 @@
 <script lang="ts">
   // RTS unit bar (D-030): the current selection grouped by species, or, when nothing is selected,
   // the viewed player's living species. A card focuses a species; the left panel shows its stats.
+  // In a live match every plant has a card, and clicking one arms planting (App plants on click).
   import { glyph, label, position } from "../game/species";
   import type { Source, Species } from "../replay/replay";
 
@@ -10,6 +11,8 @@
     player,
     selection,
     focus = $bindable(),
+    live,
+    planting = $bindable(),
     onPickSpecies,
     onClear,
   }: {
@@ -18,6 +21,8 @@
     player: 1 | 2;
     selection: Set<number>;
     focus: string | null;
+    live: boolean;
+    planting: string | null;
     onPickSpecies: (name: string) => void;
     onClear: () => void;
   } = $props();
@@ -36,7 +41,9 @@
       return species.filter((s) => s.name in by).map((s) => ({ s, count: by[s.name] ?? 0 }));
     }
     const counts = replay.counts(tick, player);
-    return species.map((s, i) => ({ s, count: counts[i] ?? 0 })).filter((c) => c.count > 0);
+    return species
+      .map((s, i) => ({ s, count: counts[i] ?? 0 }))
+      .filter((c) => c.count > 0 || (live && c.s.kind === "flora"));
   });
   const shown = $derived(species.find((s) => s.name === focus) ?? cards[0]?.s);
   const unit = (s: Species) => (s.kind === "flora" ? "cells" : "animals");
@@ -75,11 +82,15 @@
         <button
           class="card"
           class:on={shown?.name === s.name}
+          class:armed={planting === s.name}
           onclick={() => {
             focus = s.name;
             if (s.kind === "fauna") onPickSpecies(s.name);
+            else if (live) planting = planting === s.name ? null : s.name;
           }}
-          title="{label(s.name)}: {count} {unit(s)}"
+          title="{label(s.name)}: {count} {unit(s)}{live && s.kind === 'flora'
+            ? ' · click, then click the map to plant'
+            : ''}"
         >
           <span class="glyph p{player}">{glyph(s)}</span>
           <span class="name">{label(s.name)}</span>
@@ -179,6 +190,11 @@
   .card.on {
     border-color: var(--ink);
     box-shadow: inset 0 0 0 1px var(--ink);
+  }
+  .card.armed,
+  .card.armed .count {
+    background: var(--ink);
+    color: white;
   }
   .count {
     color: var(--ink-soft);

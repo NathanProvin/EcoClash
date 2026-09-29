@@ -30,6 +30,8 @@ pub struct FloraRules {
     pub soil_min_level: [f64; 3],
     pub soil_ramp: f64,
     pub plant_gauge: f64,
+    /// Brush radius of a player's plant order (a command parameter, not a rule: not hashed).
+    pub plant_radius: u32,
     pub succession: bool,
     pub shade: bool,
     pub contested_cells: bool,

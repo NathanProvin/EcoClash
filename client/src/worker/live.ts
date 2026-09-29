@@ -21,7 +21,14 @@ export type ToWorker =
   | { type: "command"; player: 1 | 2; payload: object };
 
 export type ToMain =
-  | { type: "ready"; species: string; n: number; tickHz: number; balanceHash: string }
+  | {
+      type: "ready";
+      species: string;
+      n: number;
+      tickHz: number;
+      plantRadius: number;
+      balanceHash: string;
+    }
   | { type: "tick"; tick: number; hash: string; ms: number }
   | { type: "fields"; tick: number; frame: ArrayBuffer }
   | { type: "error"; message: string };
@@ -33,6 +40,7 @@ export class Live implements Source {
   /** Sim time per tick in ms, smoothed (the HUD shows it; budget: INSTRUCTIONS §5.5). */
   simMs = 0;
   error = "";
+  readonly plantRadius: number;
   private current: Fields;
   private census: number[][] = [[], []]; // cells per plant species, per player, current frame
 
@@ -41,6 +49,7 @@ export class Live implements Source {
     ready: Extract<ToMain, { type: "ready" }>,
   ) {
     const species = JSON.parse(ready.species) as Species[];
+    this.plantRadius = ready.plantRadius;
     this.meta = {
       version: REPLAY_VERSION,
       species,
@@ -74,6 +83,13 @@ export class Live implements Source {
 
   send(m: ToWorker): void {
     this.worker.postMessage(m);
+  }
+
+  /** Order a plant disc (`plantRadius`) of one species around a cell. The sim plants only where
+   *  it may (free or own cells, suitable soil, under the species cap). */
+  plant(player: 1 | 2, species: string, row: number, col: number): void {
+    const radius = this.plantRadius;
+    this.send({ type: "command", player, payload: { type: "plant", species, row, col, radius } });
   }
 
   dispose(): void {

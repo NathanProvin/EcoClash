@@ -68,6 +68,7 @@ async function begin(seed: number, size: number) {
     species: s.speciesTable(),
     n,
     tickHz: s.tickHz,
+    plantRadius: s.plantRadius,
     balanceHash: s.balanceHash,
   });
   sendFields(s);

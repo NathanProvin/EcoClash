@@ -17,6 +17,7 @@ pub struct Sim {
     balance_hash: u64,
     species: String,
     tick_hz: u32,
+    plant_radius: u32,
 }
 
 #[wasm_bindgen]
@@ -32,6 +33,7 @@ impl Sim {
             balance_hash: balance_hash(&b),
             species: species_table(&b),
             tick_hz: b.sim.tick_hz,
+            plant_radius: b.flora.plant_radius,
             world: World::new(&b, seed, n),
         })
     }
@@ -72,6 +74,12 @@ impl Sim {
     #[wasm_bindgen(getter, js_name = tickHz)]
     pub fn tick_hz(&self) -> u32 {
         self.tick_hz
+    }
+
+    /// Radius in cells of a player's plant order (`[flora] plant_radius`).
+    #[wasm_bindgen(getter, js_name = plantRadius)]
+    pub fn plant_radius(&self) -> u32 {
+        self.plant_radius
     }
 
     /// Commands refused so far.

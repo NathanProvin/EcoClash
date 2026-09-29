@@ -450,3 +450,12 @@ Template:
   - `npm run wasm:build` builds the package the browser and `wasm:check` share; `client:dev` runs it first. In CI, the rust job uploads `sim-wasm/pkg` and the client job (now after it) downloads it.
   - URL options: `?seed=N&size=N` (default seed 1, size = balance grid).
 - **Consequences:** the viewer opens on the live match; replays stay in the source menu.
+
+## D-042 · 2026-09-29 · Planting from the UI in the live match (M2)
+- **Status:** accepted
+- **Decision:**
+  - In a live match, the bottom bar shows a card for every plant species. Clicking a card arms planting; the next map click sends a `plant` command for the viewed player. Shift keeps it armed, like RTS build orders; Esc cancels.
+  - The brush is a disc of `[flora] plant_radius` cells (2). It is a command parameter, not a rule, so it is not part of the balance hash. `sim-wasm` exposes it as `plantRadius`.
+  - The sim decides what takes: free or own cells, suitable soil, under the species cap. The UI does not predict it.
+  - Until the economy and unlocks are ported (M4), every plant species can be planted, at no cost: the live match is a sandbox for the flora rules.
+- **Consequences:** there is no feedback when an order plants nothing (enemy land, soil too poor); a placement preview or refusal notice can come with the economy (M4).

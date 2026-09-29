@@ -179,8 +179,8 @@ mod tests {
         vec![
             plant(0, 1, 0, "grasses", 3, 3),
             plant(0, 2, 0, "grasses", 36, 36),
-            plant(0, 1, 1, "lichen", 3, 10),
-            plant(50, 2, 1, "moss", 30, 36),
+            plant(0, 1, 1, "lichen_and_moss", 3, 10),
+            plant(50, 2, 1, "ferns", 30, 36),
         ]
     }
 
@@ -310,7 +310,7 @@ mod perf {
         let mut w = World::new(&b, 1, n);
         let mut seq = 0;
         for (player, row, col) in [(1, 40, 40), (2, 215, 215), (1, 60, 120), (2, 190, 130)] {
-            for species in ["grasses", "lichen", "clover"] {
+            for species in ["grasses", "lichen_and_moss", "nettle"] {
                 let payload = Payload::Plant {
                     species: species.into(),
                     row,
@@ -337,7 +337,13 @@ mod perf {
         for (player, cols) in [(1u8, 0..n / 2), (2u8, n / 2..n)] {
             let cells: Vec<usize> = (0..n * n).filter(|k| cols.contains(&(k % n))).collect();
             for name in [
-                "grasses", "clover", "moss", "elder", "hazel", "oak", "beech",
+                "grasses",
+                "wildflowers",
+                "ferns",
+                "elder",
+                "hazel",
+                "oak",
+                "beech",
             ] {
                 let s = w.flora.p.index(name).unwrap();
                 w.flora.p.cap[s] = i64::MAX; // no cap: every cell keeps every species

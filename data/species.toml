@@ -17,37 +17,21 @@
 #   can hide in a refuge, body (energy capacity), bite (1/s), upkeep (share of body per s),
 #   speed and sight (cells), group (animals per spawned card).
 
-[flora.lichen]
-growth = 0.24
+[flora.lichen_and_moss]
+growth = 0.28
 spawn_cost = 20
 unlock_cost = 0
-yield = 0.05
+yield = 0.06
 cap = 0.5
-effect = "Pioneer: establishes on bare soil; fastest soil development."
+effect = "Pioneer: establishes on bare soil and carpets shaded ground; fastest soil development."
 level = 1
 tier = 1
 pioneer = true
-biomass_rate = 0.03
-k_max = 2000
-shade_cast = 0.0
-shade_tolerance = 0.3
-soil_gain = 0.0045
-
-[flora.moss]
-growth = 0.32
-spawn_cost = 20
-unlock_cost = 0
-yield = 0.08
-cap = 0.5
-effect = "Pioneer, shade-tolerant: carpets the ground under own shrubs and trees."
-level = 1
-tier = 1
-pioneer = true
-biomass_rate = 0.05
-k_max = 3000
+biomass_rate = 0.04
+k_max = 2500
 shade_cast = 0.0
 shade_tolerance = 0.9
-soil_gain = 0.003
+soil_gain = 0.0045
 
 [flora.grasses]
 growth = 1.2
@@ -65,37 +49,53 @@ shade_cast = 0.0
 shade_tolerance = 0.1
 soil_gain = 0.0024
 
-[flora.clover]
-growth = 0.48
-spawn_cost = 20
-unlock_cost = 300
-yield = 0.25
-cap = 0.2
-effect = "Fixes nitrogen: fast soil development in its cell."
-level = 1
-tier = 2
-pioneer = false
-biomass_rate = 0.15
-k_max = 7000
-shade_cast = 0.0
-shade_tolerance = 0.2
-soil_gain = 0.0045
-
 [flora.ferns]
-growth = 0.24
+growth = 0.36
 spawn_cost = 20
-unlock_cost = 300
+unlock_cost = 0
 yield = 0.1
-cap = 0.15
-effect = "Shade-tolerant understory; only slugs graze it."
+cap = 0.3
+effect = "Pioneer of shaded ground: shade-tolerant understory; only slugs graze it."
 level = 1
-tier = 2
-pioneer = false
+tier = 1
+pioneer = true
 biomass_rate = 0.06
 k_max = 6000
 shade_cast = 0.1
 shade_tolerance = 0.9
 soil_gain = 0.0018
+
+[flora.wildflowers]
+growth = 0.6
+spawn_cost = 20
+unlock_cost = 300
+yield = 0.3
+cap = 0.2
+effect = "Flowering meadow: the best herbaceous income."
+level = 1
+tier = 2
+pioneer = false
+biomass_rate = 0.15
+k_max = 6000
+shade_cast = 0.0
+shade_tolerance = 0.2
+soil_gain = 0.003
+
+[flora.nettle]
+growth = 0.7
+spawn_cost = 20
+unlock_cost = 350
+yield = 0.15
+cap = 0.2
+effect = "Stinging: grazers leave it alone, except caterpillars; dense on developed soil."
+level = 1
+tier = 2
+pioneer = false
+biomass_rate = 0.2
+k_max = 9000
+shade_cast = 0.1
+shade_tolerance = 0.5
+soil_gain = 0.002
 
 [flora.bramble]
 growth = 0.8
@@ -235,12 +235,12 @@ spawn_cost = 40
 unlock_cost = 300
 yield = 0.01
 cap = 150
-effect = "Decomposer of litter under moss, shrubs and trees."
+effect = "Decomposer of litter under moss, ferns, shrubs and trees."
 level = 1
 tier = 2
 role = "decomposer"
 eats = ["dead"]
-habitat = ["moss", "L2", "L3"]
+habitat = ["lichen_and_moss", "ferns", "L2", "L3"]
 small = true
 body = 40
 bite = 12
@@ -259,7 +259,7 @@ effect = "Grazes pioneers and low herbs."
 level = 1
 tier = 3
 role = "herbivore"
-eats = ["lichen", "moss", "grasses", "clover", "ferns"]
+eats = ["lichen_and_moss", "grasses", "ferns", "wildflowers"]
 habitat = ["L1"]
 small = true
 body = 100
@@ -279,7 +279,7 @@ effect = "Fast meadow grazer."
 level = 2
 tier = 1
 role = "herbivore"
-eats = ["grasses", "clover"]
+eats = ["grasses", "wildflowers"]
 habitat = ["grasses"]
 small = true
 body = 80
@@ -299,8 +299,8 @@ effect = "Defoliates shrubs and trees: the counter to forests."
 level = 2
 tier = 2
 role = "herbivore"
-eats = ["bramble", "L2", "L3"]
-habitat = ["bramble", "L2"]
+eats = ["nettle", "bramble", "L2", "L3"]
+habitat = ["nettle", "bramble", "L2"]
 small = true
 body = 120
 bite = 36
@@ -319,7 +319,7 @@ effect = "Meadow grazer."
 level = 3
 tier = 1
 role = "herbivore"
-eats = ["grasses", "clover"]
+eats = ["grasses", "wildflowers"]
 habitat = ["grasses"]
 small = true
 body = 300
@@ -377,7 +377,7 @@ effect = "Heavy grazer: breaks meadow and bramble frontiers."
 level = 3
 tier = 3
 role = "herbivore"
-eats = ["grasses", "clover", "bramble", "elder", "hawthorn"]
+eats = ["grasses", "wildflowers", "bramble", "elder", "hawthorn"]
 habitat = ["grasses"]
 small = true
 body = 800

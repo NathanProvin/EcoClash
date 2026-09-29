@@ -964,8 +964,11 @@ mod tests {
                 .collect()
         };
         for (player, names) in [
-            (1u8, ["grasses", "clover", "elder", "oak", "moss"]),
-            (2u8, ["grasses", "bramble", "hawthorn", "beech", "lichen"]),
+            (
+                1u8,
+                ["grasses", "wildflowers", "elder", "oak", "lichen_and_moss"],
+            ),
+            (2u8, ["grasses", "bramble", "hawthorn", "beech", "ferns"]),
         ] {
             for name in names {
                 let s = fast.p.index(name).unwrap();

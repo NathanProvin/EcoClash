@@ -238,3 +238,8 @@
 ## 2026-09-29 · Game HUD pass (D-048)
 - **Done:** New dark HUD theme, resource capsule with icons, tile cards with icon slots, restyled tech tree, cell inspector and playback strip. Checked in the browser at 1540×784.
 - **Next:** the user's fps reading; terrain and instanced grass, or M3.
+
+## 2026-09-29 · 64² map (D-049), new herbaceous line-up (D-050)
+- **Done:**
+  - Map halved again, to 64² (256 m).
+  - L1 is now lichen & moss, grasses, ferns (pioneers); wildflowers, nettle; bramble. Data, rules, diets, scripts and tests updated; the parity fixture was regenerated.

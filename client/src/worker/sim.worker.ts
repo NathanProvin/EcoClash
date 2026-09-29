@@ -13,7 +13,7 @@ import type { ToMain, ToWorker } from "./live";
 // (n/4, n/4), mirrored for P2. [species, row offset, col offset, radius]
 const OPENING: [string, number, number, number][] = [
   ["grasses", 0, 0, 3],
-  ["lichen", 0, 8, 3],
+  ["lichen_and_moss", 0, 8, 3],
 ];
 
 let sim: Sim | undefined;

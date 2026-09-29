@@ -56,7 +56,7 @@ def test_pioneers_establish_on_bare_soil_trees_do_not():
     st = fl.new_state(8)
     everywhere = np.ones((8, 8), bool)
     assert fl.plant(st, 1, "oak", everywhere) == 0
-    assert fl.plant(st, 1, "lichen", everywhere) == 64
+    assert fl.plant(st, 1, "lichen_and_moss", everywhere) == 64
 
 
 @pytest.mark.parametrize("mode", ["float", "quant"])
@@ -102,11 +102,11 @@ def test_same_stratum_species_interpenetrate_and_spread():
     fl.plant(st, 1, "grasses", everywhere, frac=1.0)
     patch = np.zeros((16, 16), bool)
     patch[6:10, 6:10] = True
-    fl.plant(st, 1, "clover", patch, frac=1.0)
+    fl.plant(st, 1, "wildflowers", patch, frac=1.0)
     for _ in range(300):
         fl.step(st)
-    clover, grasses = st.bio[fl.idx("clover")], st.bio[fl.idx("grasses")]
-    assert (clover[6:10, 4] > 0).all()  # clover spread 2 cells into the meadow...
+    wildflowers, grasses = st.bio[fl.idx("wildflowers")], st.bio[fl.idx("grasses")]
+    assert (wildflowers[6:10, 4] > 0).all()  # wildflowers spread 2 cells into the meadow...
     assert (grasses > 0).all()  # ...without displacing the grass
 
 
@@ -117,11 +117,12 @@ def test_mixed_stand_outgrows_monoculture():
     for st in (mono, mixed):
         st.soil[:] = U16
         fl.plant(st, 1, "grasses", cells)
-    fl.plant(mixed, 1, "clover", cells)
+    fl.plant(mixed, 1, "wildflowers", cells)
     for _ in range(400):
         fl.step(mono)
         fl.step(mixed)
-    assert mixed.bio.sum() > 1.2 * mono.bio.sum()
+    # overyielding: about (K_grasses + K_wildflowers) / (1 + niche_overlap) vs K_grasses (x 1.17)
+    assert mixed.bio.sum() > 1.1 * mono.bio.sum()
 
 
 def test_float_and_quant_agree_on_territory():
@@ -140,7 +141,7 @@ def test_gauge_rises_faster_with_more_neighbours():
     for neighbours in (1, 3):
         st = fl.new_state(5)
         st.soil[:] = U16
-        fl.plant(st, 1, "lichen", np.ones((5, 5), bool), frac=1.0)  # own cells everywhere
+        fl.plant(st, 1, "lichen_and_moss", np.ones((5, 5), bool), frac=1.0)  # own cells everywhere
         mask = np.zeros((5, 5), bool)
         for dy, dx in ((-1, 0), (0, -1), (0, 1))[:neighbours]:
             mask[2 + dy, 2 + dx] = True

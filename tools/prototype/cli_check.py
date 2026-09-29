@@ -31,11 +31,11 @@ def commands(n: int) -> list[dict]:
     far = n - 1
     return [
         plant(0, 1, 0, "grasses", 8, 8, 3),
-        plant(0, 1, 1, "lichen", 8, 16, 2),
+        plant(0, 1, 1, "lichen_and_moss", 8, 16, 2),
         plant(0, 2, 0, "grasses", far - 8, far - 8, 3),
-        plant(0, 2, 1, "moss", far - 8, far - 16, 2),
+        plant(0, 2, 1, "ferns", far - 8, far - 16, 2),
         plant(52, 2, 2, "grasses", far - 20, far - 4, 2),
-        plant(300, 1, 2, "clover", 8, 8, 2),
+        plant(300, 1, 2, "wildflowers", 8, 8, 2),
         plant(300, 1, 3, "elder", 9, 9, 1),
     ]
 

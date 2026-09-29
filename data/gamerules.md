@@ -26,7 +26,7 @@ Victory conditions are defined in `INSTRUCTIONS.md` §2.3 (territory share or to
 - **Progression:** the landscape emerges through succession, **bare soil → meadow → increasingly developed shrub strata → forest**.
 - **Out of V1:** wet meadow and the other biomes (§2.2); pollinators and fire (`INSTRUCTIONS.md` §2.5).
 - **[Proposed] V1 species subset:**
-  - Flora (12): L1 herbaceous: pioneers (lichen, moss, grasses), then clover & wildflowers, ferns, bramble & nettles. L2 shrubs: elder, hazel, hawthorn & blackthorn. L3 trees: oak, beech, chestnut.
+  - Flora (12): L1 herbaceous: pioneers (lichen & moss, grasses, ferns), then wildflowers, nettle, bramble (D-050). L2 shrubs: elder, hazel, hawthorn & blackthorn. L3 trees: oak, beech, chestnut.
   - Fauna (15): First group: earthworms, pill bug, slugs. Second group: grasshoppers, caterpillars & butterflies. Third group: voles, moles & hedgehog, rabbits. Fourth group: tits, woodpecker, buzzard. Fifth group: fox, tawny owl, Eurasian lynx.
   - Every unit in the subset has at least one counter in the subset, except the apex predators, because of the food web relations.
 
@@ -38,11 +38,11 @@ Victory conditions are defined in `INSTRUCTIONS.md` §2.3 (territory share or to
 ### 2.1 Hidden grid
 
 - The map is backed by a **hidden grid**. The player **never sees cells**: everything is rendered as a fluid, continuous landscape.
-- Each cell has an **owner** (none, player 1 or player 2) and can host several of its owner's species at once, in three vertical strata. Species of the same stratum **complement each other and interpenetrate** (e.g. grasses and clover in one meadow cell), and each keeps spreading (D-022):
+- Each cell has an **owner** (none, player 1 or player 2) and can host several of its owner's species at once, in three vertical strata. Species of the same stratum **complement each other and interpenetrate** (e.g. grasses and wildflowers in one meadow cell), and each keeps spreading (D-022):
 
 | Level | Stratum | Examples (V1) |
 |---|---|---|
-| L1 | Herbaceous (pioneers are its first tier) | Lichen, moss, grasses; clover & wildflowers, ferns, bramble & nettles |
+| L1 | Herbaceous (pioneers are its first tier) | Lichen & moss, grasses, ferns; wildflowers, nettle, bramble |
 | L2 | Shrub | Elder, hazel, hawthorn & blackthorn |
 | L3 | Canopy (trees) | Oak, beech, chestnut |
 
@@ -59,7 +59,7 @@ Victory conditions are defined in `INSTRUCTIONS.md` §2.3 (territory share or to
 |---|---|---|---|
 | **Temperate deciduous forest** | High nutrients, medium water | Moss, ferns, understory plants, hazel, oak, beech, chestnut | Mycelium, bark beetles, wood mice, roe deer, wild boar, woodpecker, tawny owl, lynx |
 | **Wet meadow** | High water, medium nutrients | Sphagnum, sedges & rushes, willow, alder | Slugs & snails, voles, frogs & toads, grey heron |
-| **Meadow & bocage** (hedgerow farmland) | Medium water and nutrients; lines of hedgerow cells | Grasses, clover & wildflowers, bramble, elder, hawthorn & blackthorn, hedgerow oaks | Grasshoppers, pollinators, rabbits, hedgehog, buzzard, weasel, fox |
+| **Meadow & bocage** (hedgerow farmland) | Medium water and nutrients; lines of hedgerow cells | Grasses, wildflowers, nettle, bramble, elder, hawthorn & blackthorn, hedgerow oaks | Grasshoppers, pollinators, rabbits, hedgehog, buzzard, weasel, fox |
 
 ### 2.3 Terrain modifiers [Placeholder — do NOT implement in V1]
 
@@ -71,7 +71,7 @@ Victory conditions are defined in `INSTRUCTIONS.md` §2.3 (territory share or to
 |---|---|---|---|
 | Basic loam (V1 default) | Reference soil | — | — |
 | Sandy | Drains fast, low nutrients, acidic | Lichen, grasses, chestnut | Clover, hazel, beech |
-| Clay-limestone | Rich, retains water, alkaline | Beech, hawthorn, hazel, clover | Chestnut (avoids limestone) |
+| Clay-limestone | Rich, retains water, alkaline | Beech, hawthorn, hazel, wildflowers | Chestnut (avoids limestone) |
 
 **Planned topography**, from an elevation field:
 - **Water:** accumulates in valley bottoms (flow accumulation) and is scarce on ridges and hilltops.
@@ -166,11 +166,11 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
 
 | Level | Tier 1 | Tier 2 | Tier 3 |
 |---|---|---|---|
-| **L1** Herbaceous | Pioneers: lichen, moss, grasses | Clover & wildflowers, ferns | Bramble & nettles |
+| **L1** Herbaceous | Pioneers: lichen & moss, grasses, ferns | Wildflowers, nettle | Bramble |
 | **L2** Shrub | Elder | Hazel | Hawthorn & blackthorn |
 | **L3** Canopy | Oak | Beech | Chestnut |
 
-Pioneers as L1 tier 1 and the oak → beech → chestnut line are the author's; the other entries are [Proposed], in the order of the V1 subset (§1.1).
+Pioneers as L1 tier 1, the L1 line-up (D-050) and the oak → beech → chestnut line are the author's; the other entries are [Proposed], in the order of the V1 subset (§1.1).
 
 ### 4.3 Fauna levels [Proposed]
 
@@ -201,12 +201,12 @@ In V1 the only soil requirement is the soil development threshold of the level (
 
 | Species | Level | Tier | Biome affinity | Soil / water need [Proposed] | Key traits | Eaten by |
 |---|---|---|---|---|---|---|
-| Lichen | L1 | 1 (pioneer) | All (bare and sandy ground) | None; drought-tolerant | Establishes on bare soil. Very slow growth, little biomass, fastest soil development gain | Slugs |
-| Moss | L1 | 1 (pioneer) | Forest, wet meadow | Poor soil; moist | Shade-tolerant: fills the ground under own shrubs and trees | Slugs |
+| Lichen & moss | L1 | 1 (pioneer) | All (bare, sandy and shaded ground) | None; drought-tolerant (lichen), moist (moss) | Establishes on bare soil and under own shrubs and trees. Slow growth, little biomass, fastest soil development gain | Slugs |
 | Grasses | L1 | 1 (pioneer) | Meadow & bocage | Poor to medium; medium water | Fastest growth and spread; the main early income. Shade-intolerant | Grasshoppers, voles, rabbits, slugs |
-| Clover & wildflowers | L1 | 2 | Meadow & bocage | Poor (fixes nitrogen); medium water | Raises soil development in its cell and neighbours | Rabbits, grasshoppers, voles, slugs |
-| Ferns | L1 | 2 | Forest | Medium; moist | Shade-tolerant understory. Unpalatable: few grazers, but slow spread and low income | Slugs (young fronds only) |
-| Bramble & nettles | L1 | 3 | Meadow & bocage, forest edge | Rich (nitrophilous); medium water | Fast, aggressive spread. Thorns slow enemy units. Nettles host butterfly caterpillars | Rabbits (bramble), caterpillars (nettles) |
+| Ferns | L1 | 1 (pioneer) | Forest | Poor to medium; moist | Shade-tolerant understory. Unpalatable: few grazers, but slow spread and low income | Slugs |
+| Wildflowers | L1 | 2 | Meadow & bocage | Medium; medium water | The best herbaceous income | Rabbits, grasshoppers, voles, slugs |
+| Nettle | L1 | 2 | Meadow & bocage, forest edge | Rich (nitrophilous); medium water | Stinging: grazers leave it alone. Hosts butterfly caterpillars | Caterpillars |
+| Bramble | L1 | 3 | Meadow & bocage, forest edge | Rich; medium water | Fast, aggressive spread. Thorny refuge: own small fauna inside cannot be hunted | Rabbits, caterpillars |
 | Elder | L2 | 1 | Meadow & bocage | Rich; medium water | Fastest shrub, but short-lived (early senescence). The first L2 foothold | Caterpillars, rabbits (young stems) |
 | Hazel | L2 | 2 | Forest, bocage | Medium; medium water | Shade-tolerant: grows under own trees. Nuts feed voles | Caterpillars, voles (nuts, §6.1) |
 | Hawthorn & blackthorn | L2 | 3 | Meadow & bocage (hedgerows) | Medium; dry-tolerant | Slow but dense and thorny: slows enemy units, and own small fauna inside cannot be hunted (§6.2). Hedgehog habitat | Caterpillars, rabbits (seedlings) |
@@ -224,14 +224,14 @@ Biomes: F = temperate forest, M = meadow & bocage, W = wet meadow. "Herbivore" t
 | Species | Lvl | Tier | Biomes | Eats | Eaten by | Habitat (own) | Spawn trigger |
 |---|---|---|---|---|---|---|---|
 | Earthworms | F1 | 1 | F, M | Dead biomass (→ nutrients, soil development) | Moles, hedgehog, buzzard, fox | Any L1 cell | None (decomposer) |
-| Pill bug | F1 | 2 | F, W | Dead biomass (→ nutrients) | Tits, moles | Moss, or any L2/L3 cell (leaf litter) | None (decomposer) |
-| Slugs | F1 | 3 | W, F, M | Lichen, moss, grasses, clover, young ferns; dead biomass | Hedgehog, moles | Any L1 cell | Herbivore |
-| Grasshoppers | F2 | 1 | M | Grasses, clover & wildflowers | Tits, buzzard, fox | Grasses | Herbivore |
-| Caterpillars & butterflies | F2 | 2 | F, M | Nettles, L2 shrubs, L3 trees | Tits, woodpecker, hedgehog | Nettles or any L2 cell | Herbivore (enemy nettles, L2 or L3) |
-| Voles | F3 | 1 | M, W | Grasses, clover; seeds of hazel and trees (spread reduction, §6.1) | Buzzard, tawny owl, fox | Grasses | Herbivore |
+| Pill bug | F1 | 2 | F, W | Dead biomass (→ nutrients) | Tits, moles | Lichen & moss, ferns, or any L2/L3 cell (leaf litter) | None (decomposer) |
+| Slugs | F1 | 3 | W, F, M | Lichen & moss, grasses, ferns, wildflowers; dead biomass | Hedgehog, moles | Any L1 cell | Herbivore |
+| Grasshoppers | F2 | 1 | M | Grasses, wildflowers | Tits, buzzard, fox | Grasses | Herbivore |
+| Caterpillars & butterflies | F2 | 2 | F, M | Nettle, bramble, L2 shrubs, L3 trees | Tits, woodpecker, hedgehog | Nettles or any L2 cell | Herbivore (enemy nettles, L2 or L3) |
+| Voles | F3 | 1 | M, W | Grasses, wildflowers; seeds of hazel and trees (spread reduction, §6.1) | Buzzard, tawny owl, fox | Grasses | Herbivore |
 | Moles | F3 | 2 | M, F | Enemy soil fauna: earthworms, pill bugs, slugs | Buzzard, tawny owl, fox | Any L1 cell | Drop |
 | Hedgehog | F3 | 2 | M, F | Slugs, earthworms, caterpillars | Fox | Any L2 cell (hedge cover) | Drop |
-| Rabbits | F3 | 3 | M | Grasses, clover, bramble, young elder and hawthorn | Fox, buzzard, lynx | Grasses next to any L2 cell (warren cover) | Herbivore |
+| Rabbits | F3 | 3 | M | Grasses, wildflowers, bramble, young elder and hawthorn | Fox, buzzard, lynx | Grasses next to any L2 cell (warren cover) | Herbivore |
 | Tits | F4 | 1 | F, M | Caterpillars, grasshoppers, pill bugs | Tawny owl | Any L2 or L3 cell (nesting) | Drop |
 | Woodpecker | F4 | 2 | F | Caterpillars; bark beetles during an outbreak (§11.3) | Tawny owl | Any L3 cell | Drop (also allowed on own trees hit by a bark-beetle outbreak) |
 | Buzzard | F4 | 3 | M, F | Voles, rabbits, moles, grasshoppers, earthworms | — (apex in V1) | L3 next to L1 (woodland edge) | Drop |
@@ -247,7 +247,7 @@ Arrows show energy flow (food → consumer). Dotted arrows are support interacti
 graph BT
   DEAD[(Dead biomass)]
   SOIL[(Soil: nutrients, development)]
-  L1[L1 Herbaceous<br/>pioneers, clover, ferns, bramble & nettles]
+  L1[L1 Herbaceous<br/>pioneers, wildflowers, nettle, bramble]
   L2[L2 Shrub<br/>elder, hazel, hawthorn]
   L3[L3 Canopy<br/>oak, beech, chestnut]
   EW[Earthworms]

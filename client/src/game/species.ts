@@ -3,9 +3,9 @@
 
 import type { ReplayMeta, Species } from "../replay/replay";
 
-/** "tawny_owl" -> "Tawny owl". */
+/** "tawny_owl" -> "Tawny owl", "lichen_and_moss" -> "Lichen & moss". */
 export function label(name: string): string {
-  const words = name.replace(/_/g, " ");
+  const words = name.replace(/_and_/g, " & ").replace(/_/g, " ");
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 

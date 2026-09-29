@@ -28,9 +28,9 @@ FIELD_EVERY = 4  # replay: flora fields every 4 ticks (2 s); animals every tick
 BUILDS = {
     "forest": (  # pushes shrubs and trees toward the frontier (M0.7)
         (0, "grasses", 0, 0, 3),
-        (0, "lichen", 0, 8, 3),
+        (0, "lichen_and_moss", 0, 8, 3),
         (60, "earthworms"),
-        (150, "clover", 0, 0, 2),
+        (150, "wildflowers", 0, 0, 2),
         (240, "elder", 0, 0, 2),
         (300, "hawthorn", 6, 0, 2),
         (300, "voles"),
@@ -46,11 +46,11 @@ BUILDS = {
     ),
     "meadow": (
         (0, "grasses", 0, 0, 3),
-        (0, "lichen", 0, 8, 3),
+        (0, "lichen_and_moss", 0, 8, 3),
         (60, "grasses", 8, 0, 3),
         (60, "earthworms"),
         (120, "grasses", 8, 8, 3),
-        (150, "clover", 0, 0, 2),
+        (150, "wildflowers", 0, 0, 2),
         (240, "grasshoppers"),
         (300, "elder", 0, 0, 2),
         (360, "rabbits"),

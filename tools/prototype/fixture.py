@@ -53,7 +53,7 @@ def run() -> dict:
     left[:, 4:] = False
     right[:, :10] = False
     for player, side, plants in (
-        (1, left, (("grasses", 1.0), ("clover", 0.5), ("elder", 0.8), ("oak", 0.9))),
+        (1, left, (("grasses", 1.0), ("wildflowers", 0.5), ("elder", 0.8), ("oak", 0.9))),
         (2, right, (("grasses", 1.0), ("bramble", 0.7), ("hawthorn", 0.6), ("beech", 0.9))),
     ):
         for name, frac in plants:

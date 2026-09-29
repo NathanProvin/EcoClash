@@ -226,7 +226,7 @@ mod tests {
     fn loads_the_real_data_files_in_file_order() {
         let b = Balance::from_toml(BALANCE, SPECIES).expect("data files load");
         let names: Vec<&str> = b.flora_species.iter().map(|(n, _)| n.as_str()).collect();
-        assert_eq!(names.first(), Some(&"lichen"));
+        assert_eq!(names.first(), Some(&"lichen_and_moss"));
         assert_eq!(names.last(), Some(&"chestnut"));
         assert_eq!(names.len(), 12);
         assert!(b.flora.succession);

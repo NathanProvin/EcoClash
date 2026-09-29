@@ -528,3 +528,14 @@ Template:
 - **Status:** accepted (user request: "the map is too big, divide it by two")
 - **Decision:** The grid goes from 128² to 64²; cells stay 4 m, so the map is 256 m across (a quarter of the area). Plant caps are map shares (D-045), so they scale with it. The live opening scales its offsets with n.
 - **Consequences:** Fronts meet sooner and the whole map fits one screen. The per-tick sim cost drops about 4×, which leaves room for the fauna port.
+
+## D-050 · 2026-09-29 · Herbaceous line-up: lichen & moss, grasses, ferns; wildflowers, nettle, bramble
+- **Status:** accepted (user decision); tier placement of the three intermediates is a default, see Q-016
+- **Decision:**
+  - L1 tier 1, the pioneers (free at start, establish on bare soil): `lichen_and_moss` (merged; shade-tolerant, fastest soil gain), `grasses`, `ferns` (now a pioneer, cap 0.3).
+  - Tier 2: `wildflowers` (best L1 income) and `nettle` (grazed only by caterpillars).
+  - Tier 3: `bramble` (thorny refuge).
+  - Clover and separate moss are removed.
+  - Fauna diets and habitats follow: slugs eat lichen & moss, grasses, ferns and wildflowers; grasshoppers, voles and rabbits eat wildflowers instead of clover; caterpillars eat and live in nettle; pill bugs live under lichen & moss or ferns.
+  - "_and_" in a species key shows as "&" in the UI.
+- **Consequences:** gamerules §4.2 and §5 are updated. Scripts, tests and fixtures use the new names; the parity fixture was regenerated and stays exact. The overyielding test threshold is now 1.1: the theory gives ×1.17 with wildflowers (k_max 6000), against ×1.25 with clover.

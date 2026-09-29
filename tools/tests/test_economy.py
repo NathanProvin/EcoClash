@@ -18,7 +18,8 @@ def economy(bal=None):
 def test_start_unlocks_and_tier_path():
     ec = economy()
     assert ec.missing(1, "grasses") == [] and ec.missing(1, "earthworms") == []
-    assert ec.missing(1, "bramble") == ["clover", "bramble"]  # cheapest L1 tier-2 species first
+    # cheapest L1 tier-2 species first
+    assert ec.missing(1, "bramble") == ["wildflowers", "bramble"]
 
 
 def test_animals_need_their_habitat_unlocked_first():
@@ -28,10 +29,10 @@ def test_animals_need_their_habitat_unlocked_first():
 
 def test_prepare_buys_one_species_at_a_time_when_affordable():
     ec = economy()
-    ec.bank[1] = ec.stat("clover", "unlock_cost") + 10
-    assert not ec.prepare(1, "bramble")  # bought clover; bramble still missing
-    assert ec.bank[1] == 10 and "clover" in ec.unlocked[1]
-    assert ec.events == [(1, "clover", ec.stat("clover", "unlock_cost"))]
+    ec.bank[1] = ec.stat("wildflowers", "unlock_cost") + 10
+    assert not ec.prepare(1, "bramble")  # bought wildflowers; bramble still missing
+    assert ec.bank[1] == 10 and "wildflowers" in ec.unlocked[1]
+    assert ec.events == [(1, "wildflowers", ec.stat("wildflowers", "unlock_cost"))]
     assert not ec.prepare(1, "bramble")  # cannot afford bramble: nothing charged
     assert ec.bank[1] == 10
     ec.bank[1] += ec.stat("bramble", "unlock_cost")

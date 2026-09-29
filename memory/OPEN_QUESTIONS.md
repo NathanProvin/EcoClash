@@ -25,6 +25,7 @@
 | Q-013 | Exact victory thresholds and match length | M4 (tuned via `tools/balance`) | open |
 | Q-014 | Plant species per player in v1 | M0 | open (default: grass + shrub + tree) |
 | Q-015 | Low-density growth: stochastic rounding or growth floor | M0 (quantized mode) | resolved → D-021 |
+| Q-016 | Tiers of the L1 intermediates (wildflowers, nettle, bramble) | M4 | open (default: wildflowers and nettle tier 2, bramble tier 3; D-050) |
 
 ---
 
@@ -56,3 +57,8 @@
 - Default: grass + shrub (fields) + tree (structure).
 
 ## Q-015 · Low-density growth rounding — resolved → D-021
+
+## Q-016 · Tiers of the L1 intermediates
+- **Question:** The user named wildflowers, nettle and bramble as "intermediate" L1 species. Are they all tier 2, or spread over tiers 2 and 3?
+- **Default (in use):** wildflowers and nettle are tier 2; bramble stays tier 3, keeping its refuge role for late game.
+- **Deadline:** M4 (unlock costs matter once spending is ported).

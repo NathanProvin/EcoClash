@@ -34,6 +34,7 @@ const meta = {
 describe("species helpers", () => {
   it("formats names", () => {
     expect(label("tawny_owl")).toBe("Tawny owl");
+    expect(label("lichen_and_moss")).toBe("Lichen & moss");
   });
 
   it("shows plant caps as map shares and animal caps as counts", () => {

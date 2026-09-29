@@ -187,3 +187,7 @@
 ## 2026-09-29 · M1.8 sim-wasm, native vs WASM hashes (D-039)
 - **Done:** `sim-wasm` wrapper; Node runner on the `--target web` package; `npm run wasm:check` identical on 1200 ticks; doctor checks the wasm-bindgen CLI version; CI runs the check. M1 complete.
 - **Next:** M2, the live worker behind the viewer (open questions Q-008 / Q-009 / Q-010 first).
+
+## 2026-09-29 · Q-008, Q-009, Q-010 resolved (D-040)
+- **Done:** The user chose 1 cell = 2 m (2–3 min to cross), blue/orange with a frontier pattern cue, and this laptop (i5-12450H, Intel UHD) as the reference for every budget.
+- **Next:** M2, the live worker behind the viewer.

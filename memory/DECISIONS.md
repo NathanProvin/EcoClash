@@ -429,3 +429,11 @@ Template:
   - **`npm run wasm:check`** (`sim-wasm/node/check.mjs`) builds the package, runs `sim-wasm/node/commands.jsonl` (both players, an order between flora ticks, an invalid player) for 1200 ticks through `sim-cli` and `run.mjs`, and requires the same hash on every tick. CI's rust job runs it, with `wasm-bindgen-cli` cached per version.
   - **Pinning (D-008):** `wasm-bindgen = "=0.2.129"`. `npm run doctor` checks that the installed CLI matches the version in `Cargo.lock` and prints the install command.
 - **Deps (rule 5):** `wasm-bindgen` (the browser binding, INSTRUCTIONS §3.1) and `serde_json` (commands arrive as JSON).
+
+## D-040 · 2026-09-29 · Map scale, player colours, reference machine (Q-008, Q-009, Q-010)
+- **Status:** accepted (user decision)
+- **Decision:**
+  - **Q-008, scale:** 1 cell = 2 m; the 256² map is about 512 m across. Herbivores are about 0.3 m and move about 1.5 cells/s; predators about 0.6 m, about 2.5 cells/s. Crossing the map takes about 2–3 minutes: a diorama feel, with small living things in a big meadow.
+  - **Q-009, colours:** P1 blue `#0072B2`, P2 orange `#E69F00` (Okabe–Ito; validator: ΔE 29 under red-green colour blindness, target ≥ 8). A non-colour cue is added: each player's frontier line has its own pattern (P1 solid, P2 dashed).
+  - **Q-010, reference machine:** the dev laptop, Lenovo 83EQ (i5-12450H, 8 cores / 12 threads, 16 GB, Intel UHD integrated graphics, 1080p), for every budget: 60 fps on "medium", 30 fps on "low", sim ≤ 8 ms per tick on average.
+- **Consequences:** INSTRUCTIONS §5.5, §7.1 and §11 updated; the M2 perf check uses 256² and this machine. The frontier line pattern comes with the M2 territory border.

@@ -227,12 +227,14 @@ Integer implementation constraint (it must already be modelled in the M0 prototy
 - Group movement uses **flow fields** computed on a coarse grid (e.g. 64×64).
 - Budget: **1,000–2,000 agents** in v1.
 
-### 5.5 Performance budgets (mid-range laptop, Chromium)
+### 5.5 Performance budgets (reference machine, Chromium; D-040)
+
+Reference machine: the dev laptop, **Lenovo 83EQ: Intel i5-12450H (8 cores / 12 threads), 16 GB RAM, Intel UHD integrated graphics, 1920×1080**. Every budget below must hold on it. Integrated graphics puts it near the low end, so passing here covers most players.
 
 | Item | Budget |
 |---|---|
-| Sim tick at 512², 2 players, 1,500 agents | ≤ 8 ms on a single thread (in the Worker) |
-| Render | 60 fps target, 30 fps floor on "low" preset |
+| Sim tick at 256², 2 players, 1,500 agents | ≤ 8 ms on a single thread (in the Worker), on average; flora ticks (every 8 ticks) may spike, but must stay well below the 100 ms tick period |
+| Render | 60 fps on the "medium" preset, 30 fps floor on "low" |
 | Initial download (web) | ≤ 30 MB |
 | WASM memory | ≤ 512 MB |
 
@@ -257,7 +259,7 @@ Optimisations, in order: algorithmic → multi-rate → chunk sleeping → WASM 
 ### 7.1 Direction
 
 - **Macro diorama look:** a top-down camera, subtle tilt-shift depth of field, and a terrarium / nature documentary feel.
-- **Constrained palette:** 5–7 colours per biome, plus one hue per player. The palette is defined in one file (`client/src/render/palette.ts`). Player colours must be colour-blind safe: green vs ochre is on the red–green confusion axis. See Q-009.
+- **Constrained palette:** 5–7 colours per biome, plus one hue per player. The palette is defined in one file (`client/src/render/palette.ts`). Player colours (D-040): **P1 blue `#0072B2`, P2 orange `#E69F00`** (Okabe–Ito), validated for colour-blind separation. They never carry identity alone: each player's frontier line also has its own pattern (P1 solid, P2 dashed).
 - **One key light:** a low sun, a soft sky (hemisphere / HDRI), and tinted distance fog. A single colour-grading LUT for the whole game.
 - Test for the direction: the scene must look good **with placeholder cubes** for units.
 
@@ -338,7 +340,7 @@ Each milestone ends with a playable or testable result and passing CI. The detai
 | M-1 | Environment bootstrap | Memory files, pinned toolchains, `npm run doctor` green, git initialized |
 | M0 | Ecological prototype (Python) | Float and quantized modes. Over 100 seeds, all trophic levels of both players coexist at t = 20 min in ≥ 90 % of runs. Tunables are in `balance.toml` |
 | M1 | `sim-core` fields | Growth/spread/competition in fixed-point. Determinism tests are green. `sim-cli` output matches M0's quantized-mode curves within tolerance. CI checks native vs WASM hashes |
-| M2 | Web render of fields | Worker + WASM + Three.js: terrain, flora textures, instanced grass, RTS camera. 60 fps at 512² on the reference machine (to be named in ROADMAP) |
+| M2 | Web render of fields | Worker + WASM + Three.js: terrain, flora textures, instanced grass, RTS camera. 60 fps at 256² on the reference machine ("medium" preset; D-040) |
 | M3 | Agents and control | Herbivores and predators, selection, orders, flow fields. The decomposer decision is taken |
 | M3.5 | Lockstep smoke test | Two browser tabs over a local relay play the same match for 5 min with identical hashes |
 | M4 | Full match vs AI | Economy, structures, territory, victory conditions. Scripted AI (command-only). End screen with charts |

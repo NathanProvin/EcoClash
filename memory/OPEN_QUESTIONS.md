@@ -17,9 +17,9 @@
 | Q-005 | Counter loop: what kills predators, friendly fire | M0 (agents part) | resolved → D-023 |
 | Q-006 | Unit control at 1–2k agents: per-unit or swarm/zone orders | M3 | resolved → D-018 |
 | Q-007 | Fog of war in v1? | M3 | user thinking |
-| Q-008 | Map scale: world units per cell, agent size, speeds | M2 | user thinking |
-| Q-009 | Colour-blind-safe player colours | M2 | open |
-| Q-010 | Reference machine for performance budgets | M2 | open |
+| Q-008 | Map scale: world units per cell, agent size, speeds | M2 | resolved → D-040 |
+| Q-009 | Colour-blind-safe player colours | M2 | resolved → D-040 |
+| Q-010 | Reference machine for performance budgets | M2 | resolved → D-040 |
 | Q-011 | Final game name | before store page | open |
 | Q-012 | Decomposers: agent or field | M3 | resolved → D-018 |
 | Q-013 | Exact victory thresholds and match length | M4 (tuned via `tools/balance`) | open |
@@ -40,20 +40,9 @@
 ## Q-007 · Fog of war
 - **Recommended default:** None in v1 (full visibility). Lockstep gives every client the full state anyway. Revisit after v1.
 
-## Q-008 · Map scale
-- **Recommended default** (to validate visually in M2):
-  - 1 cell = 2 m on the 256² default grid (D-029: grid halved, several plant models per cell).
-  - Herbivore ≈ 0.3 m, speed ≈ 1.5 cells/s.
-  - Predator ≈ 0.6 m, speed ≈ 2.5 cells/s.
-  - A 256² map then takes about 2–3 minutes to cross.
-
-## Q-009 · Player colours
-- **Problem:** "Cool greens vs warm ochres" sits on the red–green colour-blind confusion axis.
-- **Recommended default:** A blue/teal vs orange/amber pair (derived from Okabe–Ito), desaturated to fit the documentary palette, with a luminance difference and a **pattern cue** on territory borders.
-
-## Q-010 · Reference machine
-- **Problem:** "Mid-range laptop" isn't measurable.
-- **Recommended default:** The dev machine, plus one integrated-GPU laptop tier (e.g. Intel Iris Xe class) for the 30 fps floor. Record the exact specs here.
+## Q-008 · Map scale — resolved → D-040
+## Q-009 · Player colours — resolved → D-040
+## Q-010 · Reference machine — resolved → D-040
 
 ## Q-011 · Final game name
 - Use the codename **EcoClash** until then.

@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M4 core done: main menu (D-057), spending and unlocks (D-058), victory and end screen (D-059), scripted bot (D-060). Left in M4: `tools/balance/` batch runs and tuning (deferred: Q-013), and the `sim-py` decision.
+- **Now:** M4 done: main menu (D-057), spending and unlocks (D-058), victory and end screen (D-059), scripted bot (D-060), herbivore drops (D-061). Balance runs and `sim-py` moved to M7.
 - **Next:** M3.5, the lockstep smoke test (relay, two tabs). Then M5, art and UI polish (the Species catalog and Options screens behind the menu placeholders). M2's only leftover is the user's fps reading.
 - **Blocked:**
   - None on design questions for M0.
@@ -72,8 +72,7 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [x] `sim-ai` scripted bot, command-only (D-014), with difficulty levels (D-060).
 - [x] Main menu (D-057).
 - [x] End screen with biomass and territory charts (D-059).
-- [ ] `tools/balance/` batch runs via `sim-cli` → Parquet; tune Q-013.
-- [ ] Decide whether `sim-py` is needed (D-010).
+- Batch balance runs and the `sim-py` decision moved to M7 (user, 2026-09-29).
 
 ## M5 · Art and UI polish
 - [ ] Git LFS for `assets-src/`. Blender `bpy` pipeline (`tools/assets/build.py`).
@@ -85,3 +84,8 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [ ] Lobby + handshake (build version, balance hash, seed).
 - [ ] Desync detection UI + state dumps, replays, resign/pause/disconnect rules.
 - [ ] Preview/prod deploy pipeline (Cloudflare Pages, itch.io).
+
+## M7 · Balance and AI training (last, by user choice)
+- [ ] `tools/balance/` batch runs: thousands of headless bot-vs-bot matches via `sim-cli` → Parquet (win rates, match length, collapses).
+- [ ] Tune `balance.toml` / `species.toml` from the results, incl. the victory thresholds (Q-013) and M0.6/M0.7.
+- [ ] Decide whether `sim-py` (PyO3 bindings, D-010) is needed: only for a learned AI opponent.

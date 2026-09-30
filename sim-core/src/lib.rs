@@ -12,4 +12,5 @@ pub mod flora;
 pub mod hash;
 pub mod rng;
 pub mod snapshot;
+pub mod terrain;
 pub mod world;

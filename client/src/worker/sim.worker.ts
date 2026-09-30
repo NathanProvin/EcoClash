@@ -111,6 +111,7 @@ async function begin(
   if (room) [seed, sandbox, bot] = [room.seed, false, "none"]; // both peers: the relay's seed
   const s = new Sim(balance, species, BigInt(seed), size);
   s.setSandbox(sandbox);
+  s.generateTerrain(); // this match's map, from its seed (D-083)
   if (bot !== "none") s.addBot(2, bot); // the scripted opponent plays P2 (D-060)
   const n = Math.sqrt(s.fieldFrame().length / (2 + s.speciesNames().length));
   const base = Math.floor(n / 4);

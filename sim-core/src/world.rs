@@ -17,6 +17,7 @@ use crate::flora::{Flora, FloraParams, FloraState};
 use crate::hash::{FieldHashes, Hasher};
 use crate::rng::Pcg32;
 use crate::snapshot::Snapshot;
+use crate::terrain::{self, TerrainParams};
 
 /// Stream of the world's RNG (the seed comes from the match).
 const RNG_STREAM: u64 = 0x0ec0_c1a5;
@@ -130,6 +131,20 @@ impl World {
             flora_every: u64::from(balance.sim.flora_every_ticks),
             env_every: u64::from(balance.sim.env_every_ticks),
         }
+    }
+
+    /// Lay out the map of this match from its seed (D-083): relief, water, rocks, moisture.
+    /// Call it before the first tick; with `generate` off it keeps the flat map. The terrain is
+    /// part of the field hashes, so peers with different maps desync at once.
+    pub fn generate_terrain(&mut self, p: &TerrainParams, seed: u64) {
+        if !p.generate {
+            return;
+        }
+        let map = terrain::generate(p, self.state.n, seed);
+        self.state.elevation = map.elevation;
+        self.state.ground = map.ground;
+        self.state.water = map.water;
+        self.fields.mark_all();
     }
 
     /// Queue a command. Commands for a tick already run, or duplicates, are refused.

@@ -899,3 +899,20 @@ Template:
     - "5 minutes left" and "One minute left".
     - `sim-wasm` exposes `victoryTerritory` and `timeLimitS`.
 - **Consequences:** The seed only changes the match's randomness today; it becomes the map seed with the terrain generator (Content milestone).
+
+## D-083 · 2026-09-30 · Map generator
+- **Status:** accepted (user: "the terrain overhaul, with relief, rock obstacles, and water (river and ponds)"; answers: real obstacles, shallows crossable, relief shapes moisture, flat-map parity only)
+- **Decision:**
+  - `sim-core/src/terrain.rs` builds each match's map from its seed, on its own PCG32 stream (the world's random sequence is untouched), integer only.
+  - **Relief:** three octaves of value noise.
+  - **River:** along the anti-diagonal, so it runs between the two homes as the natural front line. It meanders, is `river_width` cells wide, and its cells are shallows with the odd deep pool at its centre (never across its whole width).
+  - **Ponds:** `ponds` per half at the lowest land, deep in the middle from radius 2.
+  - **Rock outcrops:** the top `rock_share` of the land by height plus a fine noise, so several clusters form on the high ground.
+  - **Homes** are cleared (dry, rock-free, flatter).
+  - **Valleys:** water beds sit at one level and banks rise from them.
+  - **Connectivity:** every land or shallow cell is reachable on foot from the first home (a corridor is opened if needed, and cut-off pockets become rock).
+  - **Moisture** (the flora `water` field) goes from `moisture_dry` on the highest ground to `moisture_wet` in the lowest land and next to water; water cells are full.
+  - **Symmetry:** 180° rotational, so both homes see the same land.
+  - `FloraState` gains `ground` (land, shallow, deep, rock) and `elevation`, both in the chunk hashes, so peers with different maps desync at once. The generator settings join the balance hash (version 10).
+  - `World::new` stays flat, which keeps tests and flat-map parity exact. The game calls `World::generate_terrain` (`sim-wasm generateTerrain`, `sim-cli --terrain 1`; `wasm:check` runs with terrain on). `sim-wasm terrainFrame()` exports it for the renderer.
+- **Consequences:** Tests: symmetry, determinism, homes clear, the river between the homes yet crossable, every walkable cell reachable, water and rock shares, moisture ranges. An ignored `map_preview` test prints maps. The rules (1b) and the look (1c) come next.

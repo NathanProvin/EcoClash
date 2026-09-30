@@ -21,11 +21,12 @@ use std::process::ExitCode;
 use sim_core::balance::Balance;
 use sim_core::commands::Command;
 use sim_core::hash::balance_hash;
+use sim_core::terrain::TerrainParams;
 use sim_core::world::World;
 
 const USAGE: &str = "usage: sim-cli run --seed N --ticks T [--commands file.jsonl] [--size N] \
 [--balance data/balance.toml] [--species data/species.toml] [--out metrics.csv] [--hashes hashes.csv] \
-[--sandbox 1]";
+[--sandbox 1] [--terrain 1]";
 
 fn main() -> ExitCode {
     match run(std::env::args().skip(1).collect()) {
@@ -64,6 +65,9 @@ fn run(args: Vec<String>) -> Result<(), String> {
 
     let mut world = World::new(&balance, seed, size);
     world.set_sandbox(number("sandbox", "0")? != 0);
+    if number("terrain", "0")? != 0 {
+        world.generate_terrain(&TerrainParams::from_balance(&balance), seed); // D-083
+    }
     if let Some(path) = opts.get("commands") {
         for (i, line) in read(path.clone())?.lines().enumerate() {
             if line.trim().is_empty() {

@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M5a, the playable alpha (D-073, D-075). The fps gate passed (60 fps). Tasks 1–7 and 8a done. Left: 8b guided scenario, 9 static deploy (needs the user's hosting choice and account).
+- **Now:** the world overhaul (terrain, light, species, movement, drops), before M5a 8b and 9. 1a done.
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-09-30
@@ -100,6 +100,16 @@ Goal: a build strangers can play against the bot and understand at a glance. One
 - [x] **8a. First-match tips** (D-082): contextual, once each, through the notification stack; switch in Options.
 - [ ] **8b. Tutorial:** a separate "Tutorial" entry in the main menu (user, 2026-09-30), next to Play: a short scripted match with objectives (plant, unlock, call, drop, win). Split from 8.
 - [ ] **9. Static deploy** (Cloudflare Pages or itch.io), build-version badge, feedback link.
+
+## World overhaul (before M5a 8b and 9; user, 2026-09-30)
+In this order:
+- [x] **1a. Map generator** (D-083): seeded relief, an anti-diagonal river (shallows, deep pools), ponds, rock outcrops, home clearings, moisture; 180° symmetry; `World::generate_terrain`, `sim-cli --terrain 1`, `sim-wasm generateTerrain / terrainFrame`.
+- [ ] **1b. Terrain rules**: rock and deep cells block plants and walkers; shallows slow walkers and let plants seep across; movement media (walk, swim, amphibious, fly); pathfinding (`pathing.rs`).
+- [ ] **1c. Terrain rendering**: displaced ground, heights everywhere, water surface, rocks, frontier on the relief, slab sides.
+- [ ] **2. Light and shaders**: shadows, wind, terrain blending, foliage rim light, colour grade; bloom and tilt-shift on High.
+- [ ] **3. Species revamp**: the user's 15-plant, 33-animal table; 4 plant strata; groups and tiers; aquatic species; new bodies; bot.
+- [ ] **4. Movement per species**: calmer, slower small herbivores; stop-and-go; less erratic insects.
+- [ ] **5. Visible drop animation**: high fall, readable canopy, ground shadow, dust ring.
 
 ## M7-lite · Balance loop (pulled forward, D-073)
 - [ ] `tools/balance/`: bot-vs-bot batch runs through `sim-cli` (seeds × difficulties) → match length, win rates, population curves, collapses.

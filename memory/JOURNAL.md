@@ -382,3 +382,7 @@
 ## 2026-09-30 · M5a task 8a: first-match tips (D-082)
 - **Done:** seven contextual tips through the toast stack, once each, Options switch. 57 client tests; checked in the browser.
 - **Next:** 8b guided scenario; 9 static deploy (needs the user's hosting choice and account).
+
+## 2026-09-30 · World overhaul 1a: map generator (D-083)
+- **Done:** seeded, symmetric maps with relief, a river between the homes, ponds, rock outcrops, moisture; in the state and hashes; `wasm:check` with terrain; all checks pass.
+- **Next:** 1b terrain rules (blocked cells, media, pathfinding).

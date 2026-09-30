@@ -31,9 +31,27 @@ hash_every_ticks = 10    # §10: desync check once per second
 # water_optimum / water_tolerance, light_optimum / light_tolerance (0..1; tolerance 0 = indifferent)
 # and soil_affinity = { sandy = 1.2, ... }; absent keys are neutral (D-024).
 [terrain]
-water = 0.5
+water = 0.5              # moisture of a flat map (and the land species' water optimum)
 light = 1.0
 soil_types = ["loam", "sandy", "clay_limestone"]
+# Map generator (D-083): relief, a river along the anti-diagonal (the natural front line between
+# the two homes), ponds, rock outcrops, moisture. Every map has 180-degree symmetry (fair 1v1).
+generate = true          # false: the flat V1 map (tests, prototype parity)
+noise_cells = [12, 6, 3] # value-noise lattice spacing per octave (cells)
+noise_weights = [0.6, 0.3, 0.1]
+river_width = 2.0        # cells
+river_meander = 4.0      # sideways swing of the river (cells)
+deep_share = 0.12        # chance that a river step has a deep (uncrossable) pool at its centre
+ponds = 2                # per half map
+pond_radius = 3          # cells; ponds of radius >= 2 have a deep centre
+rock_share = 0.05        # share of the land that is rock outcrop (the highest ground)
+home_clear = 5           # cells around each home kept dry, rock-free and flatter
+water_level = 0.18       # height of every water bed, as a share of the relief
+bank_rise = 0.12         # banks rise this share of the relief per cell away from water
+moisture_dry = 0.3       # land moisture on the highest ground ...
+moisture_wet = 0.75      # ... and in the lowest land / next to water (water cells: 1)
+bank_cells = 4           # water raises land moisture over this many cells
+relief_m = 8.0           # render only: metres from the lowest to the highest ground
 
 # Flora cell model (gamerules §2.1, §3; D-019). Species stats are in species.toml.
 # Rates are per second; fractions are of the species' k_max. Biomass is in u16 units (0..65535).

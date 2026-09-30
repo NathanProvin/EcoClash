@@ -213,6 +213,10 @@ pub struct FloraState {
     pub soil_type: Vec<u8>,
     pub water: Vec<i64>,
     pub light: Vec<i64>,
+    /// Ground class (`terrain::LAND`, `SHALLOW`, `DEEP`, `ROCK`) and elevation (0..=65535) of each
+    /// cell (D-083); a flat map is all land at 0.
+    pub ground: Vec<u8>,
+    pub elevation: Vec<i64>,
     /// Claim progress on empty cells, per player (Q16).
     pub prog: [Vec<i64>; 2],
     /// Dead biomass (litter), eaten by decomposers.
@@ -235,6 +239,8 @@ impl FloraState {
             soil_type: vec![0; cells],
             water: vec![p.water0; cells],
             light: vec![p.light0; cells],
+            ground: vec![0; cells],
+            elevation: vec![0; cells],
             prog: [vec![0; cells], vec![0; cells]],
             dead: vec![0; cells],
             t: 0,

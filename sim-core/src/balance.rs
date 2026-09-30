@@ -93,12 +93,30 @@ pub struct FaunaRules {
     pub wander_radius: f64,
 }
 
-/// `[terrain]`: V1 constants and the soil types (gamerules §2.3).
+/// `[terrain]`: the flat-map constants, the soil types (gamerules §2.3), and the map generator
+/// (D-083, `terrain.rs`).
 #[derive(Clone, Debug, Deserialize)]
 pub struct Terrain {
     pub water: f64,
     pub light: f64,
     pub soil_types: Vec<String>,
+    pub generate: bool,
+    pub noise_cells: [u32; 3],
+    pub noise_weights: [f64; 3],
+    pub river_width: f64,
+    pub river_meander: f64,
+    pub deep_share: f64,
+    pub ponds: u32,
+    pub pond_radius: u32,
+    pub rock_share: f64,
+    pub home_clear: u32,
+    pub water_level: f64,
+    pub bank_rise: f64,
+    pub moisture_dry: f64,
+    pub moisture_wet: f64,
+    pub bank_cells: u32,
+    /// Render only: metres from the lowest to the highest ground.
+    pub relief_m: f64,
 }
 
 /// One plant species of `species.toml` (`[flora.<name>]`).
@@ -254,6 +272,26 @@ impl Balance {
         check(
             self.terrain.soil_types.first().is_some_and(|t| t == "loam"),
             "[terrain] first soil type must be loam".into(),
+        )?;
+        let t = &self.terrain;
+        let share = |v: f64| (0.0..=1.0).contains(&v);
+        check(
+            t.noise_cells.iter().all(|&c| c > 0)
+                && t.noise_weights.iter().all(|&w| w >= 0.0)
+                && t.noise_weights.iter().sum::<f64>() > 0.0
+                && t.river_width >= 1.0
+                && t.river_meander >= 0.0
+                && share(t.deep_share)
+                && share(t.rock_share)
+                && share(t.water_level)
+                && share(t.bank_rise)
+                && share(t.moisture_dry)
+                && share(t.moisture_wet)
+                && t.bank_cells > 0
+                && t.relief_m >= 0.0,
+            "[terrain] generator: noise cells > 0, weights >= 0 (not all 0), river width >= 1, \
+             shares in [0, 1], bank_cells > 0"
+                .into(),
         )?;
         check(
             (0.0..=1.0).contains(&f.niche_overlap),

@@ -127,7 +127,8 @@ impl FieldHashes {
             .collect();
         let mut h = Hasher::new();
         for &k in &ks {
-            h.bytes(&[st.owner[k], st.soil_type[k]])
+            h.bytes(&[st.owner[k], st.soil_type[k], st.ground[k]])
+                .i64(st.elevation[k])
                 .i64(st.soil[k])
                 .i64(st.water[k])
                 .i64(st.light[k])
@@ -145,7 +146,7 @@ impl FieldHashes {
 }
 
 /// Bumped whenever the set or order of hashed balance values changes.
-pub const BALANCE_HASH_VERSION: u64 = 9; // 2: economy; 3: fauna; 4: costs; 5: victory; 6: drops; 7: movement; 8: capacity; 9: pace
+pub const BALANCE_HASH_VERSION: u64 = 10; // 2: economy; 3: fauna; 4: costs; 5: victory; 6: drops; 7: movement; 8: capacity; 9: pace; 10: terrain
 
 /// The balance hash (INSTRUCTIONS §4, §10): the values the simulation uses, **after** conversion
 /// to fixed-point, never the file bytes. Formatting, comments, CRLF / LF and changes below the
@@ -171,6 +172,7 @@ pub fn balance_hash(b: &Balance) -> u64 {
     crate::economy::Economy::new(b, &fauna).hash_params(&mut h);
     fauna.hash_into(&mut h);
     crate::world::hash_victory(b, &mut h);
+    crate::terrain::TerrainParams::from_balance(b).hash_into(&mut h);
     h.finish()
 }
 

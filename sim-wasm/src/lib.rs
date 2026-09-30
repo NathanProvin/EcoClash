@@ -7,6 +7,7 @@
 use sim_core::balance::Balance;
 use sim_core::commands::Command;
 use sim_core::hash::balance_hash;
+use sim_core::terrain::TerrainParams;
 use sim_core::world::World;
 use wasm_bindgen::prelude::*;
 
@@ -23,6 +24,8 @@ pub struct Sim {
     victory_territory: f64,
     time_limit_s: u32,
     max_agents: u32,
+    terrain: TerrainParams,
+    seed: u64,
     /// Scripted opponents, and the next sequence number of each one's commands.
     bots: Vec<(sim_ai::Bot, u32)>,
 }
@@ -46,6 +49,8 @@ impl Sim {
             victory_territory: b.r#match.victory_territory,
             time_limit_s: b.r#match.time_limit_s,
             max_agents: b.agents.max_agents,
+            terrain: TerrainParams::from_balance(&b),
+            seed,
             bots: Vec::new(),
             world: World::new(&b, seed, n),
         })
@@ -178,6 +183,25 @@ impl Sim {
     #[wasm_bindgen(getter, js_name = plantRadius)]
     pub fn plant_radius(&self) -> u32 {
         self.plant_radius
+    }
+
+    /// Lay out this match's map from its seed (D-083), before the first tick; a no-op when the
+    /// balance's generator is off.
+    #[wasm_bindgen(js_name = generateTerrain)]
+    pub fn generate_terrain(&mut self) {
+        self.world.generate_terrain(&self.terrain, self.seed);
+    }
+
+    /// The map for renderers (D-083): elevation (0..=255), then the ground class (0 land,
+    /// 1 shallow, 2 deep, 3 rock), `n * n` bytes each.
+    #[wasm_bindgen(js_name = terrainFrame)]
+    pub fn terrain_frame(&self) -> Vec<u8> {
+        let st = &self.world.state;
+        st.elevation
+            .iter()
+            .map(|&e| u8::try_from(e >> 8).unwrap_or(u8::MAX))
+            .chain(st.ground.iter().copied())
+            .collect()
     }
 
     /// Radius in cells around the click where a drop off your land lands (`[fauna] drop_radius`).

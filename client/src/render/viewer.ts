@@ -1,10 +1,8 @@
-// Placeholder diorama over a Source (INSTRUCTIONS §6: the renderer only reads snapshots).
-// Ground tinted by territory, with frontier lines (P1 solid, P2 dashed: frontier.ts, D-040). Herbs
-// as grass blades (grass.ts); shrubs as low-poly bush blobs and trees as a trunk and crown blobs,
-// each species with its own form and natural colour, lightly tinted by its owner (layout.ts,
-// palette.ts, D-067). Animals as low-poly bodies per type in natural colours, on a ring of their
-// owner's colour; soil life and insects as faint dots (animals.ts, D-065, D-068). 1 cell = CELL
-// world units (4 m, D-047).
+// Placeholder diorama over a Source (INSTRUCTIONS §6: the renderer only reads snapshots). The
+// viewer holds the scene, camera and ground (tinted by territory, with frontier lines, P1 solid,
+// P2 dashed: frontier.ts, D-040); herbs are grass blades (grass.ts), shrubs and trees come from
+// PlantView (plants.ts: species forms, natural colours, growth, D-067, D-072), animals from
+// AnimalView (animals.ts, D-065, D-068). 1 cell = CELL world units (4 m, D-047).
 
 import { MapControls } from "three/addons/controls/MapControls.js";
 import * as THREE from "three/webgpu";
@@ -17,57 +15,28 @@ import {
   positionWorld,
   smoothstep,
   texture,
+  uniform,
   uv,
   vec3,
 } from "three/tsl";
-import { isSwarm } from "../game/species";
 import { interpolate, type Animal, type Source } from "../replay/replay";
-import {
-  ANIMAL_SCALE,
-  BODIES,
-  bodyGeometry,
-  FLIGHT_Y,
-  formOf as animalForm,
-  RING,
-  ringRadius,
-  type AnimalForm,
-  type Body,
-} from "./animals";
+import { AnimalView } from "./animals";
 import { paintFrontier, TEXELS } from "./frontier";
 import { makeGrass } from "./grass";
-import { QUALITY, type Quality } from "./quality";
-import {
-  CELL,
-  formOf,
-  MAX_MODELS,
-  SLAB_DEPTH,
-  plantLayout,
-  rand,
-  TREE,
-  type Placement,
-} from "./layout";
+import { CELL, rand, SLAB_DEPTH } from "./layout";
 import { hexToRgb, plantColor, PLAYER, soilColor, WORLD, type PlayerId } from "./palette";
+import { LowPolyPlants, PlantView } from "./plants";
+import { QUALITY, type Quality } from "./quality";
 
 export type Layer = "territory" | "L1" | "L2" | "L3" | "animals";
 
 export { CELL };
-const HIGHLIGHT = new THREE.Color("#ffffff");
-/** Swarm dots (soil life, insects; D-065): radius (m), height (m, in the herbs) and opacity. */
-const SWARM_R = 0.06;
-const SWARM_Y = 0.15;
-const SWARM_OPACITY = 0.45;
 /** Share of the owner's hue in the ground of owned cells: light, the frontier line carries
  *  ownership and the plants keep their natural colours (D-067). */
 const TERRITORY_TINT = 0.15;
-/** Birds bob this much (m) around their flight height. */
-const BOB = 0.3;
-/** Each animal keeps a fixed offset inside its cell (share of a cell), so animals on the same
- *  point (replays hold whole cells) do not stack. */
-const ANIMAL_SPREAD = 0.3;
-/** Crown and bush blobs beyond the first one: size and spread relative to the main blob. */
-const BLOB = { size: 0.62, spread: 0.5 } as const;
-/** Blobs per model at most (FORM in layout.ts). */
-const MAX_BLOBS = 3;
+/** Grass blends from one field frame to the next over the time between the last two frames,
+ *  within these bounds (s). */
+const BLEND_S = { min: 0.2, max: 2 } as const;
 
 /** Keys held by the player, read each frame for keyboard camera moves. */
 export interface CameraKeys {
@@ -78,6 +47,8 @@ export interface CameraKeys {
   rotateLeft: boolean;
   rotateRight: boolean;
 }
+
+type Covers = { species: number; cover: number }[];
 
 export class Viewer {
   readonly backend: string;
@@ -90,50 +61,32 @@ export class Viewer {
   private readonly frontierData: Uint8Array;
   private readonly frontierTex: THREE.DataTexture;
   private readonly frontier: THREE.Mesh;
-  // L1 as grass blades (grass.ts): RGB = the cell's herb colour, A = L1 cover, one texel per cell.
+  /** Seconds, for growth and blends (set once per frame). */
+  private readonly now = uniform(0);
+  // L1 as grass blades (grass.ts): RGB = the cell's herb colour, A = L1 cover, one texel per
+  // cell; the previous field frame too, blended in by `blend`.
   private readonly floraData: Uint8Array;
   private readonly floraTex: THREE.DataTexture;
+  private readonly floraPrev: THREE.DataTexture;
+  private readonly blend = uniform(1);
+  private blendFrom = 0;
+  private blendS: number = BLEND_S.max;
   private grass: THREE.Mesh;
-  // Shrubs as bush blobs; trees as a trunk and crown blobs (D-067).
-  private readonly bushes: THREE.InstancedMesh;
-  private readonly trunks: THREE.InstancedMesh;
-  private readonly crowns: THREE.InstancedMesh;
-  // Per-cell plant layout, recomputed only when the cell's (quantized) species covers change.
-  private readonly layoutKey: Int32Array;
-  private readonly layouts: [Placement[], Placement[]][] = [];
+  private readonly plants: PlantView;
+  private readonly animals: AnimalView;
   /** Plant species indices per level (1..3); colours per player and species (sRGB bytes, and
    *  linear for instances). */
   private readonly byLevel: number[][];
   private readonly plantRgb: Record<PlayerId, [number, number, number][]>;
   private readonly plantLinear: Record<PlayerId, THREE.Color[]>;
-  // Animals (D-068): one mesh per body type, their ground rings, and the swarm dots.
-  private readonly bodies: Record<Body, THREE.InstancedMesh>;
-  private readonly rings: THREE.InstancedMesh;
-  private readonly swarm: THREE.InstancedMesh;
-  /** Per fauna species: form, natural colour (linear), swarm flag, predator flag. */
-  private readonly animalForms: AnimalForm[];
-  private readonly animalColors: THREE.Color[];
-  private readonly swarmOf: boolean[];
-  private readonly predatorOf: boolean[];
-  /** Ring colours per owner (predators vivid); swarm dots in the owner's pale tint. */
-  private readonly ringColor: Record<PlayerId, { animal: THREE.Color; predator: THREE.Color }> = {
-    1: { animal: new THREE.Color(PLAYER[1].base), predator: new THREE.Color(PLAYER[1].predator) },
-    2: { animal: new THREE.Color(PLAYER[2].base), predator: new THREE.Color(PLAYER[2].predator) },
-  };
-  private readonly dotColor: Record<PlayerId, THREE.Color> = {
-    1: new THREE.Color(PLAYER[1].animal),
-    2: new THREE.Color(PLAYER[2].animal),
-  };
-  /** Last drawn position and heading per animal id, to face the way it goes. */
-  private heading = new Map<number, { x: number; z: number; a: number }>();
   private readonly aura: THREE.Group; // smoky ring over the selected cell
   private readonly raycaster = new THREE.Raycaster();
   private flight: { from: THREE.Vector3[]; to: THREE.Vector3[]; t: number } | undefined;
   private lastTime = 0;
   private lastFrame = -1;
+  private lastPaint = 0;
   private showTerritory = true;
   private shown: Animal[] = [];
-  private drawn: { id: number; owner: number; x: number; y: number; z: number }[] = []; // world
   private selected = new Set<number>();
 
   private constructor(
@@ -148,11 +101,6 @@ export class Viewer {
     this.backend = (renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend
       ? "WebGPU"
       : "WebGL2";
-    const fauna = replay.meta.fauna;
-    this.swarmOf = replay.meta.species.filter((s) => s.kind === "fauna").map(isSwarm);
-    this.predatorOf = fauna.role.map((r) => r === "predator");
-    this.animalForms = fauna.names.map((name, i) => animalForm(name, fauna.role[i] ?? "herbivore"));
-    this.animalColors = this.animalForms.map((f) => new THREE.Color(f.color));
 
     this.scene.background = new THREE.Color(WORLD.sky);
     this.scene.fog = new THREE.Fog(WORLD.horizon, size * 2.2, size * 5); // haze beyond the slab
@@ -227,15 +175,18 @@ export class Viewer {
     );
     this.scene.add(this.frontier);
 
+    const floraTexture = (data: Uint8Array) => {
+      const t = new THREE.DataTexture(data, n, n);
+      t.magFilter = THREE.LinearFilter;
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    };
     this.floraData = new Uint8Array(n * n * 4);
-    this.floraTex = new THREE.DataTexture(this.floraData, n, n);
-    this.floraTex.magFilter = THREE.LinearFilter;
-    this.floraTex.colorSpace = THREE.SRGBColorSpace;
-    this.grass = makeGrass(n, QUALITY[quality].grass, this.floraTex);
+    this.floraTex = floraTexture(this.floraData);
+    this.floraPrev = floraTexture(new Uint8Array(n * n * 4));
+    this.grass = this.makeGrass();
     this.scene.add(this.grass);
 
-    const cells = n * n;
-    this.layoutKey = new Int32Array(cells).fill(-1);
     const { names, level } = replay.meta.flora;
     this.byLevel = [1, 2, 3].map((l) => names.flatMap((_, i) => (level[i] === l ? [i] : [])));
     const colours = (p: PlayerId) => names.map((name, i) => plantColor(name, level[i] ?? 1, p));
@@ -245,32 +196,11 @@ export class Viewer {
         new THREE.Color().setRGB(r / 255, g / 255, b / 255, THREE.SRGBColorSpace),
       );
     this.plantLinear = { 1: linear(1), 2: linear(2) };
-    // Low-poly blobs (flat shaded facets) and tapered trunks, base on the ground; instances
-    // scale and place them (layout.ts).
-    const blob = new THREE.IcosahedronGeometry(1, 1);
-    const trunk = new THREE.CylinderGeometry(0.65, 1, 1, 6).translate(0, 0.5, 0);
-    this.bushes = this.instanced(blob, cells * MAX_MODELS[1] * MAX_BLOBS, 0.85, true);
-    this.crowns = this.instanced(blob, cells * MAX_MODELS[2] * MAX_BLOBS, 0.8, true);
-    this.trunks = this.instanced(trunk, cells * MAX_MODELS[2], 0.95, true);
+    this.plants = new PlantView(this.scene, n, new LowPolyPlants(), this.now);
+    this.animals = new AnimalView(this.scene, replay.meta, replay.maxAnimals());
 
     this.aura = makeAura();
     this.scene.add(this.aura);
-
-    const most = replay.maxAnimals();
-    const bodies = {} as Record<Body, THREE.InstancedMesh>;
-    for (const b of BODIES) bodies[b] = this.instanced(bodyGeometry(b), most, 0.9, true);
-    this.bodies = bodies;
-    const ring = new THREE.RingGeometry(1 - RING.width, 1, 28).rotateX(-Math.PI / 2);
-    this.rings = this.instanced(ring, most);
-    const ringMat = this.rings.material as THREE.MeshBasicNodeMaterial;
-    ringMat.transparent = true;
-    ringMat.opacity = 0.85;
-    ringMat.depthWrite = false;
-    this.swarm = this.instanced(new THREE.SphereGeometry(1, 6, 4), most);
-    const faint = this.swarm.material as THREE.MeshBasicNodeMaterial;
-    faint.transparent = true;
-    faint.opacity = SWARM_OPACITY;
-    faint.depthWrite = false;
   }
 
   static async create(
@@ -284,28 +214,9 @@ export class Viewer {
     return new Viewer(canvas, replay, renderer, quality);
   }
 
-  /** An instanced mesh; lit with `roughness` (flat shaded if `flat`), or unlit (animals). */
-  private instanced(
-    geometry: THREE.BufferGeometry,
-    count: number,
-    roughness?: number,
-    flat = false,
-  ) {
-    const material =
-      roughness === undefined
-        ? new THREE.MeshBasicNodeMaterial()
-        : new THREE.MeshStandardNodeMaterial({ roughness, flatShading: flat });
-    const mesh = new THREE.InstancedMesh(geometry, material, Math.max(count, 1));
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    mesh.instanceColor = new THREE.InstancedBufferAttribute(
-      new Float32Array(Math.max(count, 1) * 3),
-      3,
-    );
-    mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
-    mesh.frustumCulled = false;
-    mesh.count = 0;
-    this.scene.add(mesh);
-    return mesh;
+  private makeGrass(): THREE.Mesh {
+    const perCell = QUALITY[this.quality].grass;
+    return makeGrass(this.replay.meta.n, perCell, this.floraTex, this.floraPrev, this.blend);
   }
 
   resetView(): void {
@@ -333,7 +244,7 @@ export class Viewer {
     this.scene.remove(this.grass);
     this.grass.geometry.dispose();
     (this.grass.material as THREE.Material).dispose();
-    this.grass = makeGrass(this.replay.meta.n, QUALITY[q].grass, this.floraTex);
+    this.grass = this.makeGrass();
     this.grass.visible = visible;
     this.scene.add(this.grass);
     this.resize();
@@ -345,14 +256,11 @@ export class Viewer {
       this.frontier.visible = on;
       this.lastFrame = -1; // repaint the ground
     } else if (layer === "animals") {
-      for (const m of [...Object.values(this.bodies), this.rings, this.swarm]) m.visible = on;
+      this.animals.setVisible(on);
     } else if (layer === "L1") {
       this.grass.visible = on;
-    } else if (layer === "L2") {
-      this.bushes.visible = on;
     } else {
-      this.trunks.visible = on;
-      this.crowns.visible = on;
+      for (const m of this.plants.meshesOf(layer === "L2" ? 1 : 2)) m.visible = on;
     }
   }
 
@@ -424,12 +332,19 @@ export class Viewer {
     const now = performance.now() / 1000;
     const dt = Math.min(now - (this.lastTime || now), 0.1);
     this.lastTime = now;
+    this.now.value = now;
     const fields = this.replay.fields(tick);
     if (fields.frame !== this.lastFrame) {
+      // Moving forward blends the grass in; the first frame or a scrub back shows at once.
+      const step = this.lastFrame >= 0 && fields.frame > this.lastFrame;
       this.lastFrame = fields.frame;
-      this.paintFields(fields.owner, fields.soil, fields.species, fields.cover);
+      this.paintFields(fields.owner, fields.soil, fields.species, fields.cover, now, step);
     }
-    this.placeAnimals(tick);
+    this.blend.value = Math.min(1, (now - this.blendFrom) / this.blendS);
+    this.plants.frame(now);
+    const t0 = Math.floor(tick);
+    this.shown = interpolate(this.replay.animals(t0), this.replay.animals(t0 + 1), tick - t0);
+    this.animals.update(this.shown, this.selected, tick, this.replay.meta.n);
     animateAura(this.aura, now);
     if (this.flight) {
       const f = this.flight;
@@ -455,7 +370,7 @@ export class Viewer {
     const v = new THREE.Vector3();
     let best: { id: number; d: number } | undefined;
     const hits: number[] = [];
-    for (const a of this.drawn) {
+    for (const a of this.animals.drawn) {
       if (a.owner !== player) continue;
       v.set(a.x, a.y, a.z).project(this.camera);
       if (v.z > 1) continue; // behind the camera
@@ -480,19 +395,19 @@ export class Viewer {
     soilDev: Uint8Array,
     species: Uint8Array[],
     cover: Uint8Array[],
+    now: number,
+    step: boolean,
   ): void {
     const n = this.replay.meta.n;
-    const names = this.replay.meta.flora.names;
     const tint = { 1: hexToRgb(PLAYER[1].base), 2: hexToRgb(PLAYER[2].base) };
     const [herbs = [], shrubs = [], trees = []] = this.byLevel;
-    const present = (list: number[], c: number) =>
+    const present = (list: number[], c: number): Covers =>
       list.flatMap((i) => {
         const v = species[i]?.[c] ?? 0;
         return v ? [{ species: i, cover: v / 255 }] : [];
       });
-    const trunkColor = new THREE.Color(WORLD.trunk);
-    const tmp = new THREE.Color();
-    const counts = { bushes: 0, trunks: 0, crowns: 0 };
+    // Grass: the frame shown so far becomes the one to blend from.
+    if (step) (this.floraPrev.image.data as Uint8Array).set(this.floraData);
     for (let c = 0; c < n * n; c++) {
       const soil = soilColor(soilDev[c] ?? 0);
       const o = owner[c] ?? 0;
@@ -508,13 +423,12 @@ export class Viewer {
         this.floraData.fill(0, c * 4, c * 4 + 4);
         continue;
       }
-      const p: PlayerId = o;
       // Grass texel (rows not flipped: the grass shader maps world z to rows itself): the
       // cover-weighted colour of the cell's herbs.
       const rgb = [0, 0, 0];
       let weight = 0;
       for (const h of present(herbs, c)) {
-        const col = this.plantRgb[p][h.species] ?? [0, 0, 0];
+        const col = this.plantRgb[o][h.species] ?? [0, 0, 0];
         for (let j = 0; j < 3; j++) rgb[j] = (rgb[j] ?? 0) + (col[j] ?? 0) * h.cover;
         weight += h.cover;
       }
@@ -523,108 +437,24 @@ export class Viewer {
         [(rgb[0] ?? 0) / w, (rgb[1] ?? 0) / w, (rgb[2] ?? 0) / w, cover[0]?.[c] ?? 0],
         c * 4,
       );
-
-      const [bushList, treeList] = [present(shrubs, c), present(trees, c)];
-      let key = 0x811c9dc5;
-      for (const q of [...bushList, ...treeList]) {
-        key = Math.imul(key ^ (q.species * 16 + Math.floor(q.cover * 15.99)), 16777619);
-      }
-      let layout = this.layouts[c];
-      if (!layout || this.layoutKey[c] !== key) {
-        layout = plantLayout(c, bushList, treeList);
-        this.layouts[c] = layout;
-        this.layoutKey[c] = key;
-      }
-      const x0 = ((c % n) - n / 2) * CELL; // cell corner in world metres
-      const z0 = (Math.floor(c / n) - n / 2) * CELL;
-      const [bushModels, treeModels] = layout;
-      for (const m of bushModels) {
-        const form = formOf(names[m.species] ?? "");
-        const base = this.plantLinear[p][m.species] ?? trunkColor;
-        const [x, z, r] = [x0 + m.x, z0 + m.z, m.size];
-        tmp.copy(base).multiplyScalar(0.9 + 0.2 * m.seed);
-        const y = r * form.h * 0.6; // sunk a little: bushes sit in the herbs
-        writeInstance(this.bushes, counts.bushes++, x, y, z, r * form.w, m.angle, tmp, r * form.h);
-        for (let b = 1; b < form.blobs; b++) {
-          const a = m.angle + (b * Math.PI * 2) / (form.blobs - 1);
-          const [d, rb] = [r * BLOB.spread, r * BLOB.size];
-          const [bx, bz] = [x + Math.cos(a) * d, z + Math.sin(a) * d];
-          tmp.copy(base).multiplyScalar(0.82 + 0.2 * rand(b, m.seed * 1e6));
-          const by = rb * form.h * 0.5;
-          writeInstance(this.bushes, counts.bushes++, bx, by, bz, rb * form.w, a, tmp, rb * form.h);
-        }
-      }
-      for (const m of treeModels) {
-        const form = formOf(names[m.species] ?? "");
-        const base = this.plantLinear[p][m.species] ?? trunkColor;
-        const [x, z, r] = [x0 + m.x, z0 + m.z, m.size];
-        const grown = (r - TREE.min) / (TREE.max - TREE.min);
-        const h = TREE.trunkMin + (TREE.trunkMax - TREE.trunkMin) * (0.6 * grown + 0.4 * m.seed);
-        const crownY = h + r * form.h * 0.45;
-        const trunkR = TREE.trunkR * (0.7 + 0.5 * grown);
-        writeInstance(this.trunks, counts.trunks++, x, 0, z, trunkR, m.angle, trunkColor, crownY);
-        tmp.copy(base).multiplyScalar(0.92 + 0.16 * m.seed);
-        const [cw, ch] = [r * form.w, r * form.h];
-        writeInstance(this.crowns, counts.crowns++, x, crownY, z, cw, m.angle, tmp, ch);
-        for (let b = 1; b < form.blobs; b++) {
-          const a = m.angle + (b * Math.PI * 2) / (form.blobs - 1);
-          const [d, rb] = [cw * BLOB.spread, r * BLOB.size];
-          const [bx, bz] = [x + Math.cos(a) * d, z + Math.sin(a) * d];
-          const by = crownY - ch * (0.1 + 0.25 * rand(b, m.seed * 1e6));
-          tmp.copy(base).multiplyScalar(0.8 + 0.15 * rand(b + 7, m.seed * 1e6)); // lower: shade
-          writeInstance(this.crowns, counts.crowns++, bx, by, bz, rb * form.w, a, tmp, rb * form.h);
-        }
-      }
     }
-    finish(this.bushes, counts.bushes);
-    finish(this.trunks, counts.trunks);
-    finish(this.crowns, counts.crowns);
+    if (!step) (this.floraPrev.image.data as Uint8Array).set(this.floraData); // no blend
+    const since = now - this.lastPaint;
+    this.blendS = Math.min(BLEND_S.max, Math.max(BLEND_S.min, since));
+    this.blendFrom = now;
+    this.lastPaint = now;
+    this.plants.update(
+      (c) => [present(shrubs, c), present(trees, c)],
+      owner,
+      this.replay.meta.flora.names,
+      this.plantLinear,
+      now,
+    );
     this.floraTex.needsUpdate = true;
+    this.floraPrev.needsUpdate = true;
     this.groundTex.needsUpdate = true;
     paintFrontier(owner, n, tint, this.frontierData);
     this.frontierTex.needsUpdate = true;
-  }
-
-  private placeAnimals(tick: number): void {
-    const t0 = Math.floor(tick);
-    this.shown = interpolate(this.replay.animals(t0), this.replay.animals(t0 + 1), tick - t0);
-    const n = this.replay.meta.n;
-    const counts = Object.fromEntries(BODIES.map((b) => [b, 0])) as Record<Body, number>;
-    let [swarms, rings] = [0, 0];
-    const heading = new Map<number, { x: number; z: number; a: number }>();
-    this.drawn = [];
-    for (const a of this.shown) {
-      const owner: PlayerId = a.owner === 2 ? 2 : 1;
-      // Its (interpolated) position from the cell corner, plus its own fixed offset.
-      const x = (a.x - n / 2 + 0.5 + ANIMAL_SPREAD * unit(a.id, 1)) * CELL;
-      const z = (a.y - n / 2 + 0.5 + ANIMAL_SPREAD * unit(a.id, 2)) * CELL;
-      if (this.swarmOf[a.species]) {
-        writeInstance(this.swarm, swarms++, x, SWARM_Y, z, SWARM_R, 0, this.dotColor[owner]);
-        continue; // not selectable (D-065)
-      }
-      // Face the way it goes; keep the last heading while it stands still.
-      const last = this.heading.get(a.id);
-      const [dx, dz] = last ? [x - last.x, z - last.z] : [0, 0];
-      const turn = Math.hypot(dx, dz) > 1e-3 ? Math.atan2(-dz, dx) : undefined;
-      const angle = turn ?? last?.a ?? unit(a.id, 3) * Math.PI * 2;
-      heading.set(a.id, { x, z, a: angle });
-      const form = this.animalForms[a.species];
-      const body = form?.body ?? "rodent";
-      const size = (form?.length ?? 0.2) * ANIMAL_SCALE;
-      const y = body === "bird" ? FLIGHT_Y + BOB * Math.sin(tick * 0.8 + a.id) : 0;
-      const color = this.animalColors[a.species] ?? HIGHLIGHT;
-      writeInstance(this.bodies[body], counts[body]++, x, y, z, size, angle, color);
-      const ring = this.selected.has(a.id)
-        ? HIGHLIGHT
-        : this.ringColor[owner][this.predatorOf[a.species] ? "predator" : "animal"];
-      const r = form ? ringRadius(form) : RING.min;
-      writeInstance(this.rings, rings++, x, 0.04, z, r, 0, ring);
-      this.drawn.push({ id: a.id, owner: a.owner, x, y: y + size * 0.3, z });
-    }
-    this.heading = heading;
-    for (const b of BODIES) finish(this.bodies[b], counts[b]);
-    finish(this.rings, rings);
-    finish(this.swarm, swarms);
   }
 
   dispose(): void {
@@ -685,64 +515,4 @@ function animateAura(aura: THREE.Group, seconds: number): void {
     const breathe = 1 + Math.sin(seconds * 1.6 + i) * 0.06;
     layer.scale.set(breathe, 1, breathe);
   });
-}
-
-/** Rotation about Y + scale (`scale` across, `height` up) + translation, written straight into
- *  the instance buffers. */
-function writeInstance(
-  mesh: THREE.InstancedMesh,
-  i: number,
-  x: number,
-  y: number, // not scaled: the height band
-  z: number,
-  scale: number,
-  angle: number,
-  color: THREE.Color, // linear, managed by THREE.Color
-  height = scale,
-): void {
-  const [c, s] = [Math.cos(angle) * scale, Math.sin(angle) * scale];
-  const m = mesh.instanceMatrix.array as Float32Array;
-  const o = i * 16; // column-major, written in place (this runs ~100k times per field frame)
-  m[o] = c;
-  m[o + 1] = 0;
-  m[o + 2] = -s;
-  m[o + 3] = 0;
-  m[o + 4] = 0;
-  m[o + 5] = height;
-  m[o + 6] = 0;
-  m[o + 7] = 0;
-  m[o + 8] = s;
-  m[o + 9] = 0;
-  m[o + 10] = c;
-  m[o + 11] = 0;
-  m[o + 12] = x;
-  m[o + 13] = y;
-  m[o + 14] = z;
-  m[o + 15] = 1;
-  const col = mesh.instanceColor?.array as Float32Array | undefined;
-  if (col) {
-    col[i * 3] = color.r;
-    col[i * 3 + 1] = color.g;
-    col[i * 3 + 2] = color.b;
-  }
-}
-
-/** A fixed pseudo-random value in [-0.5, 0.5) for animal `id` (multiplicative hash; `salt`
- *  picks the axis). */
-function unit(id: number, salt: number): number {
-  return (Math.imul(id + salt * 0x9e3779b9, 0x9e3779b1) >>> 0) / 2 ** 32 - 0.5;
-}
-
-function finish(mesh: THREE.InstancedMesh, count: number): void {
-  mesh.count = count;
-  // Upload only the instances in use: the buffers are sized for a full map.
-  for (const [attr, size] of [
-    [mesh.instanceMatrix, 16],
-    [mesh.instanceColor, 3],
-  ] as const) {
-    if (!attr) continue;
-    attr.clearUpdateRanges();
-    attr.addUpdateRange(0, Math.max(1, count) * size);
-    attr.needsUpdate = true;
-  }
 }

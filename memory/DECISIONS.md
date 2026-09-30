@@ -791,3 +791,19 @@ Template:
 - **Status:** accepted (user, after the finding below: "Pace 1.0")
 - **Finding:** `App.svelte` defaulted the playback speed to 4× for replays, and live matches inherited it, so every live match ran at 4×. The round-2 "0.4× the current rate" was relative to that.
 - **Decision:** a live match starts at 1× and replays at 4×. `[sim] pace` is set to 1.0; the knob stays for tuning (M7). At 1×, the ecology now runs at 0.25× what the user played, and animals too.
+
+## D-072 · 2026-09-30 · Progressive plant growth, sparser organic shrubs, render seams (feedback round 2)
+- **Status:** accepted (user: "progressive growth of the plant models, instead of popping out of nowhere … efficient code and performance friendly, as well as modularity if later on we want to replace [them] with real animated 3D models"; "some shrubs are still quite grid like … reduce a little bit the density")
+- **Decision:**
+  - **Stable slots** (`layout.ts`): each cell has fixed model slots, whatever its cover.
+    - Trunks: the jittered 2×2 grid.
+    - Shrubs: deterministic dart-throwing, keeping `SHRUB_GAP` between shrubs and `TRUNK_CLEAR` from trunk slots. No grid; about 1 cell in 100 fits one shrub fewer.
+    - Shrubs go from 4 to 3 per cell.
+    - Cover decides how many slots are used and the size.
+  - **Sticky species:** `assign` keeps each slot's species while that species still has a share, so mixed stands do not reshuffle.
+  - **GPU growth** (`growth.ts`, `GrowingMesh`): keyed instances with two instanced attributes, the root point and (start, from, to). The material's position node scales each model around its root by a smoothstep over `GROW_S` (3 s), against a time uniform set once per frame.
+    - New models grow in, resized ones ease to their new size, lost ones wither and are then freed by swap-remove.
+    - Buffers upload only on change (field frames, frees), never per frame. A tree's parts share its trunk base, so the whole tree grows from the ground.
+  - **Grass:** the last two flora textures blend over the time between field frames, so blades grow instead of snapping at 1.25 Hz.
+  - **Seams:** `PlantStyle` (plants.ts; `LowPolyPlants` today) gives the meshes and parts of a model, and `PlantView` does the layout, stickiness and growth. `AnimalView` (animals.ts) draws animals. `viewer.ts` only orchestrates. Real glTF plants, wind and animated animals plug in behind these seams.
+- **Consequences:** Checked in the browser: plants grow in, the forest renders, no console errors. New tests cover slots, spacing, stickiness, growth maths, swap-remove, resizes and revivals. The fps must be measured on the reference laptop: the browser used here throttles background tabs.

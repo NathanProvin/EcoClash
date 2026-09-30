@@ -340,3 +340,7 @@
 - **Done:** family items with instant tier flyouts, a padlock unlock badge, the tooltip placement fix; checked in the browser (flyout, tooltip in real-time units).
 - **Found:** live matches started at 4× (the replay viewer's default speed leaked into live play), so the round-1 rhythm ran 4× too fast.
 - **Then (D-069a):** live matches start at 1× (replays 4×); pace back to 1.0 by the user's choice.
+
+## 2026-09-30 · Plant growth and render seams (D-072)
+- **Done:** fixed per-cell slots (dart-thrown shrubs, 3 per cell), sticky species, GPU growth for shrubs and trees, blended grass, `PlantStyle`/`PlantView`/`AnimalView` seams. Client check, lint and 39 tests pass; plants grow in, checked in the browser.
+- **Next:** the user's hands-on pass (1× start, 43² map, family bar, growth), and the fps reading on the reference laptop.

@@ -288,6 +288,8 @@ Every third-party or AI-generated asset gets an entry in `ASSETS_LICENSES.md`.
 4. Player territory: subtle tint in the grass, and a soft glow on frontiers.
 5. Post-processing: SSAO, light bloom, tilt-shift DoF, LUT grading.
 
+**Render seams for real art (D-072):** plant models come from a `PlantStyle` (`client/src/render/plants.ts`; today `LowPolyPlants`) and are shown through `GrowingMesh` (`growth.ts`): keyed instances that grow, resize and wither on the GPU (a per-instance root point and (start, from, to), no per-frame upload). A glTF style plugs per-species meshes in the same way, and wind (priority 1) is one more term in the growth position node. Animals go through `AnimalView` (`animals.ts`), the seam for skinned or vertex-animated models.
+
 Quality presets (low / medium / high): grass density, shadows, post-processing, and grid size where relevant. Implemented so far (D-056): grass tufts per cell (6 / 12 / 24) and the render-resolution cap (1 / 1.5 / 2), in the Layers menu, remembered per browser. Shadows and post-processing join in M5.
 
 ### 7.4 Asset pipeline

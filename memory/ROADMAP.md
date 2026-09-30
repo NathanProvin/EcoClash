@@ -4,12 +4,12 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** feedback round 1 done (D-063 … D-068): build card and leave confirmation, calm HUD, organic movement and swarms, food-limited carrying capacity, plant and animal models, ground. Waiting on the user's hands-on pass and the M2 fps reading (Layers → Quality: Medium, then Low; tick "Performance readout"), to redo with the heavier plant models.
+- **Now:** feedback round 2 done (D-069 … D-072): the ecology pace knob and live matches at 1× (D-069a), 43² map, family build bar with tier flyouts, progressive plant growth behind render seams. Waiting on the user's hands-on pass and the M2 fps reading (Layers → Quality: Medium, then Low; tick "Performance readout").
 - **Next (after the feedback):** M5, art and UI polish; M6, online multiplayer. M7 last: balance runs, `sim-py`.
 - **Blocked:**
   - None on design questions for M0.
   - None on the tooling side (Rust ready as of 2026-09-27).
-- **Last updated:** 2026-09-29
+- **Last updated:** 2026-09-30
 
 ---
 

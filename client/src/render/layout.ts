@@ -1,20 +1,22 @@
-// Placement of plant models inside a cell (D-033, D-067).
+// Placement of plant models inside a cell (D-033, D-067, D-072).
 //
-// Every shrub and every tree trunk owns a slot of a per-cell grid and stays inside it, so trunks
-// and shrub bases never overlap, inside a cell or across cells. Tree crowns are much wider than
-// their slot: neighbouring crowns may interpenetrate, at different heights, like a real canopy,
-// but trunks stay at least TRUNK_GAP apart so no two crowns merge. A cell's slots are shared
-// between the species present, in proportion to their cover, so mixed woods show every species.
-// All distances are world metres; a cell is CELL metres wide and local coordinates run from 0 to
-// CELL.
+// Every cell has fixed model slots that never depend on cover, so a model keeps its place from
+// seedling to full size and can grow smoothly (growth.ts). Tree trunks sit on a jittered 2 x 2
+// grid; shrubs are scattered by deterministic dart-throwing, clear of every trunk slot and of each
+// other, so they do not line up. Cover decides how many slots are in use (the first ones) and how
+// big the models are; the species present share the slots in proportion to their cover, and a
+// slot keeps its species while that species still has a share (`assign`), so mixed stands do not
+// reshuffle. Tree crowns are wider than their slot: neighbouring crowns may interpenetrate at
+// different heights, like a canopy, but trunks stay at least TRUNK_GAP apart so no two crowns
+// merge. Distances are world metres; local coordinates run from 0 to CELL.
 
 export const CELL = 4; // metres (D-047)
 export const SLAB_DEPTH = 12; // the diorama slab under the map, metres (D-054)
 
 /** Models per cell at full cover: [herbs (drawn as grass), shrubs, trees]. */
-export const MAX_MODELS = [0, 4, 2] as const;
-/** Slot grid side per stratum: shrubs on 3 x 3, trees on 2 x 2. */
-const GRID = [1, 3, 2] as const;
+export const MAX_MODELS = [0, 3, 2] as const;
+/** Tree trunks on a 2 x 2 grid. */
+const TREE_GRID = 2;
 /** Shrub footprint radius (m), from a young to a full stand. */
 export const SHRUB = { min: 0.35, max: 0.65 } as const; // side blobs make a bush wider
 /** Tree crown radius and trunk height (m), young to full; trunk radius (m). */
@@ -22,17 +24,30 @@ export const TREE = { min: 0.9, max: 1.4, trunkMin: 1.6, trunkMax: 2.6, trunkR: 
 /** How far a trunk may stray from its slot centre (m): trunks of neighbouring slots stay
  *  TRUNK_GAP apart. */
 export const TRUNK_JITTER = 0.25;
-export const TRUNK_GAP = CELL / GRID[2] - 2 * TRUNK_JITTER;
+export const TRUNK_GAP = CELL / TREE_GRID - 2 * TRUNK_JITTER;
+/** Shrub slots per cell (a few spares beyond MAX_MODELS, in case dart-throwing places fewer),
+ *  and the darts thrown to find them. */
+const SHRUB_SLOTS = 4;
+const DARTS = 64;
+/** Shrub slots keep these distances (m): between two shrub centres (bases may touch, like a
+ *  clump), and from a trunk slot (the rounded bush may reach under a crown, not over a trunk). */
+export const SHRUB_GAP = 1.6 * SHRUB.max;
+export const TRUNK_CLEAR = TREE.trunkR + 0.6 * SHRUB.max;
 
-/** One model in cell-local coordinates: centre (x, z), footprint radius, angle, the plant
- *  species index (`meta.flora`), and a per-model random value in [0, 1) for variety. */
-export interface Placement {
+/** A fixed model slot of a cell: centre (x, z), angle, a random value in [0, 1) for variety. */
+export interface Slot {
   x: number;
   z: number;
-  size: number;
   angle: number;
-  species: number;
   seed: number;
+}
+
+/** One model in cell-local coordinates: its slot, footprint radius and plant species index
+ *  (`meta.flora`). */
+export interface Placement extends Slot {
+  slot: number;
+  size: number;
+  species: number;
 }
 
 /** Crown or bush shape per species: width and height scales of the main blob, blob count. */
@@ -62,14 +77,35 @@ export function rand(cell: number, salt: number): number {
   return (h >>> 0) / 4294967296;
 }
 
-/** The grid's slot order for a cell: a deterministic shuffle of 0..count-1. */
-function order(cell: number, count: number, salt: number): number[] {
-  const slots = Array.from({ length: count }, (_, i) => i);
-  for (let i = count - 1; i > 0; i--) {
-    const j = Math.floor(rand(cell, salt + i) * (i + 1));
-    [slots[i], slots[j]] = [slots[j] ?? 0, slots[i] ?? 0];
+/** The fixed slots of a cell, [shrubs, trees], in the order they fill up. */
+export function cellSlots(cell: number): [Slot[], Slot[]] {
+  const side = CELL / TREE_GRID;
+  const trees: Slot[] = [];
+  const grid = Array.from({ length: TREE_GRID * TREE_GRID }, (_, i) => i);
+  for (let i = grid.length - 1; i > 0; i--) {
+    const j = Math.floor(rand(cell, 3000 + i) * (i + 1)); // shuffled fill order
+    [grid[i], grid[j]] = [grid[j] ?? 0, grid[i] ?? 0];
   }
-  return slots;
+  for (const s of grid) {
+    const jitter = (salt: number) => (rand(cell, salt + s) * 2 - 1) * TRUNK_JITTER;
+    trees.push({
+      x: (s % TREE_GRID) * side + side / 2 + jitter(3100),
+      z: Math.floor(s / TREE_GRID) * side + side / 2 + jitter(3200),
+      angle: rand(cell, 3300 + s) * Math.PI * 2,
+      seed: rand(cell, 3400 + s),
+    });
+  }
+  const shrubs: Slot[] = [];
+  const r = SHRUB.max;
+  for (let d = 0; d < DARTS && shrubs.length < SHRUB_SLOTS; d++) {
+    const x = r + rand(cell, 2000 + 2 * d) * (CELL - 2 * r);
+    const z = r + rand(cell, 2001 + 2 * d) * (CELL - 2 * r);
+    const clear = (o: { x: number; z: number }, gap: number) => Math.hypot(o.x - x, o.z - z) >= gap;
+    if (!trees.every((t) => clear(t, TRUNK_CLEAR))) continue;
+    if (!shrubs.every((b) => clear(b, SHRUB_GAP))) continue;
+    shrubs.push({ x, z, angle: rand(cell, 2300 + d) * Math.PI * 2, seed: rand(cell, 2400 + d) });
+  }
+  return [shrubs, trees];
 }
 
 /** `count` model slots shared by species in proportion to their cover (largest remainder; ties
@@ -89,59 +125,49 @@ export function share(count: number, plants: readonly { species: number; cover: 
   return plants.flatMap((p, i) => Array<number>(got[i] ?? 0).fill(p.species));
 }
 
+/** Species of the first `count` slots: each slot keeps its previous species (`prev`, by slot)
+ *  while that species still has a share; only the rest is reassigned, in slot order. */
+export function assign(
+  count: number,
+  plants: readonly { species: number; cover: number }[],
+  prev: readonly number[] = [],
+): number[] {
+  const quota = new Map<number, number>();
+  for (const s of share(count, plants)) quota.set(s, (quota.get(s) ?? 0) + 1);
+  const out = Array<number>(count).fill(-1);
+  for (let j = 0; j < count; j++) {
+    const s = prev[j] ?? -1;
+    if ((quota.get(s) ?? 0) > 0) {
+      out[j] = s;
+      quota.set(s, (quota.get(s) ?? 0) - 1);
+    }
+  }
+  const rest = [...quota].flatMap(([s, n]) => Array<number>(n).fill(s));
+  return out.map((s) => (s >= 0 ? s : (rest.shift() ?? -1)));
+}
+
 /** Plant models of one cell, [shrubs, trees], from the cover (0..1) of each shrub and tree
- *  species present. Sizes grow with the stratum's total cover. */
+ *  species present; `prev` holds each stratum's species by slot from the last layout. Sizes grow
+ *  with the stratum's total cover. */
 export function plantLayout(
   cell: number,
   shrubs: readonly { species: number; cover: number }[],
   trees: readonly { species: number; cover: number }[],
+  prev: readonly [readonly number[], readonly number[]] = [[], []],
+  slots: [Slot[], Slot[]] = cellSlots(cell),
 ): [Placement[], Placement[]] {
-  const total = (ps: readonly { cover: number }[]) =>
-    Math.min(
+  const models = (s: 1 | 2, plants: typeof shrubs, [lo, hi]: [number, number]) => {
+    const v = Math.min(
       1,
-      ps.reduce((t, p) => t + p.cover, 0),
+      plants.reduce((t, p) => t + p.cover, 0),
     );
-  const count = (s: 1 | 2, v: number) =>
-    v < 0.05 ? 0 : Math.max(1, Math.min(MAX_MODELS[s], Math.round(v * MAX_MODELS[s])));
-  const grow = (lo: number, hi: number, v: number, k: number, salt: number) =>
-    lo + (hi - lo) * v * (0.8 + 0.2 * rand(cell, salt + k));
-
-  const vt = total(trees);
-  const treeSpecies = share(count(2, vt), trees);
-  const tslot = CELL / GRID[2];
-  const treeOut: Placement[] = order(cell, GRID[2] * GRID[2], 3000)
-    .slice(0, treeSpecies.length)
-    .map((s, k) => ({
-      x: (s % GRID[2]) * tslot + tslot / 2 + (rand(cell, 3100 + s) * 2 - 1) * TRUNK_JITTER,
-      z:
-        Math.floor(s / GRID[2]) * tslot + tslot / 2 + (rand(cell, 3200 + s) * 2 - 1) * TRUNK_JITTER,
-      size: grow(TREE.min, TREE.max, vt, k, 30),
-      angle: rand(cell, 3300 + s) * Math.PI * 2,
-      species: treeSpecies[k] ?? 0,
-      seed: rand(cell, 3400 + s),
-    }));
-
-  // Shrubs keep clear of trunks; their slots are skipped when too close to one.
-  const vs = total(shrubs);
-  const shrubSpecies = share(count(1, vs), shrubs);
-  const sslot = CELL / GRID[1];
-  const shrubOut: Placement[] = [];
-  for (const s of order(cell, GRID[1] * GRID[1], 2000)) {
-    const k = shrubOut.length;
-    if (k >= shrubSpecies.length) break;
-    const r = grow(SHRUB.min, SHRUB.max, vs, k, 20);
-    const room = Math.max(0, sslot / 2 - r - 0.01);
-    const x = (s % GRID[1]) * sslot + sslot / 2 + (rand(cell, 2100 + s) * 2 - 1) * room;
-    const z = Math.floor(s / GRID[1]) * sslot + sslot / 2 + (rand(cell, 2200 + s) * 2 - 1) * room;
-    if (treeOut.some((t) => Math.hypot(t.x - x, t.z - z) < TREE.trunkR + r)) continue;
-    shrubOut.push({
-      x,
-      z,
-      size: r,
-      angle: rand(cell, 2300 + s) * Math.PI * 2,
-      species: shrubSpecies[k] ?? 0,
-      seed: rand(cell, 2400 + s),
+    const free = slots[s - 1] ?? [];
+    const want = v < 0.05 ? 0 : Math.max(1, Math.round(v * MAX_MODELS[s]));
+    const count = Math.min(MAX_MODELS[s], want, free.length);
+    return assign(count, plants, prev[s - 1]).map((species, slot) => {
+      const at = free[slot] as Slot;
+      return { ...at, slot, species, size: lo + (hi - lo) * v * (0.8 + 0.2 * at.seed) };
     });
-  }
-  return [shrubOut, treeOut];
+  };
+  return [models(1, shrubs, [SHRUB.min, SHRUB.max]), models(2, trees, [TREE.min, TREE.max])];
 }

@@ -1,5 +1,6 @@
 // Instanced grass (INSTRUCTIONS §7.2, D-055): the herbaceous stratum (L1) as GPU blades. One merged
 // static geometry; the vertex shader reads the flora texture (RGB = owner's L1 colour, A = L1 cover)
+// of the last two field frames and blends them (D-072), so blades grow and fade between frames
 // at each blade's root, so density and colour follow the fields with no per-frame CPU work.
 
 import { attribute, float, mix, positionLocal, smoothstep, texture, vec3 } from "three/tsl";
@@ -51,8 +52,15 @@ export function grassBlades(n: number, perCell: number): Blades {
   return { position, root, seed };
 }
 
-/** The grass mesh over an `n x n` map, drawn from `flora` (n x n RGBA, rows = grid rows). */
-export function makeGrass(n: number, perCell: number, flora: THREE.Texture): THREE.Mesh {
+/** The grass mesh over an `n x n` map, drawn from `flora` (n x n RGBA, rows = grid rows): the
+ *  previous field frame `prev` blended into the current one by `blend` (0..1). */
+export function makeGrass(
+  n: number,
+  perCell: number,
+  flora: THREE.Texture,
+  prev: THREE.Texture,
+  blend: THREE.UniformNode<"float", number>,
+): THREE.Mesh {
   const b = grassBlades(n, perCell);
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(b.position, 3));
@@ -73,7 +81,8 @@ export function makeGrass(n: number, perCell: number, flora: THREE.Texture): THR
   const size = n * CELL;
   const root = attribute("root", "vec2");
   const seed = attribute("seed", "float");
-  const texel = texture(flora, root.add(size / 2).div(size)).level(float(0)); // world x/z -> texel
+  const at = root.add(size / 2).div(size); // world x/z -> texel
+  const texel = mix(texture(prev, at).level(float(0)), texture(flora, at).level(float(0)), blend);
   const grow = smoothstep(seed.sub(0.05), seed.add(0.05), texel.a); // 0: blade collapsed
   const material = new THREE.MeshStandardNodeMaterial({ roughness: 0.9 });
   material.positionNode = vec3(root.x, 0, root.y).add(positionLocal.mul(grow));

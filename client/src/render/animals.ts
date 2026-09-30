@@ -2,11 +2,16 @@
 // long along +x (head forward) and standing on y = 0; instances scale them to each species' size
 // and turn them to face where they go. Birds fly above the canopy. A ring on the ground, in the
 // owner's colour, marks every controllable animal (white when selected). Soil life and insects
-// stay faint dots (D-065).
+// stay faint dots (D-065). AnimalView draws them from each frame's animals: the seam where skinned
+// or vertex-animated models can replace these bodies later (D-072).
 
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import * as THREE from "three/webgpu";
-import type { Role } from "../replay/replay";
+import { isSwarm } from "../game/species";
+import type { Animal, ReplayMeta, Role } from "../replay/replay";
+import { writeMatrix } from "./growth";
+import { CELL } from "./layout";
+import { PLAYER, type PlayerId } from "./palette";
 
 export type Body = "rodent" | "hedgehog" | "rabbit" | "canid" | "cat" | "bird";
 export const BODIES: Body[] = ["rodent", "hedgehog", "rabbit", "canid", "cat", "bird"];
@@ -107,4 +112,171 @@ export function bodyGeometry(body: Body): THREE.BufferGeometry {
     }
   })();
   return mergeGeometries(parts.map((g) => (g.index ? g.toNonIndexed() : g)));
+}
+
+/** Swarm dots (soil life, insects; D-065): radius (m), height (m, in the herbs) and opacity. */
+const SWARM = { r: 0.06, y: 0.15, opacity: 0.45 } as const;
+/** Birds bob this much (m) around their flight height. */
+const BOB = 0.3;
+/** Each animal keeps a fixed offset inside its cell (share of a cell), so animals on the same
+ *  point (replays hold whole cells) do not stack. */
+const SPREAD = 0.3;
+const HIGHLIGHT = new THREE.Color("#ffffff");
+
+/** Where an animal was drawn (world metres), for picking. */
+export interface Drawn {
+  id: number;
+  owner: number;
+  x: number;
+  y: number;
+  z: number;
+}
+
+/** The animals of a match: one instanced mesh per body type, their rings, the swarm dots. */
+export class AnimalView {
+  /** Where each animal was drawn this frame (swarms excluded: not selectable). */
+  drawn: Drawn[] = [];
+  private readonly bodies: Record<Body, THREE.InstancedMesh>;
+  private readonly rings: THREE.InstancedMesh;
+  private readonly swarm: THREE.InstancedMesh;
+  private readonly forms: AnimalForm[];
+  private readonly colors: THREE.Color[];
+  private readonly swarmOf: boolean[];
+  private readonly predatorOf: boolean[];
+  private readonly ringColor: Record<PlayerId, { animal: THREE.Color; predator: THREE.Color }> = {
+    1: { animal: new THREE.Color(PLAYER[1].base), predator: new THREE.Color(PLAYER[1].predator) },
+    2: { animal: new THREE.Color(PLAYER[2].base), predator: new THREE.Color(PLAYER[2].predator) },
+  };
+  private readonly dotColor: Record<PlayerId, THREE.Color> = {
+    1: new THREE.Color(PLAYER[1].animal),
+    2: new THREE.Color(PLAYER[2].animal),
+  };
+  /** Last drawn position and heading per animal id, to face the way it goes. */
+  private heading = new Map<number, { x: number; z: number; a: number }>();
+
+  constructor(scene: THREE.Scene, meta: ReplayMeta, capacity: number) {
+    const fauna = meta.fauna;
+    this.swarmOf = meta.species.filter((s) => s.kind === "fauna").map(isSwarm);
+    this.predatorOf = fauna.role.map((r) => r === "predator");
+    this.forms = fauna.names.map((name, i) => formOf(name, fauna.role[i] ?? "herbivore"));
+    this.colors = this.forms.map((f) => new THREE.Color(f.color));
+    const lit = (g: THREE.BufferGeometry) =>
+      instanced(
+        scene,
+        g,
+        capacity,
+        new THREE.MeshStandardNodeMaterial({ roughness: 0.9, flatShading: true }),
+      );
+    const bodies = {} as Record<Body, THREE.InstancedMesh>;
+    for (const b of BODIES) bodies[b] = lit(bodyGeometry(b));
+    this.bodies = bodies;
+    const faint = (opacity: number) =>
+      new THREE.MeshBasicNodeMaterial({ transparent: true, opacity, depthWrite: false });
+    const ring = new THREE.RingGeometry(1 - RING.width, 1, 28).rotateX(-Math.PI / 2);
+    this.rings = instanced(scene, ring, capacity, faint(0.85));
+    this.swarm = instanced(
+      scene,
+      new THREE.SphereGeometry(1, 6, 4),
+      capacity,
+      faint(SWARM.opacity),
+    );
+  }
+
+  setVisible(on: boolean): void {
+    for (const m of [...Object.values(this.bodies), this.rings, this.swarm]) m.visible = on;
+  }
+
+  /** Draw `animals` (interpolated, cell units) on an `n x n` map at fractional `tick`. */
+  update(animals: readonly Animal[], selected: Set<number>, tick: number, n: number): void {
+    const counts = Object.fromEntries(BODIES.map((b) => [b, 0])) as Record<Body, number>;
+    let [swarms, rings] = [0, 0];
+    const heading = new Map<number, { x: number; z: number; a: number }>();
+    this.drawn = [];
+    for (const a of animals) {
+      const owner: PlayerId = a.owner === 2 ? 2 : 1;
+      // Its position from the cell corner, plus its own fixed offset.
+      const x = (a.x - n / 2 + 0.5 + SPREAD * unit(a.id, 1)) * CELL;
+      const z = (a.y - n / 2 + 0.5 + SPREAD * unit(a.id, 2)) * CELL;
+      if (this.swarmOf[a.species]) {
+        put(this.swarm, swarms++, x, SWARM.y, z, SWARM.r, SWARM.r, 0, this.dotColor[owner]);
+        continue; // not selectable (D-065)
+      }
+      // Face the way it goes; keep the last heading while it stands still.
+      const last = this.heading.get(a.id);
+      const [dx, dz] = last ? [x - last.x, z - last.z] : [0, 0];
+      const turn = Math.hypot(dx, dz) > 1e-3 ? Math.atan2(-dz, dx) : undefined;
+      const angle = turn ?? last?.a ?? unit(a.id, 3) * Math.PI * 2;
+      heading.set(a.id, { x, z, a: angle });
+      const form = this.forms[a.species];
+      const body = form?.body ?? "rodent";
+      const size = (form?.length ?? 0.2) * ANIMAL_SCALE;
+      const y = body === "bird" ? FLIGHT_Y + BOB * Math.sin(tick * 0.8 + a.id) : 0;
+      const color = this.colors[a.species] ?? HIGHLIGHT;
+      put(this.bodies[body], counts[body]++, x, y, z, size, size, angle, color);
+      const ringColor = selected.has(a.id)
+        ? HIGHLIGHT
+        : this.ringColor[owner][this.predatorOf[a.species] ? "predator" : "animal"];
+      const r = form ? ringRadius(form) : RING.min;
+      put(this.rings, rings++, x, 0.04, z, r, r, 0, ringColor);
+      this.drawn.push({ id: a.id, owner: a.owner, x, y: y + size * 0.3, z });
+    }
+    this.heading = heading;
+    for (const b of BODIES) finish(this.bodies[b], counts[b]);
+    finish(this.rings, rings);
+    finish(this.swarm, swarms);
+  }
+}
+
+function instanced(
+  scene: THREE.Scene,
+  geometry: THREE.BufferGeometry,
+  count: number,
+  material: THREE.Material,
+): THREE.InstancedMesh {
+  const n = Math.max(count, 1);
+  const mesh = new THREE.InstancedMesh(geometry, material, n);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3);
+  mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+  mesh.frustumCulled = false;
+  mesh.count = 0;
+  scene.add(mesh);
+  return mesh;
+}
+
+/** Write instance `i`: position, scale (`w` across, `h` up), rotation about Y, colour. */
+function put(
+  mesh: THREE.InstancedMesh,
+  i: number,
+  x: number,
+  y: number,
+  z: number,
+  w: number,
+  h: number,
+  angle: number,
+  color: THREE.Color,
+): void {
+  const m = mesh.instanceMatrix.array as Float32Array;
+  writeMatrix(m.subarray(i * 16, i * 16 + 16), { x, y, z, w, h, angle });
+  (mesh.instanceColor?.array as Float32Array | undefined)?.set([color.r, color.g, color.b], i * 3);
+}
+
+/** A fixed pseudo-random value in [-0.5, 0.5) for animal `id` (multiplicative hash; `salt`
+ *  picks the axis). */
+function unit(id: number, salt: number): number {
+  return (Math.imul(id + salt * 0x9e3779b9, 0x9e3779b1) >>> 0) / 2 ** 32 - 0.5;
+}
+
+/** Upload only the instances in use: the buffers are sized for the most animals. */
+function finish(mesh: THREE.InstancedMesh, count: number): void {
+  mesh.count = count;
+  for (const [attr, size] of [
+    [mesh.instanceMatrix, 16],
+    [mesh.instanceColor, 3],
+  ] as const) {
+    if (!attr) continue;
+    attr.clearUpdateRanges();
+    attr.addUpdateRange(0, Math.max(1, count) * size);
+    attr.needsUpdate = true;
+  }
 }

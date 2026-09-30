@@ -1,6 +1,7 @@
 // Placeholder diorama over a Source (INSTRUCTIONS §6: the renderer only reads snapshots). The
 // viewer holds the scene, camera and ground (tinted by territory, with frontier lines, P1 solid,
-// P2 dashed: frontier.ts, D-040); herbs are grass blades (grass.ts), shrubs and trees come from
+// P2 dashed: frontier.ts, D-040), raised to the generated relief with water and rocks
+// (terrain.ts, D-085); herbs are grass blades (grass.ts), shrubs and trees come from
 // PlantView (plants.ts: species forms, natural colours, growth, D-067, D-072), animals from
 // AnimalView (animals.ts, D-065, D-068). 1 cell = CELL world units (4 m, D-047).
 
@@ -15,6 +16,7 @@ import {
   positionWorld,
   smoothstep,
   texture,
+  time,
   uniform,
   uv,
   vec3,
@@ -23,6 +25,13 @@ import { interpolate, type Animal, type Fields, type Source } from "../replay/re
 import { AnimalView } from "./animals";
 import { Ghost, type GhostSpec } from "./ghost";
 import { paintFrontier, TEXELS } from "./frontier";
+import {
+  groundGeometry,
+  Heightfield,
+  rockPlacements,
+  slabGeometry,
+  stoneGeometry,
+} from "./terrain";
 import { makeGrass } from "./grass";
 import { CELL, rand, SLAB_DEPTH } from "./layout";
 import { hexToRgb, plantColor, PLAYER, soilColor, WORLD, type PlayerId } from "./palette";
@@ -66,7 +75,11 @@ export class Viewer {
   private readonly groundTex: THREE.DataTexture;
   private readonly frontierData: Uint8Array;
   private readonly frontierTex: THREE.DataTexture;
-  private readonly frontier: THREE.Mesh;
+  private readonly showFrontier = uniform(1);
+  /** The map's heights (D-085), the ground mesh (picking), the height texture (shaders). */
+  private readonly field: Heightfield;
+  private readonly ground: THREE.Mesh;
+  private readonly heights: THREE.DataTexture;
   /** Seconds, for growth and blends (set once per frame). */
   private readonly now = uniform(0);
   // L1 as grass blades (grass.ts): RGB = the cell's herb colour, A = L1 cover, one texel per
@@ -147,12 +160,21 @@ export class Viewer {
     const earth = texture(this.groundTex, uv()).rgb;
     const humus = earth.mul(vec3(0.74, 0.68, 0.62)); // darker, warmer patches
     const mottle = smoothstep(0.05, 0.8, patches).mul(0.6);
-    groundMat.colorNode = mix(earth, humus, mottle).mul(grain);
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2),
-      groundMat,
-    );
-    this.scene.add(ground);
+    this.field = new Heightfield(n, replay.terrain);
+    this.heights = this.field.texture();
+    // Frontier lines, painted in the ground itself so they follow the relief (D-085); crisp texels
+    // up close.
+    const side = n * TEXELS;
+    this.frontierData = new Uint8Array(side * side * 4);
+    this.frontierTex = new THREE.DataTexture(this.frontierData, side, side);
+    this.frontierTex.magFilter = THREE.NearestFilter;
+    this.frontierTex.colorSpace = THREE.SRGBColorSpace;
+    const line = texture(this.frontierTex, uv());
+    const soilColour = mix(earth, humus, mottle).mul(grain);
+    groundMat.colorNode = mix(soilColour, line.rgb, line.a.mul(this.showFrontier));
+    groundMat.emissiveNode = line.rgb.mul(line.a.mul(this.showFrontier).mul(0.35));
+    this.ground = new THREE.Mesh(groundGeometry(this.field), groundMat);
+    this.scene.add(this.ground);
 
     // The map as a diorama slab: an earth cross-section on its sides, topsoil to bedrock.
     const slabMat = new THREE.MeshStandardNodeMaterial({ roughness: 1 });
@@ -160,30 +182,15 @@ export class Viewer {
     const soil = mix(color(WORLD.earthTop), color(WORLD.earthSub), smoothstep(0.05, 0.35, depth));
     const layers = vec3(mix(soil, color(WORLD.earthStone), smoothstep(0.65, 0.85, depth)));
     slabMat.colorNode = layers.mul(float(1).add(mx_noise_float(positionWorld.mul(1.5)).mul(0.08)));
-    // Box faces: +x, -x, +y, -y, +z, -z. No top face: the ground plane is the top, and two
-    // coplanar faces would z-fight.
-    const noTop = new THREE.MeshBasicNodeMaterial({ visible: false });
-    const slab = new THREE.Mesh(
-      new THREE.BoxGeometry(size, SLAB_DEPTH, size).translate(0, -SLAB_DEPTH / 2, 0),
-      [slabMat, slabMat, noTop, slabMat, slabMat, slabMat],
+    // Walls from the ground's edge down; the bottom stays closed by the dark below.
+    const bottom = new THREE.Mesh(
+      new THREE.PlaneGeometry(size, size).rotateX(Math.PI / 2).translate(0, -SLAB_DEPTH, 0),
+      slabMat,
     );
-    this.scene.add(slab);
+    this.scene.add(new THREE.Mesh(slabGeometry(this.field, SLAB_DEPTH), slabMat), bottom);
 
-    // Frontier overlay, a hair above the ground, under the plants; crisp texels up close.
-    const side = n * TEXELS;
-    this.frontierData = new Uint8Array(side * side * 4);
-    this.frontierTex = new THREE.DataTexture(this.frontierData, side, side);
-    this.frontierTex.magFilter = THREE.NearestFilter;
-    this.frontierTex.colorSpace = THREE.SRGBColorSpace;
-    this.frontier = new THREE.Mesh(
-      new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2).translate(0, 0.02, 0),
-      new THREE.MeshBasicNodeMaterial({
-        map: this.frontierTex,
-        transparent: true,
-        depthWrite: false,
-      }),
-    );
-    this.scene.add(this.frontier);
+    this.addWater(size);
+    this.addRocks();
 
     const floraTexture = (data: Uint8Array) => {
       const t = new THREE.DataTexture(data, n, n);
@@ -227,7 +234,8 @@ export class Viewer {
 
   private makeGrass(): THREE.Mesh {
     const perCell = QUALITY[this.quality].grass;
-    return makeGrass(this.replay.meta.n, perCell, this.floraTex, this.floraPrev, this.blend);
+    const n = this.replay.meta.n;
+    return makeGrass(n, perCell, this.floraTex, this.floraPrev, this.blend, this.heights);
   }
 
   resetView(): void {
@@ -264,7 +272,7 @@ export class Viewer {
   setVisible(layer: Layer, on: boolean): void {
     if (layer === "territory") {
       this.showTerritory = on;
-      this.frontier.visible = on;
+      this.showFrontier.value = on ? 1 : 0;
       this.lastFrame = -1; // repaint the ground
     } else if (layer === "animals") {
       this.animals.setVisible(on);
@@ -283,10 +291,7 @@ export class Viewer {
   pickCell(x: number, y: number): { row: number; col: number } | null {
     const { clientWidth: w, clientHeight: h } = this.canvas;
     this.raycaster.setFromCamera(new THREE.Vector2((x / w) * 2 - 1, 1 - (y / h) * 2), this.camera);
-    const hit = this.raycaster.ray.intersectPlane(
-      new THREE.Plane(new THREE.Vector3(0, 1, 0), 0),
-      new THREE.Vector3(),
-    );
+    const hit = this.raycaster.intersectObject(this.ground, false)[0]?.point;
     const n = this.replay.meta.n;
     if (!hit) return null;
     const col = Math.floor(hit.x / CELL + n / 2);
@@ -297,7 +302,71 @@ export class Viewer {
   /** Show the aura over a cell, or hide it (null). */
   setCell(cell: { row: number; col: number } | null): void {
     this.aura.visible = cell !== null;
-    if (cell) this.aura.position.copy(cellCenter(cell, this.replay.meta.n));
+    if (cell) this.aura.position.copy(this.centre(cell));
+  }
+
+  /** A cell's centre on the ground (world metres, D-085). */
+  centre(cell: { row: number; col: number }): THREE.Vector3 {
+    const at = cellCenter(cell, this.replay.meta.n);
+    return at.setY(this.field.at(at.x, at.z));
+  }
+
+  /** The water surface over the valleys (D-085): transparent, tinted by depth (read from the height
+   *  texture), fading at the shore, with a slow shimmer. Only when the map has water. */
+  private addWater(size: number): void {
+    const level = this.field.water;
+    if (level === null) return;
+    const material = new THREE.MeshStandardNodeMaterial({
+      roughness: 0.15,
+      metalness: 0.05,
+      transparent: true,
+      depthWrite: false,
+    });
+    const at = positionWorld.xz.add(size / 2).div(size); // world x/z -> height texel
+    const bed = texture(this.heights, at).r;
+    const depth = float(level).sub(bed);
+    const shimmer = float(1).add(
+      mx_noise_float(vec3(positionWorld.xz.mul(0.35), time.mul(0.25))).mul(0.06),
+    );
+    material.colorNode = mix(
+      color(WORLD.shallows),
+      color(WORLD.deepWater),
+      smoothstep(0.2, 2.2, depth),
+    ).mul(shimmer);
+    material.opacityNode = smoothstep(0.02, 0.35, depth).mul(0.82);
+    const water = new THREE.Mesh(
+      new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2),
+      material,
+    );
+    water.position.y = level;
+    water.renderOrder = 2;
+    this.scene.add(water);
+  }
+
+  /** Rock outcrops: a few rough stones per rock cell, three stone shapes, flat shaded. */
+  private addRocks(): void {
+    const stones = rockPlacements(this.field);
+    if (!stones.length) return;
+    const tint = new THREE.Color(WORLD.rock);
+    const shapes = [0, 1, 2].map((v) => {
+      const list = stones.filter((_, i) => i % 3 === v);
+      const mesh = new THREE.InstancedMesh(
+        stoneGeometry(v),
+        new THREE.MeshStandardNodeMaterial({ roughness: 0.95, flatShading: true }),
+        Math.max(list.length, 1),
+      );
+      const m = new THREE.Matrix4();
+      const q = new THREE.Quaternion();
+      list.forEach((r, i) => {
+        q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), r.angle);
+        m.compose(new THREE.Vector3(r.x, r.y, r.z), q, new THREE.Vector3(r.s, r.sy, r.s));
+        mesh.setMatrixAt(i, m);
+        mesh.setColorAt(i, tint.clone().multiplyScalar(r.shade));
+      });
+      mesh.count = list.length;
+      return mesh;
+    });
+    this.scene.add(...shapes);
   }
 
   /** The drop cursor (D-079): the armed species' model under the cursor, or none. */
@@ -324,7 +393,7 @@ export class Viewer {
     // Plants: the disc planted. Animals: the landing spot at home, the drop area elsewhere.
     const cells = animal ? (offLand ? spec.radius : 0.5) : spec.radius + 0.5;
     const color = animal && offLand ? WORLD.alert : PLAYER[spec.player].base;
-    const at = cellCenter(cell, n);
+    const at = this.centre(cell);
     const least = this.camera.position.distanceTo(at) * GHOST_SIZE;
     this.ghost.aim(at, cells * CELL, color, least);
     return { cell, offLand };
@@ -341,7 +410,8 @@ export class Viewer {
       new THREE.RingGeometry(0.86, 1, 48).rotateX(-Math.PI / 2),
       material,
     );
-    mesh.position.copy(cellCenter(cell, this.replay.meta.n)).setY(0.3);
+    const at = this.centre(cell);
+    mesh.position.copy(at).setY(Math.max(at.y, this.field.water ?? -Infinity) + 0.3);
     mesh.renderOrder = 11;
     this.scene.add(mesh);
     this.pings.push({ mesh, start: this.lastTime });
@@ -349,7 +419,7 @@ export class Viewer {
 
   /** Fly the camera over a cell, keeping the current height and angle. */
   lookAt(cell: { row: number; col: number }): void {
-    const target = cellCenter(cell, this.replay.meta.n);
+    const target = this.centre(cell);
     const offset = new THREE.Vector3().subVectors(this.camera.position, this.controls.target);
     this.flight = {
       from: [this.camera.position.clone(), this.controls.target.clone()],
@@ -360,7 +430,7 @@ export class Viewer {
 
   /** Where a cell's centre is on screen (CSS pixels of the canvas), and whether it is in view. */
   screenPoint(cell: { row: number; col: number }): { x: number; y: number; inView: boolean } {
-    const v = cellCenter(cell, this.replay.meta.n).project(this.camera);
+    const v = this.centre(cell).project(this.camera);
     const { clientWidth: w, clientHeight: h } = this.canvas;
     const behind = v.z > 1;
     const [x, y] = [((v.x + 1) / 2) * w, ((1 - v.y) / 2) * h];
@@ -371,7 +441,7 @@ export class Viewer {
 
   /** Fly the camera down to a cell until single plant models fill the view. */
   zoomToCell(cell: { row: number; col: number }): void {
-    const target = cellCenter(cell, this.replay.meta.n);
+    const target = this.centre(cell);
     const dir = new THREE.Vector3().subVectors(this.camera.position, this.controls.target);
     dir.y = 0;
     dir.normalize();
@@ -426,7 +496,8 @@ export class Viewer {
     this.shown = interpolate(this.replay.animals(t0), this.replay.animals(t0 + 1), tick - t0);
     const dropped = this.replay.droppedAt?.bind(this.replay);
     const ms = performance.now();
-    this.animals.update(this.shown, this.selected, tick, this.replay.meta.n, ms, dropped);
+    const h = (x: number, z: number) => this.field.at(x, z);
+    this.animals.update(this.shown, this.selected, tick, this.replay.meta.n, ms, dropped, h);
     animateAura(this.aura, now);
     this.animatePings(now);
     if (this.flight) {
@@ -527,6 +598,7 @@ export class Viewer {
       this.replay.meta.flora.names,
       this.plantLinear,
       now,
+      (x, z) => this.field.at(x, z),
     );
     this.floraTex.needsUpdate = true;
     this.floraPrev.needsUpdate = true;

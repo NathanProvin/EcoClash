@@ -60,6 +60,7 @@ export function makeGrass(
   flora: THREE.Texture,
   prev: THREE.Texture,
   blend: THREE.UniformNode<"float", number>,
+  heights?: THREE.Texture,
 ): THREE.Mesh {
   const b = grassBlades(n, perCell);
   const geometry = new THREE.BufferGeometry();
@@ -85,7 +86,9 @@ export function makeGrass(
   const texel = mix(texture(prev, at).level(float(0)), texture(flora, at).level(float(0)), blend);
   const grow = smoothstep(seed.sub(0.05), seed.add(0.05), texel.a); // 0: blade collapsed
   const material = new THREE.MeshStandardNodeMaterial({ roughness: 0.9 });
-  material.positionNode = vec3(root.x, 0, root.y).add(positionLocal.mul(grow));
+  // Roots on the relief (D-085): the ground's height at the root, from the height texture.
+  const y = heights ? texture(heights, at).level(float(0)).r : float(0);
+  material.positionNode = vec3(root.x, y, root.y).add(positionLocal.mul(grow));
   const shade = mix(float(0.7), float(1.15), positionLocal.y.div(BLADE_HEIGHT[1])); // dark base
   material.colorNode = texel.rgb.mul(shade);
 

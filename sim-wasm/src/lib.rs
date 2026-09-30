@@ -25,6 +25,7 @@ pub struct Sim {
     time_limit_s: u32,
     max_agents: u32,
     terrain: TerrainParams,
+    relief_m: f64,
     seed: u64,
     /// Scripted opponents, and the next sequence number of each one's commands.
     bots: Vec<(sim_ai::Bot, u32)>,
@@ -50,6 +51,7 @@ impl Sim {
             time_limit_s: b.r#match.time_limit_s,
             max_agents: b.agents.max_agents,
             terrain: TerrainParams::from_balance(&b),
+            relief_m: b.terrain.relief_m,
             seed,
             bots: Vec::new(),
             world: World::new(&b, seed, n),
@@ -202,6 +204,12 @@ impl Sim {
             .map(|&e| u8::try_from(e >> 8).unwrap_or(u8::MAX))
             .chain(st.ground.iter().copied())
             .collect()
+    }
+
+    /// Metres from the lowest to the highest ground, for the renderer (`[terrain] relief_m`).
+    #[wasm_bindgen(getter, js_name = reliefM)]
+    pub fn relief_m(&self) -> f64 {
+        self.relief_m
     }
 
     /// Radius in cells around the click where a drop off your land lands (`[fauna] drop_radius`).

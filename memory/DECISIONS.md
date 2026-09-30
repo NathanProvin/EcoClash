@@ -938,3 +938,14 @@ Template:
   - Performance at 43² with terrain: 1.2 ms per tick on average with 1,500 animals, worst tick 8.8 ms.
   - The bot plays on generated maps (its tests and report).
   - Fix: the benchmark placed animals past the last row on odd grid sizes.
+
+## D-085 · 2026-09-30 · Terrain rendering
+- **Status:** accepted (world overhaul step 1c)
+- **Decision:**
+  - The worker sends the map once at start (`terrainFrame()`: elevation 0..255, then the ground class; `reliefM` from `[terrain] relief_m`). Replays stay flat.
+  - `Heightfield` (render only): cell-centre heights, deep beds drawn 1.5 m lower, two 3×3 blur passes for rounded banks (beds never rise, so narrow rivers keep their water), bilinear `at(x, z)`, and a half-float height texture (32-bit floats are not filterable in WebGPU).
+  - **Ground:** a plane with 3 subdivisions per cell raised on the CPU; picking raycasts it. The frontier texture moves into the ground material, so the lines follow the relief. Slab walls follow the edge profile.
+  - **Water:** one transparent plane at the water level, tinted by depth (from the height texture, so it fades at the shore), with a slow noise shimmer.
+  - **Rocks:** 2–4 jittered low-poly stones per rock cell, three shapes, instanced, flat shaded.
+  - Plants, grass roots (height texture), animals, rings, the aura, pings, the drop cursor and camera targets stand on the relief.
+- **Consequences:** new palette entries (shallows, deep water, rock). Shadows, wind and slope tints come with step 2.

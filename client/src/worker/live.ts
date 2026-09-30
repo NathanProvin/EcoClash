@@ -2,6 +2,7 @@
 // snapshot as a `Source`, so the viewer and HUD draw it like a replay. Plants come with each flora
 // tick; animals with every tick, and are interpolated between the last two frames.
 
+import type { TerrainFrame } from "../render/terrain";
 import {
   cellAt,
   decodeFields,
@@ -42,6 +43,8 @@ export type ToMain =
       timeLimitS: number;
       maxAgents: number;
       balanceHash: string;
+      terrain: ArrayBuffer; // elevation (0..255) then ground class, n * n bytes each
+      reliefM: number;
     }
   | {
       type: "tick";
@@ -119,6 +122,8 @@ export class Live implements Source {
   readonly plantRadius: number;
   /** Cells around the click where an animal dropped off your land lands (D-061). */
   readonly dropRadius: number;
+  /** The generated map (D-083), for the renderer. */
+  readonly terrain: TerrainFrame;
   /** Share of the map that wins, and the match length (s): for the "victory near" alerts. */
   readonly victory: number;
   readonly timeLimitS: number;
@@ -138,6 +143,13 @@ export class Live implements Source {
     const animals = species.filter((s) => s.kind === "fauna");
     this.plantRadius = ready.plantRadius;
     this.dropRadius = ready.dropRadius;
+    const map = new Uint8Array(ready.terrain);
+    const cells = ready.n * ready.n;
+    this.terrain = {
+      elevation: map.subarray(0, cells),
+      ground: map.subarray(cells, 2 * cells),
+      reliefM: ready.reliefM,
+    };
     this.victory = ready.victory;
     this.timeLimitS = ready.timeLimitS;
     this.me = ready.me === 2 ? 2 : 1;

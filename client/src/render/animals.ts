@@ -213,6 +213,7 @@ export class AnimalView {
     n: number,
     now = 0,
     droppedAt?: (id: number) => number | undefined,
+    height: (x: number, z: number) => number = () => 0,
   ): void {
     const counts = Object.fromEntries(BODIES.map((b) => [b, 0])) as Record<Body, number>;
     let [swarms, rings, canopies] = [0, 0, 0];
@@ -229,7 +230,18 @@ export class AnimalView {
       const left = age < FALL.s ? 1 - (1 - (1 - age / FALL.s) ** 2) : 0;
       const fall = FALL.height * left;
       if (this.swarmOf[a.species]) {
-        put(this.swarm, swarms++, x, SWARM.y + fall, z, SWARM.r, SWARM.r, 0, this.dotColor[owner]);
+        const g = height(x, z);
+        put(
+          this.swarm,
+          swarms++,
+          x,
+          g + SWARM.y + fall,
+          z,
+          SWARM.r,
+          SWARM.r,
+          0,
+          this.dotColor[owner],
+        );
         continue; // not selectable (D-065)
       }
       // Face the way it goes; keep the last heading while it stands still.
@@ -241,7 +253,9 @@ export class AnimalView {
       const form = this.forms[a.species];
       const body = form?.body ?? "rodent";
       const size = (form?.length ?? 0.2) * ANIMAL_SCALE;
-      const y = (body === "bird" ? FLIGHT_Y + BOB * Math.sin(tick * 0.8 + a.id) : 0) + fall;
+      const ground = height(x, z);
+      const y =
+        ground + (body === "bird" ? FLIGHT_Y + BOB * Math.sin(tick * 0.8 + a.id) : 0) + fall;
       const color = this.colors[a.species] ?? HIGHLIGHT;
       const sway = FALL.sway * left * Math.sin(age * 5 + a.id);
       put(this.bodies[body], counts[body]++, x, y, z, size, size, angle + sway, color);
@@ -254,7 +268,7 @@ export class AnimalView {
         ? HIGHLIGHT
         : this.ringColor[owner][this.predatorOf[a.species] ? "predator" : "animal"];
       const r = form ? ringRadius(form) : RING.min;
-      put(this.rings, rings++, x, 0.04, z, r, r, 0, ringColor);
+      put(this.rings, rings++, x, ground + 0.06, z, r, r, 0, ringColor);
       this.drawn.push({ id: a.id, owner: a.owner, x, y: y + size * 0.3, z });
     }
     this.heading = heading;

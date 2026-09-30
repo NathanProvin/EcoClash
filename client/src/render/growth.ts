@@ -31,6 +31,7 @@ export interface Pose {
   angle: number;
   color: THREE.Color;
   rootX: number;
+  rootY?: number;
   rootZ: number;
 }
 
@@ -143,7 +144,7 @@ export class GrowingMesh<K> {
 
   private set(i: number, pose: Pose, grow: [number, number, number]): void {
     (this.mesh.instanceMatrix.array as Float32Array).set(this.m, i * 16);
-    (this.root.array as Float32Array).set([pose.rootX, 0, pose.rootZ], i * 3);
+    (this.root.array as Float32Array).set([pose.rootX, pose.rootY ?? 0, pose.rootZ], i * 3);
     (this.grow.array as Float32Array).set(grow, i * 3);
     this.width[i] = pose.w;
     this.setColor(i, pose.color);

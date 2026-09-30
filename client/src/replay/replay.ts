@@ -1,3 +1,4 @@
+import type { TerrainFrame } from "../render/terrain";
 // Replays exported by the Python prototype (tools/prototype/match.py, export_replay), and the
 // `Source` interface the renderer and HUD read: a Replay or a live match (worker/live.ts). The
 // renderer only sees a Source (INSTRUCTIONS §6: the renderer is an adapter over snapshots).
@@ -78,6 +79,8 @@ export type Source = Pick<
 > & {
   /** Species cards a player has unlocked (live matches; replays rebuild it from their log). */
   unlocked?: (player: number) => Set<string>;
+  /** The generated map (live matches, D-083); replays are flat. */
+  terrain?: TerrainFrame;
   /** When an animal was dropped by a spawn order (ms, performance.now), for its parachute. */
   droppedAt?: (id: number) => number | undefined;
 };

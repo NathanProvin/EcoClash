@@ -140,6 +140,8 @@ async function begin(
     timeLimitS: s.timeLimitS,
     maxAgents: s.maxAgents,
     balanceHash: s.balanceHash,
+    terrain: s.terrainFrame().buffer as ArrayBuffer, // the map, once (D-085)
+    reliefM: s.reliefM,
   });
   sendFields(s);
   loop();

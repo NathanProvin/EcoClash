@@ -390,3 +390,7 @@
 ## 2026-09-30 · World overhaul 1b: terrain rules (D-084)
 - **Done:** rock and deep water block plants and walkers, shallows slow walkers and let plants seep, media (walk, swim, amphibious, fly), bounded A* pathfinding with waypoints; tests; the bot on real maps; tick budget holds.
 - **Next:** 1c terrain rendering.
+
+## 2026-09-30 · World overhaul 1c: terrain rendering (D-085)
+- **Done:** displaced ground with the frontier in its material, water plane with depth tint, rock outcrops, heights for everything standing on the map; smoothed shores. Checked in the browser (seed 3); client, Rust, WASM and relay checks green.
+- **Next:** 2, light and shaders.

@@ -164,6 +164,7 @@ export class PlantView {
     names: readonly string[],
     colors: Record<1 | 2, THREE.Color[]>,
     t: number,
+    height: (x: number, z: number) => number = () => 0,
   ): void {
     const n = this.n;
     for (let c = 0; c < n * n; c++) {
@@ -186,11 +187,12 @@ export class PlantView {
         const stratum = (s + 1) as 1 | 2;
         for (const m of list) {
           const [x, z] = [x0 + m.x, z0 + m.z];
+          const y0 = height(x, z);
           const base = colors[o as 1 | 2][m.species];
           this.style.parts(stratum, m, x, z, names[m.species] ?? "").forEach((p, i) => {
             const key = (((c * 2 + s) * KEY_SLOTS + m.slot) * PARTS + i) * 4 + p.mesh;
             const color = p.color ?? this.tmp.copy(base ?? this.tmp).multiplyScalar(p.shade);
-            const pose: Pose = { ...p, color, rootX: x, rootZ: z };
+            const pose: Pose = { ...p, y: p.y + y0, color, rootX: x, rootY: y0, rootZ: z };
             this.meshes[p.mesh]?.put(key, pose, t);
             now.push(key);
           });

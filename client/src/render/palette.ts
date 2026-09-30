@@ -22,6 +22,9 @@ export const WORLD = {
   soilRich: "#5c4430", // fully developed soil (dark humus)
   trunk: "#5b4533", // tree trunks
   alert: "#ff7a5c", // raid pings and alert accents (D-077)
+  shallows: "#6f9c8f", // water over a near bed (D-085)
+  deepWater: "#244b5a", // deep pools and pond centres
+  rock: "#8a8176", // rock outcrops
   earthTop: "#3f3024", // diorama slab sides: topsoil band (D-054)
   earthSub: "#6d5840", // subsoil
   earthStone: "#8b8479", // bedrock at the bottom

@@ -135,6 +135,8 @@ async function begin(
     pace: s.pace,
     plantRadius: s.plantRadius,
     dropRadius: s.dropRadius,
+    victory: s.victoryTerritory,
+    timeLimitS: s.timeLimitS,
     maxAgents: s.maxAgents,
     balanceHash: s.balanceHash,
   });

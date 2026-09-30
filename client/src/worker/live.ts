@@ -38,6 +38,8 @@ export type ToMain =
       pace: number;
       plantRadius: number;
       dropRadius: number;
+      victory: number;
+      timeLimitS: number;
       maxAgents: number;
       balanceHash: string;
     }
@@ -117,6 +119,9 @@ export class Live implements Source {
   readonly plantRadius: number;
   /** Cells around the click where an animal dropped off your land lands (D-061). */
   readonly dropRadius: number;
+  /** Share of the map that wins, and the match length (s): for the "victory near" alerts. */
+  readonly victory: number;
+  readonly timeLimitS: number;
   private readonly maxAgents: number;
   private current: Fields;
   private flora: number[][] = [[], []]; // cells per plant species, per player, current frame
@@ -133,6 +138,8 @@ export class Live implements Source {
     const animals = species.filter((s) => s.kind === "fauna");
     this.plantRadius = ready.plantRadius;
     this.dropRadius = ready.dropRadius;
+    this.victory = ready.victory;
+    this.timeLimitS = ready.timeLimitS;
     this.me = ready.me === 2 ? 2 : 1;
     this.maxAgents = ready.maxAgents;
     this.meta = {

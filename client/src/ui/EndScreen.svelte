@@ -11,6 +11,7 @@
     series,
     dt,
     onMenu,
+    onAgain,
     onWatch,
   }: {
     outcome: Outcome;
@@ -18,6 +19,7 @@
     series: Record<string, number[]>;
     dt: number;
     onMenu: () => void;
+    onAgain: () => void;
     onWatch: () => void;
   } = $props();
 
@@ -66,7 +68,8 @@
     </div>
     <div class="buttons">
       <button class="btn" onclick={onWatch}>Keep watching</button>
-      <button class="btn primary" onclick={onMenu}>Main menu</button>
+      <button class="btn" onclick={onMenu}>Main menu</button>
+      <button class="btn primary" onclick={onAgain}>Play again</button>
     </div>
   </div>
 </div>

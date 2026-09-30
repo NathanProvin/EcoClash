@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Animal } from "../replay/replay";
-import { FRONT, FrontWatch, RAID, RaidWatch, type Kind } from "./alerts";
+import { FRONT, FrontWatch, RAID, RaidWatch, VictoryWatch, type Kind } from "./alerts";
 
 const kinds: Kind[] = [
   { label: "Voles", predator: false, swarm: false },
@@ -78,5 +78,25 @@ describe("FrontWatch", () => {
       owner[step] = 2;
       expect(w.scan(owner, 16, 1, step * (FRONT.windowS / 2))).toBeNull(); // 1 cell per 5 s
     }
+  });
+});
+
+describe("VictoryWatch", () => {
+  it("warns once as a side nears the winning share, again after it fell back", () => {
+    const w = new VictoryWatch();
+    expect(w.scan([0.3, 0.3], 1, 0.6, 0, 1200)).toEqual([]);
+    expect(w.scan([0.52, 0.3], 1, 0.6, 10, 1200)[0]).toMatch(/Victory in sight: you hold 52 %/);
+    expect(w.scan([0.55, 0.3], 1, 0.6, 20, 1200)).toEqual([]); // already warned
+    expect(w.scan([0.3, 0.51], 1, 0.6, 30, 1200)[0]).toMatch(/enemy nears victory/);
+    w.scan([0.4, 0.3], 1, 0.6, 40, 1200); // fell back below 45 %
+    expect(w.scan([0.5, 0.3], 1, 0.6, 50, 1200)).toHaveLength(1);
+  });
+
+  it("counts down the last minutes once each", () => {
+    const w = new VictoryWatch();
+    expect(w.scan([0, 0], 1, 0.6, 1200 - 301, 1200)).toEqual([]);
+    expect(w.scan([0, 0], 1, 0.6, 1200 - 299, 1200)).toEqual(["5 minutes left"]);
+    expect(w.scan([0, 0], 1, 0.6, 1200 - 200, 1200)).toEqual([]);
+    expect(w.scan([0, 0], 1, 0.6, 1200 - 59, 1200)).toEqual(["One minute left"]);
   });
 });

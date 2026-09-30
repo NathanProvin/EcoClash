@@ -1,23 +1,128 @@
 <script lang="ts">
-  // Main menu (D-057): title over a placeholder background, and the game's entry points. Only
-  // "Launch game" works for now; "Species" (a catalog of every species) and "Options" (player
-  // settings) are placeholders for later. Background: drop an image at
-  // client/public/menu/background.webp and it replaces the painted placeholder.
-  let { onLaunch }: { onLaunch: () => void } = $props();
+  // Main menu (D-057, D-081): title over a placeholder background, and the game's entry points.
+  // "Play" opens the match setup (opponent, map seed, practice sandbox), remembered per browser;
+  // "Options" holds the display settings and the list of shortcuts; "Species" (a catalog of every
+  // species) is still to come. Background: drop an image at client/public/menu/background.webp
+  // and it replaces the painted placeholder.
+  import { BOTS, randomSeed, type Bot, type MatchSetup } from "../game/setup";
+  import type { Quality } from "../render/quality";
+
+  let {
+    setup = $bindable(),
+    quality,
+    onQuality,
+    icons = $bindable(),
+    perf = $bindable(),
+    onStart,
+  }: {
+    setup: MatchSetup;
+    quality: Quality;
+    onQuality: (q: Quality) => void;
+    icons: boolean;
+    perf: boolean;
+    onStart: () => void;
+  } = $props();
+
+  let view: "home" | "play" | "options" = $state("home");
+  const BOT_NAMES: Record<Bot, string> = {
+    easy: "Bot · easy",
+    normal: "Bot · normal",
+    hard: "Bot · hard",
+    none: "No opponent",
+  };
+  /** Shortcuts (letters follow the printed key, D-075). */
+  const KEYS: [string, string][] = [
+    ["Left-click / drag", "Inspect a cell / select your animals"],
+    ["Right-click", "Move (on enemy land: attack-move)"],
+    ["A, then click", "Attack-move"],
+    ["S", "Stop"],
+    ["Shift or Ctrl + 1–9", "Set a control group"],
+    ["1–9", "Recall a control group"],
+    ["Shift + click", "Keep dropping the armed species"],
+    ["Q / E", "Rotate the camera"],
+    ["Arrows / right-drag", "Pan"],
+    ["Wheel", "Zoom"],
+    ["Home", "Reset the view"],
+    ["T", "Tech tree"],
+    ["I", "Strategic icons"],
+    ["Space", "Pause"],
+    ["Esc", "Cancel / close"],
+  ];
 </script>
 
 <div class="menu">
   <div class="hills" aria-hidden="true"></div>
   <div class="content">
     <h1>ECO<span>CLASH</span></h1>
-    <p class="tagline">Grow a food web. Outgrow your rival.</p>
-    <nav aria-label="Main menu">
-      <button class="primary" onclick={onLaunch}>Launch game</button>
-      <button disabled title="A catalog of every species: coming soon">
-        Species <small>soon</small>
-      </button>
-      <button disabled title="Player options: coming soon">Options <small>soon</small></button>
-    </nav>
+    {#if view === "home"}
+      <p class="tagline">Grow a food web. Outgrow your rival.</p>
+      <nav aria-label="Main menu">
+        <button class="primary" onclick={() => (view = "play")}>Play</button>
+        <button disabled title="A catalog of every species: coming soon">
+          Species <small>soon</small>
+        </button>
+        <button onclick={() => (view = "options")}>Options</button>
+      </nav>
+    {:else if view === "play"}
+      <form
+        class="panel-form"
+        aria-label="Match setup"
+        onsubmit={(e) => {
+          e.preventDefault();
+          onStart();
+        }}
+      >
+        <fieldset>
+          <legend>Opponent</legend>
+          <div class="choices">
+            {#each BOTS as b (b)}
+              <label class="choice" class:on={setup.bot === b}>
+                <input type="radio" name="bot" value={b} bind:group={setup.bot} />
+                {BOT_NAMES[b]}
+              </label>
+            {/each}
+          </div>
+        </fieldset>
+        <label class="row">
+          Map seed
+          <span class="seed">
+            <input type="number" min="1" max="999999" bind:value={setup.seed} />
+            <button type="button" onclick={() => (setup.seed = randomSeed())} title="A new map">
+              Random
+            </button>
+          </span>
+        </label>
+        <label class="row">
+          <span>Sandbox <small>everything unlocked and free</small></span>
+          <input type="checkbox" bind:checked={setup.sandbox} />
+        </label>
+        <nav>
+          <button class="primary" type="submit">Start</button>
+          <button type="button" onclick={() => (view = "home")}>Back</button>
+        </nav>
+      </form>
+    {:else}
+      <div class="panel-form" aria-label="Options">
+        <label class="row">
+          Quality
+          <select value={quality} onchange={(e) => onQuality(e.currentTarget.value as Quality)}>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+        <label class="row">Strategic icons <input type="checkbox" bind:checked={icons} /></label>
+        <label class="row">Performance readout <input type="checkbox" bind:checked={perf} /></label>
+        <details>
+          <summary>Shortcuts</summary>
+          <dl>
+            {#each KEYS as [key, what] (key)}<dt>{key}</dt>
+              <dd>{what}</dd>{/each}
+          </dl>
+        </details>
+        <nav><button onclick={() => (view = "home")}>Back</button></nav>
+      </div>
+    {/if}
   </div>
   <p class="foot">Prototype build · placeholder art</p>
 </div>
@@ -116,6 +221,95 @@
     font-size: 0.65em;
     color: var(--ink-soft);
     letter-spacing: 0.1em;
+  }
+  .panel-form {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    width: min(340px, 80vw);
+    margin: 4px 0 0;
+  }
+  fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  legend,
+  .row {
+    color: var(--ink-soft);
+    font-size: 0.9em;
+  }
+  .choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .choice {
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .choice.on {
+    border-color: var(--gold);
+    box-shadow: 0 0 10px var(--gold-soft);
+  }
+  .choice input {
+    display: none;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .seed {
+    display: flex;
+    gap: 6px;
+  }
+  .seed input,
+  select {
+    width: 7em;
+    padding: 4px 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--well);
+  }
+  .seed button {
+    padding: 4px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--well);
+    cursor: pointer;
+  }
+  select option {
+    background: #1f2823;
+  }
+  details {
+    color: var(--ink-soft);
+    font-size: 0.85em;
+  }
+  summary {
+    cursor: pointer;
+  }
+  dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 3px 14px;
+    margin: 8px 0 0;
+    max-height: 30vh;
+    overflow: auto;
+  }
+  dt {
+    color: var(--gold);
+    white-space: nowrap;
+  }
+  dd {
+    margin: 0;
+    color: var(--ink);
   }
   .foot {
     position: absolute;

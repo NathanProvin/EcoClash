@@ -8,12 +8,14 @@
   import { onDestroy, onMount } from "svelte";
   import { SvelteMap } from "svelte/reactivity";
   import { strategicGroups } from "./game/groups";
+  import { loadSetup, saveSetup, withUrl } from "./game/setup";
   import { loadReplay, type Role, type Source, type Species } from "./replay/replay";
   import { Live, type Outcome } from "./worker/live";
   import {
     FrontWatch,
     fresh,
     RaidWatch,
+    VictoryWatch,
     TOAST,
     type Kind,
     type Severity,
@@ -43,6 +45,7 @@
   // longest frame in it (a field frame's repaint shows up there).
   let perf = $state("");
   let showPerf = $state(false); // the performance readout, off by default (D-064)
+  let setup = $state(loadSetup()); // the next match: opponent, seed, sandbox (D-081)
   let perfFrames = 0;
   let perfStart = 0;
   let perfWorst = 0;
@@ -77,6 +80,7 @@
   let pinged: { cell: { row: number; col: number }; until: number }[] = [];
   let watch = new RaidWatch();
   let front = new FrontWatch();
+  let victory = new VictoryWatch();
   let lastScan = 0;
   let seenNotice = 0; // `at` of the last order notice turned into a toast
   let available: Set<string> | null = null; // species you could buy (and afford) at the last scan
@@ -181,6 +185,10 @@
         )
         .map((s) => s.name),
     );
+    const share = [1, 2].map((p) => l.meta.series[`territory_p${p}`]?.at(-1) ?? 0);
+    for (const text of victory.scan(share, me, l.victory, tick * l.meta.dt, l.timeLimitS)) {
+      toast(text, "info");
+    }
     if (available) {
       for (const name of can)
         if (!available.has(name)) toast(`${label(name)} can be unlocked`, "info");
@@ -318,19 +326,15 @@
     [toasts, arrows, pinged, available, seenNotice] = [[], [], [], null, 0];
     watch = new RaidWatch();
     front = new FrontWatch();
+    victory = new VictoryWatch();
     try {
       if (name === LIVE) {
         // ?seed=N&size=N (0 = the balance grid size); a fixed default seed keeps runs reproducible
         const q = new URLSearchParams(location.search);
         const relay = q.get("relay") ?? undefined; // ?relay=ws://host:port: lockstep (D-062)
         joining = !!relay;
-        live = await Live.start(
-          Number(q.get("seed") ?? 1),
-          Number(q.get("size") ?? 0),
-          q.get("sandbox") === "1", // ?sandbox=1: everything unlocked and free (D-058)
-          q.get("bot") ?? "normal", // ?bot=easy|normal|hard|none: the P2 opponent (D-060)
-          relay,
-        );
+        const s = withUrl(setup, location.search); // the menu's setup; URL parameters win
+        live = await Live.start(s.seed, Number(q.get("size") ?? 0), s.sandbox, s.bot, relay);
         joining = false;
         player = live.me; // view your own side
         replay = live;
@@ -506,6 +510,7 @@
 
   /** From the main menu: start a live match. */
   async function launch() {
+    saveSetup(setup);
     inMenu = false;
     chosen = LIVE;
     await open(LIVE);
@@ -660,10 +665,11 @@
   {#if outcome && replay && !endDismissed && !inMenu}
     <EndScreen
       {outcome}
-      human={1}
+      human={me}
       series={replay.meta.series}
       dt={replay.meta.dt}
       onMenu={toMenu}
+      onAgain={launch}
       onWatch={() => (endDismissed = true)}
     />
   {/if}
@@ -679,7 +685,16 @@
       </div>
     </div>
   {/if}
-  {#if inMenu}<MainMenu onLaunch={launch} />{/if}
+  {#if inMenu}
+    <MainMenu
+      bind:setup
+      {quality}
+      onQuality={setQuality}
+      bind:icons={showIcons}
+      bind:perf={showPerf}
+      onStart={launch}
+    />
+  {/if}
 </main>
 
 <style>

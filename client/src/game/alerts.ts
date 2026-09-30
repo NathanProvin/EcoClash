@@ -133,6 +133,42 @@ export function fresh(toasts: readonly Toast[], now: number): Toast[] {
     .slice(-TOAST.max);
 }
 
+/** Victory near (D-081): warn when a side is within `margin` of the winning share of the map
+ *  (again only after it fell `rearm` below it), and when these minutes are left. */
+export const VICTORY = { margin: 0.1, rearm: 0.15, minutesLeft: [5, 1] } as const;
+
+/** Watches both players' share of the map and the clock for the last stretch of a match. */
+export class VictoryWatch {
+  private warned = [false, false];
+  private told = new Set<number>();
+
+  /** Toast texts for player `me`: `share[p - 1]` is player p's share of the map, `t` and
+   *  `limit` the match time and length (s). */
+  scan(share: readonly number[], me: number, victory: number, t: number, limit: number): string[] {
+    const out: string[] = [];
+    const pct = (v: number) => `${Math.round(v * 100)} %`;
+    share.forEach((s, i) => {
+      if (s >= victory - VICTORY.margin && !this.warned[i]) {
+        this.warned[i] = true;
+        out.push(
+          i + 1 === me
+            ? `Victory in sight: you hold ${pct(s)} of the map (${pct(victory)} wins)`
+            : `The enemy nears victory: ${pct(s)} of the map (${pct(victory)} wins)`,
+        );
+      } else if (s < victory - VICTORY.rearm) {
+        this.warned[i] = false;
+      }
+    });
+    for (const m of VICTORY.minutesLeft) {
+      if (limit - t <= m * 60 && limit - t > 0 && !this.told.has(m)) {
+        this.told.add(m);
+        out.push(m === 1 ? "One minute left" : `${m} minutes left`);
+      }
+    }
+    return out;
+  }
+}
+
 /** Ground lost (D-077): `minCells` of your cells taken by the enemy within `windowS`. */
 export const FRONT = { windowS: 10, minCells: 6 } as const;
 

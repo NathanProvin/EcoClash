@@ -28,6 +28,8 @@ class FakeWorker {
           pace: 1,
           plantRadius: 2,
           dropRadius: 4,
+          victory: 0.6,
+          timeLimitS: 1200,
           maxAgents: 2000,
           balanceHash: "0",
         }),

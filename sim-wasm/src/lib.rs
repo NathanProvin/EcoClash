@@ -20,6 +20,8 @@ pub struct Sim {
     pace: f64,
     plant_radius: u32,
     drop_radius: u32,
+    victory_territory: f64,
+    time_limit_s: u32,
     max_agents: u32,
     /// Scripted opponents, and the next sequence number of each one's commands.
     bots: Vec<(sim_ai::Bot, u32)>,
@@ -41,6 +43,8 @@ impl Sim {
             pace: b.sim.pace,
             plant_radius: b.flora.plant_radius,
             drop_radius: b.fauna.drop_radius,
+            victory_territory: b.r#match.victory_territory,
+            time_limit_s: b.r#match.time_limit_s,
             max_agents: b.agents.max_agents,
             bots: Vec::new(),
             world: World::new(&b, seed, n),
@@ -180,6 +184,18 @@ impl Sim {
     #[wasm_bindgen(getter, js_name = dropRadius)]
     pub fn drop_radius(&self) -> u32 {
         self.drop_radius
+    }
+
+    /// Share of the map that wins (`[match] victory_territory`), for display.
+    #[wasm_bindgen(getter, js_name = victoryTerritory)]
+    pub fn victory_territory(&self) -> f64 {
+        self.victory_territory
+    }
+
+    /// Match length in seconds (`[match] time_limit_s`).
+    #[wasm_bindgen(getter, js_name = timeLimitS)]
+    pub fn time_limit_s(&self) -> u32 {
+        self.time_limit_s
     }
 
     /// Points banked by a player (1 or 2), for display.

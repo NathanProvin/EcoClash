@@ -884,3 +884,18 @@ Template:
   - The worker sends the ranges with each tick. `Live` remembers each dropped id's landing time for 5 s (`droppedAt`).
   - `AnimalView` lowers dropped animals from 10 m over 1.6 s (easing out), swaying, under a leaf-green dome canopy that vanishes on landing. Their ring on the ground already marks the landing spot. Swarm dots fall too, without a canopy.
 - **Consequences:** Tests: the world records one drop per landed spawn and drains; `Live.droppedAt`; `AnimalView` shows a canopy mid-fall and the animal on the ground once landed. Native and WASM hashes are unchanged.
+
+## D-081 · 2026-09-30 · Match setup, Options, Play again, victory-near alerts
+- **Status:** accepted (M5a task 7, D-075)
+- **Decision:**
+  - **Main menu:**
+    - "Play" opens the match setup: opponent (easy, normal or hard bot, or no opponent), map seed (typed or random), sandbox. It is remembered per browser (`game/setup.ts`).
+    - URL parameters (`?bot=`, `?seed=`, `?sandbox=1`, `?relay=`, `?size=`) still override it, for development and the lockstep test.
+    - "Options": quality, strategic icons, performance readout, and the list of shortcuts. Rebinding keys comes later.
+    - "Species" (catalog) still to come.
+  - **End screen:** "Play again" restarts with the same setup. The verdict now uses your seat (`me`), not always P1.
+  - **Victory near** (`VictoryWatch`, tested):
+    - an info toast when either side comes within 10 points of the winning share ("Victory in sight: you hold 52 % of the map (60 % wins)" / "The enemy nears victory…"), warned again only after it falls 15 points below;
+    - "5 minutes left" and "One minute left".
+    - `sim-wasm` exposes `victoryTerritory` and `timeLimitS`.
+- **Consequences:** The seed only changes the match's randomness today; it becomes the map seed with the terrain generator (Content milestone).

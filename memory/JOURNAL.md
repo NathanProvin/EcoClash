@@ -374,3 +374,7 @@
 ## 2026-09-30 · M5a task 6: parachute drops (D-080)
 - **Done:** spawn id ranges from the sim (not hashed) → worker → `Live.droppedAt` → falling animals under a leaf canopy. Rust, client (50) and WASM parity checks pass.
 - **Next:** M5a task 7, menus.
+
+## 2026-09-30 · M5a task 7: menus (D-081)
+- **Done:** Play → match setup (opponent, seed, sandbox; remembered; URL overrides), Options (quality, icons, perf, shortcuts), Play again, victory-near and last-minutes toasts. 55 client tests; the setup checked in the browser.
+- **Next:** M5a task 8, onboarding.

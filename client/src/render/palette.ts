@@ -21,6 +21,7 @@ export const WORLD = {
   soil: "#c8b58f", // bare, undeveloped ground (pale, sandy)
   soilRich: "#5c4430", // fully developed soil (dark humus)
   trunk: "#5b4533", // tree trunks
+  alert: "#ff7a5c", // raid pings and alert accents (D-077)
   earthTop: "#3f3024", // diorama slab sides: topsoil band (D-054)
   earthSub: "#6d5840", // subsoil
   earthStone: "#8b8479", // bedrock at the bottom

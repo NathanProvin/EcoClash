@@ -8,8 +8,18 @@
   import { onDestroy, onMount } from "svelte";
   import { SvelteMap } from "svelte/reactivity";
   import { loadReplay, type Source } from "./replay/replay";
-  import { Live, type Notice, type Outcome } from "./worker/live";
-  import { label, unlockedNow } from "./game/species";
+  import { Live, type Outcome } from "./worker/live";
+  import {
+    FrontWatch,
+    fresh,
+    RaidWatch,
+    TOAST,
+    type Kind,
+    type Severity,
+    type Toast,
+  } from "./game/alerts";
+  import { cardState, isSwarm, label, unlockedNow } from "./game/species";
+  import { WORLD } from "./render/palette";
   import { Viewer, type CameraKeys, type Layer } from "./render/viewer";
   import { loadQuality, saveQuality, type Quality } from "./render/quality";
   import BottomBar from "./ui/BottomBar.svelte";
@@ -18,6 +28,7 @@
   import EndScreen from "./ui/EndScreen.svelte";
   import TechTree from "./ui/TechTree.svelte";
   import Timeline from "./ui/Timeline.svelte";
+  import Toasts from "./ui/Toasts.svelte";
   import TopBar from "./ui/TopBar.svelte";
 
   let canvas: HTMLCanvasElement;
@@ -56,7 +67,75 @@
   let attackArmed = $state(false); // A pressed: the next map click is an attack-move
   const groups = new SvelteMap<number, number[]>(); // control groups: digit -> animal ids
   let rightDown: { x: number; y: number } | null = null;
-  let notices: Notice[] = $state([]); // recent orders that did nothing
+  // Notifications (D-077): toasts, raid pings still showing, and arrows to the off-screen ones.
+  const SCAN_MS = 1000; // raid and unlock checks, once a second
+  const EDGE = 28; // arrows keep this far from the screen edge (px)
+  let toasts: Toast[] = $state([]);
+  let arrows: { x: number; y: number; angle: number }[] = $state([]);
+  let pinged: { cell: { row: number; col: number }; until: number }[] = [];
+  let watch = new RaidWatch();
+  let front = new FrontWatch();
+  let lastScan = 0;
+  let seenNotice = 0; // `at` of the last order notice turned into a toast
+  let available: Set<string> | null = null; // species you could buy (and afford) at the last scan
+  let toastId = 0;
+  const kinds = $derived<Kind[]>(
+    (replay?.meta.species ?? [])
+      .filter((s) => s.kind === "fauna")
+      .map((s) => ({ label: label(s.name), predator: s.role === "predator", swarm: isSwarm(s) })),
+  );
+
+  function toast(text: string, kind: Toast["kind"], cell?: Toast["cell"], severity?: Severity) {
+    toasts = [...toasts, { id: toastId++, text, kind, at: performance.now(), cell, severity }];
+  }
+
+  /** Raids on your land, and species newly within reach (live matches). */
+  function scan(now: number) {
+    const [l, v] = [live, viewer];
+    if (!l || !v) return;
+    const fields = l.fields();
+    const found = watch.scan(v.visibleAnimals(), fields.owner, l.meta.n, me, kinds, now / 1000);
+    const lost = front.scan(fields.owner, l.meta.n, me, now / 1000);
+    if (lost) found.push(lost);
+    for (const a of found) {
+      const at = { row: a.row, col: a.col };
+      toast(a.text, "alert", at, a.severity);
+      v.ping(at, WORLD.alert);
+      pinged.push({ cell: at, until: now + TOAST.alertMs });
+    }
+    const bank = l.meta.series[`bank_p${me}`]?.at(-1) ?? 0; // what you can afford now
+    const can = new Set(
+      l.meta.species
+        .filter(
+          (s) => cardState(l.meta, s, unlocked) === "available" && s.stats.unlock_cost <= bank,
+        )
+        .map((s) => s.name),
+    );
+    if (available) {
+      for (const name of can)
+        if (!available.has(name)) toast(`${label(name)} can be unlocked`, "info");
+    }
+    available = can;
+  }
+
+  /** Arrows at the screen edge toward pings out of view. */
+  function aim(now: number) {
+    pinged = pinged.filter((p) => p.until > now);
+    if (!viewer || (!pinged.length && !arrows.length)) return;
+    const [w, h] = [canvas.clientWidth, canvas.clientHeight];
+    const v = viewer;
+    arrows = pinged.flatMap(({ cell: c }) => {
+      const s = v.screenPoint(c);
+      if (s.inView) return [];
+      const angle = Math.atan2(s.y - h / 2, s.x - w / 2);
+      const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
+      const k = Math.min(
+        (w / 2 - EDGE) / Math.max(Math.abs(cos), 1e-6),
+        (h / 2 - EDGE) / Math.max(Math.abs(sin), 1e-6),
+      );
+      return [{ x: w / 2 + cos * k, y: h / 2 + sin * k, angle }];
+    });
+  }
   const unlocked = $derived.by(() => {
     void tick; // live unlocks arrive with the ticks
     return replay ? unlockedNow(replay, player, tick) : new Set<string>();
@@ -119,8 +198,18 @@
       if (live.netProblem) error = live.netProblem;
       if (live.stalled !== stalled) stalled = live.stalled;
       if (live.result !== outcome) outcome = live.result;
-      const fresh = live.notices.filter((n) => n.player === me && now - n.at < 5000);
-      if (fresh.length !== notices.length) notices = fresh;
+      for (const n of live.notices) {
+        if (n.player !== me || n.at <= seenNotice) continue;
+        seenNotice = n.at;
+        toast(label(n.text), "notice");
+      }
+      if (now - lastScan > SCAN_MS) {
+        lastScan = now;
+        scan(now);
+      }
+      aim(now);
+      const showing = fresh(toasts, now);
+      if (showing.length !== toasts.length) toasts = showing;
     }
     if (r && viewer) {
       if (live) {
@@ -152,6 +241,9 @@
     planting = null;
     outcome = null;
     endDismissed = false;
+    [toasts, arrows, pinged, available, seenNotice] = [[], [], [], null, 0];
+    watch = new RaidWatch();
+    front = new FrontWatch();
     try {
       if (name === LIVE) {
         // ?seed=N&size=N (0 = the balance grid size); a fixed default seed keeps runs reproducible
@@ -448,13 +540,7 @@
         {/if}
       </p>
     {/if}
-    {#if notices.length}
-      <div class="notices" role="status">
-        {#each notices as n (n.at + n.text)}
-          <p class="notice panel p{n.player}">P{n.player} · {label(n.text)}</p>
-        {/each}
-      </div>
-    {/if}
+    <Toasts {toasts} {arrows} onGo={(t) => t.cell && viewer?.lookAt(t.cell)} />
     {#if cellInfo && cell}
       <CellPanel
         info={cellInfo}
@@ -538,21 +624,6 @@
   }
   .hint strong {
     color: var(--gold);
-  }
-  .notices {
-    position: absolute;
-    top: 104px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    pointer-events: none;
-  }
-  .notice {
-    margin: 0;
-    font-size: 0.85em;
-    border-left: 3px solid var(--player);
   }
   .veil {
     position: absolute;

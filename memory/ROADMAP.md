@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M5a, the playable alpha (D-073, D-075). The fps gate passed (60 fps). Next task: 3, notifications and pop-ups.
+- **Now:** M5a, the playable alpha (D-073, D-075). The fps gate passed (60 fps). Next task: 4, strategic icons.
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-09-30
@@ -83,7 +83,7 @@ Goal: a build strangers can play against the bot and understand at a glance. One
   - Export: `pressureFrame()` in `sim-wasm`, n² bytes, sent with the field frames. Replays have none and draw normal lines.
   - `frontier.ts`: line width 1–4 texels (0.5–2 m), from the pressure on the enemy cell across the edge. P1 solid, P2 dashed as today.
   - Tests: pressure > 0 exactly where smothering happens (Rust), widths (TS).
-- [ ] **3. Notifications and pop-ups.**
+- [x] **3. Notifications and pop-ups.** ("Victory threshold near" moves to task 7, with the threshold in the client.)
   - One toast stack, soft and translucent, that fades out; clicking a toast flies the camera there. The existing order notices move into it.
   - `game/alerts.ts` (pure, tested): clusters of enemy animals on your land, from the animal frames. An alert is raised when a cluster crosses a size threshold, with a cooldown per area. The wording varies with size and at random: "Enemy caterpillar incursion" (small), "Enemy vole attack" (medium), "Enemy fox raid" (large), plus synonyms (foray, assault, swarm…). The species named is the cluster's dominant one.
   - A ping at the location: an expanding ring on the map, and an arrow at the screen edge when it is off-screen.

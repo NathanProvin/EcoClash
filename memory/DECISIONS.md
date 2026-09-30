@@ -843,3 +843,16 @@ Template:
   - The frame is derived and never hashed. `sim-wasm` exports `pressureFrame()`, and the worker sends it with each field frame.
   - `frontier.ts`: each player's line is 1–4 texels wide (0.5–2 m), from its push into the enemy cell across the edge. P1 solid, P2 dashed as before. Replays have no pressure and draw thin lines.
 - **Consequences:** A test shows the push is positive exactly where the step smothers, and zero on same-level (frozen) fronts. In a bot-vs-bot report at 43², 227 cells are under push at the end, the strongest at 255.
+
+## D-077 · 2026-09-30 · Notifications, raid alerts, pings
+- **Status:** accepted (user: "alerts and notifications when a significant raid is launched against a player territory … vary the formulation … with a ping on the relevant location")
+- **Decision:**
+  - **Toast stack** (`ui/Toasts.svelte`): under the resource bar, soft and translucent, at most 4. Alerts last 8 s, other toasts 5 s. Clicking an alert flies the camera over its place (`Viewer.lookAt`). Order notices ("population cap reached"…) now go through it.
+  - **Raids** (`game/alerts.ts`, `RaidWatch`, pure and tested), checked once a second on the drawn animals:
+    - enemy animals on your land are grouped by 4×4-cell area and weighted (swarms 0.25, other animals 1, predators 3);
+    - severities 2 / 6 / 15 give an incursion, an attack or a raid, worded in turn ("Enemy {species} incursion / foray / sighted…", "attack / assault / offensive", "raid! / major raid! / invasion!"), named after the group's main species;
+    - an area and its neighbours stay quiet for 30 s unless the group gets worse, and the whole map raises at most one new alert every 5 s, the worst first.
+  - **Lost ground** (`FrontWatch`): 6 of your cells taken by the enemy within 10 s raise "Losing ground to the enemy" (and variants) at their centre, at most once per 30 s.
+  - **Infos:** "{Species} can be unlocked" when a card becomes both available and affordable.
+  - **Pings:** three spreading rings at the place (`Viewer.ping`, alert colour `WORLD.alert`). While an alert shows, an arrow at the screen edge points to its place when it is out of view.
+- **Consequences:** Checked in the browser against the hard bot: grasshopper raids, unlock infos, click-to-fly.

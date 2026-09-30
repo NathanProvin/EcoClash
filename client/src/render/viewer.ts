@@ -34,6 +34,8 @@ export { CELL };
 /** Share of the owner's hue in the ground of owned cells: light, the frontier line carries
  *  ownership and the plants keep their natural colours (D-067). */
 const TERRITORY_TINT = 0.15;
+/** A ping (alerts, D-077): rings spread from 1 to `spread` cells over `waveS`, `waves` times. */
+const PING = { spread: 4, waveS: 1, waves: 3 } as const;
 /** Grass blends from one field frame to the next over the time between the last two frames,
  *  within these bounds (s). */
 const BLEND_S = { min: 0.2, max: 2 } as const;
@@ -82,6 +84,7 @@ export class Viewer {
   private readonly aura: THREE.Group; // smoky ring over the selected cell
   private readonly raycaster = new THREE.Raycaster();
   private flight: { from: THREE.Vector3[]; to: THREE.Vector3[]; t: number } | undefined;
+  private pings: { mesh: THREE.Mesh; start: number }[] = [];
   private lastTime = 0;
   private lastFrame = -1;
   private lastPaint = 0;
@@ -289,6 +292,45 @@ export class Viewer {
     if (cell) this.aura.position.copy(cellCenter(cell, this.replay.meta.n));
   }
 
+  /** Ping a cell: rings of `hex` spread and fade there for a few seconds (D-077). */
+  ping(cell: { row: number; col: number }, hex: string): void {
+    const material = new THREE.MeshBasicNodeMaterial({
+      color: new THREE.Color(hex),
+      transparent: true,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(
+      new THREE.RingGeometry(0.86, 1, 48).rotateX(-Math.PI / 2),
+      material,
+    );
+    mesh.position.copy(cellCenter(cell, this.replay.meta.n)).setY(0.3);
+    mesh.renderOrder = 11;
+    this.scene.add(mesh);
+    this.pings.push({ mesh, start: this.lastTime });
+  }
+
+  /** Fly the camera over a cell, keeping the current height and angle. */
+  lookAt(cell: { row: number; col: number }): void {
+    const target = cellCenter(cell, this.replay.meta.n);
+    const offset = new THREE.Vector3().subVectors(this.camera.position, this.controls.target);
+    this.flight = {
+      from: [this.camera.position.clone(), this.controls.target.clone()],
+      to: [target.clone().add(offset), target],
+      t: 0,
+    };
+  }
+
+  /** Where a cell's centre is on screen (CSS pixels of the canvas), and whether it is in view. */
+  screenPoint(cell: { row: number; col: number }): { x: number; y: number; inView: boolean } {
+    const v = cellCenter(cell, this.replay.meta.n).project(this.camera);
+    const { clientWidth: w, clientHeight: h } = this.canvas;
+    const behind = v.z > 1;
+    const [x, y] = [((v.x + 1) / 2) * w, ((1 - v.y) / 2) * h];
+    const inView = !behind && x >= 0 && x <= w && y >= 0 && y <= h;
+    // Behind the camera the projection mirrors: flip it so arrows point the right way.
+    return behind ? { x: w - x, y: h - y, inView } : { x, y, inView };
+  }
+
   /** Fly the camera down to a cell until single plant models fill the view. */
   zoomToCell(cell: { row: number; col: number }): void {
     const target = cellCenter(cell, this.replay.meta.n);
@@ -346,6 +388,7 @@ export class Viewer {
     this.shown = interpolate(this.replay.animals(t0), this.replay.animals(t0 + 1), tick - t0);
     this.animals.update(this.shown, this.selected, tick, this.replay.meta.n);
     animateAura(this.aura, now);
+    this.animatePings(now);
     if (this.flight) {
       const f = this.flight;
       f.t = Math.min(f.t + dt / 0.8, 1);
@@ -449,6 +492,22 @@ export class Viewer {
     this.groundTex.needsUpdate = true;
     paintFrontier(owner, n, tint, this.frontierData, fields.pressure);
     this.frontierTex.needsUpdate = true;
+  }
+
+  private animatePings(now: number): void {
+    this.pings = this.pings.filter(({ mesh, start }) => {
+      const age = (now - start) / PING.waveS;
+      if (age >= PING.waves) {
+        this.scene.remove(mesh);
+        mesh.geometry.dispose();
+        (mesh.material as THREE.Material).dispose();
+        return false;
+      }
+      const k = age % 1; // this wave's progress
+      mesh.scale.setScalar(CELL * (1 + (PING.spread - 1) * k));
+      (mesh.material as THREE.MeshBasicNodeMaterial).opacity = 1 - k;
+      return true;
+    });
   }
 
   dispose(): void {

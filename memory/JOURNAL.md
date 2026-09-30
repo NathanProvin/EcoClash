@@ -360,3 +360,6 @@
 
 ## 2026-09-30 · M5a task 2: pressure borders (D-076)
 - **Done:** display-only push from the sim's smothering term plus enemy grazers; frontier lines 0.5–2 m wide by push. Rust and client tests, `wasm:check`, the bot report pass.
+
+## 2026-09-30 · M5a task 3: notifications (D-077)
+- **Done:** toast stack; raid alerts with varied wording, pings and off-screen arrows; lost-ground alerts; affordable-unlock infos; order notices folded in. 46 client tests; checked in the browser.

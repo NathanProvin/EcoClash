@@ -227,8 +227,8 @@
   }
   .bar {
     display: flex;
-    align-items: flex-end;
-    gap: 6px;
+    align-items: flex-start; /* icons in one row, whatever the label lines */
+    gap: 2px;
     padding: 8px 12px 6px;
   }
   .sep {
@@ -265,11 +265,13 @@
     background: var(--well);
   }
   .fam {
+    width: 6.6em; /* long family names wrap on two lines (D-087) */
     font-size: 0.6em;
+    line-height: 1.15;
     letter-spacing: 0.06em;
+    text-align: center;
     text-transform: uppercase;
     color: var(--ink-soft);
-    white-space: nowrap;
   }
   .flyout {
     position: absolute;

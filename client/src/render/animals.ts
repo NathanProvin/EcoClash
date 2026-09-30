@@ -1,6 +1,7 @@
 // Animal models (D-068): one low-poly shape per body type, merged from a few primitives, one unit
 // long along +x (head forward) and standing on y = 0; instances scale them to each species' size
-// and turn them to face where they go. Birds fly above the canopy. A ring on the ground, in the
+// and turn them to face where they go. Birds fly above the canopy; fish swim under the water
+// surface, and amphibious animals float on it (D-087). A ring on the ground, in the
 // owner's colour, marks every controllable animal (white when selected). Soil life and insects
 // stay faint dots (D-065). AnimalView draws them from each frame's animals: the seam where skinned
 // or vertex-animated models can replace these bodies later (D-072).
@@ -13,8 +14,22 @@ import { writeMatrix } from "./growth";
 import { CELL } from "./layout";
 import { PLAYER, type PlayerId } from "./palette";
 
-export type Body = "rodent" | "hedgehog" | "rabbit" | "canid" | "cat" | "bird";
-export const BODIES: Body[] = ["rodent", "hedgehog", "rabbit", "canid", "cat", "bird"];
+export const BODIES = [
+  "rodent",
+  "hedgehog",
+  "rabbit",
+  "canid",
+  "cat",
+  "bird",
+  "ungulate",
+  "bear",
+  "mustelid",
+  "fish",
+  "duck",
+  "frog",
+  "wader",
+] as const;
+export type Body = (typeof BODIES)[number];
 
 /** Body type, real length (m, nose to tail base) and natural colour of a species. */
 export interface AnimalForm {
@@ -24,16 +39,29 @@ export interface AnimalForm {
 }
 
 export const ANIMAL_FORM: Record<string, AnimalForm> = {
-  voles: { body: "rodent", length: 0.12, color: "#7a5b3e" },
-  moles: { body: "rodent", length: 0.15, color: "#3e3a37" },
-  hedgehog: { body: "hedgehog", length: 0.25, color: "#6e5b45" },
+  raven: { body: "bird", length: 0.6, color: "#26262c" },
   rabbits: { body: "rabbit", length: 0.4, color: "#8d7c68" },
-  tits: { body: "bird", length: 0.12, color: "#d6c14a" },
-  woodpecker: { body: "bird", length: 0.25, color: "#3a3431" },
-  buzzard: { body: "bird", length: 0.55, color: "#6b4f36" },
-  tawny_owl: { body: "bird", length: 0.4, color: "#8b6a49" },
+  bison: { body: "ungulate", length: 2.8, color: "#4a3727" },
+  bank_vole: { body: "rodent", length: 0.1, color: "#7a5b3e" },
+  roe_deer: { body: "ungulate", length: 1.1, color: "#9a6a3e" },
+  red_squirrel: { body: "rodent", length: 0.22, color: "#b0552a" },
+  red_deer: { body: "ungulate", length: 1.9, color: "#7d5534" },
+  beaver: { body: "rodent", length: 0.8, color: "#5b4030" },
+  wild_boar: { body: "ungulate", length: 1.3, color: "#4b4038" },
+  roach: { body: "fish", length: 0.25, color: "#9aa3a8" },
+  mallard: { body: "duck", length: 0.55, color: "#6b7a4a" },
+  great_tit: { body: "bird", length: 0.14, color: "#d6c14a" },
+  frog: { body: "frog", length: 0.08, color: "#6f8f3c" },
+  badger: { body: "mustelid", length: 0.75, color: "#6d6a66" },
+  kestrel: { body: "bird", length: 0.33, color: "#a0633a" },
+  pine_marten: { body: "mustelid", length: 0.5, color: "#5e3b22" },
   fox: { body: "canid", length: 0.7, color: "#c2612b" },
   lynx: { body: "cat", length: 1.0, color: "#b48b5c" },
+  wolf: { body: "canid", length: 1.2, color: "#7d7a73" },
+  brown_bear: { body: "bear", length: 2.0, color: "#5a3d25" },
+  pike: { body: "fish", length: 0.8, color: "#5e6b3e" },
+  heron: { body: "wader", length: 0.9, color: "#9aa0a6" },
+  otter: { body: "mustelid", length: 0.7, color: "#4d3a2c" },
 };
 
 export function formOf(name: string, role: Role): AnimalForm {
@@ -45,16 +73,22 @@ export function formOf(name: string, role: Role): AnimalForm {
   );
 }
 
-/** Models are drawn this many times their real size, so a vole still shows next to a 3 m crown
- *  (the proportions between animals stay true). */
+/** Models are drawn this many times their real size, so a vole still shows next to a 3 m crown;
+ *  large animals are scaled up less (`drawnLength`), so a bison does not dwarf the trees. */
 export const ANIMAL_SCALE = 2.5;
+const LARGE = 0.5; // per metre of real length: how much less a large animal is enlarged
+
+/** Drawn length (m) of a species: its real length enlarged, less so the larger it is (D-087). */
+export function drawnLength(form: AnimalForm): number {
+  return (form.length * ANIMAL_SCALE) / (1 + LARGE * form.length);
+}
 /** Birds fly this high (m): above the canopy (trunks up to 2.6 m, then the crown). */
 export const FLIGHT_Y = 5.5;
 /** Ground ring radius (m): max(min, k x drawn length); width as a share of the radius. */
 export const RING = { min: 0.45, k: 0.75, width: 0.18 } as const;
 
 export function ringRadius(form: AnimalForm): number {
-  return Math.max(RING.min, RING.k * form.length * ANIMAL_SCALE);
+  return Math.max(RING.min, RING.k * drawnLength(form));
 }
 
 /** The model of a body type: unit length along +x, feet (or, for birds, the body centre) at 0. */
@@ -109,6 +143,55 @@ export function bodyGeometry(body: Body): THREE.BufferGeometry {
           new THREE.BoxGeometry(0.34, 0.03, 1.7).translate(-0.02, 0.04, 0),
           new THREE.BoxGeometry(0.3, 0.02, 0.2).translate(-0.45, 0, 0),
         ];
+      case "ungulate": // deep body on long legs, raised neck and head, small ears
+        return [
+          blob(0.72, 0.34, 0.28, -0.02, 0.62),
+          blob(0.16, 0.32, 0.14, 0.32, 0.8).rotateZ(-0.5),
+          blob(0.24, 0.14, 0.13, 0.44, 0.94),
+          ear(0.38, 1.04, 0.05, 0.03, 0.08),
+          ear(0.38, 1.04, -0.05, 0.03, 0.08),
+          ...legs(0.5, 0.26, 0.08),
+        ];
+      case "bear": // massive round body, short legs, round head, small ears
+        return [
+          blob(0.8, 0.5, 0.48, -0.04, 0.46),
+          blob(0.32, 0.3, 0.3, 0.42, 0.6),
+          blob(0.1, 0.08, 0.08, 0.4, 0.78, 0.09),
+          blob(0.1, 0.08, 0.08, 0.4, 0.78, -0.09),
+          ...legs(0.24, 0.25, 0.14),
+        ];
+      case "mustelid": // long low body, short legs, small head, long tail
+        return [
+          blob(0.68, 0.22, 0.2, 0.05, 0.2),
+          blob(0.22, 0.16, 0.16, 0.45, 0.24),
+          blob(0.35, 0.08, 0.08, -0.45, 0.18),
+          ...legs(0.1, 0.22, 0.07),
+        ];
+      case "fish": // a streamlined body and a tail fin
+        return [
+          blob(0.8, 0.26, 0.16, 0.05, 0.13),
+          new THREE.ConeGeometry(0.14, 0.24, 3).rotateZ(Math.PI / 2).translate(-0.42, 0.13, 0),
+        ];
+      case "duck": // a boat-shaped body afloat, head on a short neck, a flat bill
+        return [
+          blob(0.8, 0.34, 0.46, -0.05, 0.17),
+          blob(0.26, 0.26, 0.24, 0.34, 0.43),
+          new THREE.BoxGeometry(0.16, 0.04, 0.1).translate(0.52, 0.41, 0),
+        ];
+      case "frog": // a squat body and folded hind legs
+        return [
+          blob(0.7, 0.4, 0.6, 0.05, 0.2),
+          blob(0.35, 0.22, 0.3, -0.25, 0.1, 0.25),
+          blob(0.35, 0.22, 0.3, -0.25, 0.1, -0.25),
+        ];
+      case "wader": // a slim body high on long legs, a long neck and bill
+        return [
+          blob(0.55, 0.26, 0.24, -0.05, 0.95),
+          blob(0.1, 0.4, 0.1, 0.22, 1.2).rotateZ(-0.3),
+          blob(0.18, 0.12, 0.12, 0.32, 1.42),
+          new THREE.ConeGeometry(0.03, 0.3, 4).rotateZ(-Math.PI / 2).translate(0.54, 1.4, 0),
+          ...[-0.05, 0.05].map((z) => new THREE.BoxGeometry(0.03, 0.8, 0.03).translate(0, 0.4, z)),
+        ];
     }
   })();
   return mergeGeometries(parts.map((g) => (g.index ? g.toNonIndexed() : g)));
@@ -118,6 +201,8 @@ export function bodyGeometry(body: Body): THREE.BufferGeometry {
 const SWARM = { r: 0.06, y: 0.15, opacity: 0.45 } as const;
 /** Birds bob this much (m) around their flight height. */
 const BOB = 0.3;
+/** Fish swim this far (m) under the water surface. */
+const SWIM_DEPTH = 0.15;
 /** Each animal keeps a fixed offset inside its cell (share of a cell), so animals on the same
  *  point (replays hold whole cells) do not stack. */
 const SPREAD = 0.3;
@@ -158,12 +243,14 @@ export class AnimalView {
   };
   /** Last drawn position and heading per animal id, to face the way it goes. */
   private heading = new Map<number, { x: number; z: number; a: number }>();
+  private readonly mediumOf: string[];
 
   constructor(scene: THREE.Scene, meta: ReplayMeta, capacity: number) {
     const fauna = meta.fauna;
     this.swarmOf = meta.species.filter((s) => s.kind === "fauna").map(isSwarm);
     this.predatorOf = fauna.role.map((r) => r === "predator");
     this.forms = fauna.names.map((name, i) => formOf(name, fauna.role[i] ?? "herbivore"));
+    this.mediumOf = meta.species.filter((s) => s.kind === "fauna").map((s) => s.medium ?? "walk");
     this.colors = this.forms.map((f) => new THREE.Color(f.color));
     const lit = (g: THREE.BufferGeometry) =>
       instanced(
@@ -217,6 +304,7 @@ export class AnimalView {
     now = 0,
     droppedAt?: (id: number) => number | undefined,
     height: (x: number, z: number) => number = () => 0,
+    water: number | null = null,
   ): void {
     const counts = Object.fromEntries(BODIES.map((b) => [b, 0])) as Record<Body, number>;
     let [swarms, rings, canopies] = [0, 0, 0];
@@ -255,8 +343,17 @@ export class AnimalView {
       heading.set(a.id, { x, z, a: angle });
       const form = this.forms[a.species];
       const body = form?.body ?? "rodent";
-      const size = (form?.length ?? 0.2) * ANIMAL_SCALE;
-      const ground = height(x, z);
+      const size = form ? drawnLength(form) : 0.5;
+      // Where it stands: fish just under the water surface, floaters on it (D-087).
+      const bed = height(x, z);
+      const medium = this.mediumOf[a.species];
+      const surface = water ?? bed;
+      const ground =
+        medium === "swim"
+          ? Math.max(bed, surface - SWIM_DEPTH)
+          : medium === "amphibious" && body !== "wader"
+            ? Math.max(bed, surface)
+            : bed;
       const y =
         ground + (body === "bird" ? FLIGHT_Y + BOB * Math.sin(tick * 0.8 + a.id) : 0) + fall;
       const color = this.colors[a.species] ?? HIGHLIGHT;

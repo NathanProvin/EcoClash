@@ -3,12 +3,16 @@ import {
   assign,
   CELL,
   cellSlots,
+  LOW,
+  LOW_CLEAR,
+  LOW_GAP,
   MAX_MODELS,
   plantLayout,
   rand,
   share,
   SHRUB,
   SHRUB_GAP,
+  stratumOf,
   TREE,
   TRUNK_CLEAR,
   TRUNK_GAP,
@@ -30,16 +34,23 @@ function mix(cell: number, salt: number, first: number) {
 }
 
 describe("cellSlots", () => {
-  it("keeps shrubs apart, clear of every trunk slot, and everything inside the cell", () => {
+  it("keeps shrubs and clumps apart, clear of every trunk slot, and everything inside the cell", () => {
     let full = 0; // cells with a slot for every shrub (dart-throwing may fit one fewer)
     for (let cell = 0; cell < 4000; cell++) {
-      const [shrubs, trees] = cellSlots(cell);
+      const [low = [], shrubs = [], trees = [], pads = []] = cellSlots(cell);
       expect(shrubs.length, `cell ${cell}`).toBeGreaterThanOrEqual(MAX_MODELS[1] - 1);
+      expect(low.length, `cell ${cell}`).toBeGreaterThanOrEqual(MAX_MODELS[0]);
+      expect(pads).toBe(low); // pads float where clumps would stand
       if (shrubs.length >= MAX_MODELS[1]) full++;
       for (const s of shrubs) {
         expect(inside(s, SHRUB.max)).toBe(true);
         for (const t of trees) expect(dist(s, t)).toBeGreaterThanOrEqual(TRUNK_CLEAR);
         for (const o of shrubs) if (o !== s) expect(dist(s, o)).toBeGreaterThanOrEqual(SHRUB_GAP);
+      }
+      for (const s of low) {
+        expect(inside(s, LOW.max)).toBe(true);
+        for (const t of trees) expect(dist(s, t)).toBeGreaterThanOrEqual(LOW_CLEAR);
+        for (const o of low) if (o !== s) expect(dist(s, o)).toBeGreaterThanOrEqual(LOW_GAP);
       }
       for (const t of trees) {
         expect(inside(t, TREE.trunkR)).toBe(true);
@@ -53,8 +64,15 @@ describe("cellSlots", () => {
   it("does not put shrubs on a grid", () => {
     const xs = new Set<string>();
     for (let cell = 0; cell < 50; cell++)
-      for (const s of cellSlots(cell)[0]) xs.add(s.x.toFixed(2));
+      for (const s of cellSlots(cell)[1] ?? []) xs.add(s.x.toFixed(2));
     expect(xs.size).toBeGreaterThan(120); // positions vary freely, not a few grid columns
+  });
+});
+
+describe("stratumOf", () => {
+  it("maps height levels to model strata, aquatic herbs to pads, land herbs to grass", () => {
+    expect([1, 2, 3, 4].map((l) => stratumOf(l, false))).toEqual([null, 0, 1, 2]);
+    expect(stratumOf(1, true)).toBe(3);
   });
 });
 
@@ -62,25 +80,26 @@ describe("plantLayout", () => {
   it("keeps every model on its fixed slot, whatever the cover", () => {
     for (let cell = 0; cell < 500; cell++) {
       const slots = cellSlots(cell);
-      const [shrubs, trees] = plantLayout(cell, mix(cell, 1, 3), mix(cell, 20, 6));
-      for (const m of shrubs)
-        expect([m.x, m.z]).toEqual([slots[0][m.slot]?.x, slots[0][m.slot]?.z]);
-      for (const m of trees) expect([m.x, m.z]).toEqual([slots[1][m.slot]?.x, slots[1][m.slot]?.z]);
-      expect(shrubs.length).toBeLessThanOrEqual(MAX_MODELS[1]);
-      expect(trees.length).toBeLessThanOrEqual(MAX_MODELS[2]);
+      const strata = [mix(cell, 40, 0), mix(cell, 1, 3), mix(cell, 20, 6), mix(cell, 60, 9)];
+      plantLayout(cell, strata).forEach((models, s) => {
+        for (const m of models)
+          expect([m.x, m.z]).toEqual([slots[s]?.[m.slot]?.x, slots[s]?.[m.slot]?.z]);
+        expect(models.length).toBeLessThanOrEqual(MAX_MODELS[s] ?? 0);
+      });
     }
   });
 
   it("adds models as the cover grows, none on bare ground, every species present", () => {
-    expect(plantLayout(7, [], []).flat()).toHaveLength(0);
-    const [shrubs, trees] = plantLayout(7, [{ species: 4, cover: 1 }], [{ species: 9, cover: 1 }]);
-    expect(trees).toHaveLength(MAX_MODELS[2]);
-    expect(shrubs).toHaveLength(MAX_MODELS[1]);
+    expect(plantLayout(7, []).flat()).toHaveLength(0);
+    const full = (species: number) => [{ species, cover: 1 }];
+    const counts = plantLayout(7, [full(1), full(4), full(9), full(12)]).map((m) => m.length);
+    expect(counts).toEqual([...MAX_MODELS]);
     const half = [
       { species: 9, cover: 0.5 },
       { species: 10, cover: 0.5 },
     ];
-    expect(new Set(plantLayout(7, [], half)[1].map((t) => t.species))).toEqual(new Set([9, 10]));
+    const trees = plantLayout(7, [[], [], half])[2] ?? [];
+    expect(new Set(trees.map((t) => t.species))).toEqual(new Set([9, 10]));
   });
 });
 

@@ -5,8 +5,8 @@
 
 import * as THREE from "three/webgpu";
 import type { Role } from "../replay/replay";
-import { ANIMAL_SCALE, bodyGeometry, formOf as animalForm } from "./animals";
-import { SHRUB, TREE, type Placement } from "./layout";
+import { bodyGeometry, drawnLength, formOf as animalForm } from "./animals";
+import { LOW, PAD, SHRUB, STRATA, stratumOf, TREE, type Placement } from "./layout";
 import { plantColor, type PlayerId } from "./palette";
 import { LowPolyPlants, type PlantStyle } from "./plants";
 
@@ -14,7 +14,9 @@ import { LowPolyPlants, type PlantStyle } from "./plants";
 export interface GhostSpec {
   name: string;
   kind: "flora" | "fauna";
+  /** Plants: height level and family (aquatic herbs float as pads, D-087). */
   level: number;
+  family?: string;
   role: Role;
   player: PlayerId;
   /** Cells: the plant disc (flora) or the drop radius off your land (fauna). */
@@ -61,16 +63,25 @@ export class Ghost {
     if (spec.kind === "fauna") {
       const form = animalForm(spec.name, spec.role);
       const body = new THREE.Mesh(bodyGeometry(form.body), material(new THREE.Color(form.color)));
-      body.scale.setScalar(form.length * ANIMAL_SCALE);
+      body.scale.setScalar(drawnLength(form));
       this.model.add(body);
       this.measure();
       return;
     }
     const [r, g, b] = plantColor(spec.name, spec.level, spec.player);
     const base = new THREE.Color().setRGB(r / 255, g / 255, b / 255, THREE.SRGBColorSpace);
-    const stratum = spec.level >= 3 ? 2 : 1;
-    const size = spec.level === 1 ? TUFT : spec.level === 2 ? SHRUB.max : TREE.max;
-    const at: Placement = { x: 0, z: 0, angle: 0, seed: 0.5, slot: 0, size, species: 0 };
+    const s = stratumOf(spec.level, spec.family === "W");
+    const stratum = s === null ? "low" : (STRATA[s] ?? "low"); // a land herb: a small tuft
+    const size = s === null ? TUFT : [LOW.max, SHRUB.max, TREE.max, PAD.max][s];
+    const at: Placement = {
+      x: 0,
+      z: 0,
+      angle: 0,
+      seed: 0.5,
+      slot: 0,
+      size: size ?? TUFT,
+      species: 0,
+    };
     for (const p of this.style.parts(stratum, at, 0, 0, spec.name)) {
       const geometry = this.style.meshes[p.mesh]?.geometry;
       if (!geometry) continue;

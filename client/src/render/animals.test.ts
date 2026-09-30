@@ -24,10 +24,10 @@ describe("bodyGeometry", () => {
 describe("forms", () => {
   it("keeps real proportions and gives every animal a ring it can be picked by", () => {
     const len = (n: string) => ANIMAL_FORM[n]?.length ?? 0;
-    expect(len("voles")).toBeLessThan(len("rabbits"));
+    expect(len("bank_vole")).toBeLessThan(len("rabbits"));
     expect(len("rabbits")).toBeLessThan(len("fox"));
     expect(len("fox")).toBeLessThan(len("lynx"));
-    expect(ringRadius(formOf("voles", "herbivore"))).toBe(RING.min);
+    expect(ringRadius(formOf("bank_vole", "herbivore"))).toBe(RING.min);
     expect(ringRadius(formOf("lynx", "predator"))).toBeGreaterThan(RING.min);
     expect(formOf("unknown", "predator").body).toBe("canid");
   });
@@ -45,7 +45,7 @@ describe("AnimalView parachute drops (D-080)", () => {
       field_every: 1,
       builds: [],
       flora: { names: [], level: [] },
-      fauna: { names: ["voles"], role: ["herbivore"] },
+      fauna: { names: ["bank_vole"], role: ["herbivore"] },
       series: {},
       log: [],
     } satisfies ReplayMeta;

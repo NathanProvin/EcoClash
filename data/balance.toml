@@ -61,7 +61,7 @@ establish_threshold = 0.1  # a stratum counts for the dominant level from this f
 smother_rate = 0.15        # enemy strata lose this fraction of k_max per second, per attacking neighbour
 litter_fraction = 0.1      # litter per second = this x biomass_rate x biomass (turnover)
 niche_overlap = 0.5        # [Proposed] competition between species of one stratum (1 = full overlap, D-022)
-soil_min_level = [0.1, 0.3, 0.6]  # soil development for full suitability: L1 (non-pioneers), L2, L3
+soil_min_level = [0.1, 0.2, 0.3, 0.6]  # soil development for full suitability, per height stratum: herbs (non-pioneers), intermediate, shrubs, trees
 soil_ramp = 0.1           # suitability ramps from 0 at soil_min - soil_ramp to 1 at soil_min (D-024)
 plant_gauge = 0.5         # colonization gauge of a freshly planted species (D-024)
 plant_radius = 2          # a plant order seeds a disc of this radius, in cells (gamerules §7.1; D-042)

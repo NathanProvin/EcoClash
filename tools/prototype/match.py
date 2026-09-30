@@ -33,16 +33,16 @@ BUILDS = {
         (150, "wildflowers", 0, 0, 2),
         (240, "elder", 0, 0, 2),
         (300, "hawthorn", 6, 0, 2),
-        (300, "voles"),
+        (300, "rabbits"),
         (360, "elder", 16, 16, 2),
         (420, "hawthorn", 18, 18, 2),
         (420, "oak", 0, 0, 2),
         (540, "oak", 14, 14, 2),
         (540, "beech", 4, 4, 2),
         (540, "caterpillars"),
-        (600, "tits"),
+        (600, "great_tit"),
         (720, "fox"),
-        (900, "buzzard"),
+        (900, "lynx"),
     ),
     "meadow": (
         (0, "grasses", 0, 0, 3),
@@ -54,7 +54,7 @@ BUILDS = {
         (240, "grasshoppers"),
         (300, "elder", 0, 0, 2),
         (360, "rabbits"),
-        (600, "hedgehog"),
+        (600, "kestrel"),
         (720, "fox"),
     ),
 }
@@ -323,8 +323,10 @@ def species_table(balance: dict, flora: Flora, fauna: Fauna | None) -> list[dict
         for name in names:
             s = balance[kind][name]
             out.append({
-                "name": name, "kind": kind, "level": s["level"], "tier": s["tier"],
-                "role": s.get("role", f"L{s['level']}"), "habitat": s.get("habitat", []),
+                "name": name, "kind": kind, "family": s["family"], "level": s.get("level", 0),
+                "tier": s["tier"], "swarm": s.get("swarm", False),
+                "role": s["role"] if "role" in s else f"L{s['level']}",
+                "habitat": s.get("habitat", []),
                 "eats": s.get("eats", []), "stats": {k: s[k] for k in stats},
             })  # fmt: skip
     return out

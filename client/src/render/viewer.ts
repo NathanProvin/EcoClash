@@ -39,12 +39,12 @@ import {
   stoneGeometry,
 } from "./terrain";
 import { makeGrass } from "./grass";
-import { CELL, rand, SLAB_DEPTH } from "./layout";
+import { CELL, rand, SLAB_DEPTH, STRATA, stratumOf } from "./layout";
 import { hexToRgb, plantColor, PLAYER, soilColor, WORLD, type PlayerId } from "./palette";
 import { LowPolyPlants, PlantView } from "./plants";
 import { QUALITY, type Quality } from "./quality";
 
-export type Layer = "territory" | "L1" | "L2" | "L3" | "animals";
+export type Layer = "territory" | "L1" | "L2" | "L3" | "L4" | "animals";
 
 export { CELL };
 /** Share of the owner's hue in the ground of owned cells: light, the frontier line carries
@@ -111,7 +111,9 @@ export class Viewer {
   private readonly animals: AnimalView;
   /** Plant species indices per level (1..3); colours per player and species (sRGB bytes, and
    *  linear for instances). */
-  private readonly byLevel: number[][];
+  /** Land herbs (drawn as grass), and the plant species of each model stratum (STRATA). */
+  private readonly herbs: number[];
+  private readonly modelled: number[][];
   private readonly plantRgb: Record<PlayerId, [number, number, number][]>;
   private readonly plantLinear: Record<PlayerId, THREE.Color[]>;
   private readonly aura: THREE.Group; // smoky ring over the selected cell
@@ -234,7 +236,11 @@ export class Viewer {
     this.scene.add(this.grass);
 
     const { names, level } = replay.meta.flora;
-    this.byLevel = [1, 2, 3].map((l) => names.flatMap((_, i) => (level[i] === l ? [i] : [])));
+    // Aquatic herbs float as pads (D-087).
+    const flora = replay.meta.species.filter((s) => s.kind === "flora");
+    const stratum = (i: number) => stratumOf(level[i] ?? 1, flora[i]?.family === "W");
+    this.herbs = names.flatMap((_, i) => (stratum(i) === null ? [i] : []));
+    this.modelled = STRATA.map((_, s) => names.flatMap((_, i) => (stratum(i) === s ? [i] : [])));
     const colours = (p: PlayerId) => names.map((name, i) => plantColor(name, level[i] ?? 1, p));
     this.plantRgb = { 1: colours(1), 2: colours(2) };
     const linear = (p: PlayerId) =>
@@ -342,8 +348,10 @@ export class Viewer {
       this.animals.setVisible(on);
     } else if (layer === "L1") {
       this.grass.visible = on;
+      for (const m of this.plants.meshesOf("pad")) m.visible = on;
     } else {
-      for (const m of this.plants.meshesOf(layer === "L2" ? 1 : 2)) m.visible = on;
+      const models = { L2: "low", L3: "shrub", L4: "tree" } as const;
+      for (const m of this.plants.meshesOf(models[layer])) m.visible = on;
     }
   }
 
@@ -400,7 +408,7 @@ export class Viewer {
     const level = this.field.water;
     if (level === null) return;
     const material = new THREE.MeshStandardNodeMaterial({
-      roughness: 0.15,
+      roughness: 0.4, // a soft sheen, no hard sun glare (D-087)
       metalness: 0.05,
       transparent: true,
       depthWrite: false,
@@ -582,7 +590,8 @@ export class Viewer {
     const dropped = this.replay.droppedAt?.bind(this.replay);
     const ms = performance.now();
     const h = (x: number, z: number) => this.field.at(x, z);
-    this.animals.update(this.shown, this.selected, tick, this.replay.meta.n, ms, dropped, h);
+    const { n } = this.replay.meta;
+    this.animals.update(this.shown, this.selected, tick, n, ms, dropped, h, this.field.water);
     animateAura(this.aura, now);
     this.animatePings(now);
     if (this.flight) {
@@ -635,11 +644,11 @@ export class Viewer {
   }
 
   private paintFields(fields: Fields, now: number, step: boolean): void {
-    const { owner, soil: soilDev, species, cover } = fields;
+    const { owner, soil: soilDev, species } = fields;
     this.owner = owner;
     const n = this.replay.meta.n;
     const tint = { 1: hexToRgb(PLAYER[1].base), 2: hexToRgb(PLAYER[2].base) };
-    const [herbs = [], shrubs = [], trees = []] = this.byLevel;
+    const herbs = this.herbs;
     const present = (list: number[], c: number): Covers =>
       list.flatMap((i) => {
         const v = species[i]?.[c] ?? 0;
@@ -672,10 +681,8 @@ export class Viewer {
         weight += h.cover;
       }
       const w = weight || 1;
-      this.floraData.set(
-        [(rgb[0] ?? 0) / w, (rgb[1] ?? 0) / w, (rgb[2] ?? 0) / w, cover[0]?.[c] ?? 0],
-        c * 4,
-      );
+      const alpha = Math.min(255, Math.round(weight * 255)); // land herbs' cover
+      this.floraData.set([(rgb[0] ?? 0) / w, (rgb[1] ?? 0) / w, (rgb[2] ?? 0) / w, alpha], c * 4);
     }
     if (!step) (this.floraPrev.image.data as Uint8Array).set(this.floraData); // no blend
     const since = now - this.lastPaint;
@@ -683,12 +690,13 @@ export class Viewer {
     this.blendFrom = now;
     this.lastPaint = now;
     this.plants.update(
-      (c) => [present(shrubs, c), present(trees, c)],
+      (c) => this.modelled.map((list) => present(list, c)),
       owner,
       this.replay.meta.flora.names,
       this.plantLinear,
       now,
       (x, z) => this.field.at(x, z),
+      this.field.water,
     );
     this.floraTex.needsUpdate = true;
     this.floraPrev.needsUpdate = true;

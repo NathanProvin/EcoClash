@@ -19,6 +19,8 @@ pub const U16: i64 = 65_535;
 #[cfg(test)] // only the reference step walks neighbours by offset
 const DIRS: [(isize, isize); 4] = [(-1, 0), (1, 0), (0, -1), (0, 1)];
 const PLAYERS: [u8; 2] = [1, 2];
+/// Height strata: herbs, intermediate, shrubs, trees (D-087).
+pub const LEVELS: usize = 4;
 
 /// Plant rules and species stats, converted once to fixed-point (INSTRUCTIONS §4). Per-species
 /// vectors are indexed by species id (file order of `species.toml`).
@@ -26,8 +28,8 @@ const PLAYERS: [u8; 2] = [1, 2];
 pub struct FloraParams {
     pub names: Vec<String>,
     pub level: Vec<u8>,
-    /// Species ids of each stratum (L1, L2, L3).
-    pub strata: [Vec<usize>; 3],
+    /// Species ids of each height stratum (1..=LEVELS).
+    pub strata: [Vec<usize>; LEVELS],
     pub kmax: Vec<i64>,
     /// Logistic rate per tick (Q16).
     pub rdt: Vec<i64>,
@@ -83,7 +85,7 @@ impl FloraParams {
         let kmax_f = col(&|s| s.k_max, 1.0);
         let rdt_f = col(&|s| s.biomass_rate, dt * one);
         let level: Vec<u8> = sp.iter().map(|s| s.level).collect();
-        let mut strata: [Vec<usize>; 3] = [vec![], vec![], vec![]];
+        let mut strata: [Vec<usize>; LEVELS] = std::array::from_fn(|_| vec![]);
         for (i, &l) in level.iter().enumerate() {
             strata[usize::from(l) - 1].push(i);
         }
@@ -516,18 +518,19 @@ impl Flora {
             }
 
             // 1-2. Shade and logistic growth with competition, for the species present here.
-            let casts = [1usize, 2].map(|u| {
+            // casts[u]: the shade cast by stratum u + 1 (u = 0, the herbs, casts on nothing).
+            let casts: [i64; LEVELS] = std::array::from_fn(|u| {
                 div(
                     p.strata[u].iter().map(|&j| p.cast[j] * cover[at(j)]).sum(),
                     ONE_I,
                 )
             });
-            let totals: [i64; 3] =
-                [0, 1, 2].map(|l| p.strata[l].iter().map(|&j| cover[at(j)]).sum());
+            let totals: [i64; LEVELS] =
+                std::array::from_fn(|l| p.strata[l].iter().map(|&j| cover[at(j)]).sum());
             for s in species().filter(|&s| bio[at(s)] > 0) {
                 let mut shade = ONE_I;
                 if p.shade {
-                    for (u, cast) in [1usize, 2].into_iter().zip(casts) {
+                    for (u, &cast) in casts.iter().enumerate().skip(1) {
                         if usize::from(p.level[s]) <= u {
                             let block = div(cast * (ONE_I - p.tol[s]), ONE_I);
                             shade = div(shade * (ONE_I - block).max(0), ONE_I);
@@ -739,7 +742,7 @@ impl Flora {
         // 1. Shade: the cover of each upper stratum lowers the capacity of the species below it.
         let mut shade = vec![ONE_I; ns * cells];
         if p.shade {
-            for u in 1..3usize {
+            for u in 1..LEVELS {
                 for k in 0..cells {
                     let cast = div(
                         p.strata[u]

@@ -51,26 +51,32 @@ impl Level {
     }
 }
 
-/// Unlock order: meadow income first, then succession, then the food web.
+/// Unlock order: meadow income first, then succession, then the food web (D-087). Land only:
+/// the bot leaves the aquatic families (W, HW, PW) to players for now.
 const UNLOCKS: &[&str] = &[
     "wildflowers",
     "elder",
     "grasshoppers",
+    "ferns",
     "nettle",
-    "voles",
-    "hazel",
+    "rabbits",
     "oak",
-    "bramble",
+    "slugs",
     "caterpillars",
-    "hedgehog",
-    "fox",
+    "great_tit",
     "hawthorn",
-    "beech",
-    "tits",
-    "buzzard",
+    "kestrel",
+    "bank_vole",
     "chestnut",
-    "tawny_owl",
+    "bark_beetles",
+    "pine_marten",
+    "bramble",
+    "hazel",
+    "fox",
     "lynx",
+    "beech",
+    "bison",
+    "wolf",
 ];
 
 /// Spreaders for the front line, best first.
@@ -191,7 +197,7 @@ impl Bot {
         let mut order: Vec<usize> = (0..p.species()).collect();
         order.sort_by_key(|&s| (std::cmp::Reverse(p.level[s]), s));
         for s in order {
-            if p.level[s] < 2
+            if p.level[s] < 3 // shrubs and trees (D-087)
                 || !w.economy.is_unlocked(self.player, s)
                 || !self.can_pay(w, s, disc_cells(self.radius) / 2)
             {
@@ -465,5 +471,13 @@ mod tests {
         let strongest = push.iter().max().copied().unwrap_or(0);
         println!("pushed cells {pushed}, strongest push {strongest}/255 (D-076)");
         println!("result {:?}, notices {}", w.result, w.notices.len());
+        let mut kinds: std::collections::BTreeMap<String, usize> =
+            std::collections::BTreeMap::new();
+        for n in &w.notices {
+            *kinds
+                .entry(format!("{n:?}").chars().take(90).collect())
+                .or_default() += 1;
+        }
+        println!("{kinds:#?}");
     }
 }

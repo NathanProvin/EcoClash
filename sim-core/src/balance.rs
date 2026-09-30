@@ -29,7 +29,7 @@ pub struct FloraRules {
     pub smother_rate: f64,
     pub litter_fraction: f64,
     pub niche_overlap: f64,
-    pub soil_min_level: [f64; 3],
+    pub soil_min_level: [f64; crate::flora::LEVELS],
     pub soil_ramp: f64,
     pub plant_gauge: f64,
     /// Brush radius of a player's plant order (a command parameter, not a rule: not hashed).
@@ -135,9 +135,12 @@ pub struct FloraSpecies {
     /// Share of the map's cells per player (D-045).
     pub cap: f64,
     pub effect: String,
-    // Model.
-    pub level: u8,
+    /// Tech-tree family (L1..L4, W; D-087) and tier within it.
+    pub family: String,
     pub tier: u8,
+    // Model.
+    /// Height stratum, 1..=`flora::LEVELS`: shade and competition act between strata.
+    pub level: u8,
     #[serde(default)]
     pub pioneer: bool,
     pub biomass_rate: f64,
@@ -171,18 +174,22 @@ pub struct FaunaSpecies {
     /// Animals per player.
     pub cap: u32,
     pub effect: String,
-    // Model.
-    pub level: u8,
+    /// Tech-tree family (D, H1..H4, HW, P1..P3, PW; D-087) and tier within it.
+    pub family: String,
     pub tier: u8,
+    // Model.
     /// "decomposer", "herbivore" or "predator".
     pub role: String,
-    /// Flora names or L1..L3 (herbivores), fauna names (predators), "dead" (decomposers).
+    /// Flora names or families (herbivores), fauna names (predators), "dead" (decomposers).
     pub eats: Vec<String>,
-    /// Flora names or L1..L3 that the player must own for a spawn.
+    /// Flora names or families that the player must own for a spawn.
     pub habitat: Vec<String>,
     /// Can hide in a refuge (D-023).
     #[serde(default)]
     pub small: bool,
+    /// Drawn as a swarm, not a unit to select (D-065); renderers only.
+    #[serde(default)]
+    pub swarm: bool,
     /// Energy capacity, in biomass units.
     pub body: u32,
     /// Biomass eaten per second (herbivores, decomposers).
@@ -354,8 +361,8 @@ impl Balance {
         self.validate_fauna()?;
         for (n, s) in &self.flora_species {
             check(
-                (1..=3).contains(&s.level),
-                format!("{n}: level must be 1..3"),
+                (1..=crate::flora::LEVELS).contains(&usize::from(s.level)),
+                format!("{n}: level must be 1..{}", crate::flora::LEVELS),
             )?;
             check(
                 s.k_max > 0.0 && s.k_max <= 65535.0,
@@ -400,7 +407,9 @@ impl Balance {
     fn validate_fauna(&self) -> Result<(), String> {
         let check = |ok: bool, what: String| if ok { Ok(()) } else { Err(what) };
         let flora = |x: &str| {
-            self.flora_species.iter().any(|(n, _)| n == x) || matches!(x, "L1" | "L2" | "L3")
+            self.flora_species
+                .iter()
+                .any(|(n, s)| n == x || s.family == x)
         };
         let fauna = |x: &str| self.fauna_species.iter().any(|(n, _)| n == x);
         check(
@@ -485,14 +494,14 @@ mod tests {
         let b = Balance::from_toml(BALANCE, SPECIES).expect("data files load");
         let names: Vec<&str> = b.flora_species.iter().map(|(n, _)| n.as_str()).collect();
         assert_eq!(names.first(), Some(&"lichen_and_moss"));
-        assert_eq!(names.last(), Some(&"chestnut"));
-        assert_eq!(names.len(), 12);
+        assert_eq!(names.last(), Some(&"willow"));
+        assert_eq!(names.len(), 15);
         assert!(b.flora.succession);
         assert_eq!(
             b.fauna_species.first().map(|(n, _)| n.as_str()),
             Some("earthworms")
         );
-        assert_eq!(b.fauna_species.len(), 15);
+        assert_eq!(b.fauna_species.len(), 30);
     }
 
     #[test]

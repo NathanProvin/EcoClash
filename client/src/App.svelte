@@ -154,6 +154,7 @@
             name: s.name,
             kind: s.kind,
             level: s.level,
+            family: s.family,
             role: s.role as Role,
             player: me,
             radius: s.kind === "flora" ? l.plantRadius : l.dropRadius,
@@ -247,6 +248,7 @@
     L1: true,
     L2: true,
     L3: true,
+    L4: true,
     animals: true,
   });
 
@@ -364,8 +366,8 @@
       }
       viewer = await Viewer.create(canvas, replay, quality);
       viewer.resize();
-      // Dev only: lets a browser check drive the camera (window.ecoViewer.zoomToCell(...)).
-      if (import.meta.env.DEV) Object.assign(window, { ecoViewer: viewer });
+      // Dev only: lets a browser check drive the camera and the match (window.ecoViewer, ecoLive).
+      if (import.meta.env.DEV) Object.assign(window, { ecoViewer: viewer, ecoLive: live });
       for (const [layer, on] of Object.entries(layers)) viewer.setVisible(layer as Layer, on);
       tick = 0;
       playing = true;

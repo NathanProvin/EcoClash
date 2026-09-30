@@ -111,7 +111,7 @@ impl World {
     #[must_use]
     pub fn new(balance: &Balance, seed: u64, n: usize) -> World {
         let flora = Flora::new(FloraParams::from_balance(balance));
-        let fauna = Fauna::new(FaunaParams::from_balance(balance, &flora.p));
+        let fauna = Fauna::new(FaunaParams::from_balance(balance));
         let state = FloraState::new(&flora.p, n);
         let chunk = usize::try_from(balance.sim.chunk_size).unwrap_or(32);
         World {
@@ -602,12 +602,12 @@ mod tests {
         let mut w = World::new(&b, 1, 20);
         w.setup_plant(1, "grasses", 4, 4, 3);
         w.setup_plant(2, "grasses", 15, 15, 3);
-        let voles = w.economy.animal(w.fauna.p.index("voles").unwrap());
+        let grasshoppers = w.economy.animal(w.fauna.p.index("grasshoppers").unwrap());
         w.economy.bank[0] = 100_000 << 16;
-        w.economy.unlock(1, voles).unwrap();
+        w.economy.unlock(1, grasshoppers).unwrap();
         let (base, drop) = (
-            w.economy.unit_cost(voles, false),
-            w.economy.unit_cost(voles, true),
+            w.economy.unit_cost(grasshoppers, false),
+            w.economy.unit_cost(grasshoppers, true),
         );
         assert!(drop > base, "the drop costs more");
         let spawn = |seq, row, col| Command {
@@ -615,7 +615,7 @@ mod tests {
             player: 1,
             seq,
             payload: Payload::Spawn {
-                species: "voles".into(),
+                species: "grasshoppers".into(),
                 row,
                 col,
             },
@@ -627,7 +627,7 @@ mod tests {
         let group = w
             .fauna
             .p
-            .index("voles")
+            .index("grasshoppers")
             .map(|s| w.fauna.census(1)[s])
             .unwrap();
         let per_card = group / 2;
@@ -721,6 +721,71 @@ mod tests {
         let cover = &frame[(2 + grasses) * cells..(3 + grasses) * cells];
         assert!(cover[5 * 12 + 5] > 0 && cover[0] == 0);
         assert_eq!((snap.tick, snap.flora_tick), (ticks, 3));
+    }
+
+    /// Water plants take the shallows, not dry land; fish land in water and stay there (D-087).
+    #[test]
+    fn water_plants_hold_the_shallows_and_fish_stay_in_the_water() {
+        let b = balance();
+        let n = 43;
+        let mut w = World::new(&b, 1, n);
+        w.generate_terrain(&TerrainParams::from_balance(&b), 1);
+        w.economy.sandbox = true;
+        let shallows = |k: usize| {
+            [k.wrapping_sub(1), k + 1, k.wrapping_sub(n), k + n]
+                .iter()
+                .filter(|&&m| m < n * n && w.state.ground[m] == terrain::SHALLOW)
+                .count()
+        };
+        let shallow = (0..n * n)
+            .filter(|&k| w.state.ground[k] == terrain::SHALLOW && shallows(k) >= 2)
+            .min_by_key(|&k| (k / n).abs_diff(n / 4) + (k % n).abs_diff(n / 4))
+            .unwrap();
+        let (row, col) = (
+            u32::try_from(shallow / n).unwrap(),
+            u32::try_from(shallow % n).unwrap(),
+        );
+        assert!(w.setup_plant(1, "algae_and_lilies", row, col, 1) > 0);
+        for _ in 0..400 {
+            w.step();
+        }
+        let algae = w.flora.p.index("algae_and_lilies").unwrap();
+        let bio = |k: usize| w.state.bio[algae * n * n + k];
+        let wet: Vec<usize> = (0..n * n)
+            .filter(|&k| terrain::is_water(w.state.ground[k]))
+            .collect();
+        assert!(
+            wet.iter().filter(|&&k| bio(k) > 0).count() > 3,
+            "algae spread in the water"
+        );
+        let dry = (0..n * n).filter(|&k| w.state.water[k] < crate::flora::U16 * 2 / 3);
+        assert!(dry.clone().all(|k| bio(k) == 0), "never on dry land");
+
+        let roach = w.fauna.p.index("roach").unwrap();
+        w.submit(Command {
+            tick: w.tick,
+            player: 1,
+            seq: 0,
+            payload: Payload::Spawn {
+                species: "roach".into(),
+                row,
+                col,
+            },
+        });
+        for _ in 0..200 {
+            w.step();
+        }
+        let a = &w.fauna.agents;
+        let fish: Vec<usize> = (0..a.len())
+            .filter(|&i| usize::from(a.sp[i]) == roach)
+            .collect();
+        assert!(!fish.is_empty(), "roach spawned on the owned shallows");
+        for i in fish {
+            assert!(
+                terrain::is_water(w.state.ground[a.cell(i, n)]),
+                "fish stay in water"
+            );
+        }
     }
 }
 

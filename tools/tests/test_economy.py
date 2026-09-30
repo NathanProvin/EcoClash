@@ -18,25 +18,25 @@ def economy(bal=None):
 def test_start_unlocks_and_tier_path():
     ec = economy()
     assert ec.missing(1, "grasses") == [] and ec.missing(1, "earthworms") == []
-    # cheapest L1 tier-2 species first
-    assert ec.missing(1, "bramble") == ["wildflowers", "bramble"]
+    # the family's lower tiers first (D-087)
+    assert ec.missing(1, "bramble") == ["ferns", "nettle", "bramble"]
 
 
 def test_animals_need_their_habitat_unlocked_first():
     ec = economy()
-    assert ec.missing(1, "fox") == ["elder", "fox"]
+    assert ec.missing(1, "lynx") == ["oak", "lynx"]
 
 
 def test_prepare_buys_one_species_at_a_time_when_affordable():
     ec = economy()
-    ec.bank[1] = ec.stat("wildflowers", "unlock_cost") + 10
-    assert not ec.prepare(1, "bramble")  # bought wildflowers; bramble still missing
-    assert ec.bank[1] == 10 and "wildflowers" in ec.unlocked[1]
-    assert ec.events == [(1, "wildflowers", ec.stat("wildflowers", "unlock_cost"))]
-    assert not ec.prepare(1, "bramble")  # cannot afford bramble: nothing charged
+    ec.bank[1] = ec.stat("ferns", "unlock_cost") + 10
+    assert not ec.prepare(1, "nettle")  # bought ferns; nettle still missing
+    assert ec.bank[1] == 10 and "ferns" in ec.unlocked[1]
+    assert ec.events == [(1, "ferns", ec.stat("ferns", "unlock_cost"))]
+    assert not ec.prepare(1, "nettle")  # cannot afford nettle: nothing charged
     assert ec.bank[1] == 10
-    ec.bank[1] += ec.stat("bramble", "unlock_cost")
-    assert ec.prepare(1, "bramble") and ec.bank[1] == 10
+    ec.bank[1] += ec.stat("nettle", "unlock_cost")
+    assert ec.prepare(1, "nettle") and ec.bank[1] == 10
 
 
 def test_costs_come_from_the_stat_sheet():
@@ -107,9 +107,9 @@ def test_replay_export_round_trips(tmp_path):
     meta = json.loads((tmp_path / "r" / "replay.json").read_text(encoding="utf-8"))
     assert json.loads((tmp_path / "index.json").read_text(encoding="utf-8")) == ["r"]
     assert meta["ticks"] == len(record) and len(meta["series"]["t_s"]) == len(rows)
-    assert len(meta["species"]) == 27 and meta["species"][0]["stats"]["effect"]
+    assert len(meta["species"]) == 45 and meta["species"][0]["stats"]["effect"]
     assert len(meta["counts"]) == (meta["ticks"] - 1) // FIELD_EVERY + 1
-    assert all(len(c) == 2 and len(c[0]) == 27 for c in meta["counts"])
+    assert all(len(c) == 2 and len(c[0]) == 45 for c in meta["counts"])
     data = gzip.decompress((tmp_path / "r" / "frames.bin.gz").read_bytes())
     pos, fields, animals = 0, 0, 0
     for tick in range(meta["ticks"]):

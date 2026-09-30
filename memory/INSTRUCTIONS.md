@@ -43,9 +43,11 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 | Stratum | Representation | Role |
 |---|---|---|
 | Herbaceous (L1, incl. pioneers) | **Field** (grid layer), fast growth | Base economy, colonizes land |
-| Shrubs (L2) | **Field**, medium growth | Biomass storage, slows enemy units |
-| Trees (L3) | **Structure** (discrete entity on grid) | Anchor territory, act as buildings / production sites |
-| Herbivores (insects, small mammals) | **Agent** | Eat enemy flora; without orders and with no enemy flora nearby, graze own flora slowly for bonus biomass (D-018) |
+| Intermediate (L2: ferns, nettles, brambles) | **Field**, fast to medium growth | Undergrowth, refuges (brambles) |
+| Shrubs (L3) | **Field**, medium growth | Biomass storage, slows enemy units |
+| Trees (L4) | **Field** (models drawn per cell) | Anchor territory, large biomass |
+| Aquatic flora (W: algae, reeds, willow) | **Field**, in the stratum of its height | Holds the shallows and banks (D-087) |
+| Herbivores (H1–H4, HW: insects to large mammals, fish) | **Agent** | Eat enemy flora; without orders and with no enemy flora nearby, graze own flora slowly for bonus biomass (D-018) |
 | Predators | **Agent** | Hunt enemy prey. Kept in check by their own predators (food web) and by shrub refuges (D-023) |
 | Decomposers | **Agent** (earthworms, pill bugs; D-018) | Turn dead biomass into nutrients |
 
@@ -203,7 +205,7 @@ Required tests:
 
 ### 5.2 Update rules (reference model, prototype first in Python)
 
-Flora follows the cell model of `data/gamerules.md` §2.1 and §3 (D-019): each cell has an owner and holds biomass per species; species of one stratum (L1 herbaceous, L2 shrub, L3 canopy) interpenetrate (D-022). Per plant tick, for each species biomass B:
+Flora follows the cell model of `data/gamerules.md` §2.1 and §3 (D-019): each cell has an owner and holds biomass per species; species of one stratum (L1 herbaceous, L2 intermediate, L3 shrub, L4 canopy) interpenetrate (D-022). Species belong to tech-tree families with three tiers (D-087, gamerules §4.2). Per plant tick, for each species biomass B:
 - **Logistic growth with competition:** `ΔB_i = r_i · B_i · (shade_i − c_i − α · Σ_{j≠i, same stratum} c_j) / shade_i`, where `c = B / K` is cover, `K_i = k_max_i × modifier(cell)` (the modifier is 1.0 in V1, gamerules §2.3), `α` = `niche_overlap`, and `shade_i` is the capacity left by higher strata.
 - **Colonization gauge (D-024):** `g_i ∈ [0, 1]` per species per cell caps the capacity (`K_i × g_i`). In own cells, `Δg = spread_rate × pressure × max(suit − g, 0)`, where pressure = (own cover + 4-neighbour cover of the same species and owner) / 5, and `suit = f_dev × f_soil × f_water × f_light` (the single modifier hook; neutral in V1 except the soil development ramp). Seed rain adds `seed_fraction × K × Δg` biomass.
 - **Spread:** claim progress into empty neighbours, continuous smothering of lower enemy levels by neighbour cover, frozen same-level frontiers (gamerules §3). There is no diffusion.

@@ -13,13 +13,20 @@
   import type { Species } from "../replay/replay";
 
   let { s, size = 44 }: { s: Species; size?: number } = $props();
-  const tone = $derived(s.kind === "flora" ? `l${s.level}` : s.role);
+  let loaded = $state(false); // no broken-image flash while a missing file is being tried
+  const tone = $derived(s.kind === "flora" ? (s.family === "W" ? "w" : `l${s.level}`) : s.role);
 </script>
 
 <span class="icon {tone}" style:--size="{size}px" aria-hidden="true">
   <span class="glyph">{glyph(s)}</span>
   {#if !missing.has(s.name)}
-    <img src="icons/species/{s.name}.webp" alt="" onerror={() => missing.add(s.name)} />
+    <img
+      class:loaded
+      src="icons/species/{s.name}.webp"
+      alt=""
+      onload={() => (loaded = true)}
+      onerror={() => missing.add(s.name)}
+    />
   {/if}
 </span>
 
@@ -46,24 +53,36 @@
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   }
   img {
+    visibility: hidden;
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
     object-fit: contain;
   }
-  /* Placeholder tones: flora by stratum, fauna by role. */
+  img.loaded {
+    visibility: visible;
+  }
+  /* Placeholder tones: flora by stratum (water plants apart), fauna by role. */
   .l1 {
     --hi: #a6d17a;
     --lo: #4e7a34;
   }
   .l2 {
+    --hi: #8fbf5e;
+    --lo: #41662a;
+  }
+  .l3 {
     --hi: #6fae58;
     --lo: #2f5a26;
   }
-  .l3 {
+  .l4 {
     --hi: #4c8a45;
     --lo: #1b3b1d;
+  }
+  .w {
+    --hi: #6fb8ad;
+    --lo: #1f5a55;
   }
   .decomposer {
     --hi: #b08a62;

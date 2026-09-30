@@ -9,10 +9,12 @@ function sp(
   tier: number,
   cost: number,
   habitat: string[] = [],
+  family = kind === "flora" ? `L${level}` : "P2",
 ): Species {
   // prettier-ignore
   return {
-    name, kind, level, tier, role: kind === "flora" ? `L${level}` : "predator", habitat, eats: [],
+    name, kind, family, level, tier, role: kind === "flora" ? `L${level}` : "predator", habitat,
+    eats: [],
     stats: { growth: 1, spawn_cost: 1, unlock_cost: cost, yield: 1, cap: 1, effect: "" },
   }; // prettier-ignore
 }
@@ -21,8 +23,8 @@ const meta = {
   species: [
     sp("grasses", "flora", 1, 1, 0),
     sp("clover", "flora", 1, 2, 300),
-    sp("elder", "flora", 2, 1, 1500),
-    sp("fox", "fauna", 5, 1, 8000, ["L2"]),
+    sp("elder", "flora", 3, 1, 1500),
+    sp("fox", "fauna", 0, 1, 8000, ["L3"]),
   ],
   log: [
     { t_s: 100, player: 1, what: "unlock: clover", count: 300 },
@@ -58,8 +60,8 @@ describe("species helpers", () => {
     const p1 = unlockedAt(meta, 1, 0);
     expect(cardState(meta, grasses, p1)).toBe("unlocked");
     expect(cardState(meta, clover, p1)).toBe("available");
-    expect(cardState(meta, elder, p1)).toBe("available"); // tier 1 of L2
-    expect(cardState(meta, fox, p1)).toBe("locked"); // needs an L2 plant
+    expect(cardState(meta, elder, p1)).toBe("available"); // tier 1 of L3
+    expect(cardState(meta, fox, p1)).toBe("locked"); // needs an L3 plant
     expect(cardState(meta, fox, unlockedAt(meta, 2, 300))).toBe("available");
   });
 });
@@ -67,12 +69,12 @@ describe("species helpers", () => {
 describe("build card helpers", () => {
   it("groups species by family, plants first, in tier order", () => {
     const groups = families([
-      sp("fox", "fauna", 5, 1, 0),
-      sp("elder", "flora", 2, 1, 0),
+      sp("fox", "fauna", 0, 1, 0),
+      sp("elder", "flora", 3, 1, 0),
       sp("wildflowers", "flora", 1, 2, 0),
       sp("grasses", "flora", 1, 1, 0),
     ]);
-    expect(groups.map((g) => g.name)).toEqual(["Herbs", "Shrubs", "Carnivores"]);
+    expect(groups.map((g) => g.name)).toEqual(["Herbs", "Shrubs", "Small hunters"]);
     expect(groups[0]?.species.map((s) => s.name)).toEqual(["grasses", "wildflowers"]);
   });
 

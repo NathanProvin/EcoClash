@@ -9,9 +9,16 @@ export type Role = "decomposer" | "herbivore" | "predator";
 export interface Species {
   name: string;
   kind: "flora" | "fauna";
+  /** Tech-tree family (D-087): L1..L4, W; D, H1..H4, HW, P1..P3, PW. */
+  family: string;
+  /** Plants: height stratum 1..4; animals: 0. */
   level: number;
   tier: number;
-  role: string; // "L1".."L3" for plants, a Role for animals
+  role: string; // "L1".."L4" for plants, a Role for animals
+  /** Animals: drawn as a swarm, not a unit (D-065). */
+  swarm?: boolean;
+  /** Animals: walk, swim, amphibious or fly (D-084). */
+  medium?: string;
   habitat: string[];
   eats: string[];
   stats: {
@@ -32,7 +39,7 @@ export interface Fields {
   owner: Uint8Array; // 0 none, 1 or 2
   soil: Uint8Array; // soil development 0..255
   species: Uint8Array[]; // cover 0..255 per plant species (species-table order)
-  cover: Uint8Array[]; // cover 0..255 per stratum L1..L3 (sum of its species, capped)
+  cover: Uint8Array[]; // cover 0..255 per height stratum L1..L4 (sum of its species, capped)
   pressure?: Uint8Array; // live only: how hard the non-owner pushes into each cell, 0..255 (D-076)
 }
 
@@ -186,7 +193,7 @@ export function decodeFields(
   const cells = meta.n * meta.n;
   const layer = (k: number) => bytes.subarray(k * cells, (k + 1) * cells);
   const species = meta.flora.names.map((_, i) => layer(2 + i));
-  const cover = [1, 2, 3].map((level) => {
+  const cover = [1, 2, 3, 4].map((level) => {
     const sum = new Uint8Array(cells);
     species.forEach((c, i) => {
       if (meta.flora.level[i] !== level) return;

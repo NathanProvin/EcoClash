@@ -5,7 +5,7 @@
 //!
 //! Spending (gamerules §4, §7; D-058), as in the prototype's `Economy`: species cards are
 //! unlocked per player (unlock cost 0 = unlocked at start). A card needs one unlocked species on
-//! the previous tier of its tree and level and, for an animal, one unlocked habitat plant. Planting
+//! the previous tier of its family (D-087) and, for an animal, one unlocked habitat plant. Planting
 //! costs `spawn_cost` per cell planted; spawning costs `spawn_cost` per animal, times
 //! `drop_surcharge` for any animal landing outside own land (D-061). A sandbox match (tools, checks) has
 //! everything unlocked and free.
@@ -43,8 +43,8 @@ pub struct Economy {
     unlock_cost: Vec<i64>,
     spawn_cost: Vec<i64>,
     surcharge: i64,
-    /// Per species: (is an animal, level, tier) for the unlock rule.
-    tree: Vec<(bool, u8, u8)>,
+    /// Per species: (is an animal, family, tier) for the unlock rule.
+    tree: Vec<(bool, String, u8)>,
     /// Per animal species: habitat plants (bitmask over plant species).
     habitat: Vec<u32>,
     plants: usize,
@@ -74,8 +74,8 @@ impl Economy {
             surcharge: round(b.economy.drop_surcharge * one),
             tree: fl
                 .iter()
-                .map(|(_, s)| (false, s.level, s.tier))
-                .chain(fa.iter().map(|(_, s)| (true, s.level, s.tier)))
+                .map(|(_, s)| (false, s.family.clone(), s.tier))
+                .chain(fa.iter().map(|(_, s)| (true, s.family.clone(), s.tier)))
                 .collect(),
             habitat: fauna.habitat.clone(),
             plants: fl.len(),
@@ -127,6 +127,12 @@ impl Economy {
             .i64s(&self.spawn_cost)
             .i64(self.surcharge)
             .i64(self.pace);
+        for (animal, family, tier) in &self.tree {
+            h.u64(u64::from(*animal))
+                .u64(family.len() as u64)
+                .bytes(family.as_bytes())
+                .u64(u64::from(*tier));
+        }
     }
 
     /// The state that changes during a match, for the tick hash.
@@ -155,14 +161,18 @@ impl Economy {
         if have.get(i) == Some(&true) {
             return Err("already unlocked".into());
         }
-        let (animal, level, tier) = self.tree[i];
-        let below = |j: usize| self.tree[j] == (animal, level, tier - 1) && have[j];
-        if tier > 1 && !(0..self.tree.len()).any(below) {
+        let (animal, family, tier) = &self.tree[i];
+        let below = |j: usize| {
+            let (a, f, t) = &self.tree[j];
+            a == animal && f == family && *t + 1 == *tier && have[j]
+        };
+        if *tier > 1 && !(0..self.tree.len()).any(below) {
             return Err(format!(
-                "needs a tier {} species of its level first",
+                "needs a tier {} species of its family first",
                 tier - 1
             ));
         }
+        let animal = *animal;
         if animal {
             let mask = self.habitat[i - self.plants];
             if !(0..self.plants).any(|j| mask >> j & 1 == 1 && have[j]) {
@@ -224,7 +234,7 @@ mod tests {
     fn cards_unlock_by_tier_and_habitat_and_cost_points() {
         let b = Balance::from_toml(BALANCE, SPECIES).unwrap();
         let p = FloraParams::from_balance(&b);
-        let fp = FaunaParams::from_balance(&b, &p);
+        let fp = FaunaParams::from_balance(&b);
         let mut e = Economy::new(&b, &fp);
         let idx = |name: &str| {
             p.index(name)
@@ -247,8 +257,14 @@ mod tests {
             "per player"
         );
         assert!(
-            e.check_unlock(1, fox).unwrap_err().contains("habitat"),
-            "fox needs an L2 plant"
+            e.check_unlock(1, idx("lynx"))
+                .unwrap_err()
+                .contains("habitat"),
+            "the lynx needs a tree"
+        );
+        assert!(
+            e.check_unlock(1, fox).unwrap_err().contains("tier 2"),
+            "the fox comes after the pine marten"
         );
         e.bank[0] = 0;
         let hazel = idx("hazel");
@@ -275,7 +291,7 @@ mod tests {
     fn income_is_yield_times_capped_cover_and_banks_one_flora_period() {
         let b = Balance::from_toml(BALANCE, SPECIES).unwrap();
         let p = FloraParams::from_balance(&b);
-        let fauna = Fauna::new(FaunaParams::from_balance(&b, &p));
+        let fauna = Fauna::new(FaunaParams::from_balance(&b));
         let mut e = Economy::new(&b, &fauna.p);
         let start = e.bank;
         let g = p.index("grasses").unwrap();

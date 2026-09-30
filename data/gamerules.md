@@ -21,15 +21,12 @@ Victory conditions are defined in `INSTRUCTIONS.md` §2.3 (territory share or to
 
 ### 1.1 V1 scope
 
-- **Terrain:** flat, one basic soil type. Soil types and topography are planned but not implemented (§2.3).
-- **Start:** the whole map is **bare soil**. **[Proposed]** Each player starts with a starting biomass budget, and chooses where to spawn the first organisms. **[Proposed]** L1 tier 1 (the pioneers) and F1 tier 1 (earthworms) are unlocked at start; the budget covers about one more unlock plus a few seedings; the map is mirrored and each player seeds only in their own half during the first minute.
+- **Terrain:** a generated map with relief, a river, ponds and rock outcrops (§2.3, D-083); one basic soil type.
+- **Start:** the whole map is **bare soil**. **[Proposed]** Each player starts with a starting biomass budget, and chooses where to spawn the first organisms. Lichen & moss, grasses and earthworms are unlocked at start (D-087); **[Proposed]** the budget covers about one more unlock plus a few seedings; the map is mirrored and each player seeds only in their own half during the first minute.
 - **Progression:** the landscape emerges through succession, **bare soil → meadow → increasingly developed shrub strata → forest**.
 - **Out of V1:** wet meadow and the other biomes (§2.2); pollinators and fire (`INSTRUCTIONS.md` §2.5).
-- **[Proposed] V1 species subset:**
-  - Flora (12): L1 herbaceous: pioneers (lichen & moss, grasses, ferns), then wildflowers, nettle, bramble (D-050). L2 shrubs: elder, hazel, hawthorn & blackthorn. L3 trees: oak, beech, chestnut.
-  - Fauna (15): First group: earthworms, pill bug, slugs. Second group: grasshoppers, caterpillars & butterflies. Third group: voles, moles & hedgehog, rabbits. Fourth group: tits, woodpecker, buzzard. Fifth group: fox, tawny owl, Eurasian lynx.
-  - Every unit in the subset has at least one counter in the subset, except the apex predators, because of the food web relations.
-
+- **V1 species (author's table, D-087):** 15 plants in 5 families and 30 animals in 10 families, three tiers each (small, medium, large). See §4.2 and §5.
+  - Every unit has at least one counter, except the apex predators, because of the food web relations.
 
 ---
 
@@ -38,18 +35,21 @@ Victory conditions are defined in `INSTRUCTIONS.md` §2.3 (territory share or to
 ### 2.1 Hidden grid
 
 - The map is backed by a **hidden grid**. The player **never sees cells**: everything is rendered as a fluid, continuous landscape.
-- Each cell has an **owner** (none, player 1 or player 2) and can host several of its owner's species at once, in three vertical strata. Species of the same stratum **complement each other and interpenetrate** (e.g. grasses and wildflowers in one meadow cell), and each keeps spreading (D-022):
+- Each cell has an **owner** (none, player 1 or player 2) and can host several of its owner's species at once, in four vertical strata. Species of the same stratum **complement each other and interpenetrate** (e.g. grasses and wildflowers in one meadow cell), and each keeps spreading (D-022):
 
 | Level | Stratum | Examples (V1) |
 |---|---|---|
-| L1 | Herbaceous (pioneers are its first tier) | Lichen & moss, grasses, ferns; wildflowers, nettle, bramble |
-| L2 | Shrub | Elder, hazel, hawthorn & blackthorn |
-| L3 | Canopy (trees) | Oak, beech, chestnut |
+| L1 | Herbaceous | Lichen & moss, grasses, wildflowers; algae & water lilies |
+| L2 | Intermediate (undergrowth) | Ferns, nettles, brambles; reeds |
+| L3 | Shrub | Elder, hawthorn, hazel |
+| L4 | Canopy (trees) | Oak, chestnut, beech; willow |
+
+Aquatic plants (family W) sit in the stratum of their height: they want the water through their moisture response, so they hold the shallows and wet banks (D-087).
 
 - **[Proposed] Complementarity.** Species of one stratum compete with partial niche overlap (`niche_overlap` in `balance.toml`, below 1), so a mixed stand holds more biomass than a monoculture.
 - A cell's **dominant level** is the highest level among the strata present in it, counting only strata whose biomass is above `establish_threshold`.
 - **[Proposed] Shade.** Higher strata in a cell reduce the growth of the owner's lower strata in that same cell. Shade-tolerant species suffer less.
-- **[Proposed] Succession (soil development).** Each cell has a **soil development** value (organic matter), which starts at 0 on bare soil. Plants raise it over time, pioneers fastest. Each level needs a minimum value to establish: L1 pioneers none, the rest of L1 low, L2 medium, L3 high. This drives the V1 progression bare soil → meadow → shrubs → forest. It is independent of the soil *type* (§2.3).
+- **[Proposed] Succession (soil development).** Each cell has a **soil development** value (organic matter), which starts at 0 on bare soil. Plants raise it over time, pioneers fastest. Each level needs a minimum value to establish: pioneers none, the rest of L1 low, L2 lower-medium, L3 medium, L4 high. This drives the V1 progression bare soil → meadow → shrubs → forest. It is independent of the soil *type* (§2.3).
 
 ### 2.2 Biomes [Post-V1]
 
@@ -166,38 +166,43 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
 ### 4.1 Principles
 
 - The tree goes from the **simplest species to the most complex**, with **flora and fauna in the same tree**.
-- The tree is organised in **levels** (L1–L3 for flora, F1–F5 for fauna, matching the five V1 fauna groups). Each level has several **tiers**, and each tier unlocks 1–3 species. Upgrading a tier costs biomass.
+- The tree is organised in **families** (D-087): 5 plant families and 10 animal families, each with three **tiers** (small, medium, large), one species per tier. Unlocking a card costs biomass.
 - Unlocking a card does **not** place anything on the map. It only makes the species available to spawn.
 - Unlocks are permanent: a card stays unlocked even if the species dies out on the player's side.
-- **[Proposed] Unlock requirements:** the previous tier of the same level, plus the flora level the species needs as habitat. For example, the tawny owl needs L3 unlocked.
+- **Unlock requirements:** the previous tier of the same family, plus, for an animal, one of its habitat plants. For example, the wolf needs the lynx and a tree.
 - **Spawning** additionally requires the species' **spawn conditions** (§6.3) to be met at that moment.
 
-### 4.2 Flora levels
+### 4.2 Families and tiers (author's table, D-087)
 
-| Level | Tier 1 | Tier 2 | Tier 3 |
+| Family | Small (tier 1) | Medium (tier 2) | Large (tier 3) |
 |---|---|---|---|
-| **L1** Herbaceous | Pioneers: lichen & moss, grasses, ferns | Wildflowers, nettle | Bramble |
-| **L2** Shrub | Elder | Hazel | Hawthorn & blackthorn |
-| **L3** Canopy | Oak | Beech | Chestnut |
+| **L1** Herbaceous | Lichens & mosses | Grasses | Wildflowers |
+| **L2** Intermediate | Ferns | Nettles | Brambles |
+| **L3** Shrubs | Elder | Hawthorn | Hazel |
+| **L4** Trees | Oak | Chestnut | Beech |
+| **W** Aquatic flora | Algae & water lilies | Reeds | Willow |
+| **D** Detritivores | Earthworms | Fungi (mycelium) | Raven |
+| **H1** Herbaceous eaters | Grasshoppers | Rabbit | European bison |
+| **H2** Intermediate eaters | Slugs & snails | Bank vole | Roe deer |
+| **H3** Shrub eaters | Caterpillars | Red squirrel | Red deer |
+| **H4** Tree eaters | Bark beetles | Eurasian beaver | Wild boar |
+| **HW** Aquatic grazers | Larvae (become dragonflies) | Roach (fish) | Mallard duck |
+| **P1** Insect eaters | Great tit | Common frog | Badger |
+| **P2** Small-mammal eaters | Kestrel | Pine marten | Red fox |
+| **P3** Large-mammal eaters | Eurasian lynx | Wolf | Brown bear |
+| **PW** Aquatic hunters | Pike | Grey heron | Eurasian otter |
 
-Pioneers as L1 tier 1, the L1 line-up (D-050) and the oak → beech → chestnut line are the author's; the other entries are [Proposed], in the order of the V1 subset (§1.1).
+### 4.3 Diets, habitats and media [Proposed defaults, D-087]
 
-### 4.3 Fauna levels [Proposed]
-
-| Level | Role | Tier 1 | Tier 2 | Tier 3 |
-|---|---|---|---|---|
-| **F1** Soil fauna | Decomposers, ground grazers | Earthworms | Pill bug | Slugs |
-| **F2** Insects | Grazers | Grasshoppers | Caterpillars & butterflies | — (bees, post-V1) |
-| **F3** Small mammals | Grazers, soil-fauna hunters | Voles | Moles, hedgehog | Rabbits |
-| **F4** Birds | Insect hunters, raptor | Tits | Woodpecker | Buzzard |
-| **F5** Carnivores | Mid and apex predators | Fox | Tawny owl | Eurasian lynx |
-
-Each card also needs its flora habitat unlocked (§4.1). The habitat of each species is in §5.2.
+- **Diets:** Hx eat the plants of Lx (the beaver also willow; some browsers take the next stratum too). D eat dead biomass. HW eat aquatic plants. P1 eat insects, larvae and soil life; P2 small mammals, frogs and ducks; P3 deer, boar, bison, and smaller hunters; PW fish, larvae and frogs.
+- **Habitats:** grazers need their food plants on their owner's land; hunters need a plant family (woods for the lynx, water plants for the pike).
+- **Media (D-084):** fish and larvae swim; frog, beaver, otter, mallard and heron are amphibious; great tit, kestrel and raven fly; the rest walk.
+- **Swarms (D-065):** earthworms, fungi, grasshoppers, slugs & snails, caterpillars, bark beetles and larvae are drawn as swarms, not units.
 
 ### 4.4 Costs [Proposed]
 
 - Every species has its own stat sheet in `data/species.toml` (D-029): **growth** (plants: colonization gauge speed; animals: seconds between births), **spawn cost**, **unlock cost**, **yield** (points per second per covered cell or per animal; stat-sheet seconds are ecology seconds, which run at `pace` per real second, D-069), **population cap** (plants: a share of the map's cells per player, D-045; animals: a head count per player) and a **special effect**.
-- Unlocking is per species: it needs one unlocked species on the previous tier of its level and, for an animal, one of its habitat plants. Species with unlock cost 0 are available at start.
+- Unlocking is per species: it needs one unlocked species on the previous tier of its family and, for an animal, one of its habitat plants. Species with unlock cost 0 are available at start.
 - The initial unlock costs follow the placeholder rule `base(level) × 1.5^(tier−1)`; spawn costs scale with level and body size.
 - Higher tiers are not strictly better. They trade off speed vs. efficiency, or shade tolerance vs. growth rate.
 
@@ -205,49 +210,9 @@ Each card also needs its flora habitat unlocked (§4.1). The habitat of each spe
 
 ## 5. Food web design (Western European ecosystems)
 
-### 5.1 Flora
+### 5.1 Flora and 5.2 Fauna
 
-In V1 the only soil requirement is the soil development threshold of the level (§2.1). The soil and water needs below are for later terrain (§2.3).
-
-| Species | Level | Tier | Biome affinity | Soil / water need [Proposed] | Key traits | Eaten by |
-|---|---|---|---|---|---|---|
-| Lichen & moss | L1 | 1 (pioneer) | All (bare, sandy and shaded ground) | None; drought-tolerant (lichen), moist (moss) | Establishes on bare soil and under own shrubs and trees. Slow growth, little biomass, fastest soil development gain | Slugs |
-| Grasses | L1 | 1 (pioneer) | Meadow & bocage | Poor to medium; medium water | Fastest growth and spread; the main early income. Shade-intolerant | Grasshoppers, voles, rabbits, slugs |
-| Ferns | L1 | 1 (pioneer) | Forest | Poor to medium; moist | Shade-tolerant understory. Unpalatable: few grazers, but slow spread and low income | Slugs |
-| Wildflowers | L1 | 2 | Meadow & bocage | Medium; medium water | The best herbaceous income | Rabbits, grasshoppers, voles, slugs |
-| Nettle | L1 | 2 | Meadow & bocage, forest edge | Rich (nitrophilous); medium water | Stinging: grazers leave it alone. Hosts butterfly caterpillars | Caterpillars |
-| Bramble | L1 | 3 | Meadow & bocage, forest edge | Rich; medium water | Fast, aggressive spread. Thorny refuge: own small fauna inside cannot be hunted | Rabbits, caterpillars |
-| Elder | L2 | 1 | Meadow & bocage | Rich; medium water | Fastest shrub, but short-lived (early senescence). The first L2 foothold | Caterpillars, rabbits (young stems) |
-| Hazel | L2 | 2 | Forest, bocage | Medium; medium water | Shade-tolerant: grows under own trees. Nuts feed voles | Caterpillars, voles (nuts, §6.1) |
-| Hawthorn & blackthorn | L2 | 3 | Meadow & bocage (hedgerows) | Medium; dry-tolerant | Slow but dense and thorny: slows enemy units, and own small fauna inside cannot be hunted (§6.2). Hedgehog habitat | Caterpillars, rabbits (seedlings) |
-| Oak | L3 | 1 | Forest, bocage | Medium to rich; medium water | Very slow, very long-lived (late senescence). Light canopy, so the understory grows well beneath it. Hosts the most caterpillars | Caterpillars, voles (acorns, §6.1) |
-| Beech | L3 | 2 | Forest | Rich; moist but not waterlogged | Shade-tolerant, casts deep shade that suppresses the understory. High biomass. Prone to monoculture (§11.3) | Caterpillars, voles (beechnuts, §6.1) |
-| Chestnut | L3 | 3 | Forest (sandy soil) | Medium, acidic; dry-tolerant | Fastest-growing tree, with earlier maturity and senescence | Caterpillars, voles (chestnuts, §6.1) |
-
-
-### 5.2 Fauna
-
-"Habitat" means what the spawning player must own. "Spawn trigger" is the enemy-side condition (§6.3).
-
-Biomes: F = temperate forest, M = meadow & bocage, W = wet meadow. "Herbivore": called freely on own land, or dropped on matching food off own land (×1.5, D-061). "Drop" trigger: predator placed on or within `r_prey` of matching enemy prey (§6.3). All entries are [Proposed] except the author's example that the tawny owl needs trees (L3), and the hedgehog as the slug counter.
-
-| Species | Lvl | Tier | Biomes | Eats | Eaten by | Habitat (own) | Spawn trigger |
-|---|---|---|---|---|---|---|---|
-| Earthworms | F1 | 1 | F, M | Dead biomass (→ nutrients, soil development) | Moles, hedgehog, buzzard, fox | Any L1 cell | None (decomposer) |
-| Pill bug | F1 | 2 | F, W | Dead biomass (→ nutrients) | Tits, moles | Lichen & moss, ferns, or any L2/L3 cell (leaf litter) | None (decomposer) |
-| Slugs | F1 | 3 | W, F, M | Lichen & moss, grasses, ferns, wildflowers; dead biomass | Hedgehog, moles | Any L1 cell | Herbivore |
-| Grasshoppers | F2 | 1 | M | Grasses, wildflowers | Tits, buzzard, fox | Grasses | Herbivore |
-| Caterpillars & butterflies | F2 | 2 | F, M | Nettle, bramble, L2 shrubs, L3 trees | Tits, woodpecker, hedgehog | Nettles or any L2 cell | Herbivore (enemy nettles, L2 or L3) |
-| Voles | F3 | 1 | M, W | Grasses, wildflowers; seeds of hazel and trees (spread reduction, §6.1) | Buzzard, tawny owl, fox | Grasses | Herbivore |
-| Moles | F3 | 2 | M, F | Enemy soil fauna: earthworms, pill bugs, slugs | Buzzard, tawny owl, fox | Any L1 cell | Drop |
-| Hedgehog | F3 | 2 | M, F | Slugs, earthworms, caterpillars | Fox | Any L2 cell (hedge cover) | Drop |
-| Rabbits | F3 | 3 | M | Grasses, wildflowers, bramble, young elder and hawthorn | Fox, buzzard, lynx | Grasses next to any L2 cell (warren cover) | Herbivore |
-| Tits | F4 | 1 | F, M | Caterpillars, grasshoppers, pill bugs | Tawny owl | Any L2 or L3 cell (nesting) | Drop |
-| Woodpecker | F4 | 2 | F | Caterpillars; bark beetles during an outbreak (§11.3) | Tawny owl | Any L3 cell | Drop (also allowed on own trees hit by a bark-beetle outbreak) |
-| Buzzard | F4 | 3 | M, F | Voles, rabbits, moles, grasshoppers, earthworms | — (apex in V1) | L3 next to L1 (woodland edge) | Drop |
-| Fox | F5 | 1 | M, F | Rabbits, voles, moles, hedgehogs, grasshoppers, earthworms | Lynx | Any L2 cell (den in scrub) | Drop |
-| Tawny owl | F5 | 2 | F | Voles, moles, tits, woodpecker | — (apex) | Any L3 cell | Drop |
-| Eurasian lynx | F5 | 3 | F | Rabbits, fox | — (apex) | A block of contiguous L3 cells (size in `balance.toml`) | Drop |
+The species, their stats, diets, habitats and media are in `data/species.toml` (D-029, D-087), one stat sheet each; §4.2 and §4.3 give the design. The stats are placeholders for the balance runs (M7).
 
 ### 5.3 Food web overview (trophic groups)
 
@@ -256,42 +221,35 @@ Arrows show energy flow (food → consumer). Dotted arrows are support interacti
 ```mermaid
 graph BT
   DEAD[(Dead biomass)]
-  SOIL[(Soil: nutrients, development)]
-  L1[L1 Herbaceous<br/>pioneers, wildflowers, nettle, bramble]
-  L2[L2 Shrub<br/>elder, hazel, hawthorn]
-  L3[L3 Canopy<br/>oak, beech, chestnut]
-  EW[Earthworms]
-  PB[Pill bug]
-  SL[Slugs]
-  GH[Grasshoppers]
-  CA[Caterpillars]
-  VO[Voles]
-  MO[Moles]
-  HH[Hedgehog]
-  RA[Rabbits]
-  TI[Tits]
-  WP[Woodpecker]
-  BU[Buzzard]
-  FO[Fox]
-  OW[Tawny owl]
-  LY[Lynx]
+  SOIL[(Soil: development)]
+  L1[L1 Herbaceous]
+  L2[L2 Intermediate]
+  L3[L3 Shrubs]
+  L4[L4 Trees]
+  W[W Aquatic flora]
+  D[D Detritivores]
+  H1[H1 Herb eaters]
+  H2[H2 Undergrowth eaters]
+  H3[H3 Shrub eaters]
+  H4[H4 Tree eaters]
+  HW[HW Aquatic grazers]
+  P1[P1 Insect eaters]
+  P2[P2 Small-mammal eaters]
+  P3[P3 Large-mammal eaters]
+  PW[PW Aquatic hunters]
 
-  DEAD --> EW & PB & SL
-  EW & PB -.->|decomposition| SOIL
-  SOIL -.-> L1 & L2 & L3
-  L1 --> SL & GH & VO & RA & CA
-  L2 --> CA & RA
-  L3 --> CA
-  L2 & L3 -->|seeds| VO
-  EW & PB & SL --> MO
-  SL & EW & CA --> HH
-  PB & GH & CA --> TI
-  CA --> WP
-  EW & GH & VO & MO & RA --> BU
-  EW & GH & VO & MO & HH & RA --> FO
-  VO & MO & TI & WP --> OW
-  RA & FO --> LY
-
+  DEAD --> D
+  D -.->|decomposition| SOIL
+  SOIL -.-> L1 & L2 & L3 & L4 & W
+  L1 --> H1
+  L2 --> H2
+  L3 --> H3
+  L4 --> H4
+  W --> HW
+  H1 & H2 & H3 & H4 & HW & D --> P1
+  H1 & H2 & H3 & HW & P1 --> P2
+  H1 & H2 & H3 & H4 & P1 & P2 --> P3
+  HW & P1 --> PW
 ```
 
 All dead organisms, plants and animals, feed `Dead biomass`.

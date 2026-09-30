@@ -47,9 +47,10 @@
   const land = $derived([value("territory_p1"), value("territory_p2")]);
   const layerNames: [Layer, string][] = [
     ["territory", "Territory"],
-    ["L1", "Grass"],
-    ["L2", "Shrubs"],
-    ["L3", "Trees"],
+    ["L1", "Herbs"],
+    ["L2", "Undergrowth"],
+    ["L3", "Shrubs"],
+    ["L4", "Trees"],
     ["animals", "Animals"],
   ];
 </script>

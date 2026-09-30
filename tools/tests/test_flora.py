@@ -167,7 +167,8 @@ def test_biomass_stays_under_gauge_capacity(mode):
 def test_bioclimate_hooks_are_neutral_in_v1_and_bite_when_set():
     bal = uncapped()
     fl = Flora(bal, succession=False)
-    assert (fl.suitability(fl.new_state(4)) == 1 << 16).all()
+    land = fl.family != "W"  # aquatic plants want the water, not a flat map (D-087)
+    assert (fl.suitability(fl.new_state(4))[land] == 1 << 16).all()
     bal["flora"]["grasses"] |= {"water_optimum": 0.9, "water_tolerance": 0.5}  # field is 0.5
     dry = Flora(bal, succession=False)
     assert dry.suitability(dry.new_state(4))[dry.idx("grasses")].max() < 0.25 * (1 << 16)

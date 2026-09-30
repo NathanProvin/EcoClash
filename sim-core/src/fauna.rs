@@ -102,15 +102,15 @@ pub struct FaunaParams {
 impl FaunaParams {
     #[must_use]
     #[allow(clippy::float_arithmetic)] // load-time conversion, see fixed::Q16::from_balance
-    pub fn from_balance(b: &Balance, fl: &FloraParams) -> FaunaParams {
+    pub fn from_balance(b: &Balance) -> FaunaParams {
         let (fa, dt, one) = (&b.fauna, b.flora_dt(), f64::from(ONE));
         let hz = f64::from(b.sim.tick_hz);
+        // A plant name, or a family name (L1..L4, W; D-087) for every plant of that family.
         let flora_mask = |names: &[String]| -> u32 {
             let mut m = 0;
             for n in names {
-                for (i, &l) in fl.level.iter().enumerate() {
-                    let by_level = n.len() == 2 && n.starts_with('L') && n[1..] == l.to_string();
-                    if by_level || fl.names.get(i) == Some(n) {
+                for (i, (name, s)) in b.flora_species.iter().enumerate() {
+                    if n == name || *n == s.family {
                         m |= 1 << i;
                     }
                 }
@@ -1202,7 +1202,7 @@ mod tests {
     fn setup(n: usize) -> (Flora, Fauna, FloraState, Pcg32) {
         let b = Balance::from_toml(BALANCE, SPECIES).unwrap();
         let flora = Flora::new(FloraParams::from_balance(&b));
-        let fauna = Fauna::new(FaunaParams::from_balance(&b, &flora.p));
+        let fauna = Fauna::new(FaunaParams::from_balance(&b));
         let st = FloraState::new(&flora.p, n);
         (flora, fauna, st, Pcg32::new(1, 2))
     }
@@ -1263,19 +1263,19 @@ mod tests {
     fn herbivores_graze_enemy_flora_and_decomposers_turn_litter_into_soil() {
         let (fl, mut fa, mut st, mut rng) = setup(8);
         meadow(&fl, &mut st, "grasses");
-        let (voles, worms) = (
-            fa.p.index("voles").unwrap(),
+        let (rabbits, worms) = (
+            fa.p.index("rabbits").unwrap(),
             fa.p.index("earthworms").unwrap(),
         );
         let g = fl.p.index("grasses").unwrap();
         let k = 3 * 8 + 6; // P2's land
-        fa.agents.push(voles, 1, centre(3), centre(6), ONE_I, 0);
+        fa.agents.push(rabbits, 1, centre(3), centre(6), ONE_I, 0);
         st.dead[2 * 8 + 2] = 1000;
         fa.agents.push(worms, 1, centre(2), centre(2), ONE_I, 0);
         let before = st.bio[g * 64 + k];
         fa.act(&fl.p, &mut st, &mut rng);
         let eaten = before - st.bio[g * 64 + k];
-        assert_eq!(eaten, fa.p.bite[voles], "full bite on enemy flora");
+        assert_eq!(eaten, fa.p.bite[rabbits], "full bite on enemy flora");
         assert!(st.dead[k] > 0, "what is not assimilated becomes litter");
         assert!(
             st.dead[2 * 8 + 2] < 1000 && st.soil[2 * 8 + 2] > 0,
@@ -1285,20 +1285,20 @@ mod tests {
 
     #[test]
     fn predators_eat_enemy_prey_in_reach_but_not_in_a_refuge_nor_when_sated() {
-        let (fox, voles) = {
+        let (fox, rabbits) = {
             let (_, fa, _, _) = setup(8);
-            (fa.p.index("fox").unwrap(), fa.p.index("voles").unwrap())
+            (fa.p.index("fox").unwrap(), fa.p.index("rabbits").unwrap())
         };
-        // One hungry fox next to (not on) a vole; `plant` covers the map; `catch` in Q16.
+        // One hungry fox next to (not on) a rabbit; `plant` covers the map; `catch` in Q16.
         let run = |plant: &str, fox_energy: i64, catch: i64| {
             let (fl, mut fa, mut st, mut rng) = setup(8);
             meadow(&fl, &mut st, plant);
             fa.p.catch = catch;
             fa.agents.push(fox, 1, centre(1), centre(5), fox_energy, 0);
             fa.agents
-                .push(voles, 2, centre(2), centre(6), ONE_I * 100, 0);
+                .push(rabbits, 2, centre(2), centre(6), ONE_I * 100, 0);
             fa.act(&fl.p, &mut st, &mut rng);
-            fa.census(2)[voles]
+            fa.census(2)[rabbits]
         };
         let hungry = ONE_I * 100;
         assert_eq!(
@@ -1316,10 +1316,10 @@ mod tests {
     fn herbivores_feed_as_well_at_home_on_a_smaller_bite() {
         let (fl, mut fa, mut st, mut rng) = setup(8);
         meadow(&fl, &mut st, "grasses");
-        let voles = fa.p.index("voles").unwrap();
+        let rabbits = fa.p.index("rabbits").unwrap();
         let g = fl.p.index("grasses").unwrap();
-        fa.agents.push(voles, 1, centre(3), centre(1), ONE_I, 0); // own land
-        fa.agents.push(voles, 1, centre(3), centre(6), ONE_I, 0); // enemy land
+        fa.agents.push(rabbits, 1, centre(3), centre(1), ONE_I, 0); // own land
+        fa.agents.push(rabbits, 1, centre(3), centre(6), ONE_I, 0); // enemy land
         let before = [st.bio[g * 64 + 3 * 8 + 1], st.bio[g * 64 + 3 * 8 + 6]];
         fa.act(&fl.p, &mut st, &mut rng);
         let eaten = [
@@ -1389,10 +1389,10 @@ mod tests {
     #[test]
     fn spawn_follows_habitat_and_triggers() {
         let (fl, mut fa, mut st, _) = setup(16);
-        let (worms, fox, voles) = (
+        let (worms, fox, rabbits) = (
             fa.p.index("earthworms").unwrap(),
             fa.p.index("fox").unwrap(),
-            fa.p.index("voles").unwrap(),
+            fa.p.index("rabbits").unwrap(),
         );
         assert!(
             fa.spawn(&fl.p, &st, 1, worms, (2, 2)).is_err(),
@@ -1410,19 +1410,19 @@ mod tests {
             fa.spawn(&fl.p, &st, 1, fox, (2, 12)).is_err(),
             "fox needs its habitat (L2)"
         );
-        let got = fa.spawn(&fl.p, &st, 2, voles, (5, 5)).unwrap();
-        assert!(got > 0, "enemy grasses in range: voles may come");
+        let got = fa.spawn(&fl.p, &st, 2, rabbits, (5, 5)).unwrap();
+        assert!(got > 0, "enemy grasses in range: rabbits may come");
     }
 
     #[test]
     fn orders_steer_own_animals_until_they_arrive() {
         let (fl, mut fa, mut st, mut rng) = setup(16);
         meadow(&fl, &mut st, "grasses");
-        let voles = fa.p.index("voles").unwrap();
+        let rabbits = fa.p.index("rabbits").unwrap();
         fa.agents
-            .push(voles, 1, centre(2), centre(2), ONE_I * 100, 0);
+            .push(rabbits, 1, centre(2), centre(2), ONE_I * 100, 0);
         fa.agents
-            .push(voles, 2, centre(2), centre(12), ONE_I * 100, 0);
+            .push(rabbits, 2, centre(2), centre(12), ONE_I * 100, 0);
         assert_eq!(
             fa.order(1, &[0, 1, 99], OrderKind::Move, (14, 2)),
             1,
@@ -1433,7 +1433,7 @@ mod tests {
             (14, 2),
             "turns at once, to a point inside the goal cell"
         );
-        assert_eq!(fa.agents.ty[1], centre(2), "the enemy vole ignores it");
+        assert_eq!(fa.agents.ty[1], centre(2), "the enemy rabbit ignores it");
         for t in 0..400 {
             fa.walk(&st, &mut rng);
             if t % 8 == 0 {
@@ -1468,8 +1468,8 @@ mod tests {
     #[test]
     fn herbivores_come_on_own_land_or_are_dropped_on_food_near_the_click() {
         let (fl, fa, mut st, _) = setup(16);
-        let (voles, caterpillars) = (
-            fa.p.index("voles").unwrap(),
+        let (rabbits, caterpillars) = (
+            fa.p.index("rabbits").unwrap(),
             fa.p.index("caterpillars").unwrap(),
         );
         let g = fl.p.index("grasses").unwrap();
@@ -1480,16 +1480,16 @@ mod tests {
             }
         }
         // Own land, no enemy food anywhere: the call still works (no trigger any more).
-        let (at, _) = fa.spawn_site(&fl.p, &st, 1, voles, (2, 3)).unwrap();
+        let (at, _) = fa.spawn_site(&fl.p, &st, 1, rabbits, (2, 3)).unwrap();
         assert_eq!(at, 2 * 16 + 3, "own habitat cell nearest the click");
-        // P2 grass on the right half: a click there drops the voles on it, where clicked.
+        // P2 grass on the right half: a click there drops the rabbits on it, where clicked.
         for k in 0..256 {
             if k % 16 >= 8 {
                 st.owner[k] = 2;
                 st.bio[g * 256 + k] = fl.p.kmax[g];
             }
         }
-        let (at, _) = fa.spawn_site(&fl.p, &st, 1, voles, (5, 12)).unwrap();
+        let (at, _) = fa.spawn_site(&fl.p, &st, 1, rabbits, (5, 12)).unwrap();
         assert_eq!(
             (at, st.owner[at]),
             (5 * 16 + 12, 2),
@@ -1510,9 +1510,9 @@ mod tests {
     #[test]
     fn predators_are_dropped_on_prey_near_the_click_only() {
         let (fl, mut fa, mut st, _) = setup(16);
-        meadow(&fl, &mut st, "elder"); // L2: the fox's habitat (not a refuge)
-        let (fox, voles) = (fa.p.index("fox").unwrap(), fa.p.index("voles").unwrap());
-        fa.agents.push(voles, 2, centre(3), centre(13), ONE_I, 0);
+        meadow(&fl, &mut st, "elder"); // L3: the fox's habitat (not a refuge)
+        let (fox, rabbits) = (fa.p.index("fox").unwrap(), fa.p.index("rabbits").unwrap());
+        fa.agents.push(rabbits, 2, centre(3), centre(13), ONE_I, 0);
         assert!(
             fa.spawn_site(&fl.p, &st, 1, fox, (12, 3))
                 .unwrap_err()
@@ -1526,9 +1526,9 @@ mod tests {
     fn free_herbivores_feed_on_the_nearest_food_not_on_the_enemy_first() {
         let (fl, mut fa, mut st, mut rng) = setup(16);
         meadow(&fl, &mut st, "grasses");
-        let voles = fa.p.index("voles").unwrap();
+        let rabbits = fa.p.index("rabbits").unwrap();
         fa.agents
-            .push(voles, 1, centre(8), centre(4), ONE_I * 100, 0); // 4 cells from P2's land
+            .push(rabbits, 1, centre(8), centre(4), ONE_I * 100, 0); // 4 cells from P2's land
         fa.act(&fl.p, &mut st, &mut rng);
         let a = &fa.agents;
         assert_eq!(
@@ -1547,8 +1547,8 @@ mod tests {
     }
 
     /// Predator-prey runs on a 64² meadow with the caps lifted, so only food limits the
-    /// populations (D-066): P2 voles grazing at home among bramble clumps (refuges, capped at 3 % of the map), five P1 foxes
-    /// dropped among them after 2 minutes. One line per seed: voles/foxes every 160 s, 48 min.
+    /// populations (D-066): P2 rabbits grazing at home among bramble clumps (refuges, capped at 3 % of the map), five P1 foxes
+    /// dropped among them after 2 minutes. One line per seed: rabbits/foxes every 160 s, 48 min.
     /// Run: `cargo test -p sim-core --release -- --ignored --nocapture lotka_volterra_report`.
     #[test]
     #[ignore = "report, not a check"]
@@ -1557,7 +1557,7 @@ mod tests {
             let (mut fl, mut fa, mut st, _) = setup(64);
             let mut rng = Pcg32::new(seed, 2);
             meadow(&fl, &mut st, "grasses");
-            let (fox, voles) = (fa.p.index("fox").unwrap(), fa.p.index("voles").unwrap());
+            let (fox, rabbits) = (fa.p.index("fox").unwrap(), fa.p.index("rabbits").unwrap());
             let (g, b) = (
                 fl.p.index("grasses").unwrap(),
                 fl.p.index("bramble").unwrap(),
@@ -1571,12 +1571,12 @@ mod tests {
                 }
             }
             fl.p.cap[b] = ONE_I * 3 / 100; // refuges stay patches: 3 % of the map
-            fa.p.cap[voles] = 5000;
+            fa.p.cap[rabbits] = 5000;
             fa.p.player_cap = 5000;
             fa.p.cap[fox] = 90;
             for k in 0..12 {
                 fa.agents
-                    .push(voles, 2, centre(20 + k), centre(40 + k), ONE_I * 150, 0);
+                    .push(rabbits, 2, centre(20 + k), centre(40 + k), ONE_I * 150, 0);
             }
             let mut line = format!("seed {seed}:");
             for t in 0..3600 {
@@ -1592,7 +1592,7 @@ mod tests {
                 fa.act(&fl.p, &mut st, &mut rng);
                 fl.step(&mut st);
                 if t % 200 == 0 {
-                    line += &format!(" {}/{}", fa.census(2)[voles], fa.census(1)[fox]);
+                    line += &format!(" {}/{}", fa.census(2)[rabbits], fa.census(1)[fox]);
                 }
             }
             println!("{line}");
@@ -1610,8 +1610,8 @@ mod tests {
     fn walkers_go_around_rock_and_never_stand_on_it() {
         let (_, mut fa, mut st, mut rng) = setup(8);
         walled(&mut st);
-        let voles = fa.p.index("voles").unwrap();
-        fa.agents.push(voles, 1, centre(1), centre(1), ONE_I, 0);
+        let rabbits = fa.p.index("rabbits").unwrap();
+        fa.agents.push(rabbits, 1, centre(1), centre(1), ONE_I, 0);
         (fa.agents.ty[0], fa.agents.tx[0], fa.agents.py[0]) = (centre(1), centre(6), ROUTE);
         for _ in 0..3000 {
             fa.walk(&st, &mut rng);
@@ -1627,15 +1627,15 @@ mod tests {
     #[test]
     fn swimmers_stay_in_water_fliers_cross_rock_and_shallows_slow_walkers() {
         let (_, mut fa, mut st, mut rng) = setup(8);
-        let voles = fa.p.index("voles").unwrap();
+        let rabbits = fa.p.index("rabbits").unwrap();
         // A swimmer in a pond (column 0..2) asked to walk ashore stays in the water.
         for y in 0..8 {
             for x in 0..3 {
                 st.ground[y * 8 + x] = crate::terrain::SHALLOW;
             }
         }
-        fa.p.medium[voles] = Medium::Swim;
-        fa.agents.push(voles, 1, centre(1), centre(1), ONE_I, 0);
+        fa.p.medium[rabbits] = Medium::Swim;
+        fa.agents.push(rabbits, 1, centre(1), centre(1), ONE_I, 0);
         (fa.agents.ty[0], fa.agents.tx[0], fa.agents.py[0]) = (centre(1), centre(6), ROUTE);
         for _ in 0..200 {
             fa.walk(&st, &mut rng);
@@ -1644,9 +1644,9 @@ mod tests {
         // A flier goes straight over a wall of rock.
         let (_, mut fa, mut st, mut rng) = setup(8);
         walled(&mut st);
-        fa.p.medium[voles] = Medium::Fly;
+        fa.p.medium[rabbits] = Medium::Fly;
         fa.p.wobble = 0;
-        fa.agents.push(voles, 1, centre(1), centre(1), ONE_I, 0);
+        fa.agents.push(rabbits, 1, centre(1), centre(1), ONE_I, 0);
         (fa.agents.ty[0], fa.agents.tx[0], fa.agents.py[0]) = (centre(1), centre(6), ROUTE);
         fa.walk(&st, &mut rng);
         assert_eq!(fa.agents.px[0], centre(6), "a straight line");
@@ -1654,10 +1654,10 @@ mod tests {
         let (_, mut fa, mut st, mut rng) = setup(8);
         st.ground.fill(crate::terrain::SHALLOW);
         fa.p.wobble = 0;
-        fa.agents.push(voles, 1, centre(1), centre(1), ONE_I, 0);
+        fa.agents.push(rabbits, 1, centre(1), centre(1), ONE_I, 0);
         (fa.agents.ty[0], fa.agents.tx[0], fa.agents.py[0]) = (centre(1), centre(6), ROUTE);
         fa.walk(&st, &mut rng);
-        let slow = div_round(fa.p.speed[voles] * fa.p.shallow_speed, ONE_I);
+        let slow = div_round(fa.p.speed[rabbits] * fa.p.shallow_speed, ONE_I);
         assert_eq!(fa.agents.x[0] - centre(1), slow);
     }
 

@@ -68,11 +68,11 @@ class Fauna:
         self.names = [k for k, v in fa.items() if isinstance(v, dict)]
         sp = [fa[n] for n in self.names]
 
-        def flora_set(names):  # "L2" means every flora species of level 2
+        def flora_set(names):  # a family name ("L2", "W") means every plant of that family
             m = np.zeros(len(flora.names), bool)
             for n in names:
-                if n[0] == "L" and n[1:].isdigit():
-                    m |= flora.level == int(n[1:])
+                if n in flora.family:
+                    m |= flora.family == n
                 else:
                     m[flora.idx(n)] = True
             return m

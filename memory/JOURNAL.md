@@ -399,3 +399,14 @@
 - **Done:** sun shadows per preset, neutral tone mapping, wind on grass and plants, ground tints (wet, dry, slope), foliage rim light, bloom and tilt-shift on High, a dev camera hook. Checked in the browser on Low, Medium and High; client checks green.
 - **Note:** the pale yellow herbs on P2's side are the wildflowers' natural colour, not a lighting bug.
 - **Next:** 3, the species revamp.
+
+## 2026-09-30 · World overhaul 3: species revamp (D-087)
+- **Done:**
+  - the author's 15 plants and 30 animals in families and tiers;
+  - four height strata (Rust and Python, parity exact);
+  - aquatic plants and animals;
+  - the build bar with 15 families;
+  - clumps, reeds and lily pads, 7 new animal bodies, compressed large-animal sizes;
+  - bot and tests updated; replay regenerated;
+  - checked in the browser (sandbox: water plants, deer, bison, fish).
+- **Next:** 4, movement per species.

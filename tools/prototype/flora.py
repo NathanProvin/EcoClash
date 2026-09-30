@@ -24,7 +24,7 @@ BALANCE = ROOT / "data" / "balance.toml"
 SPECIES = ROOT / "data" / "species.toml"
 ONE = 1 << 16  # Q16.16 one: scale of fractions and of colonization progress
 U16 = ONE - 1
-STRATA = 3
+STRATA = 4  # height strata: herbs, intermediate, shrubs, trees (D-087)
 PLAYERS = (1, 2)
 DIRS = ((-1, 0), (1, 0), (0, -1), (0, 1))
 SWITCHES = ("succession", "shade", "contested_cells")
@@ -92,7 +92,7 @@ class Flora:
         soil_types = terrain["soil_types"]
         assert soil_types[0] == "loam" and 0 <= f["niche_overlap"] <= 1 and f["soil_ramp"] > 0
         for n, s in zip(self.names, sp, strict=True):
-            assert s["level"] in (1, 2, 3), n
+            assert 1 <= s["level"] <= STRATA, n
             assert 0 < s["k_max"] <= U16, n
             assert 0 <= s["shade_cast"] < 1 and 0 <= s["shade_tolerance"] <= 1, n
             assert s["biomass_rate"] * self.dt < 1, f"{n}: biomass_rate * dt must stay < 1"
@@ -104,6 +104,7 @@ class Flora:
             return np.array([s.get(key, default) * scale for s in sp], dtype=np.float64)
 
         self.level = np.array([s["level"] for s in sp], dtype=np.int8)
+        self.family = np.array([s["family"] for s in sp])  # tech-tree family (D-087)
         self.strata = [np.flatnonzero(self.level == s + 1) for s in range(STRATA)]
         self.kmax = col("k_max")
         self.rdt = col("biomass_rate", self.dt * ONE)
@@ -225,7 +226,7 @@ class Flora:
         # 1. Shade: the cover of each upper stratum lowers the capacity of the species below it.
         shade = np.full(bio.shape, ONE, self.dtype)
         if sw["shade"]:
-            for u in (1, 2):
+            for u in range(1, STRATA):
                 up = self.strata[u]
                 cast = self.div((X(self.cast[up]) * cover[up]).sum(0), ONE)
                 low = np.flatnonzero(self.level <= u)

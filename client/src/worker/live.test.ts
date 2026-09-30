@@ -14,9 +14,9 @@ class FakeWorker {
     this.sent.push(m);
     if (m.type === "start") {
       const species = [
-        { name: "grasses", kind: "flora", level: 1 },
-        { name: "oak", kind: "flora", level: 3 },
-        { name: "voles", kind: "fauna", level: 3, role: "herbivore" },
+        { name: "grasses", kind: "flora", family: "L1", level: 1 },
+        { name: "oak", kind: "flora", family: "L4", level: 4 },
+        { name: "rabbits", kind: "fauna", family: "H1", level: 0, role: "herbivore" },
       ];
       queueMicrotask(() =>
         this.emit({
@@ -74,7 +74,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
   const worker = FakeWorker.last as FakeWorker;
   expect(live.meta.dt).toBeCloseTo(0.1);
   expect(live.meta.flora.names).toEqual(["grasses", "oak"]);
-  expect(live.meta.fauna).toEqual({ names: ["voles"], role: ["herbivore"] });
+  expect(live.meta.fauna).toEqual({ names: ["rabbits"], role: ["herbivore"] });
   expect(live.maxAnimals()).toBe(2000);
   expect(live.counts(0, 1)).toEqual([0, 0, 0]);
 
@@ -101,7 +101,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
   expect(live.droppedAt(3)).toBeUndefined();
   expect(live.meta.series["standing_p1"]?.[live.seriesIndex()]).toBe(5000);
   expect(live.meta.series["t_s"]?.[live.seriesIndex()]).toBeCloseTo(0.8);
-  expect([...live.unlocked(1)]).toEqual(["grasses", "voles"]);
+  expect([...live.unlocked(1)]).toEqual(["grasses", "rabbits"]);
   expect([...live.unlocked(2)]).toEqual(["grasses"]);
 
   expect(live.tick).toBe(9);
@@ -111,17 +111,17 @@ test("live source decodes frames into census, HUD series, animals and cells", as
   expect(live.meta.series["bank_p2"]?.[live.seriesIndex()]).toBe(990);
   expect(live.meta.series["yield_p1"]?.[live.seriesIndex()]).toBe(4);
   expect(live.cell(9, 0, 1).plants.map((p) => p.name)).toEqual(["grasses", "oak"]);
-  expect(live.cell(9, 0, 1).animals).toEqual([{ name: "voles", owner: 1, count: 1 }]);
-  expect(live.fields().cover[2]?.[1]).toBe(255);
+  expect(live.cell(9, 0, 1).animals).toEqual([{ name: "rabbits", owner: 1, count: 1 }]);
+  expect(live.fields().cover[3]?.[1]).toBe(255);
   expect(live.animals(8)[0]?.x).toBe(0); // the frame before...
   expect(live.animals(9)[0]?.x).toBe(1); // ...and the latest one, to interpolate between
   expect(live.renderTick(0)).toBeGreaterThanOrEqual(8);
 
-  live.spawn(2, "voles", 1, 0);
+  live.spawn(2, "rabbits", 1, 0);
   expect(worker.sent.at(-1)).toEqual({
     type: "command",
     player: 2,
-    payload: { type: "spawn", species: "voles", row: 1, col: 0 },
+    payload: { type: "spawn", species: "rabbits", row: 1, col: 0 },
   });
   live.order(1, [4, 9], "attack", 1, 1);
   expect(worker.sent.at(-1)).toEqual({
@@ -129,8 +129,8 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     player: 1,
     payload: { type: "order", ids: [4, 9], kind: "attack", row: 1, col: 1 },
   });
-  worker.emit({ type: "notice", notices: [{ player: 2, text: "voles: no enemy food" }] });
-  expect(live.notices.map((n) => n.text)).toEqual(["voles: no enemy food"]);
+  worker.emit({ type: "notice", notices: [{ player: 2, text: "rabbits: no enemy food" }] });
+  expect(live.notices.map((n) => n.text)).toEqual(["rabbits: no enemy food"]);
   const verdict = '{"winner":2,"reason":"territory","tick":10}';
   worker.emit({ type: "tick", tick: 10, agents: agents([]), ...tick, result: verdict });
   expect(live.result).toEqual({ winner: 2, reason: "territory", tick: 10 });

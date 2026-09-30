@@ -11,13 +11,13 @@ export function label(name: string): string {
 
 /** The placeholder shape of a species, as drawn in the 3D view (D-028). */
 export function glyph(s: Species): string {
-  if (s.kind === "flora") return ["•", "▲", "■"][s.level - 1] ?? "•";
+  if (s.kind === "flora") return ["•", "♣", "▲", "■"][s.level - 1] ?? "•";
   return { herbivore: "●", decomposer: "∙", predator: "▲" }[s.role] ?? "●";
 }
 
-/** Short tech-tree position, e.g. "L2 · tier 1" or "F5 · tier 1". */
+/** Short tech-tree position, e.g. "L2 · tier 1" or "P3 · tier 1". */
 export function position(s: Species): string {
-  return `${s.kind === "flora" ? "L" : "F"}${s.level} · tier ${s.tier}`;
+  return `${s.family} · tier ${s.tier}`;
 }
 
 /** Species a player has unlocked at tick `tick`: what a live match reports, or, for a replay,
@@ -40,23 +40,22 @@ export function unlockedAt(meta: ReplayMeta, player: number, t: number): Set<str
 export type CardState = "unlocked" | "available" | "locked";
 
 /** Whether a species can be unlocked now: one unlocked species on the previous tier of its
- *  level and, for an animal, one unlocked habitat plant (L1..L3 means any plant of that level). */
+ *  family and, for an animal, one unlocked habitat plant (a family name, e.g. "L4" or "W",
+ *  means any plant of that family). */
 export function cardState(meta: ReplayMeta, s: Species, unlocked: Set<string>): CardState {
   if (unlocked.has(s.name)) return "unlocked";
   const tierOk =
     s.tier === 1 ||
     meta.species.some(
       (o) =>
-        o.kind === s.kind && o.level === s.level && o.tier === s.tier - 1 && unlocked.has(o.name),
+        o.kind === s.kind && o.family === s.family && o.tier === s.tier - 1 && unlocked.has(o.name),
     );
   const habitatOk =
     s.kind === "flora" ||
-    s.habitat.some((h) =>
-      /^L\d$/.test(h)
-        ? meta.species.some(
-            (o) => o.kind === "flora" && `L${o.level}` === h && unlocked.has(o.name),
-          )
-        : unlocked.has(h),
+    s.habitat.some(
+      (h) =>
+        unlocked.has(h) ||
+        meta.species.some((o) => o.kind === "flora" && o.family === h && unlocked.has(o.name)),
     );
   return tierOk && habitatOk ? "available" : "locked";
 }
@@ -68,38 +67,52 @@ export function capText(s: Species): string {
     : `${s.stats.cap} animals`;
 }
 
+/** Family names, in build-bar order (D-087). */
 const FAMILY: Record<string, string> = {
   L1: "Herbs",
-  L2: "Shrubs",
-  L3: "Trees",
-  F1: "Soil life",
-  F2: "Insects",
-  F3: "Small mammals",
-  F4: "Birds",
-  F5: "Carnivores",
+  L2: "Undergrowth",
+  L3: "Shrubs",
+  L4: "Trees",
+  W: "Water plants",
+  D: "Decomposers",
+  H1: "Grazers",
+  H2: "Undergrowth eaters",
+  H3: "Shrub eaters",
+  H4: "Tree eaters",
+  HW: "Water grazers",
+  P1: "Insect eaters",
+  P2: "Small hunters",
+  P3: "Big hunters",
+  PW: "Water hunters",
 };
+const ORDER = Object.keys(FAMILY);
 
-/** Soil life and insects (fauna levels 1-2) are swarms (D-065): faint dots that show they are
- *  there, not units to select or order. Control starts from small mammals (level 3). */
-export const SWARM_LEVEL = 2;
-export const isSwarm = (s: Species): boolean => s.kind === "fauna" && s.level <= SWARM_LEVEL;
+/** Swarms (D-065): faint dots that show they are there, not units to select or order: soil life
+ *  and insects (`swarm` in species.toml). */
+export const isSwarm = (s: Species): boolean => s.kind === "fauna" && s.swarm === true;
 
-/** The build card's groups (D-063): per kind, one family per level (herbs, shrubs, trees; soil
- *  life … carnivores), species in tier order then stat-sheet order. */
+/** Display name of a family. */
+export const familyName = (key: string): string => FAMILY[key] ?? key;
+
+/** The build card's groups (D-063, D-087): plants then animals, one group per family, species
+ *  in tier order then stat-sheet order. */
 export function families(
   species: Species[],
-): { kind: Species["kind"]; name: string; species: Species[] }[] {
-  const out = new Map<string, { kind: Species["kind"]; name: string; species: Species[] }>();
-  const keyOf = (s: Species) => `${s.kind === "flora" ? "L" : "F"}${s.level}`;
+): { kind: Species["kind"]; key: string; name: string; species: Species[] }[] {
+  const out = new Map<
+    string,
+    { kind: Species["kind"]; key: string; name: string; species: Species[] }
+  >();
+  const rank = (key: string) => (ORDER.includes(key) ? ORDER.indexOf(key) : ORDER.length);
   const sorted = [...species].sort(
     (a, b) =>
       Number(a.kind === "fauna") - Number(b.kind === "fauna") ||
-      a.level - b.level ||
+      rank(a.family) - rank(b.family) ||
       a.tier - b.tier,
   );
   for (const s of sorted) {
-    const key = keyOf(s);
-    const group = out.get(key) ?? { kind: s.kind, name: FAMILY[key] ?? key, species: [] };
+    const key = s.family;
+    const group = out.get(key) ?? { kind: s.kind, key, name: familyName(key), species: [] };
     group.species.push(s);
     out.set(key, group);
   }

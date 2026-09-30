@@ -1,4 +1,4 @@
-# species.toml — per-species stats (D-029). Tune freely; values are placeholders.
+# species.toml — per-species stats (D-029, D-087). Tune freely; values are placeholders for M7.
 # Loaded together with balance.toml (both are converted and hashed together, D-011).
 #
 # Stats (first block of each species):
@@ -10,13 +10,21 @@
 #   cap          plants: share of the map's cells per player (0..1, D-045); animals: max animals per player
 #   effect       special effect, shown in the UI
 #
-# Model (second block): level / tier = tech-tree position (flora L1..L3, fauna F1..F5).
-#   Plants: water_optimum / water_tolerance = moisture response (0..1; land plants 0.5 / 0.6:
-#   neutral on a flat map, slow in the shallows, D-084); biomass_rate = logistic r (1/s); k_max = biomass capacity of a cell (u16);
-#   shade_cast / shade_tolerance 0..1; soil_gain = soil development per second at full cover.
-#   Animals: role, eats, habitat (flora names or L1..L3; predators eat fauna names), small =
-#   can hide in a refuge, body (energy capacity), bite (1/s), upkeep (share of body per s),
-#   speed and sight (cells), group (animals per spawned card).
+# Tech tree (D-087): family = the build-bar group, tier = small (1), medium (2), large (3). A card
+#   needs a card of the previous tier of its family. Plant families: L1 herbaceous, L2 intermediate,
+#   L3 shrubs, L4 trees, W aquatic. Animal families: D detritivores, H1..H4 eaters of L1..L4,
+#   HW aquatic grazers, P1 insect eaters, P2 small-mammal eaters, P3 large-mammal eaters,
+#   PW aquatic hunters. Diet and habitat entries are species names or family names (L1..L4, W).
+#
+# Model (second block):
+#   Plants: level = height stratum 1..4 (shade and competition act between strata);
+#   water_optimum / water_tolerance = moisture response (0..1; land plants 0.5 / 0.6: neutral on a
+#   flat map, slow in the shallows, D-084; aquatic plants want the water); biomass_rate = logistic
+#   r (1/s); k_max = biomass capacity of a cell (u16); shade_cast / shade_tolerance 0..1;
+#   soil_gain = soil development per second at full cover.
+#   Animals: role, eats, habitat, small = can hide in a refuge, swarm = drawn as a swarm, not a
+#   unit (D-065), body (energy capacity), bite (1/s), upkeep (share of body per s), speed and
+#   sight (cells), group (animals per spawned card), medium = walk, swim, amphibious or fly (D-084).
 
 [flora.lichen_and_moss]
 growth = 0.28
@@ -25,8 +33,9 @@ unlock_cost = 0
 yield = 0.06
 cap = 0.5
 effect = "Pioneer: establishes on bare soil and carpets shaded ground; fastest soil development."
-level = 1
+family = "L1"
 tier = 1
+level = 1
 pioneer = true
 biomass_rate = 0.04
 k_max = 2500
@@ -43,32 +52,15 @@ unlock_cost = 0
 yield = 0.2
 cap = 0.5
 effect = "Pioneer: fastest spread; the main early income."
+family = "L1"
+tier = 2
 level = 1
-tier = 1
 pioneer = true
 biomass_rate = 0.25
 k_max = 8000
 shade_cast = 0.0
 shade_tolerance = 0.1
 soil_gain = 0.0024
-water_optimum = 0.5
-water_tolerance = 0.6
-
-[flora.ferns]
-growth = 0.36
-spawn_cost = 20
-unlock_cost = 0
-yield = 0.1
-cap = 0.3
-effect = "Pioneer of shaded ground: shade-tolerant understory; only slugs graze it."
-level = 1
-tier = 1
-pioneer = true
-biomass_rate = 0.06
-k_max = 6000
-shade_cast = 0.1
-shade_tolerance = 0.9
-soil_gain = 0.0018
 water_optimum = 0.5
 water_tolerance = 0.6
 
@@ -79,8 +71,9 @@ unlock_cost = 300
 yield = 0.3
 cap = 0.2
 effect = "Flowering meadow: the best herbaceous income."
+family = "L1"
+tier = 3
 level = 1
-tier = 2
 pioneer = false
 biomass_rate = 0.15
 k_max = 6000
@@ -90,15 +83,35 @@ soil_gain = 0.003
 water_optimum = 0.5
 water_tolerance = 0.6
 
+[flora.ferns]
+growth = 0.36
+spawn_cost = 30
+unlock_cost = 600
+yield = 0.12
+cap = 0.3
+effect = "Shade-tolerant understory on bare or shaded ground; only slugs graze it."
+family = "L2"
+tier = 1
+level = 2
+pioneer = true
+biomass_rate = 0.06
+k_max = 7000
+shade_cast = 0.1
+shade_tolerance = 0.9
+soil_gain = 0.0018
+water_optimum = 0.5
+water_tolerance = 0.6
+
 [flora.nettle]
 growth = 0.7
-spawn_cost = 20
-unlock_cost = 350
-yield = 0.15
+spawn_cost = 30
+unlock_cost = 900
+yield = 0.18
 cap = 0.2
-effect = "Stinging: grazers leave it alone, except caterpillars; dense on developed soil."
-level = 1
+effect = "Stinging: most grazers leave it alone; dense on developed soil."
+family = "L2"
 tier = 2
+level = 2
 pioneer = false
 biomass_rate = 0.2
 k_max = 9000
@@ -110,13 +123,14 @@ water_tolerance = 0.6
 
 [flora.bramble]
 growth = 0.8
-spawn_cost = 20
-unlock_cost = 450
-yield = 0.2
+spawn_cost = 30
+unlock_cost = 1350
+yield = 0.22
 cap = 0.2
 effect = "Thorny refuge: own small animals inside cannot be hunted."
-level = 1
+family = "L2"
 tier = 3
+level = 2
 pioneer = false
 biomass_rate = 0.2
 k_max = 10000
@@ -132,9 +146,10 @@ spawn_cost = 60
 unlock_cost = 1500
 yield = 0.4
 cap = 0.15
-effect = "Fastest shrub, short-lived: the first L2 foothold."
-level = 2
+effect = "Fastest shrub, short-lived: the first shrub foothold."
+family = "L3"
 tier = 1
+level = 3
 pioneer = false
 biomass_rate = 0.08
 k_max = 20000
@@ -144,38 +159,40 @@ soil_gain = 0.0024
 water_optimum = 0.5
 water_tolerance = 0.6
 
-[flora.hazel]
-growth = 0.72
-spawn_cost = 60
-unlock_cost = 2250
-yield = 0.4
-cap = 0.15
-effect = "Shade-tolerant shrub: grows under own trees."
-level = 2
-tier = 2
-pioneer = false
-biomass_rate = 0.05
-k_max = 22000
-shade_cast = 0.4
-shade_tolerance = 0.8
-soil_gain = 0.0024
-water_optimum = 0.5
-water_tolerance = 0.6
-
 [flora.hawthorn]
 growth = 0.48
 spawn_cost = 60
-unlock_cost = 3375
+unlock_cost = 2250
 yield = 0.35
 cap = 0.15
 effect = "Thorny refuge: own small animals inside cannot be hunted."
-level = 2
-tier = 3
+family = "L3"
+tier = 2
+level = 3
 pioneer = false
 biomass_rate = 0.04
 k_max = 25000
 shade_cast = 0.5
 shade_tolerance = 0.3
+soil_gain = 0.0024
+water_optimum = 0.5
+water_tolerance = 0.6
+
+[flora.hazel]
+growth = 0.72
+spawn_cost = 60
+unlock_cost = 3375
+yield = 0.45
+cap = 0.15
+effect = "Shade-tolerant shrub: grows under own trees; its nuts feed squirrels."
+family = "L3"
+tier = 3
+level = 3
+pioneer = false
+biomass_rate = 0.05
+k_max = 22000
+shade_cast = 0.4
+shade_tolerance = 0.8
 soil_gain = 0.0024
 water_optimum = 0.5
 water_tolerance = 0.6
@@ -187,8 +204,9 @@ unlock_cost = 5000
 yield = 0.8
 cap = 0.1
 effect = "Light canopy: the understory thrives beneath it."
-level = 3
+family = "L4"
 tier = 1
+level = 4
 pioneer = false
 biomass_rate = 0.015
 k_max = 60000
@@ -198,33 +216,16 @@ soil_gain = 0.0015
 water_optimum = 0.5
 water_tolerance = 0.6
 
-[flora.beech]
-growth = 0.288
-spawn_cost = 150
-unlock_cost = 7500
-yield = 0.9
-cap = 0.1
-effect = "Deep shade: suppresses the understory beneath it."
-level = 3
-tier = 2
-pioneer = false
-biomass_rate = 0.02
-k_max = 65000
-shade_cast = 0.85
-shade_tolerance = 0.8
-soil_gain = 0.0015
-water_optimum = 0.5
-water_tolerance = 0.6
-
 [flora.chestnut]
 growth = 0.48
 spawn_cost = 150
-unlock_cost = 11250
+unlock_cost = 7500
 yield = 0.7
 cap = 0.1
 effect = "Fastest-growing tree."
-level = 3
-tier = 3
+family = "L4"
+tier = 2
+level = 4
 pioneer = false
 biomass_rate = 0.03
 k_max = 55000
@@ -234,6 +235,82 @@ soil_gain = 0.0015
 water_optimum = 0.5
 water_tolerance = 0.6
 
+[flora.beech]
+growth = 0.288
+spawn_cost = 150
+unlock_cost = 11250
+yield = 0.9
+cap = 0.1
+effect = "Deep shade: suppresses the understory beneath it."
+family = "L4"
+tier = 3
+level = 4
+pioneer = false
+biomass_rate = 0.02
+k_max = 65000
+shade_cast = 0.85
+shade_tolerance = 0.8
+soil_gain = 0.0015
+water_optimum = 0.5
+water_tolerance = 0.6
+
+[flora.algae_and_lilies]
+growth = 1.0
+spawn_cost = 20
+unlock_cost = 400
+yield = 0.15
+cap = 0.3
+effect = "Aquatic pioneer: carpets the shallows, never dry land."
+family = "W"
+tier = 1
+level = 1
+pioneer = true
+biomass_rate = 0.2
+k_max = 6000
+shade_cast = 0.0
+shade_tolerance = 0.3
+soil_gain = 0.003
+water_optimum = 1.0
+water_tolerance = 0.25
+
+[flora.reeds]
+growth = 0.7
+spawn_cost = 30
+unlock_cost = 800
+yield = 0.25
+cap = 0.2
+effect = "Reed beds: the shallows and wet banks; a crossing point on the river."
+family = "W"
+tier = 2
+level = 2
+pioneer = false
+biomass_rate = 0.15
+k_max = 12000
+shade_cast = 0.2
+shade_tolerance = 0.4
+soil_gain = 0.0024
+water_optimum = 0.9
+water_tolerance = 0.35
+
+[flora.willow]
+growth = 0.4
+spawn_cost = 150
+unlock_cost = 2500
+yield = 0.7
+cap = 0.1
+effect = "Riverside tree: anchors the banks on both sides of the water."
+family = "W"
+tier = 3
+level = 4
+pioneer = false
+biomass_rate = 0.03
+k_max = 50000
+shade_cast = 0.5
+shade_tolerance = 0.4
+soil_gain = 0.0015
+water_optimum = 0.8
+water_tolerance = 0.5
+
 [fauna.earthworms]
 growth = 20
 spawn_cost = 50
@@ -241,12 +318,13 @@ unlock_cost = 0
 yield = 0.01
 cap = 300
 effect = "Decomposer: turns dead biomass into soil development."
-level = 1
+family = "D"
 tier = 1
 role = "decomposer"
 eats = ["dead"]
 habitat = ["L1"]
 small = true
+swarm = true
 body = 50
 bite = 15
 upkeep = 0.01
@@ -254,45 +332,48 @@ speed = 1
 sight = 4
 group = 10
 
-[fauna.pill_bug]
-growth = 20
-spawn_cost = 40
-unlock_cost = 300
-yield = 0.01
+[fauna.fungi]
+growth = 25
+spawn_cost = 60
+unlock_cost = 400
+yield = 0.02
 cap = 300
-effect = "Decomposer of litter under moss, ferns, shrubs and trees."
-level = 1
+effect = "Mycelium: decomposes the litter of shrubs and woods."
+family = "D"
 tier = 2
 role = "decomposer"
 eats = ["dead"]
-habitat = ["lichen_and_moss", "ferns", "L2", "L3"]
+habitat = ["L3", "L4"]
 small = true
-body = 40
-bite = 12
-upkeep = 0.01
-speed = 1
+swarm = true
+body = 60
+bite = 20
+upkeep = 0.008
+speed = 0.5
 sight = 4
 group = 10
 
-[fauna.slugs]
-growth = 30
-spawn_cost = 100
-unlock_cost = 450
-yield = 0.02
-cap = 300
-effect = "Grazes pioneers and low herbs."
-level = 1
+[fauna.raven]
+growth = 90
+spawn_cost = 400
+unlock_cost = 900
+yield = 0.08
+cap = 30
+effect = "Scavenger bird: clears carcasses and litter from afar."
+family = "D"
 tier = 3
-role = "herbivore"
-eats = ["lichen_and_moss", "grasses", "ferns", "wildflowers"]
-habitat = ["L1"]
-small = true
-body = 100
-bite = 30
-upkeep = 0.01
-speed = 1
-sight = 5
-group = 8
+role = "decomposer"
+eats = ["dead"]
+habitat = ["L4"]
+small = false
+swarm = false
+medium = "fly"
+body = 600
+bite = 90
+upkeep = 0.004
+speed = 4
+sight = 12
+group = 1
 
 [fauna.grasshoppers]
 growth = 30
@@ -301,12 +382,13 @@ unlock_cost = 1000
 yield = 0.02
 cap = 300
 effect = "Fast meadow grazer."
-level = 2
+family = "H1"
 tier = 1
 role = "herbivore"
 eats = ["grasses", "wildflowers"]
 habitat = ["grasses"]
 small = true
+swarm = true
 body = 80
 bite = 25
 upkeep = 0.012
@@ -314,39 +396,83 @@ speed = 2
 sight = 6
 group = 15
 
-[fauna.caterpillars]
-growth = 30
-spawn_cost = 120
+[fauna.rabbits]
+growth = 45
+spawn_cost = 600
 unlock_cost = 1500
-yield = 0.03
-cap = 300
-effect = "Defoliates shrubs and trees: the counter to forests."
-level = 2
+yield = 0.08
+cap = 150
+effect = "Heavy grazer: breaks meadow frontiers."
+family = "H1"
 tier = 2
 role = "herbivore"
-eats = ["nettle", "bramble", "L2", "L3"]
-habitat = ["nettle", "bramble", "L2"]
-small = true
-body = 120
-bite = 36
-upkeep = 0.01
-speed = 1
-sight = 6
-group = 15
-
-[fauna.voles]
-growth = 40
-spawn_cost = 300
-unlock_cost = 2000
-yield = 0.05
-cap = 200
-effect = "Meadow grazer."
-level = 3
-tier = 1
-role = "herbivore"
-eats = ["grasses", "wildflowers"]
+eats = ["L1"]
 habitat = ["grasses"]
 small = true
+swarm = false
+body = 600
+bite = 180
+upkeep = 0.01
+speed = 3
+sight = 8
+group = 4
+
+[fauna.bison]
+growth = 150
+spawn_cost = 3000
+unlock_cost = 2250
+yield = 0.5
+cap = 20
+effect = "Herd grazer: mows enemy meadows wholesale."
+family = "H1"
+tier = 3
+role = "herbivore"
+eats = ["L1"]
+habitat = ["L1"]
+small = false
+swarm = false
+body = 6000
+bite = 1200
+upkeep = 0.003
+speed = 2
+sight = 10
+group = 2
+
+[fauna.slugs]
+growth = 30
+spawn_cost = 100
+unlock_cost = 1000
+yield = 0.02
+cap = 300
+effect = "Grazes ferns, nettles and brambles."
+family = "H2"
+tier = 1
+role = "herbivore"
+eats = ["L2", "lichen_and_moss"]
+habitat = ["L2"]
+small = true
+swarm = true
+body = 100
+bite = 30
+upkeep = 0.01
+speed = 1
+sight = 5
+group = 8
+
+[fauna.bank_vole]
+growth = 40
+spawn_cost = 300
+unlock_cost = 1500
+yield = 0.05
+cap = 200
+effect = "Small rodent of the undergrowth."
+family = "H2"
+tier = 2
+role = "herbivore"
+eats = ["L2", "L1"]
+habitat = ["L2"]
+small = true
+swarm = false
 body = 300
 bite = 90
 upkeep = 0.01
@@ -354,168 +480,462 @@ speed = 2
 sight = 6
 group = 6
 
-[fauna.moles]
-growth = 90
-spawn_cost = 400
-unlock_cost = 3000
-yield = 0.08
-cap = 40
-effect = "Hunts enemy soil fauna."
-level = 3
-tier = 2
-role = "predator"
-eats = ["earthworms", "pill_bug", "slugs"]
-habitat = ["L1"]
-small = true
-body = 400
-upkeep = 0.004
-speed = 1
-sight = 6
-group = 1
-
-[fauna.hedgehog]
-growth = 90
-spawn_cost = 500
-unlock_cost = 3000
-yield = 0.1
-cap = 40
-effect = "Hunts slugs, earthworms and caterpillars."
-level = 3
-tier = 2
-role = "predator"
-eats = ["slugs", "earthworms", "caterpillars"]
-habitat = ["L2"]
-small = true
-body = 500
-upkeep = 0.004
-speed = 2
-sight = 6
-group = 1
-
-[fauna.rabbits]
-growth = 45
-spawn_cost = 800
-unlock_cost = 4500
-yield = 0.1
-cap = 120
-effect = "Heavy grazer: breaks meadow and bramble frontiers."
-level = 3
+[fauna.roe_deer]
+growth = 120
+spawn_cost = 2000
+unlock_cost = 2250
+yield = 0.35
+cap = 30
+effect = "Browser of the undergrowth and shrubs."
+family = "H2"
 tier = 3
 role = "herbivore"
-eats = ["grasses", "wildflowers", "bramble", "elder", "hawthorn"]
-habitat = ["grasses"]
+eats = ["L2", "L3"]
+habitat = ["L2"]
+small = false
+swarm = false
+body = 3000
+bite = 700
+upkeep = 0.004
+speed = 3
+sight = 10
+group = 2
+
+[fauna.caterpillars]
+growth = 30
+spawn_cost = 120
+unlock_cost = 1500
+yield = 0.03
+cap = 300
+effect = "Defoliates shrubs: the counter to hedges."
+family = "H3"
+tier = 1
+role = "herbivore"
+eats = ["L3", "nettle"]
+habitat = ["L3", "nettle"]
 small = true
-body = 800
-bite = 240
+swarm = true
+body = 120
+bite = 36
+upkeep = 0.01
+speed = 1
+sight = 6
+group = 15
+
+[fauna.red_squirrel]
+growth = 45
+spawn_cost = 400
+unlock_cost = 2250
+yield = 0.06
+cap = 150
+effect = "Nut eater of hazels and trees."
+family = "H3"
+tier = 2
+role = "herbivore"
+eats = ["hazel", "L4"]
+habitat = ["L3"]
+small = true
+swarm = false
+body = 400
+bite = 110
 upkeep = 0.01
 speed = 3
 sight = 8
 group = 4
 
-[fauna.tits]
+[fauna.red_deer]
+growth = 150
+spawn_cost = 3500
+unlock_cost = 3375
+yield = 0.45
+cap = 24
+effect = "Large browser: strips shrub fronts."
+family = "H3"
+tier = 3
+role = "herbivore"
+eats = ["L3", "L2"]
+habitat = ["L3"]
+small = false
+swarm = false
+body = 5000
+bite = 1000
+upkeep = 0.003
+speed = 3
+sight = 12
+group = 2
+
+[fauna.bark_beetles]
+growth = 30
+spawn_cost = 150
+unlock_cost = 3000
+yield = 0.03
+cap = 300
+effect = "Bores into trees: the counter to forests."
+family = "H4"
+tier = 1
+role = "herbivore"
+eats = ["L4"]
+habitat = ["L4"]
+small = true
+swarm = true
+body = 120
+bite = 40
+upkeep = 0.01
+speed = 1
+sight = 6
+group = 15
+
+[fauna.beaver]
+growth = 60
+spawn_cost = 900
+unlock_cost = 4500
+yield = 0.1
+cap = 60
+effect = "Fells trees and willows near water."
+family = "H4"
+tier = 2
+role = "herbivore"
+eats = ["L4", "willow"]
+habitat = ["W"]
+small = false
+swarm = false
+medium = "amphibious"
+body = 1200
+bite = 300
+upkeep = 0.006
+speed = 2
+sight = 8
+group = 2
+
+[fauna.wild_boar]
+growth = 120
+spawn_cost = 3000
+unlock_cost = 6750
+yield = 0.4
+cap = 30
+effect = "Roots under the trees: eats mast and turf."
+family = "H4"
+tier = 3
+role = "herbivore"
+eats = ["L4", "L1"]
+habitat = ["L4"]
+small = false
+swarm = false
+body = 4000
+bite = 900
+upkeep = 0.003
+speed = 3
+sight = 10
+group = 3
+
+[fauna.larvae]
+growth = 30
+spawn_cost = 80
+unlock_cost = 1500
+yield = 0.02
+cap = 300
+effect = "Aquatic larvae: graze the pond; adults become dragonflies."
+family = "HW"
+tier = 1
+role = "herbivore"
+eats = ["algae_and_lilies"]
+habitat = ["W"]
+small = true
+swarm = true
+medium = "swim"
+body = 80
+bite = 25
+upkeep = 0.012
+speed = 1
+sight = 5
+group = 15
+
+[fauna.roach]
+growth = 40
+spawn_cost = 300
+unlock_cost = 2250
+yield = 0.05
+cap = 200
+effect = "Shoal fish: grazes water plants."
+family = "HW"
+tier = 2
+role = "herbivore"
+eats = ["algae_and_lilies", "reeds"]
+habitat = ["W"]
+small = true
+swarm = false
+medium = "swim"
+body = 300
+bite = 90
+upkeep = 0.01
+speed = 2
+sight = 6
+group = 6
+
+[fauna.mallard]
+growth = 60
+spawn_cost = 800
+unlock_cost = 3375
+yield = 0.1
+cap = 80
+effect = "Dabbling duck: water plants and bank grass."
+family = "HW"
+tier = 3
+role = "herbivore"
+eats = ["W", "grasses"]
+habitat = ["W"]
+small = false
+swarm = false
+medium = "amphibious"
+body = 800
+bite = 200
+upkeep = 0.006
+speed = 3
+sight = 10
+group = 3
+
+[fauna.great_tit]
 growth = 60
 spawn_cost = 200
 unlock_cost = 4000
 yield = 0.05
 cap = 60
-effect = "Hunts insects: caterpillars, grasshoppers, pill bugs."
-level = 4
+effect = "Hunts insects and larvae."
+family = "P1"
 tier = 1
 role = "predator"
-eats = ["caterpillars", "grasshoppers", "pill_bug"]
-habitat = ["L2", "L3"]
+eats = ["grasshoppers", "slugs", "caterpillars", "bark_beetles", "larvae", "earthworms"]
+habitat = ["L3", "L4"]
+small = false
+swarm = false
+medium = "fly"
 body = 200
 upkeep = 0.005
 speed = 4
 sight = 10
 group = 2
 
-[fauna.woodpecker]
-growth = 90
+[fauna.frog]
+growth = 60
 spawn_cost = 300
 unlock_cost = 6000
 yield = 0.06
-cap = 40
-effect = "Hunts caterpillars in the canopy."
-level = 4
+cap = 60
+effect = "Hunts insects on the banks."
+family = "P1"
 tier = 2
 role = "predator"
-eats = ["caterpillars"]
-habitat = ["L3"]
+eats = ["grasshoppers", "slugs", "larvae", "earthworms"]
+habitat = ["W"]
+small = true
+swarm = false
+medium = "amphibious"
 body = 300
-upkeep = 0.004
-speed = 3
-sight = 10
-group = 1
+upkeep = 0.005
+speed = 2
+sight = 6
+group = 2
 
-[fauna.buzzard]
+[fauna.badger]
 growth = 120
 spawn_cost = 1500
 unlock_cost = 9000
 yield = 0.3
-cap = 16
-effect = "Raptor: hunts small mammals and insects in the open."
-level = 4
+cap = 20
+effect = "Digs out soil life and insects."
+family = "P1"
 tier = 3
 role = "predator"
-eats = ["voles", "rabbits", "moles", "grasshoppers", "earthworms"]
+eats = ["earthworms", "slugs", "caterpillars", "grasshoppers", "bank_vole"]
 habitat = ["L3"]
+small = false
+swarm = false
 body = 1500
 upkeep = 0.003
+speed = 3
+sight = 10
+group = 1
+
+[fauna.kestrel]
+growth = 90
+spawn_cost = 800
+unlock_cost = 8000
+yield = 0.15
+cap = 30
+effect = "Hovering raptor of open fields."
+family = "P2"
+tier = 1
+role = "predator"
+eats = ["bank_vole", "rabbits", "grasshoppers", "frog"]
+habitat = ["L1"]
+small = false
+swarm = false
+medium = "fly"
+body = 800
+upkeep = 0.004
 speed = 6
-sight = 16
+sight = 14
+group = 1
+
+[fauna.pine_marten]
+growth = 120
+spawn_cost = 1500
+unlock_cost = 12000
+yield = 0.25
+cap = 20
+effect = "Agile woodland hunter."
+family = "P2"
+tier = 2
+role = "predator"
+eats = ["red_squirrel", "bank_vole", "rabbits", "great_tit"]
+habitat = ["L4"]
+small = false
+swarm = false
+body = 1500
+upkeep = 0.003
+speed = 4
+sight = 12
 group = 1
 
 [fauna.fox]
 growth = 120
 spawn_cost = 3000
-unlock_cost = 8000
+unlock_cost = 16000
 yield = 0.5
 cap = 20
 effect = "Hunts small mammals; drop it on enemy grazers."
-level = 5
-tier = 1
+family = "P2"
+tier = 3
 role = "predator"
-eats = ["rabbits", "voles", "moles", "hedgehog", "grasshoppers", "earthworms"]
-habitat = ["L2"]
+eats = ["rabbits", "bank_vole", "red_squirrel", "frog", "mallard"]
+habitat = ["L3"]
+small = false
+swarm = false
 body = 3000
 upkeep = 0.003
 speed = 4
 sight = 12
 group = 1
 
-[fauna.tawny_owl]
-growth = 120
-spawn_cost = 1200
-unlock_cost = 12000
-yield = 0.25
-cap = 16
-effect = "Raptor: hunts voles, moles and small birds."
-level = 5
-tier = 2
-role = "predator"
-eats = ["voles", "moles", "tits", "woodpecker"]
-habitat = ["L3"]
-body = 1200
-upkeep = 0.003
-speed = 5
-sight = 14
-group = 1
-
 [fauna.lynx]
 growth = 180
-spawn_cost = 6000
+spawn_cost = 5000
 unlock_cost = 18000
-yield = 1.0
+yield = 0.8
 cap = 8
-effect = "Apex forest predator: hunts rabbits and foxes."
-level = 5
-tier = 3
+effect = "Forest stalker: deer and foxes."
+family = "P3"
+tier = 1
 role = "predator"
-eats = ["rabbits", "fox"]
-habitat = ["L3"]
-body = 6000
+eats = ["roe_deer", "fox", "rabbits", "badger"]
+habitat = ["L4"]
+small = false
+swarm = false
+body = 5000
 upkeep = 0.002
 speed = 4
 sight = 14
+group = 1
+
+[fauna.wolf]
+growth = 180
+spawn_cost = 6000
+unlock_cost = 27000
+yield = 1.0
+cap = 8
+effect = "Pack hunter of large herbivores."
+family = "P3"
+tier = 2
+role = "predator"
+eats = ["roe_deer", "red_deer", "wild_boar", "bison"]
+habitat = ["L4"]
+small = false
+swarm = false
+body = 6000
+upkeep = 0.002
+speed = 5
+sight = 16
+group = 2
+
+[fauna.brown_bear]
+growth = 240
+spawn_cost = 9000
+unlock_cost = 40000
+yield = 1.5
+cap = 4
+effect = "Apex omnivore."
+family = "P3"
+tier = 3
+role = "predator"
+eats = ["red_deer", "wild_boar", "bison", "roe_deer", "beaver"]
+habitat = ["L4"]
+small = false
+swarm = false
+body = 9000
+upkeep = 0.0015
+speed = 3
+sight = 14
+group = 1
+
+[fauna.pike]
+growth = 90
+spawn_cost = 800
+unlock_cost = 5000
+yield = 0.15
+cap = 30
+effect = "Ambush fish: hunts roach, larvae and frogs."
+family = "PW"
+tier = 1
+role = "predator"
+eats = ["roach", "larvae", "frog"]
+habitat = ["W"]
+small = false
+swarm = false
+medium = "swim"
+body = 800
+upkeep = 0.004
+speed = 3
+sight = 8
+group = 1
+
+[fauna.heron]
+growth = 120
+spawn_cost = 1200
+unlock_cost = 7500
+yield = 0.2
+cap = 20
+effect = "Wading bird: spears fish and frogs."
+family = "PW"
+tier = 2
+role = "predator"
+eats = ["roach", "frog", "larvae"]
+habitat = ["W"]
+small = false
+swarm = false
+medium = "amphibious"
+body = 1200
+upkeep = 0.003
+speed = 4
+sight = 12
+group = 1
+
+[fauna.otter]
+growth = 150
+spawn_cost = 2500
+unlock_cost = 11250
+yield = 0.35
+cap = 12
+effect = "Top of the river food web."
+family = "PW"
+tier = 3
+role = "predator"
+eats = ["roach", "pike", "frog", "mallard", "beaver"]
+habitat = ["W"]
+small = false
+swarm = false
+medium = "amphibious"
+body = 2500
+upkeep = 0.003
+speed = 4
+sight = 12
 group = 1

@@ -315,7 +315,7 @@ impl Sim {
 fn species_table(b: &Balance) -> String {
     let flora = b.flora_species.iter().map(|(name, s)| {
         serde_json::json!({
-            "name": name, "kind": "flora", "level": s.level, "tier": s.tier,
+            "name": name, "kind": "flora", "family": s.family, "level": s.level, "tier": s.tier,
             "role": format!("L{}", s.level), "habitat": [], "eats": [],
             "stats": {
                 "growth": s.growth, "spawn_cost": s.spawn_cost, "unlock_cost": s.unlock_cost,
@@ -325,8 +325,9 @@ fn species_table(b: &Balance) -> String {
     });
     let fauna = b.fauna_species.iter().map(|(name, s)| {
         serde_json::json!({
-            "name": name, "kind": "fauna", "level": s.level, "tier": s.tier,
-            "role": s.role, "habitat": s.habitat, "eats": s.eats,
+            "name": name, "kind": "fauna", "family": s.family, "level": 0, "tier": s.tier,
+            "role": s.role, "habitat": s.habitat, "eats": s.eats, "swarm": s.swarm,
+            "medium": format!("{:?}", s.medium).to_lowercase(),
             "stats": {
                 "growth": s.growth, "spawn_cost": s.spawn_cost, "unlock_cost": s.unlock_cost,
                 "yield": s.yield_, "cap": s.cap, "effect": s.effect,

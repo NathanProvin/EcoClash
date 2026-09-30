@@ -14,7 +14,7 @@ from prototype.flora import PLAYERS, Flora, State, X
 
 class Economy:
     """Each player's bank and unlocked species. Unlocking is per species (D-029): a species needs
-    one unlocked species on the previous tier of its level and, for an animal, one of its habitat
+    one unlocked species on the previous tier of its family and, for an animal, one of its habitat
     plants; species with unlock_cost 0 are available at start."""
 
     def __init__(self, balance: dict, flora: Flora, fauna: Fauna | None):
@@ -40,8 +40,8 @@ class Economy:
         tree, s = self.species[name]
         need = []
         if s["tier"] > 1:  # one species of the previous tier, the cheapest path first
-            pos = (tree, s["level"], s["tier"] - 1)
-            below = [n for n, (t, x) in self.species.items() if (t, x["level"], x["tier"]) == pos]
+            pos = (tree, s["family"], s["tier"] - 1)
+            below = [n for n, (t, x) in self.species.items() if (t, x["family"], x["tier"]) == pos]
             if not any(n in self.unlocked[p] for n in below):
                 need += min((self.missing(p, n) for n in below), key=self._cost)
         if tree == "F":  # the first habitat plant, if none is unlocked yet

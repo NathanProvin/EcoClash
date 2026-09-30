@@ -964,3 +964,27 @@ Template:
   - Slab walls rise to the water level at the map edge, so ponds no longer overhang it.
   - **Dev hook:** `window.ecoViewer` (dev builds only), so browser checks can drive the camera.
 - **Consequences:** checked in the browser on all three presets, switched at runtime. The fps check on the reference laptop is still to do (the user).
+
+## D-087 · 2026-09-30 · Species revamp: families, four strata, water species
+- **Status:** accepted (the author's species table; defaults for diets, habitats, media and stats)
+- **Decision:**
+  - **Tech tree:** 5 plant families (L1 herbaceous, L2 intermediate, L3 shrubs, L4 trees, W aquatic) and 10 animal families (D, H1–H4, HW, P1–P3, PW). Each family has three tiers (small, medium, large), one species per tier: 15 plants and 30 animals (gamerules §4.2).
+    - A card needs the previous tier of its family and, for an animal, one of its habitat plants.
+    - Lichen & moss, grasses and earthworms are free at start.
+  - **species.toml** gains `family` (every species) and `swarm` (animals, renderers only). `level` is now the plant height stratum; animals have none.
+  - Diet and habitat entries resolve family names ("L4", "W") to every plant of that family, so aquatic plants never count as land strata.
+  - **Four height strata** in Rust and in the Python prototype (`LEVELS` / `STRATA` = 4; `soil_min_level` has 4 values). Flat-map parity holds: fixture regenerated, `cli:check` exact.
+  - **Aquatic plants** use the water response: algae (optimum 1.0, tolerance 0.25) stays in water; reeds and willow also take wet banks.
+  - **Animals:** the author's 30, with the default diets, habitats and media of gamerules §4.3. Swarms are the insects, larvae, earthworms and fungi. Stats are placeholders from tier and family templates, for M7.
+  - The balance hash includes the family tree (`BALANCE_HASH_VERSION` 11).
+  - **Client:**
+    - families in the build bar (two-line labels);
+    - plant models in model strata: undergrowth clumps, reed stems, shrubs, trees, and lily pads floating on the water (aquatic herbs), with a Layers toggle per stratum;
+    - new animal bodies: ungulate, bear, mustelid, fish, duck, frog, wader. Fish swim under the surface, amphibians float on it;
+    - large animals are enlarged less (`drawnLength`), so a bison does not dwarf the trees.
+  - **Bot:** new unlock plan on land (the aquatic families are left to players for now); its succession play is for shrubs and trees.
+- **Consequences:**
+  - Tests: water plants hold the shallows and never dry land, fish stay in water, the family tree unlocks, layout strata.
+  - Tick budget with 1,500 animals: 1.1 ms on average, worst tick 8.3 ms.
+  - The demo replay was regenerated.
+  - Known: the hard bot over-spends and stalls before trees (M7 tuning).

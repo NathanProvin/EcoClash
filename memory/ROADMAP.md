@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** the world overhaul (terrain, light, species, movement, drops), before M5a 8b and 9. 1a–1c and 2 done; next 3, the species revamp.
+- **Now:** the world overhaul (terrain, light, species, movement, drops), before M5a 8b and 9. 1a–1c, 2 and 3 done; next 4, movement per species.
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-09-30
@@ -83,7 +83,7 @@ Goal: a build strangers can play against the bot and understand at a glance. One
   - Export: `pressureFrame()` in `sim-wasm`, n² bytes, sent with the field frames. Replays have none and draw normal lines.
   - `frontier.ts`: line width 1–4 texels (0.5–2 m), from the pressure on the enemy cell across the edge. P1 solid, P2 dashed as today.
   - Tests: pressure > 0 exactly where smothering happens (Rust), widths (TS).
-- [x] **3. Notifications and pop-ups.** ("Victory threshold near" moves to task 7, with the threshold in the client.)
+- [x] **3. Notifications and pop-ups.** ("Victory threshold near" moves to task 7, with the threshold in the client.) (D-087)
   - One toast stack, soft and translucent, that fades out; clicking a toast flies the camera there. The existing order notices move into it.
   - `game/alerts.ts` (pure, tested): clusters of enemy animals on your land, from the animal frames. An alert is raised when a cluster crosses a size threshold, with a cooldown per area. The wording varies with size and at random: "Enemy caterpillar incursion" (small), "Enemy vole attack" (medium), "Enemy fox raid" (large), plus synonyms (foray, assault, swarm…). The species named is the cluster's dominant one.
   - A ping at the location: an expanding ring on the map, and an arrow at the screen edge when it is off-screen.
@@ -107,7 +107,7 @@ In this order:
 - [x] **1b. Terrain rules** (D-084): rock and deep cells block plants and walkers; shallows slow walkers and let plants seep across; movement media (walk, swim, amphibious, fly); pathfinding (`pathing.rs`).
 - [x] **1c. Terrain rendering** (D-085): displaced ground, heights everywhere, water surface, rocks, frontier on the relief, slab sides.
 - [x] **2. Light and shaders** (D-086): shadows, wind, terrain blending, foliage rim light, colour grade; bloom and tilt-shift on High.
-- [ ] **3. Species revamp**: the user's 15-plant, 33-animal table; 4 plant strata; groups and tiers; aquatic species; new bodies; bot.
+- [x] **3. Species revamp**: the user's 15-plant, 30-animal table; 4 plant strata; groups and tiers; aquatic species; new bodies; bot.
 - [ ] **4. Movement per species**: calmer, slower small herbivores; stop-and-go; less erratic insects.
 - [ ] **5. Visible drop animation**: high fall, readable canopy, ground shadow, dust ring.
 

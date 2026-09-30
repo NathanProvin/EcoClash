@@ -195,7 +195,7 @@ Required tests:
 
 ### 5.1 Grid
 
-- Default size **64×64**, 1 cell = 4 m, so the map is 256 m across (configurable; D-047, D-049). One cell holds several plant models (up to 10 herbs, 5 shrubs, 3 trees), placed at random offsets for a natural look.
+- Default size **43×43**, 1 cell = 4 m, so the map is 172 m across (configurable; D-047, D-049, D-070). Hash chunks at the map edge may be partial. One cell holds several plant models (up to 10 herbs, 5 shrubs, 3 trees), placed at random offsets for a natural look.
 - Each field is a flat `Vec<u16>` (row-major). Per-player flora layers: `flora[player][species]`.
 - Rendering never sees the grid as pixels. Fields are uploaded as textures and sampled bilinearly.
 
@@ -237,7 +237,7 @@ Reference machine: the dev laptop, **Lenovo 83EQ: Intel i5-12450H (8 cores / 12 
 
 | Item | Budget |
 |---|---|
-| Sim tick at 64², 2 players, 1,500 agents | ≤ 8 ms on a single thread (in the Worker), on average; flora ticks (every 8 ticks) may spike, but must stay well below the 100 ms tick period |
+| Sim tick at 43², 2 players, 1,500 agents | ≤ 8 ms on a single thread (in the Worker), on average; flora ticks (every 8 ticks) may spike, but must stay well below the 100 ms tick period |
 | Render | 60 fps on the "medium" preset, 30 fps floor on "low" |
 | Initial download (web) | ≤ 30 MB |
 | WASM memory | ≤ 512 MB |

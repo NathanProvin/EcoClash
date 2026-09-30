@@ -375,14 +375,17 @@ mod tests {
         .unwrap()
     }
 
-    /// A 64² match, both players opening as in the live client; `bots` play for their players.
-    /// Returns the world after `minutes` and every tick's hash.
+    /// A match on the balance's map, both players opening as in the live client (home at n / 4,
+    /// mirrored); `bots` play for their players. Returns the world after `minutes` and every
+    /// tick's hash.
     fn play(bots: &mut [Bot], minutes: u64) -> (World, Vec<u64>) {
         let b = balance();
-        let n = 64;
+        let n = usize::try_from(b.sim.grid_size).unwrap();
         let mut w = World::new(&b, 1, n);
-        w.setup_plant(1, "grasses", 16, 16, 3);
-        w.setup_plant(2, "grasses", 47, 47, 3);
+        let home = u32::try_from(n / 4).unwrap();
+        let away = u32::try_from(n - 1 - n / 4).unwrap();
+        w.setup_plant(1, "grasses", home, home, 3);
+        w.setup_plant(2, "grasses", away, away, 3);
         let mut seq = [0u32; 2];
         let mut hashes = Vec::new();
         for _ in 0..minutes * 600 {

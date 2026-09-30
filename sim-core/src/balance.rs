@@ -248,8 +248,8 @@ impl Balance {
             "[sim] pace must be in (0, 1]".into(),
         )?;
         check(
-            self.sim.grid_size.is_multiple_of(self.sim.chunk_size),
-            "[sim] grid_size % chunk_size != 0".into(),
+            self.sim.grid_size > 0 && self.sim.chunk_size > 0,
+            "[sim] grid_size and chunk_size must be > 0 (edge chunks may be partial)".into(),
         )?;
         check(
             self.terrain.soil_types.first().is_some_and(|t| t == "loam"),

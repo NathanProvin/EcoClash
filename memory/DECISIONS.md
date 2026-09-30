@@ -766,3 +766,10 @@ Template:
   - The prototype splits `step_s` (real) from `dt` (ecology). Flora parity stays exact (fixture regenerated).
   - The client gets `pace` from `sim-wasm`; card tooltips show real seconds (breed every growth / pace s, yields × pace).
   - Balance hash version 9. The relay test's second unlock moves to tick 2800 (income is slower).
+
+## D-070 · 2026-09-30 · Map 43² (feedback round 2)
+- **Status:** accepted (user: "the map is still a little too large, reduce it by 33%"; answer: side −33 %)
+- **Decision:**
+  - `grid_size` goes 64 → 43 (172 m). The loader no longer requires `grid_size` to be a multiple of `chunk_size`: edge hash chunks are partial, which the hashing and its test already supported.
+  - Openings, flora caps (map shares) and the bot scale with `n`. The sim-ai test match, the relay test (openings at 10 and 32) and the prototype's default size follow the balance. The WASM parity check (64) and `cli:check` (48) keep their own sizes on purpose.
+- **Consequences:** bot report at 43²: no errors; grasshoppers now appear next to earthworms. Budgets in INSTRUCTIONS §5.5 are restated at 43².

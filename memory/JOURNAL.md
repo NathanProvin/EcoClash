@@ -332,3 +332,6 @@
 
 ## 2026-09-30 · Feedback round 2: ecology pace (D-069)
 - **Done:** `pace = 0.4` scales every ecological rate and the income; movement and the clock stay real time. All Rust and Python tests, fixture parity, `cli:check`, `wasm:check`, `relay:test` and the client checks pass.
+
+## 2026-09-30 · Map 43² (D-070)
+- **Done:** 43×43 map; the chunk-multiple rule is dropped (partial edge chunks); tests, the relay test and the bot report adapted. All checks pass.

@@ -376,7 +376,7 @@ def export_replay(out: Path, balance, flora, fauna, n, record, rows, log, builds
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--seed", type=int, default=1)
-    ap.add_argument("--size", type=int, default=64)
+    ap.add_argument("--size", type=int, default=43)
     ap.add_argument("--minutes", type=float, default=20)
     ap.add_argument("--p1", choices=BUILDS, default="forest")
     ap.add_argument("--p2", choices=BUILDS, default="meadow")

@@ -823,3 +823,14 @@ Template:
 ## D-074 · 2026-09-30 · No fog of war for now (Q-007)
 - **Status:** accepted (user: "no fog of war yet")
 - **Decision:** the full map is visible to both players and the bot. Fog of war is a post-v1 idea (INSTRUCTIONS §2.5). This matches lockstep, where every client holds the full state anyway.
+
+## D-075 · 2026-09-30 · M5a scope: playability tools before sound
+- **Status:** accepted (user)
+- **Decision:**
+  - Sound moves to M5b (art). M5a gains the playability tools:
+    - **pressure borders:** frontier width shows each player's push, from the sim's own smothering term plus enemy grazing, derived and not hashed;
+    - **notifications and pop-ups**, with varied raid alerts ("Enemy [species] incursion / attack / raid") and a map ping;
+    - **toggleable strategic icons** over large groups of your animals;
+    - **a drop cursor** showing the armed species' model; parachute drops as a stretch.
+  - Keyboard shortcuts follow the printed letter (`e.key`), so AZERTY and QWERTY both work.
+- **Consequences:** The detailed task list and order are in ROADMAP M5a. The fps gate passed: steady 60 fps on the reference laptop.

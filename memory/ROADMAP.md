@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M5a, the playable alpha for outside playtesters (D-073). First: the fps gate on the reference laptop.
+- **Now:** M5a, the playable alpha (D-073, D-075). The fps gate passed (60 fps). Next task: 1, bug fixes.
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-09-30
@@ -50,7 +50,7 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [x] Plant from the UI in the live match (commands main → worker, D-042).
 - [x] Territory frontier line, P1 solid / P2 dashed (D-040, D-043).
 - [x] Three.js WebGPURenderer: terrain (flat diorama ground, D-054), flora textures, instanced grass (D-055), RTS camera; quality presets (D-056).
-- [ ] Perf check (the user, on the reference laptop): the HUD fps with Layers → Quality on Medium (target 60) and Low (floor 30), at 64² (D-040, D-044, D-056).
+- [x] Perf check (the user, on the reference laptop): steady 60 fps (2026-09-30; D-040, D-044, D-056).
 
 ## M3 · Agents and control
 - [x] Resolve Q-007 (fog): no fog of war for now (D-074). (Q-006 and Q-012 resolved by D-018.)
@@ -72,12 +72,33 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [x] End screen with biomass and territory charts (D-059).
 - Batch balance runs and the `sim-py` decision moved to M7 (user, 2026-09-29).
 
-## M5a · Playable alpha for outside playtesters (next, D-073)
-- [ ] Performance gate: fps on the reference laptop (M2 check), 60 on Medium, 30 on Low; fix what misses.
-- [ ] Match setup screen (vs bot, difficulty, map seed, sandbox) replacing the URL parameters; Options (quality, volume, keybinds); "Play again" on the end screen.
-- [ ] Onboarding: contextual first-match tips (plant, spread, unlock, call animals, drop, win conditions), then a short guided scenario.
-- [ ] Sound: ambient loops, UI clicks, animal and event cues, volume setting; CC0 sources in `ASSETS_LICENSES.md`.
-- [ ] Static deploy (Cloudflare Pages or itch.io), build-version badge, feedback link.
+## M5a · Playable alpha for outside playtesters (next, D-073, D-075)
+Goal: a build strangers can play against the bot and understand at a glance. One task = one commit, in this order.
+- [x] Performance gate: steady 60 fps on the reference laptop (user, 2026-09-30).
+- [ ] **1. Bug fixes.**
+  - Letter shortcuts by the printed letter (`e.key`), not the key position (`e.code`). On AZERTY, the A key fired the QWERTY-Q rotate binding. This covers A, S, T, Q/E rotation and group digits.
+  - The species tooltip stays on screen after the flyout closes (the tile is removed without a pointer-leave). Clear it on close, on arming and on Esc.
+- [ ] **2. Pressure borders.** Each player's frontier line gets wider where that player pushes harder into enemy land: one glance shows where the fronts are won.
+  - Sim (derived, not hashed): `sim-core` computes per cell the push of the non-owner, with the same term as smothering in `flora.rs` step 4 (`attack`: neighbour cover of species able to smother), plus the bites of enemy grazers on the cell.
+  - Export: `pressureFrame()` in `sim-wasm`, n² bytes, sent with the field frames. Replays have none and draw normal lines.
+  - `frontier.ts`: line width 1–4 texels (0.5–2 m), from the pressure on the enemy cell across the edge. P1 solid, P2 dashed as today.
+  - Tests: pressure > 0 exactly where smothering happens (Rust), widths (TS).
+- [ ] **3. Notifications and pop-ups.**
+  - One toast stack, soft and translucent, that fades out; clicking a toast flies the camera there. The existing order notices move into it.
+  - `game/alerts.ts` (pure, tested): clusters of enemy animals on your land, from the animal frames. An alert is raised when a cluster crosses a size threshold, with a cooldown per area. The wording varies with size and at random: "Enemy caterpillar incursion" (small), "Enemy vole attack" (medium), "Enemy fox raid" (large), plus synonyms (foray, assault, swarm…). The species named is the cluster's dominant one.
+  - A ping at the location: an expanding ring on the map, and an arrow at the screen edge when it is off-screen.
+  - More events through the same stack: a species can be unlocked, a cell front is lost fast, the victory threshold is near.
+- [ ] **4. Strategic icons** (toggle: the View menu and the `I` key).
+  - Your animals are grouped per species (coarse grid, merged neighbours); a species icon with a count sits over each large group, at a fixed screen size (HTML overlay over projected positions, about 10 Hz).
+  - Clicking an icon selects that group (controllable species). Swarms get icons too, without selection.
+- [ ] **5. Drop cursor.** While a species is armed, the cursor over the map becomes a ghost of its model (a plant's tuft, bush or tree; an animal's body, from `PlantStyle` / `AnimalView` geometry) on a footprint ring (plant radius or drop radius). The ring shows whether the drop is on your land or costs ×1.5.
+- [ ] **6. (Stretch) Parachute drops.** The worker reports the ids created by each spawn command; `AnimalView` lowers those animals from the sky (about 10 m, 1.5 s, a light sway) before they land. Births do not.
+- [ ] **7. Menus.**
+  - Match setup: vs bot, difficulty, map seed, sandbox; replaces the URL parameters.
+  - Options: quality, keybinds.
+  - "Play again" on the end screen.
+- [ ] **8. Onboarding:** contextual first-match tips (plant, spread, unlock, call animals, drop, win conditions) through the notification stack, then a short guided scenario.
+- [ ] **9. Static deploy** (Cloudflare Pages or itch.io), build-version badge, feedback link.
 
 ## M7-lite · Balance loop (pulled forward, D-073)
 - [ ] `tools/balance/`: bot-vs-bot batch runs through `sim-cli` (seeds × difficulties) → match length, win rates, population curves, collapses.
@@ -89,6 +110,7 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [ ] The three biomes of gamerules §2.2 and their species (Q-014, Q-016); the bot learns them; the balance loop re-tunes.
 
 ## M5b · Art pass
+- [ ] Sound: ambient loops, UI clicks, animal and event cues, volume setting; CC0 sources in `ASSETS_LICENSES.md` (moved from M5a, D-075).
 - [ ] Git LFS for `assets-src/`. Blender `bpy` pipeline (`tools/assets/build.py`) → glTF → `gltf-transform`.
 - [ ] glTF plants through `PlantStyle`; animals through `AnimalView` with vertex-animation textures (animated at 1,000+ instances).
 - [ ] Shader priorities 1–5 (wind, translucency, terrain blending, territory glow, post-processing), quality presets.

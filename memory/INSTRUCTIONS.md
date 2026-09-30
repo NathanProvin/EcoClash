@@ -354,7 +354,7 @@ Each milestone ends with a playable or testable result and passing CI. The detai
 | M3 | Agents and control | Herbivores and predators, selection, orders, flow fields. The decomposer decision is taken |
 | M3.5 | Lockstep smoke test | Two browser tabs over a local relay play the same match for 5 min with identical hashes |
 | M4 | Full match vs AI | Economy, structures, territory, victory conditions. Scripted AI (command-only). End screen with charts |
-| M5a | Playable alpha (D-073) | 60 fps Medium / 30 Low on the reference laptop, match setup and options screens, onboarding, sound, static deploy for outside playtesters |
+| M5a | Playable alpha (D-073, D-075) | 60 fps Medium / 30 Low on the reference laptop, pressure borders, notifications and raid alerts, strategic icons, drop cursor, match setup and options screens, onboarding, static deploy for outside playtesters |
 | M7-lite | Balance loop (D-073) | Bot-vs-bot batch runs and a report; pace, costs and victory thresholds tuned with playtest feedback |
 | Content | Terrain and species (D-073) | Seeded map generator, three biomes and their species, bot and balance updated |
 | M5b | Art pass | Art direction applied, glTF plants and animated animals, shader priorities 1–5, quality presets |

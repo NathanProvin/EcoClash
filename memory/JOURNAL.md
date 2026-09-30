@@ -348,3 +348,7 @@
 ## 2026-09-30 · Next directions (D-073, D-074)
 - **Done:** stepped back with the user; new milestone order: M5a playable alpha → M7-lite balance loop → Content (terrain, biomes, species) → M5b art → M6 multiplayer → M7. No fog of war for now.
 - **Next:** M5a, starting with the fps gate on the reference laptop.
+
+## 2026-09-30 · M5a plan (D-075)
+- **Done:** fps gate passed (60 fps, user). M5a planned: bug fixes (AZERTY shortcuts, stuck tooltip), pressure borders, notifications and raid alerts, strategic icons, drop cursor, parachute drops (stretch), menus, onboarding, deploy. Sound moved to M5b.
+- **Next:** M5a task 1, the bug fixes.

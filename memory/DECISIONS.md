@@ -876,3 +876,11 @@ Template:
     - animals elsewhere: the drop area (`drop_radius`, now exported by `sim-wasm`), in the alert colour with a "×1.5" tag.
   - The model is enlarged to at least 2 % of the camera distance across, so a vole reads from the map view while a tree stays true to size up close.
 - **Consequences:** Checked in the browser: oak and vole ghosts at map zoom, and the paid drop ring over enemy land.
+
+## D-080 · 2026-09-30 · Parachute drops
+- **Status:** accepted (user: "an animation where animals are dropped from the sky, like parachuted into the map")
+- **Decision:**
+  - The world records the id range each successful spawn command creates (`World::drops`, drained by `take_drops`, `sim-wasm` `takeDrops`). It is a view, never hashed, like the notices. Births are not drops.
+  - The worker sends the ranges with each tick. `Live` remembers each dropped id's landing time for 5 s (`droppedAt`).
+  - `AnimalView` lowers dropped animals from 10 m over 1.6 s (easing out), swaying, under a leaf-green dome canopy that vanishes on landing. Their ring on the ground already marks the landing spot. Swarm dots fall too, without a canopy.
+- **Consequences:** Tests: the world records one drop per landed spawn and drains; `Live.droppedAt`; `AnimalView` shows a canopy mid-fall and the animal on the ground once landed. Native and WASM hashes are unchanged.

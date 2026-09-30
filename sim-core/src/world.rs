@@ -61,6 +61,9 @@ pub struct World {
     /// Why recent orders did nothing, for the UI: (player, text). Not part of the state hash;
     /// callers drain it (`take_notices`).
     pub notices: Vec<(u8, String)>,
+    /// Animals placed by spawn commands since the last `take_drops`, as (first id, count): the
+    /// renderer parachutes them in (D-080). A view, never hashed, like the notices.
+    pub drops: Vec<(u32, u32)>,
     /// Set once the match is decided (checked after every flora tick); the world keeps running if
     /// stepped, callers stop there.
     pub result: Option<Outcome>,
@@ -117,6 +120,7 @@ impl World {
             economy: Economy::new(balance, &fauna.p),
             fauna,
             notices: Vec::new(),
+            drops: Vec::new(),
             result: None,
             victory: Victory::from_balance(balance),
             rng: Pcg32::new(seed, RNG_STREAM),
@@ -245,7 +249,9 @@ impl World {
                         .push((c.player, format!("{species}: not enough biomass")));
                     return;
                 }
+                let first = self.fauna.agents.next_id;
                 self.fauna.place(s, c.player, at, count, n);
+                self.drops.push((first, u32::try_from(count).unwrap_or(0)));
                 self.economy.pay(c.player, unit * count);
             }
             Payload::Unlock { species } => {
@@ -387,6 +393,11 @@ impl World {
         std::mem::take(&mut self.notices)
     }
 
+    /// Animals dropped by spawn commands since the last call, as (first id, count).
+    pub fn take_drops(&mut self) -> Vec<(u32, u32)> {
+        std::mem::take(&mut self.drops)
+    }
+
     /// Hash of the current state: tick, scalars (points banked included), RNG, field digest (dirty chunks re-hashed).
     pub fn hash(&mut self) -> u64 {
         let digest = self.fields.refresh(&self.state);
@@ -512,6 +523,10 @@ mod tests {
             "{notices:?}"
         );
         assert!(w.take_notices().is_empty(), "drained");
+        let drops = w.take_drops();
+        assert_eq!(drops.len(), 1, "one spawn landed: {drops:?}");
+        assert!(drops[0].1 > 0, "its animals are there to parachute in");
+        assert!(w.take_drops().is_empty(), "drained");
     }
 
     #[test]

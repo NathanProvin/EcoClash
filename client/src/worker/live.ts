@@ -50,6 +50,7 @@ export type ToMain =
       unlocked: number[][]; // per player, one flag per species (species-table order)
       result: string; // the verdict as JSON once the match is decided, else ""
       stalled: boolean; // relayed: waiting for the other player's turn
+      drops: number[]; // animals just dropped by spawn commands: flat (first id, count) pairs
     }
   | {
       type: "fields";
@@ -63,6 +64,9 @@ export type ToMain =
   | { type: "notice"; notices: { player: number; text: string }[] }
   | { type: "net"; event: "desync" | "left"; tick: number }
   | { type: "error"; message: string };
+
+/** How long a dropped animal is remembered, for its parachute (ms; the fall is shorter). */
+const DROP_MEMORY_MS = 5000;
 
 /** Why an order did nothing, shown for a few seconds. */
 export interface Notice {
@@ -231,6 +235,7 @@ export class Live implements Source {
       this.cur = { tick: m.tick, at: performance.now(), animals: decodeAgents(m.agents) };
       this.unlockedFlags = m.unlocked;
       this.stalled = m.stalled;
+      this.noteDrops(m.drops, this.cur.at);
       if (m.result && !this.result) this.result = JSON.parse(m.result) as Outcome;
     } else if (m.type === "fields") {
       this.current = this.decode(this.current.frame + 1, new Uint8Array(m.frame), m);
@@ -246,6 +251,22 @@ export class Live implements Source {
     } else if (m.type === "error") {
       this.error = m.message;
     }
+  }
+
+  /** When each recently dropped animal landed on the map (ms, performance.now), by id (D-080). */
+  private readonly dropped = new Map<number, number>();
+
+  private noteDrops(pairs: readonly number[], at: number): void {
+    for (let i = 0; i + 1 < pairs.length; i += 2) {
+      const [first, count] = [pairs[i] ?? 0, pairs[i + 1] ?? 0];
+      for (let id = first; id < first + count; id++) this.dropped.set(id, at);
+    }
+    for (const [id, t] of this.dropped) if (at - t > DROP_MEMORY_MS) this.dropped.delete(id);
+  }
+
+  /** When animal `id` was dropped (ms, performance.now), if it was dropped a moment ago. */
+  droppedAt(id: number): number | undefined {
+    return this.dropped.get(id);
   }
 
   /** Decode a frame, refresh the per-player plant census, and append a row to the HUD series. */

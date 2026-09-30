@@ -218,6 +218,17 @@ impl Sim {
         serde_json::Value::Array(list).to_string()
     }
 
+    /// Animals dropped by spawn commands since the last call, as flat (first id, count) pairs
+    /// (D-080): the renderer parachutes them in.
+    #[wasm_bindgen(js_name = takeDrops)]
+    pub fn take_drops(&mut self) -> Vec<u32> {
+        self.world
+            .take_drops()
+            .into_iter()
+            .flat_map(|(first, count)| [first, count])
+            .collect()
+    }
+
     /// Commands refused so far.
     #[wasm_bindgen(getter)]
     pub fn rejected(&self) -> f64 {

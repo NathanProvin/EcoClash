@@ -424,7 +424,9 @@ export class Viewer {
     this.plants.frame(now);
     const t0 = Math.floor(tick);
     this.shown = interpolate(this.replay.animals(t0), this.replay.animals(t0 + 1), tick - t0);
-    this.animals.update(this.shown, this.selected, tick, this.replay.meta.n);
+    const dropped = this.replay.droppedAt?.bind(this.replay);
+    const ms = performance.now();
+    this.animals.update(this.shown, this.selected, tick, this.replay.meta.n, ms, dropped);
     animateAura(this.aura, now);
     this.animatePings(now);
     if (this.flight) {

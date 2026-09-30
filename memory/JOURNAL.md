@@ -370,3 +370,7 @@
 
 ## 2026-09-30 · M5a task 5: drop cursor (D-079)
 - **Done:** ghost model of the armed species under the cursor, landing ring (plant disc, home spot, paid drop area with ×1.5), readable at any zoom; `dropRadius` exported. Checked in the browser.
+
+## 2026-09-30 · M5a task 6: parachute drops (D-080)
+- **Done:** spawn id ranges from the sim (not hashed) → worker → `Live.droppedAt` → falling animals under a leaf canopy. Rust, client (50) and WASM parity checks pass.
+- **Next:** M5a task 7, menus.

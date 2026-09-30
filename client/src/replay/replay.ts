@@ -78,6 +78,8 @@ export type Source = Pick<
 > & {
   /** Species cards a player has unlocked (live matches; replays rebuild it from their log). */
   unlocked?: (player: number) => Set<string>;
+  /** When an animal was dropped by a spawn order (ms, performance.now), for its parachute. */
+  droppedAt?: (id: number) => number | undefined;
 };
 
 const ANIMAL_BYTES = 10; // u32 id, u16 y, u16 x, u8 species, u8 owner

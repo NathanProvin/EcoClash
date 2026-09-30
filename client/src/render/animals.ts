@@ -122,6 +122,9 @@ const BOB = 0.3;
  *  point (replays hold whole cells) do not stack. */
 const SPREAD = 0.3;
 const HIGHLIGHT = new THREE.Color("#ffffff");
+/** Parachute drops (D-080): a dropped animal falls from `height` metres over `s` seconds under a
+ *  leaf canopy, swaying by up to `sway` radians. */
+const FALL = { height: 10, s: 1.6, sway: 0.35, canopy: "#86a94f" } as const;
 
 /** Where an animal was drawn (world metres), for picking. */
 export interface Drawn {
@@ -139,6 +142,8 @@ export class AnimalView {
   private readonly bodies: Record<Body, THREE.InstancedMesh>;
   private readonly rings: THREE.InstancedMesh;
   private readonly swarm: THREE.InstancedMesh;
+  private readonly canopies: THREE.InstancedMesh;
+  private readonly canopyColor = new THREE.Color(FALL.canopy);
   private readonly forms: AnimalForm[];
   private readonly colors: THREE.Color[];
   private readonly swarmOf: boolean[];
@@ -180,16 +185,37 @@ export class AnimalView {
       capacity,
       faint(SWARM.opacity),
     );
+    const dome = new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2);
+    this.canopies = instanced(
+      scene,
+      dome,
+      capacity,
+      new THREE.MeshStandardNodeMaterial({
+        roughness: 0.8,
+        flatShading: true,
+        side: THREE.DoubleSide,
+      }),
+    );
   }
 
   setVisible(on: boolean): void {
-    for (const m of [...Object.values(this.bodies), this.rings, this.swarm]) m.visible = on;
+    for (const m of [...Object.values(this.bodies), this.rings, this.swarm, this.canopies]) {
+      m.visible = on;
+    }
   }
 
-  /** Draw `animals` (interpolated, cell units) on an `n x n` map at fractional `tick`. */
-  update(animals: readonly Animal[], selected: Set<number>, tick: number, n: number): void {
+  /** Draw `animals` (interpolated, cell units) on an `n x n` map at fractional `tick`; at `now`
+   *  (ms), animals `droppedAt` a moment ago are still falling under their canopy. */
+  update(
+    animals: readonly Animal[],
+    selected: Set<number>,
+    tick: number,
+    n: number,
+    now = 0,
+    droppedAt?: (id: number) => number | undefined,
+  ): void {
     const counts = Object.fromEntries(BODIES.map((b) => [b, 0])) as Record<Body, number>;
-    let [swarms, rings] = [0, 0];
+    let [swarms, rings, canopies] = [0, 0, 0];
     const heading = new Map<number, { x: number; z: number; a: number }>();
     this.drawn = [];
     for (const a of animals) {
@@ -197,8 +223,13 @@ export class AnimalView {
       // Its position from the cell corner, plus its own fixed offset.
       const x = (a.x - n / 2 + 0.5 + SPREAD * unit(a.id, 1)) * CELL;
       const z = (a.y - n / 2 + 0.5 + SPREAD * unit(a.id, 2)) * CELL;
+      // Still falling from a drop: height left (m), easing out as it lands.
+      const since = droppedAt?.(a.id);
+      const age = since === undefined ? FALL.s : (now - since) / 1000;
+      const left = age < FALL.s ? 1 - (1 - (1 - age / FALL.s) ** 2) : 0;
+      const fall = FALL.height * left;
       if (this.swarmOf[a.species]) {
-        put(this.swarm, swarms++, x, SWARM.y, z, SWARM.r, SWARM.r, 0, this.dotColor[owner]);
+        put(this.swarm, swarms++, x, SWARM.y + fall, z, SWARM.r, SWARM.r, 0, this.dotColor[owner]);
         continue; // not selectable (D-065)
       }
       // Face the way it goes; keep the last heading while it stands still.
@@ -210,9 +241,15 @@ export class AnimalView {
       const form = this.forms[a.species];
       const body = form?.body ?? "rodent";
       const size = (form?.length ?? 0.2) * ANIMAL_SCALE;
-      const y = body === "bird" ? FLIGHT_Y + BOB * Math.sin(tick * 0.8 + a.id) : 0;
+      const y = (body === "bird" ? FLIGHT_Y + BOB * Math.sin(tick * 0.8 + a.id) : 0) + fall;
       const color = this.colors[a.species] ?? HIGHLIGHT;
-      put(this.bodies[body], counts[body]++, x, y, z, size, size, angle, color);
+      const sway = FALL.sway * left * Math.sin(age * 5 + a.id);
+      put(this.bodies[body], counts[body]++, x, y, z, size, size, angle + sway, color);
+      if (left > 0) {
+        const r = Math.max(0.5, size * 0.7);
+        const cy = y + size * 0.8 + 0.5;
+        put(this.canopies, canopies++, x, cy, z, r, r * 0.5, angle + sway, this.canopyColor);
+      }
       const ringColor = selected.has(a.id)
         ? HIGHLIGHT
         : this.ringColor[owner][this.predatorOf[a.species] ? "predator" : "animal"];
@@ -224,6 +261,7 @@ export class AnimalView {
     for (const b of BODIES) finish(this.bodies[b], counts[b]);
     finish(this.rings, rings);
     finish(this.swarm, swarms);
+    finish(this.canopies, canopies);
   }
 }
 

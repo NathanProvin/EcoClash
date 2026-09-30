@@ -89,10 +89,12 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     [1, 0, 1],
     [1, 0, 0],
   ];
-  const tick = { hash: "aa", ms: 2, unlocked, result: "", stalled: false };
+  const tick = { hash: "aa", ms: 2, unlocked, result: "", stalled: false, drops: [1, 2] };
   worker.emit({ type: "tick", tick: 8, agents: agents([[1, 0, 0, 0, 1]]), ...tick });
   worker.emit({ type: "tick", tick: 9, agents: agents([[1, 0, 1, 0, 1]]), ...tick });
   expect(live.result).toBeNull();
+  expect(live.droppedAt(1)).toBeDefined(); // ids 1 and 2 were dropped: they parachute in
+  expect(live.droppedAt(3)).toBeUndefined();
   expect(live.meta.series["standing_p1"]?.[live.seriesIndex()]).toBe(5000);
   expect(live.meta.series["t_s"]?.[live.seriesIndex()]).toBeCloseTo(0.8);
   expect([...live.unlocked(1)]).toEqual(["grasses", "voles"]);

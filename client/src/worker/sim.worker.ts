@@ -73,7 +73,8 @@ function loop() {
     const agents = s.agentFrame().buffer as ArrayBuffer;
     const unlocked = [[...s.unlocked(1)], [...s.unlocked(2)]];
     const stalled = net?.stalled ?? false;
-    post({ type: "tick", tick: s.tick, hash, ms, agents, unlocked, result: over, stalled }, [
+    const drops = [...s.takeDrops()];
+    post({ type: "tick", tick: s.tick, hash, ms, agents, unlocked, result: over, stalled, drops }, [
       agents,
     ]);
     if (s.floraTick !== floraTick) sendFields(s);

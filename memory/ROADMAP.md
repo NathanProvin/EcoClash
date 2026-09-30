@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M5a, the playable alpha (D-073, D-075). The fps gate passed (60 fps). Next task: 6, parachute drops.
+- **Now:** M5a, the playable alpha (D-073, D-075). The fps gate passed (60 fps). Next task: 7, menus.
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-09-30
@@ -92,7 +92,7 @@ Goal: a build strangers can play against the bot and understand at a glance. One
   - Your animals are grouped per species (coarse grid, merged neighbours); a species icon with a count sits over each large group, at a fixed screen size (HTML overlay over projected positions, about 10 Hz).
   - Clicking an icon selects that group (controllable species). Swarms get icons too, without selection.
 - [x] **5. Drop cursor.** While a species is armed, the cursor over the map becomes a ghost of its model (a plant's tuft, bush or tree; an animal's body, from `PlantStyle` / `AnimalView` geometry) on a footprint ring (plant radius or drop radius). The ring shows whether the drop is on your land or costs ×1.5.
-- [ ] **6. (Stretch) Parachute drops.** The worker reports the ids created by each spawn command; `AnimalView` lowers those animals from the sky (about 10 m, 1.5 s, a light sway) before they land. Births do not.
+- [x] **6. (Stretch) Parachute drops.** The worker reports the ids created by each spawn command; `AnimalView` lowers those animals from the sky (about 10 m, 1.5 s, a light sway) before they land. Births do not.
 - [ ] **7. Menus.**
   - Match setup: vs bot, difficulty, map seed, sandbox; replaces the URL parameters.
   - Options: quality, keybinds.

@@ -807,3 +807,19 @@ Template:
   - **Grass:** the last two flora textures blend over the time between field frames, so blades grow instead of snapping at 1.25 Hz.
   - **Seams:** `PlantStyle` (plants.ts; `LowPolyPlants` today) gives the meshes and parts of a model, and `PlantView` does the layout, stickiness and growth. `AnimalView` (animals.ts) draws animals. `viewer.ts` only orchestrates. Real glTF plants, wind and animated animals plug in behind these seams.
 - **Consequences:** Checked in the browser: plants grow in, the forest renders, no console errors. New tests cover slots, spacing, stickiness, growth maths, swap-remove, resizes and revivals. The fps must be measured on the reference laptop: the browser used here throttles background tabs.
+
+## D-073 · 2026-09-30 · Next directions: a playable alpha first
+- **Status:** accepted (user approved the plan)
+- **Context:** the core loop, map, renderer and a functional UI are done. Better models plug in through `PlantStyle` / `AnimalView`, though animated animals at scale need vertex-animation textures. Terrain has its hooks (gamerules §2.3). Balance has no data yet: no batch runs, no outside players.
+- **Decision (milestone order):**
+  1. **M5a**, a playable alpha for outside playtesters: fps gate, match setup and options screens, onboarding, sound, static deploy.
+  2. **M7-lite**, the balance loop: bot-vs-bot batch runs and a report, plus the playtest feedback.
+  3. **Content**: seeded terrain and map generator, biomes, new species. Retire the Python flora parity rule (D-034) first, to be decided then.
+  4. **M5b**: the art pass.
+  5. **M6**: online multiplayer.
+  6. **M7**: balance at scale and `sim-py`.
+- **Why:** real players and data before multiplayer and art; tuning without data is guesswork.
+
+## D-074 · 2026-09-30 · No fog of war for now (Q-007)
+- **Status:** accepted (user: "no fog of war yet")
+- **Decision:** the full map is visible to both players and the bot. Fog of war is a post-v1 idea (INSTRUCTIONS §2.5). This matches lockstep, where every client holds the full state anyway.

@@ -16,13 +16,13 @@
 | Q-004 | Do agents reproduce on their own? | M0 (agents part) | resolved → D-023 |
 | Q-005 | Counter loop: what kills predators, friendly fire | M0 (agents part) | resolved → D-023 |
 | Q-006 | Unit control at 1–2k agents: per-unit or swarm/zone orders | M3 | resolved → D-018 |
-| Q-007 | Fog of war in v1? | M3 | user thinking |
+| Q-007 | Fog of war in v1? | M3 | resolved → D-074 |
 | Q-008 | Map scale: world units per cell, agent size, speeds | M2 | resolved → D-040 (cell size: D-047) |
 | Q-009 | Colour-blind-safe player colours | M2 | resolved → D-040 |
 | Q-010 | Reference machine for performance budgets | M2 | resolved → D-040 |
 | Q-011 | Final game name | before store page | open |
 | Q-012 | Decomposers: agent or field | M3 | resolved → D-018 |
-| Q-013 | Exact victory thresholds and match length | M4 (tuned via `tools/balance`) | open |
+| Q-013 | Exact victory thresholds and match length | M7-lite (tuned via `tools/balance`) | open |
 | Q-014 | Plant species per player in v1 | M0 | open (default: grass + shrub + tree) |
 | Q-015 | Low-density growth: stochastic rounding or growth floor | M0 (quantized mode) | resolved → D-021 |
 | Q-016 | Tiers of the L1 intermediates (wildflowers, nettle, bramble) | M4 | open (default: wildflowers and nettle tier 2, bramble tier 3; D-050) |
@@ -38,8 +38,7 @@
 
 ## Q-006 · Unit control scale — resolved → D-018
 
-## Q-007 · Fog of war
-- **Recommended default:** None in v1 (full visibility). Lockstep gives every client the full state anyway. Revisit after v1.
+## Q-007 · Fog of war — resolved → D-074
 
 ## Q-008 · Map scale — resolved → D-040
 ## Q-009 · Player colours — resolved → D-040
@@ -51,7 +50,7 @@
 ## Q-012 · Decomposers: agent or field — resolved → D-018
 
 ## Q-013 · Victory thresholds and match length
-- Defaults: 60 % of the map / 20 min. Tune them with `tools/balance` in M4.
+- Defaults: 60 % of the map / 20 min. Tune them with `tools/balance` in M7-lite (D-073).
 
 ## Q-014 · Plant species per player
 - Default: grass + shrub (fields) + tree (structure).

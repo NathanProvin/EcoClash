@@ -4,11 +4,9 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** feedback round 2 done (D-069 … D-072): the ecology pace knob and live matches at 1× (D-069a), 43² map, family build bar with tier flyouts, progressive plant growth behind render seams. Waiting on the user's hands-on pass and the M2 fps reading (Layers → Quality: Medium, then Low; tick "Performance readout").
-- **Next (after the feedback):** M5, art and UI polish; M6, online multiplayer. M7 last: balance runs, `sim-py`.
-- **Blocked:**
-  - None on design questions for M0.
-  - None on the tooling side (Rust ready as of 2026-09-27).
+- **Now:** M5a, the playable alpha for outside playtesters (D-073). First: the fps gate on the reference laptop.
+- **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
+- **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-09-30
 
 ---
@@ -55,7 +53,7 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [ ] Perf check (the user, on the reference laptop): the HUD fps with Layers → Quality on Medium (target 60) and Low (floor 30), at 64² (D-040, D-044, D-056).
 
 ## M3 · Agents and control
-- [ ] Resolve Q-007 (fog). (Q-006 and Q-012 resolved by D-018.)
+- [x] Resolve Q-007 (fog): no fog of war for now (D-074). (Q-006 and Q-012 resolved by D-018.)
 - [x] Fauna in `sim-core` (D-052): SoA agents (sequential ids, never reused), the prototype's behaviours (flee, seek, wander, graze, decompose, hunt, starve, breed, refuges), continuous movement every tick, `spawn` command with the §6.3 triggers, animals hashed every tick, animal yields in the income. Native vs WASM check covers animals.
 - [x] Live animals in the client (D-052): animal frame every tick, interpolated; Plants / Animals tabs; call an animal with a click; notices for orders that did nothing.
 - [x] Ids and paths (D-053): ids only grow and are never reused, so no generation counter is needed. No flow fields: the V1 map has no obstacles, so straight lines reach every cell. Add them with terrain obstacles.
@@ -74,18 +72,34 @@ Flora-only first, following the gamerules cell model (D-019). [Proposed] flora r
 - [x] End screen with biomass and territory charts (D-059).
 - Batch balance runs and the `sim-py` decision moved to M7 (user, 2026-09-29).
 
-## M5 · Art and UI polish
-- [ ] Git LFS for `assets-src/`. Blender `bpy` pipeline (`tools/assets/build.py`).
-- [ ] Shader priorities 1–5, quality presets, menus, settings, keybinds.
-- [ ] `ASSETS_LICENSES.md` complete.
+## M5a · Playable alpha for outside playtesters (next, D-073)
+- [ ] Performance gate: fps on the reference laptop (M2 check), 60 on Medium, 30 on Low; fix what misses.
+- [ ] Match setup screen (vs bot, difficulty, map seed, sandbox) replacing the URL parameters; Options (quality, volume, keybinds); "Play again" on the end screen.
+- [ ] Onboarding: contextual first-match tips (plant, spread, unlock, call animals, drop, win conditions), then a short guided scenario.
+- [ ] Sound: ambient loops, UI clicks, animal and event cues, volume setting; CC0 sources in `ASSETS_LICENSES.md`.
+- [ ] Static deploy (Cloudflare Pages or itch.io), build-version badge, feedback link.
 
-## M6 · Multiplayer
+## M7-lite · Balance loop (pulled forward, D-073)
+- [ ] `tools/balance/`: bot-vs-bot batch runs through `sim-cli` (seeds × difficulties) → match length, win rates, population curves, collapses.
+- [ ] One-page report; tune `pace`, `food_reserve`, caps, costs and the victory thresholds (Q-013) with it and the playtest feedback.
+
+## Content · Terrain, biomes, map generator, species (D-073)
+- [ ] Decide on retiring the Python flora parity rule (D-034) before the terrain work (`sim-core` as the single reference).
+- [ ] Seeded map generation in `sim-core` (soil types, water, relief), deterministic and hashed; relief and water in the client.
+- [ ] The three biomes of gamerules §2.2 and their species (Q-014, Q-016); the bot learns them; the balance loop re-tunes.
+
+## M5b · Art pass
+- [ ] Git LFS for `assets-src/`. Blender `bpy` pipeline (`tools/assets/build.py`) → glTF → `gltf-transform`.
+- [ ] glTF plants through `PlantStyle`; animals through `AnimalView` with vertex-animation textures (animated at 1,000+ instances).
+- [ ] Shader priorities 1–5 (wind, translucency, terrain blending, territory glow, post-processing), quality presets.
+- [ ] Brand and store art after the name (Q-011). `ASSETS_LICENSES.md` complete.
+
+## M6 · Multiplayer (after the single player is fun)
 - [ ] Relay deployed (VPS or Durable Objects), `.env.example` with `VITE_RELAY_URL`.
 - [ ] Lobby + handshake (build version, balance hash, seed).
-- [ ] Desync detection UI + state dumps, replays, resign/pause/disconnect rules.
+- [ ] Desync detection UI + state dumps, replays (seed + commands), resign/pause/disconnect rules.
 - [ ] Preview/prod deploy pipeline (Cloudflare Pages, itch.io).
 
-## M7 · Balance and AI training (last, by user choice)
-- [ ] `tools/balance/` batch runs: thousands of headless bot-vs-bot matches via `sim-cli` → Parquet (win rates, match length, collapses).
-- [ ] Tune `balance.toml` / `species.toml` from the results, incl. the victory thresholds (Q-013) and M0.6/M0.7.
+## M7 · Balance at scale and AI training (last)
+- [ ] Thousands of headless matches → Parquet; M0.6/M0.7.
 - [ ] Decide whether `sim-py` (PyO3 bindings, D-010) is needed: only for a learned AI opponent.

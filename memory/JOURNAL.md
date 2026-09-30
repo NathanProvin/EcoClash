@@ -344,3 +344,7 @@
 ## 2026-09-30 · Plant growth and render seams (D-072)
 - **Done:** fixed per-cell slots (dart-thrown shrubs, 3 per cell), sticky species, GPU growth for shrubs and trees, blended grass, `PlantStyle`/`PlantView`/`AnimalView` seams. Client check, lint and 39 tests pass; plants grow in, checked in the browser.
 - **Next:** the user's hands-on pass (1× start, 43² map, family bar, growth), and the fps reading on the reference laptop.
+
+## 2026-09-30 · Next directions (D-073, D-074)
+- **Done:** stepped back with the user; new milestone order: M5a playable alpha → M7-lite balance loop → Content (terrain, biomes, species) → M5b art → M6 multiplayer → M7. No fog of war for now.
+- **Next:** M5a, starting with the fps gate on the reference laptop.

@@ -21,6 +21,7 @@ import {
 } from "three/tsl";
 import { interpolate, type Animal, type Fields, type Source } from "../replay/replay";
 import { AnimalView } from "./animals";
+import { Ghost, type GhostSpec } from "./ghost";
 import { paintFrontier, TEXELS } from "./frontier";
 import { makeGrass } from "./grass";
 import { CELL, rand, SLAB_DEPTH } from "./layout";
@@ -36,6 +37,9 @@ export { CELL };
 const TERRITORY_TINT = 0.15;
 /** A ping (alerts, D-077): rings spread from 1 to `spread` cells over `waveS`, `waves` times. */
 const PING = { spread: 4, waveS: 1, waves: 3 } as const;
+/** The drop cursor's model is at least this share of the camera distance across (readable
+ *  from afar; true size up close). */
+const GHOST_SIZE = 0.02;
 /** Grass blends from one field frame to the next over the time between the last two frames,
  *  within these bounds (s). */
 const BLEND_S = { min: 0.2, max: 2 } as const;
@@ -85,6 +89,9 @@ export class Viewer {
   private readonly raycaster = new THREE.Raycaster();
   private flight: { from: THREE.Vector3[]; to: THREE.Vector3[]; t: number } | undefined;
   private pings: { mesh: THREE.Mesh; start: number }[] = [];
+  private readonly ghost: Ghost;
+  private ghostSpec: GhostSpec | null = null;
+  private owner: Uint8Array = new Uint8Array(0); // the last field frame's owners
   private lastTime = 0;
   private lastFrame = -1;
   private lastPaint = 0;
@@ -204,6 +211,7 @@ export class Viewer {
 
     this.aura = makeAura();
     this.scene.add(this.aura);
+    this.ghost = new Ghost(this.scene);
   }
 
   static async create(
@@ -290,6 +298,36 @@ export class Viewer {
   setCell(cell: { row: number; col: number } | null): void {
     this.aura.visible = cell !== null;
     if (cell) this.aura.position.copy(cellCenter(cell, this.replay.meta.n));
+  }
+
+  /** The drop cursor (D-079): the armed species' model under the cursor, or none. */
+  setGhost(spec: GhostSpec | null): void {
+    this.ghostSpec = spec;
+    this.ghost.set(spec);
+  }
+
+  /** Move the drop cursor to a screen point (null: off the canvas). Returns the cell and whether
+   *  it lies off the armed player's land, or null off the map. */
+  aimGhost(
+    x: number | null,
+    y = 0,
+  ): { cell: { row: number; col: number }; offLand: boolean } | null {
+    const spec = this.ghostSpec;
+    const cell = spec && x !== null ? this.pickCell(x, y) : null;
+    if (!spec || !cell) {
+      this.ghost.aim(null, 0, "");
+      return null;
+    }
+    const n = this.replay.meta.n;
+    const offLand = this.owner[cell.row * n + cell.col] !== spec.player;
+    const animal = spec.kind === "fauna";
+    // Plants: the disc planted. Animals: the landing spot at home, the drop area elsewhere.
+    const cells = animal ? (offLand ? spec.radius : 0.5) : spec.radius + 0.5;
+    const color = animal && offLand ? WORLD.alert : PLAYER[spec.player].base;
+    const at = cellCenter(cell, n);
+    const least = this.camera.position.distanceTo(at) * GHOST_SIZE;
+    this.ghost.aim(at, cells * CELL, color, least);
+    return { cell, offLand };
   }
 
   /** Ping a cell: rings of `hex` spread and fade there for a few seconds (D-077). */
@@ -435,6 +473,7 @@ export class Viewer {
 
   private paintFields(fields: Fields, now: number, step: boolean): void {
     const { owner, soil: soilDev, species, cover } = fields;
+    this.owner = owner;
     const n = this.replay.meta.n;
     const tint = { 1: hexToRgb(PLAYER[1].base), 2: hexToRgb(PLAYER[2].base) };
     const [herbs = [], shrubs = [], trees = []] = this.byLevel;

@@ -37,6 +37,7 @@ export type ToMain =
       tickHz: number;
       pace: number;
       plantRadius: number;
+      dropRadius: number;
       maxAgents: number;
       balanceHash: string;
     }
@@ -110,6 +111,8 @@ export class Live implements Source {
   netProblem = "";
   result: Outcome | null = null;
   readonly plantRadius: number;
+  /** Cells around the click where an animal dropped off your land lands (D-061). */
+  readonly dropRadius: number;
   private readonly maxAgents: number;
   private current: Fields;
   private flora: number[][] = [[], []]; // cells per plant species, per player, current frame
@@ -125,6 +128,7 @@ export class Live implements Source {
     const plants = species.filter((s) => s.kind === "flora");
     const animals = species.filter((s) => s.kind === "fauna");
     this.plantRadius = ready.plantRadius;
+    this.dropRadius = ready.dropRadius;
     this.me = ready.me === 2 ? 2 : 1;
     this.maxAgents = ready.maxAgents;
     this.meta = {

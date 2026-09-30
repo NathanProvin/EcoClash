@@ -865,3 +865,14 @@ Template:
   - Clicking an icon selects the group. Swarm icons only show, since swarms cannot be ordered.
   - Toggle: the I key, or "Strategic icons" in the view menu. On by default, remembered per browser.
 - **Consequences:** Checked in the browser: 18 voles show one "×18" icon; a click selects all 18; I hides and shows the icons.
+
+## D-079 · 2026-09-30 · Drop cursor
+- **Status:** accepted (user: "the cursor changed into the model of the species when selected in the unit bar and ready to be dropped")
+- **Decision:**
+  - While a species is armed, the OS cursor hides over the map and `render/ghost.ts` shows a see-through copy of its model at the cell under the pointer. It uses the same `PlantStyle` parts and animal bodies as the scene: a tuft for herbs, a bush, a tree, an animal body.
+  - A ring shows the landing:
+    - plants: the plant disc (`plant_radius`, player colour);
+    - animals on your land: the landing spot;
+    - animals elsewhere: the drop area (`drop_radius`, now exported by `sim-wasm`), in the alert colour with a "×1.5" tag.
+  - The model is enlarged to at least 2 % of the camera distance across, so a vole reads from the map view while a tree stays true to size up close.
+- **Consequences:** Checked in the browser: oak and vole ghosts at map zoom, and the paid drop ring over enemy land.

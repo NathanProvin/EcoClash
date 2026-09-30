@@ -19,6 +19,7 @@ pub struct Sim {
     tick_hz: u32,
     pace: f64,
     plant_radius: u32,
+    drop_radius: u32,
     max_agents: u32,
     /// Scripted opponents, and the next sequence number of each one's commands.
     bots: Vec<(sim_ai::Bot, u32)>,
@@ -39,6 +40,7 @@ impl Sim {
             tick_hz: b.sim.tick_hz,
             pace: b.sim.pace,
             plant_radius: b.flora.plant_radius,
+            drop_radius: b.fauna.drop_radius,
             max_agents: b.agents.max_agents,
             bots: Vec::new(),
             world: World::new(&b, seed, n),
@@ -172,6 +174,12 @@ impl Sim {
     #[wasm_bindgen(getter, js_name = plantRadius)]
     pub fn plant_radius(&self) -> u32 {
         self.plant_radius
+    }
+
+    /// Radius in cells around the click where a drop off your land lands (`[fauna] drop_radius`).
+    #[wasm_bindgen(getter, js_name = dropRadius)]
+    pub fn drop_radius(&self) -> u32 {
+        self.drop_radius
     }
 
     /// Points banked by a player (1 or 2), for display.

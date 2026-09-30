@@ -27,6 +27,7 @@ class FakeWorker {
           tickHz: 10,
           pace: 1,
           plantRadius: 2,
+          dropRadius: 4,
           maxAgents: 2000,
           balanceHash: "0",
         }),

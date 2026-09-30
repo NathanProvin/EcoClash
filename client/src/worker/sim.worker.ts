@@ -133,6 +133,7 @@ async function begin(
     tickHz: s.tickHz,
     pace: s.pace,
     plantRadius: s.plantRadius,
+    dropRadius: s.dropRadius,
     maxAgents: s.maxAgents,
     balanceHash: s.balanceHash,
   });

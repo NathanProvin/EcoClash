@@ -8,7 +8,7 @@
   import { onDestroy, onMount } from "svelte";
   import { SvelteMap } from "svelte/reactivity";
   import { strategicGroups } from "./game/groups";
-  import { loadReplay, type Source, type Species } from "./replay/replay";
+  import { loadReplay, type Role, type Source, type Species } from "./replay/replay";
   import { Live, type Outcome } from "./worker/live";
   import {
     FrontWatch,
@@ -134,6 +134,26 @@
       return [{ key, x: at.x, y: at.y, s, count: g.count, ids: g.ids, order: !swarm[g.species] }];
     });
   }
+
+  // Drop cursor (D-079): the armed species' model follows the cursor; "×1.5" off your land.
+  let dropTag: { x: number; y: number } | null = $state(null);
+  $effect(() => {
+    const s = planting ? replay?.meta.species.find((x) => x.name === planting) : undefined;
+    const l = live;
+    viewer?.setGhost(
+      s && l
+        ? {
+            name: s.name,
+            kind: s.kind,
+            level: s.level,
+            role: s.role as Role,
+            player: me,
+            radius: s.kind === "flora" ? l.plantRadius : l.dropRadius,
+          }
+        : null,
+    );
+    if (!s) dropTag = null;
+  });
 
   function toast(text: string, kind: Toast["kind"], cell?: Toast["cell"], severity?: Severity) {
     toasts = [...toasts, { id: toastId++, text, kind, at: performance.now(), cell, severity }];
@@ -381,9 +401,14 @@
   }
 
   function onPointerMove(e: PointerEvent) {
-    if (!box) return;
     const r = canvas.getBoundingClientRect();
-    box = { ...box, x1: e.clientX - r.left, y1: e.clientY - r.top };
+    const [x, y] = [e.clientX - r.left, e.clientY - r.top];
+    if (planting && viewer) {
+      const aim = viewer.aimGhost(x, y);
+      dropTag = aim?.offLand && armedKind === "fauna" ? { x, y } : null;
+    }
+    if (!box) return;
+    box = { ...box, x1: x, y1: y };
   }
 
   function onPointerUp(e: PointerEvent) {
@@ -526,13 +551,21 @@
   <canvas
     bind:this={canvas}
     aria-label="Match view: click a cell to inspect it, drag to select your animals"
-    class:planting={planting || attackArmed}
+    class:planting={attackArmed}
+    class:dropping={!!planting}
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
+    onpointerleave={() => {
+      viewer?.aimGhost(null);
+      dropTag = null;
+    }}
     onpointerup={onPointerUp}
     oncontextmenu={(e) => e.preventDefault()}
   ></canvas>
 
+  {#if dropTag}
+    <span class="drop-tag" style:left="{dropTag.x}px" style:top="{dropTag.y}px">×1.5</span>
+  {/if}
   {#if box}
     <div
       class="box"
@@ -662,6 +695,20 @@
   }
   canvas.planting {
     cursor: crosshair;
+  }
+  canvas.dropping {
+    cursor: none; /* the ghost model is the cursor (D-079) */
+  }
+  .drop-tag {
+    position: absolute;
+    transform: translate(16px, -30px);
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 0.8em;
+    font-weight: 700;
+    color: #2a120c;
+    background: #ff7a5c;
+    pointer-events: none;
   }
   .box {
     position: absolute;

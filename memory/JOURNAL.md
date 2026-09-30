@@ -367,3 +367,6 @@
 ## 2026-09-30 · M5a task 4: strategic icons (D-078)
 - **Done:** species icons with counts over your groups, click to select, I toggle (view menu too), remembered. 49 client tests; checked in the browser.
 - **Next:** M5a task 5, the drop cursor.
+
+## 2026-09-30 · M5a task 5: drop cursor (D-079)
+- **Done:** ghost model of the armed species under the cursor, landing ring (plant disc, home spot, paid drop area with ×1.5), readable at any zoom; `dropRadius` exported. Checked in the browser.

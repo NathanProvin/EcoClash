@@ -84,15 +84,18 @@
     rotateLeft: false,
     rotateRight: false,
   };
-  // Arrows pan: A and S are unit orders (gamerules §9.2).
+  // Arrows pan: A and S are unit orders (gamerules §9.2). Letters are matched by the letter the
+  // key prints (`letter`), so AZERTY and QWERTY both work (D-075).
   const keyMap: Record<string, keyof CameraKeys> = {
     ArrowUp: "forward",
     ArrowDown: "back",
     ArrowLeft: "left",
     ArrowRight: "right",
-    KeyQ: "rotateLeft",
-    KeyE: "rotateRight",
+    q: "rotateLeft",
+    e: "rotateRight",
   };
+  /** A key's printed letter in lower case (Shift-proof), or its name (Escape, Home, arrows…). */
+  const letter = (e: KeyboardEvent) => (e.key.length === 1 ? e.key.toLowerCase() : e.key);
 
   const result = $derived.by(() => {
     const r = replay;
@@ -277,36 +280,37 @@
 
   function onKey(e: KeyboardEvent, down: boolean) {
     const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement;
-    const move = keyMap[e.code];
+    const key = letter(e);
+    const move = keyMap[key];
     if (move && !typing) {
       keys[move] = down;
       e.preventDefault();
       return;
     }
     if (!down || typing || inMenu) return;
-    const digit = /^Digit([1-9])$/.exec(e.code)?.[1];
+    const digit = /^Digit([1-9])$/.exec(e.code)?.[1]; // the digit row, whatever the layout
     if (digit) {
       // Chrome keeps Ctrl + 1-8 for its tabs: Shift + digit also sets a group.
       if (e.ctrlKey || e.shiftKey) groups.set(Number(digit), [...selection]);
       else select(groups.get(Number(digit)) ?? []);
       e.preventDefault();
-    } else if (e.code === "KeyA" && live && selection.size) {
+    } else if (key === "a" && live && selection.size) {
       attackArmed = true;
-    } else if (e.code === "KeyS" && live && selection.size) {
+    } else if (key === "s" && live && selection.size) {
       order("stop");
     } else if (e.code === "Space") {
       e.preventDefault();
       playing = !playing;
-    } else if (e.code === "KeyT") {
+    } else if (key === "t") {
       techOpen = !techOpen;
-    } else if (e.code === "Escape") {
+    } else if (key === "Escape") {
       if (confirmLeave) confirmLeave = false;
       else if (techOpen) techOpen = false;
       else if (attackArmed) attackArmed = false;
       else if (planting) planting = null;
       else if (cell) inspect(null);
       else select([]);
-    } else if (e.code === "Home") {
+    } else if (key === "Home") {
       viewer?.resetView();
     }
   }

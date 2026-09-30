@@ -352,3 +352,8 @@
 ## 2026-09-30 · M5a plan (D-075)
 - **Done:** fps gate passed (60 fps, user). M5a planned: bug fixes (AZERTY shortcuts, stuck tooltip), pressure borders, notifications and raid alerts, strategic icons, drop cursor, parachute drops (stretch), menus, onboarding, deploy. Sound moved to M5b.
 - **Next:** M5a task 1, the bug fixes.
+
+## 2026-09-30 · M5a task 1: bug fixes
+- **Done:**
+  - Letter shortcuts (A, S, T, Q/E) match the printed letter, so AZERTY works; digits stay on the digit row.
+  - The species tooltip clears when the flyout closes (arming, grace timer, Esc). Checked in the browser.

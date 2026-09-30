@@ -76,11 +76,15 @@
   function leave() {
     if (pinned) return;
     clearTimeout(timer);
-    timer = setTimeout(() => (open = null), GRACE_MS);
+    timer = setTimeout(() => {
+      open = null;
+      hover = null;
+    }, GRACE_MS);
   }
   function close() {
     open = null;
     pinned = false;
+    hover = null; // its tile is gone: no pointer-leave will come
   }
   function pin(name: string) {
     if (open === name && pinned) close();

@@ -856,3 +856,12 @@ Template:
   - **Infos:** "{Species} can be unlocked" when a card becomes both available and affordable.
   - **Pings:** three spreading rings at the place (`Viewer.ping`, alert colour `WORLD.alert`). While an alert shows, an arrow at the screen edge points to its place when it is out of view.
 - **Consequences:** Checked in the browser against the hard bot: grasshopper raids, unlock infos, click-to-fly.
+
+## D-078 · 2026-09-30 · Strategic icons
+- **Status:** accepted (user: "a toggable strategic icons option … icons of the species overlapping the location of large groupements of your unit")
+- **Decision:**
+  - `game/groups.ts` (pure, tested) groups your animals per species: 5×5-cell areas, merged with touching areas of the same species. A group needs 3 animals, or 8 for a swarm.
+  - `ui/StrategicIcons.svelte` puts a species icon with the head count over each group, at a fixed screen size (HTML over projected positions, refreshed about 10 times a second, hidden off-screen), with a player-colour underline.
+  - Clicking an icon selects the group. Swarm icons only show, since swarms cannot be ordered.
+  - Toggle: the I key, or "Strategic icons" in the view menu. On by default, remembered per browser.
+- **Consequences:** Checked in the browser: 18 voles show one "×18" icon; a click selects all 18; I hides and shows the icons.

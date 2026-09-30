@@ -18,6 +18,7 @@
     quality,
     onQuality,
     perf = $bindable(),
+    icons = $bindable(),
     replays,
     chosen = $bindable(),
     onChoose,
@@ -32,6 +33,7 @@
     quality: Quality;
     onQuality: (q: Quality) => void;
     perf: boolean;
+    icons: boolean;
     replays: string[];
     chosen: string;
     onChoose: (name: string) => void;
@@ -127,6 +129,7 @@
               </select>
             </label>
           {/if}
+          <label><input type="checkbox" bind:checked={icons} /> Strategic icons (I)</label>
           <label><input type="checkbox" bind:checked={perf} /> Performance readout</label>
         </div>
       {/if}

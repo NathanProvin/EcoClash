@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M5a, the playable alpha (D-073, D-075). The fps gate passed (60 fps). Next task: 4, strategic icons.
+- **Now:** M5a, the playable alpha (D-073, D-075). The fps gate passed (60 fps). Next task: 5, drop cursor.
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-09-30
@@ -88,7 +88,7 @@ Goal: a build strangers can play against the bot and understand at a glance. One
   - `game/alerts.ts` (pure, tested): clusters of enemy animals on your land, from the animal frames. An alert is raised when a cluster crosses a size threshold, with a cooldown per area. The wording varies with size and at random: "Enemy caterpillar incursion" (small), "Enemy vole attack" (medium), "Enemy fox raid" (large), plus synonyms (foray, assault, swarm…). The species named is the cluster's dominant one.
   - A ping at the location: an expanding ring on the map, and an arrow at the screen edge when it is off-screen.
   - More events through the same stack: a species can be unlocked, a cell front is lost fast, the victory threshold is near.
-- [ ] **4. Strategic icons** (toggle: the View menu and the `I` key).
+- [x] **4. Strategic icons** (toggle: the View menu and the `I` key).
   - Your animals are grouped per species (coarse grid, merged neighbours); a species icon with a count sits over each large group, at a fixed screen size (HTML overlay over projected positions, about 10 Hz).
   - Clicking an icon selects that group (controllable species). Swarms get icons too, without selection.
 - [ ] **5. Drop cursor.** While a species is armed, the cursor over the map becomes a ghost of its model (a plant's tuft, bush or tree; an animal's body, from `PlantStyle` / `AnimalView` geometry) on a footprint ring (plant radius or drop radius). The ring shows whether the drop is on your land or costs ×1.5.

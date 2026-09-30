@@ -363,3 +363,7 @@
 
 ## 2026-09-30 · M5a task 3: notifications (D-077)
 - **Done:** toast stack; raid alerts with varied wording, pings and off-screen arrows; lost-ground alerts; affordable-unlock infos; order notices folded in. 46 client tests; checked in the browser.
+
+## 2026-09-30 · M5a task 4: strategic icons (D-078)
+- **Done:** species icons with counts over your groups, click to select, I toggle (view menu too), remembered. 49 client tests; checked in the browser.
+- **Next:** M5a task 5, the drop cursor.

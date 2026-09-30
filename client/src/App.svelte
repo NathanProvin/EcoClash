@@ -7,7 +7,8 @@
   // Home = reset view, Space = play, T = tech tree, Esc = cancel / close / clear selection.
   import { onDestroy, onMount } from "svelte";
   import { SvelteMap } from "svelte/reactivity";
-  import { loadReplay, type Source } from "./replay/replay";
+  import { strategicGroups } from "./game/groups";
+  import { loadReplay, type Source, type Species } from "./replay/replay";
   import { Live, type Outcome } from "./worker/live";
   import {
     FrontWatch,
@@ -28,6 +29,7 @@
   import EndScreen from "./ui/EndScreen.svelte";
   import TechTree from "./ui/TechTree.svelte";
   import Timeline from "./ui/Timeline.svelte";
+  import StrategicIcons from "./ui/StrategicIcons.svelte";
   import Toasts from "./ui/Toasts.svelte";
   import TopBar from "./ui/TopBar.svelte";
 
@@ -84,6 +86,54 @@
       .filter((s) => s.kind === "fauna")
       .map((s) => ({ label: label(s.name), predator: s.role === "predator", swarm: isSwarm(s) })),
   );
+
+  // Strategic icons (D-078): on by default, remembered per browser; refreshed ~10 times a second.
+  const ICONS_KEY = "ecoclash.icons";
+  const ICONS_MS = 100;
+  let showIcons = $state(loadIcons());
+  let icons: {
+    key: string;
+    x: number;
+    y: number;
+    s: Species;
+    count: number;
+    ids: number[];
+    order: boolean;
+  }[] = $state([]);
+  let lastIcons = 0;
+  const fauna = $derived((replay?.meta.species ?? []).filter((s) => s.kind === "fauna"));
+
+  function loadIcons(): boolean {
+    try {
+      return localStorage.getItem(ICONS_KEY) !== "off";
+    } catch {
+      return true;
+    }
+  }
+  $effect(() => {
+    try {
+      localStorage.setItem(ICONS_KEY, showIcons ? "on" : "off");
+    } catch {
+      // blocked site data: the choice lasts for this page only
+    }
+  });
+
+  /** Icons over your sizeable groups, placed on screen. */
+  function placeIcons() {
+    const v = viewer;
+    if (!v || !showIcons) {
+      if (icons.length) icons = [];
+      return;
+    }
+    const swarm = kinds.map((k) => k.swarm);
+    icons = strategicGroups(v.visibleAnimals(), live ? me : player, swarm).flatMap((g) => {
+      const s = fauna[g.species];
+      const at = v.screenPoint({ row: g.row, col: g.col });
+      if (!s || !at.inView) return [];
+      const key = `${g.species}:${g.ids[0] ?? 0}`;
+      return [{ key, x: at.x, y: at.y, s, count: g.count, ids: g.ids, order: !swarm[g.species] }];
+    });
+  }
 
   function toast(text: string, kind: Toast["kind"], cell?: Toast["cell"], severity?: Severity) {
     toasts = [...toasts, { id: toastId++, text, kind, at: performance.now(), cell, severity }];
@@ -208,6 +258,10 @@
         scan(now);
       }
       aim(now);
+      if (now - lastIcons > ICONS_MS) {
+        lastIcons = now;
+        placeIcons();
+      }
       const showing = fresh(toasts, now);
       if (showing.length !== toasts.length) toasts = showing;
     }
@@ -393,6 +447,8 @@
     } else if (e.code === "Space") {
       e.preventDefault();
       playing = !playing;
+    } else if (key === "i") {
+      showIcons = !showIcons;
     } else if (key === "t") {
       techOpen = !techOpen;
     } else if (key === "Escape") {
@@ -499,6 +555,7 @@
       {quality}
       onQuality={setQuality}
       bind:perf={showPerf}
+      bind:icons={showIcons}
       {replays}
       bind:chosen
       onChoose={open}
@@ -540,6 +597,9 @@
         {/if}
       </p>
     {/if}
+    <div class="p{live ? me : player}" style:display="contents">
+      <StrategicIcons {icons} onSelect={(ids) => select(ids)} />
+    </div>
     <Toasts {toasts} {arrows} onGo={(t) => t.cell && viewer?.lookAt(t.cell)} />
     {#if cellInfo && cell}
       <CellPanel

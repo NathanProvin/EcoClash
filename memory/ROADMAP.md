@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** the world overhaul (terrain, light, species, movement, drops), before M5a 8b and 9. 1a–1c, 2, 3 and 4 done; next 5, the visible drop animation.
+- **Now:** the world overhaul (terrain, light, species, movement, drops) is done (D-083…D-089). Next: M5a 8b (Tutorial menu entry) and 9 (static deploy; ask before publishing).
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-09-30
@@ -109,7 +109,7 @@ In this order:
 - [x] **2. Light and shaders** (D-086): shadows, wind, terrain blending, foliage rim light, colour grade; bloom and tilt-shift on High.
 - [x] **3. Species revamp**: the user's 15-plant, 30-animal table; 4 plant strata; groups and tiers; aquatic species; new bodies; bot.
 - [x] **4. Movement per species** (D-088): calmer, slower small herbivores; stop-and-go; less erratic insects.
-- [ ] **5. Visible drop animation**: high fall, readable canopy, ground shadow, dust ring.
+- [x] **5. Visible drop animation** (D-089): high fall, readable canopy, ground shadow, dust ring.
 
 ## M7-lite · Balance loop (pulled forward, D-073)
 - [ ] `tools/balance/`: bot-vs-bot batch runs through `sim-cli` (seeds × difficulties) → match length, win rates, population curves, collapses.

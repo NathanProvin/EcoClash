@@ -414,3 +414,7 @@
 ## 2026-09-30 · World overhaul 4: movement per species (D-088)
 - **Done:** per-species drift, drift memory and stop-and-go rests; calmer, slower herbivores; lighter insects; a test; seen in the browser (rabbits graze calmly around their spot).
 - **Next:** 5, a drop animation you can actually see.
+
+## 2026-09-30 · World overhaul 5: a visible drop (D-089)
+- **Done:** a high, staggered fall under a canopy readable at any zoom, a ground shadow and a landing dust ring; the NaN pose bug fixed. The world overhaul (1–5) is complete.
+- **Next:** M5a 8b, the Tutorial entry in the main menu; then 9, the static deploy (needs the user's accounts; ask before publishing).

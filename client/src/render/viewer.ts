@@ -591,7 +591,8 @@ export class Viewer {
     const ms = performance.now();
     const h = (x: number, z: number) => this.field.at(x, z);
     const { n } = this.replay.meta;
-    this.animals.update(this.shown, this.selected, tick, n, ms, dropped, h, this.field.water);
+    const eye = this.camera.position;
+    this.animals.update(this.shown, this.selected, tick, n, ms, dropped, h, this.field.water, eye);
     animateAura(this.aura, now);
     this.animatePings(now);
     if (this.flight) {

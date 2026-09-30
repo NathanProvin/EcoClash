@@ -1004,3 +1004,14 @@ Template:
     - hunters: low drift, rest 0.2–0.6, their chase speed kept;
     - birds: a light drift.
 - **Consequences:** a test checks that a rabbit covers much less ground than a grasshopper and rests at idle decisions. Parity, native vs WASM and the relay test are green.
+
+## D-089 · 2026-09-30 · A drop you can see
+- **Status:** accepted (user: "I would like to see them falling from the sky")
+- **Decision:** the parachute drop of D-080 was too small and too quick to see from the playing camera.
+  - **Fall:** 40 m over 2.5 s, easing out; the animals of one card leave up to 0.5 s apart, a staggered column.
+  - **Canopy:** at least 3 % of the camera distance across, so it reads from the full-map view.
+  - **Ground:** a shadow spot that shrinks onto the landing point, then a dust ring that spreads for 0.7 s.
+  - Dev builds expose `window.ecoViewer` and `window.ecoLive`, so a browser check can place the camera and spawn animals.
+- **Consequences:**
+  - Fixed a bug on the way: a settled animal's sway was `0 × sin(∞)` = NaN, which hid its body. The test now demands a finite pose.
+  - Checked in the browser from the full-map view and from close up.

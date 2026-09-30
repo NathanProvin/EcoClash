@@ -207,9 +207,22 @@ const SWIM_DEPTH = 0.15;
  *  point (replays hold whole cells) do not stack. */
 const SPREAD = 0.3;
 const HIGHLIGHT = new THREE.Color("#ffffff");
-/** Parachute drops (D-080): a dropped animal falls from `height` metres over `s` seconds under a
- *  leaf canopy, swaying by up to `sway` radians. */
-const FALL = { height: 10, s: 1.6, sway: 0.35, canopy: "#86a94f" } as const;
+/** Parachute drops (D-080, D-089): a dropped animal falls from `height` metres over `s` seconds
+ *  under a leaf canopy, swaying by up to `sway` radians; the animals of one card leave up to
+ *  `stagger` seconds apart. The canopy is at least `screen` x the camera distance across, so a
+ *  vole's drop reads from afar. A shadow spot on the ground shrinks onto the landing point, and a
+ *  dust ring spreads for `dust` seconds on landing. */
+const FALL = {
+  height: 40,
+  s: 2.5,
+  sway: 0.35,
+  stagger: 0.5,
+  screen: 0.03,
+  dust: 0.7,
+  canopy: "#86a94f",
+  shadow: "#1d1a14",
+  dustColor: "#cdbb98",
+} as const;
 
 /** Where an animal was drawn (world metres), for picking. */
 export interface Drawn {
@@ -229,6 +242,10 @@ export class AnimalView {
   private readonly swarm: THREE.InstancedMesh;
   private readonly canopies: THREE.InstancedMesh;
   private readonly canopyColor = new THREE.Color(FALL.canopy);
+  private readonly shadows: THREE.InstancedMesh;
+  private readonly dusts: THREE.InstancedMesh;
+  private readonly shadowColor = new THREE.Color(FALL.shadow);
+  private readonly dustColor = new THREE.Color(FALL.dustColor);
   private readonly forms: AnimalForm[];
   private readonly colors: THREE.Color[];
   private readonly swarmOf: boolean[];
@@ -286,10 +303,14 @@ export class AnimalView {
         side: THREE.DoubleSide,
       }),
     );
+    const disc = new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2);
+    this.shadows = instanced(scene, disc, capacity, faint(0.35));
+    this.dusts = instanced(scene, ring, capacity, faint(0.55));
   }
 
   setVisible(on: boolean): void {
-    for (const m of [...Object.values(this.bodies), this.rings, this.swarm, this.canopies]) {
+    const all = [this.rings, this.swarm, this.canopies, this.shadows, this.dusts];
+    for (const m of [...Object.values(this.bodies), ...all]) {
       m.visible = on;
     }
   }
@@ -305,9 +326,10 @@ export class AnimalView {
     droppedAt?: (id: number) => number | undefined,
     height: (x: number, z: number) => number = () => 0,
     water: number | null = null,
+    camera?: THREE.Vector3,
   ): void {
     const counts = Object.fromEntries(BODIES.map((b) => [b, 0])) as Record<Body, number>;
-    let [swarms, rings, canopies] = [0, 0, 0];
+    let [swarms, rings, canopies, shadows, dusts] = [0, 0, 0, 0, 0];
     const heading = new Map<number, { x: number; z: number; a: number }>();
     this.drawn = [];
     for (const a of animals) {
@@ -315,10 +337,14 @@ export class AnimalView {
       // Its position from the cell corner, plus its own fixed offset.
       const x = (a.x - n / 2 + 0.5 + SPREAD * unit(a.id, 1)) * CELL;
       const z = (a.y - n / 2 + 0.5 + SPREAD * unit(a.id, 2)) * CELL;
-      // Still falling from a drop: height left (m), easing out as it lands.
+      // Still falling from a drop: height left (m), easing out as it lands; the animals of a card
+      // leave one after another.
       const since = droppedAt?.(a.id);
-      const age = since === undefined ? FALL.s : (now - since) / 1000;
-      const left = age < FALL.s ? 1 - (1 - (1 - age / FALL.s) ** 2) : 0;
+      const age =
+        since === undefined
+          ? Infinity
+          : (now - since) / 1000 - FALL.stagger * (unit(a.id, 4) + 0.5);
+      const left = (1 - Math.min(Math.max(age / FALL.s, 0), 1)) ** 2;
       const fall = FALL.height * left;
       if (this.swarmOf[a.species]) {
         const g = height(x, z);
@@ -357,12 +383,20 @@ export class AnimalView {
       const y =
         ground + (body === "bird" ? FLIGHT_Y + BOB * Math.sin(tick * 0.8 + a.id) : 0) + fall;
       const color = this.colors[a.species] ?? HIGHLIGHT;
-      const sway = FALL.sway * left * Math.sin(age * 5 + a.id);
+      const sway = left > 0 ? FALL.sway * left * Math.sin(age * 5 + a.id) : 0;
       put(this.bodies[body], counts[body]++, x, y, z, size, size, angle + sway, color);
+      // The canopy, readable at any zoom; the shadow spot under it; the dust ring on landing.
       if (left > 0) {
-        const r = Math.max(0.5, size * 0.7);
-        const cy = y + size * 0.8 + 0.5;
-        put(this.canopies, canopies++, x, cy, z, r, r * 0.5, angle + sway, this.canopyColor);
+        const far = camera ? Math.hypot(camera.x - x, camera.y - y, camera.z - z) : 0;
+        const cr = Math.max(0.5, size * 0.7, (FALL.screen * far) / 2);
+        const cy = y + size * 0.8 + cr * 0.6;
+        put(this.canopies, canopies++, x, cy, z, cr, cr * 0.5, angle + sway, this.canopyColor);
+        const spot = cr * (0.5 + 0.9 * left);
+        put(this.shadows, shadows++, x, ground + 0.05, z, spot, spot, 0, this.shadowColor);
+      } else if (age >= FALL.s && age < FALL.s + FALL.dust) {
+        const t = (age - FALL.s) / FALL.dust;
+        const d = Math.max(0.6, size) * (1 + 1.5 * t);
+        put(this.dusts, dusts++, x, ground + 0.08, z, d, d, 0, this.dustColor);
       }
       const ringColor = selected.has(a.id)
         ? HIGHLIGHT
@@ -376,6 +410,8 @@ export class AnimalView {
     finish(this.rings, rings);
     finish(this.swarm, swarms);
     finish(this.canopies, canopies);
+    finish(this.shadows, shadows);
+    finish(this.dusts, dusts);
   }
 }
 

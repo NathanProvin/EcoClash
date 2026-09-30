@@ -60,11 +60,16 @@ describe("AnimalView parachute drops (D-080)", () => {
       const b = body();
       return b ? heightOf(b) : NaN;
     };
-    view.update(vole, new Set(), 0, 4, 1000, () => 500); // dropped 0.5 s ago
-    expect(bodyY()).toBeGreaterThan(1); // still in the air
-    expect(meshes().filter((m) => m.count === 1).length).toBe(3); // body, ring, canopy
-    view.update(vole, new Set(), 0, 4, 5000, () => 500); // 4.5 s later: landed
+    view.update(vole, new Set(), 0, 4, 1500, () => 500); // dropped 1 s ago
+    expect(bodyY()).toBeGreaterThan(5); // still high in the air
+    expect(meshes().filter((m) => m.count === 1).length).toBe(4); // body, ring, canopy, shadow
+    view.update(vole, new Set(), 0, 4, 3500, () => 500); // just landed: a dust ring
     expect(bodyY()).toBe(0);
+    expect(meshes().filter((m) => m.count === 1).length).toBe(3); // body, ring, dust
+    view.update(vole, new Set(), 0, 4, 6000, () => 500); // settled
     expect(meshes().filter((m) => m.count === 1).length).toBe(2); // body, ring
+    view.update(vole, new Set(), 0, 4, 9000, () => undefined); // no longer a recent drop
+    const m = body()?.instanceMatrix.array as Float32Array;
+    expect([...m.subarray(0, 16)].every(Number.isFinite)).toBe(true); // no NaN pose
   });
 });

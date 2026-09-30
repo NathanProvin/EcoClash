@@ -1,11 +1,14 @@
 <script lang="ts">
-  // RTS build card (D-030, D-063): every species as an icon tile, in two rows (plants, animals),
-  // grouped by family in tier order, so the whole tree is one glance away. Hovering a tile shows
-  // its stats; clicking arms it (the next map click plants it or calls the animal; Shift keeps it
-  // armed), buys it when it can be unlocked, or does nothing while locked. With animals selected, a
-  // selection strip sits above the card. Replays show the same card, read-only.
+  // RTS build bar (D-030, D-063, D-071): one item per family (herbs, shrubs, trees; soil life …
+  // carnivores), so the bar stays short however many species come. Hovering an item opens its
+  // flyout at once: the family's species in three tier columns. Hovering a species tile shows its
+  // stats; clicking arms it (the next map click plants it or calls the animal; Shift keeps it
+  // armed), buys it when it can be unlocked, or does nothing while locked. A click on a family
+  // item pins its flyout (touch, keyboard); Esc closes it. With animals selected, a selection
+  // strip sits above the bar. Replays show the same bar, read-only.
   import { cardState, families, label, statLines } from "../game/species";
   import type { Source, Species } from "../replay/replay";
+  import Icon from "./Icon.svelte";
   import SpeciesIcon from "./SpeciesIcon.svelte";
 
   let {
@@ -32,6 +35,9 @@
     onClear: () => void;
   } = $props();
 
+  const TIERS = [1, 2, 3] as const;
+  const GRACE_MS = 120; // time to cross the gap between an item and its flyout
+
   const species = $derived(replay.meta.species);
   const fauna = $derived(species.filter((s) => s.kind === "fauna"));
   const groups = $derived(families(species));
@@ -51,20 +57,58 @@
 
   /** Live cards follow the tech tree: unlocked (arm it), available (buy it), locked. */
   const cardOf = (s: Species) => (live ? cardState(replay.meta, s, unlocked) : "unlocked");
+
+  /** A family item's face: its armed species, else its highest unlocked one, else the first. */
+  function face(list: Species[]): Species | undefined {
+    const armed = list.find((s) => s.name === planting);
+    const open = list.filter((s) => cardOf(s) === "unlocked");
+    return armed ?? open[open.length - 1] ?? list[0];
+  }
+
+  let open: string | null = $state(null);
+  let pinned = $state(false);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  function enter(name: string) {
+    clearTimeout(timer);
+    if (!pinned || open !== name) pinned = false;
+    open = name;
+  }
+  function leave() {
+    if (pinned) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => (open = null), GRACE_MS);
+  }
+  function close() {
+    open = null;
+    pinned = false;
+  }
+  function pin(name: string) {
+    if (open === name && pinned) close();
+    else [open, pinned] = [name, true];
+  }
+
   function click(s: Species) {
     const state = cardOf(s);
     if (state === "available") onUnlock(s.name);
-    else if (state === "unlocked" && live) planting = planting === s.name ? null : s.name;
+    else if (state === "unlocked" && live) {
+      planting = planting === s.name ? null : s.name;
+      if (planting) close(); // the map is free for the drop
+    }
   }
 
+  // The dock is transformed, so the tooltip is placed in the dock's own coordinates.
+  let dock: HTMLElement | undefined = $state();
   let hover: { s: Species; x: number; y: number } | null = $state(null);
   function show(e: PointerEvent, s: Species) {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    hover = { s, x: r.left + r.width / 2, y: r.top - 10 }; // just above the tile
+    const d = dock?.getBoundingClientRect() ?? { left: 0, top: 0 };
+    hover = { s, x: r.left + r.width / 2 - d.left, y: r.top - 10 - d.top }; // above the tile
   }
 </script>
 
-<footer class="dock p{player}">
+<svelte:window onkeydown={(e) => e.key === "Escape" && close()} />
+
+<footer class="dock p{player}" bind:this={dock}>
   {#if picked.length}
     <div class="selection panel" aria-label="Selection">
       {#each picked as { s, n } (s.name)}
@@ -82,32 +126,61 @@
     </div>
   {/if}
 
-  <nav class="card panel" aria-label="Species">
-    {#each ["flora", "fauna"] as const as kind (kind)}
-      <div class="row">
-        {#each groups.filter((g) => g.kind === kind) as g (g.name)}
-          <div class="family">
-            <span class="fam">{g.name}</span>
-            <div class="tiles">
-              {#each g.species as s (s.name)}
-                {@const state = cardOf(s)}
-                <button
-                  class="tile {state}"
-                  class:armed={planting === s.name}
-                  class:none={count(s) === 0 && state === "unlocked"}
-                  aria-label={label(s.name)}
-                  onclick={() => click(s)}
-                  onpointerenter={(e) => show(e, s)}
-                  onpointerleave={() => (hover = null)}
-                >
-                  <SpeciesIcon {s} size={38} />
-                  {#if count(s)}<span class="count num">{count(s)}</span>{/if}
-                  {#if state === "available"}<span class="plus">+</span>{/if}
-                </button>
-              {/each}
-            </div>
+  <nav class="bar panel" aria-label="Species">
+    {#each groups as g, i (g.name)}
+      {@const s0 = face(g.species)}
+      {@const total = g.species.reduce((t, s) => t + count(s), 0)}
+      {#if i > 0 && g.kind !== groups[i - 1]?.kind}<span class="sep" aria-hidden="true"></span>{/if}
+      <div class="group" role="group" onpointerenter={() => enter(g.name)} onpointerleave={leave}>
+        <button
+          class="item"
+          class:open={open === g.name}
+          class:armed={g.species.some((s) => s.name === planting)}
+          aria-expanded={open === g.name}
+          aria-label={g.name}
+          onclick={() => pin(g.name)}
+        >
+          {#if s0}<SpeciesIcon s={s0} size={40} />{/if}
+          {#if total}<span class="count num">{total}</span>{/if}
+          {#if g.species.some((s) => cardOf(s) === "available")}
+            <span class="unlock" title="A species can be unlocked"
+              ><Icon name="unlock" size={11} /></span
+            >
+          {/if}
+          <span class="fam">{g.name}</span>
+        </button>
+
+        {#if open === g.name}
+          <div class="flyout panel" role="menu" aria-label="{g.name} species">
+            {#each TIERS as t (t)}
+              {@const list = g.species.filter((s) => s.tier === t)}
+              {#if list.length}
+                <div class="tier">
+                  <span class="tl">Tier {t}</span>
+                  {#each list as s (s.name)}
+                    {@const state = cardOf(s)}
+                    <button
+                      class="tile {state}"
+                      class:armed={planting === s.name}
+                      class:none={count(s) === 0 && state === "unlocked"}
+                      role="menuitem"
+                      aria-label={label(s.name)}
+                      onclick={() => click(s)}
+                      onpointerenter={(e) => show(e, s)}
+                      onpointerleave={() => (hover = null)}
+                    >
+                      <SpeciesIcon {s} size={38} />
+                      {#if count(s)}<span class="count num">{count(s)}</span>{/if}
+                      {#if state === "available"}
+                        <span class="unlock"><Icon name="unlock" size={11} /></span>
+                      {/if}
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            {/each}
           </div>
-        {/each}
+        {/if}
       </div>
     {/each}
   </nav>
@@ -148,42 +221,77 @@
     gap: 8px;
     max-width: calc(100% - 24px);
   }
-  .card {
+  .bar {
     display: flex;
-    flex-direction: column;
+    align-items: flex-end;
     gap: 6px;
-    padding: 8px 12px;
+    padding: 8px 12px 6px;
   }
-  .row {
-    display: flex;
-    gap: 14px;
+  .sep {
+    align-self: stretch;
+    width: 1px;
+    margin: 4px 6px;
+    background: var(--line);
   }
-  .family {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+  .group {
+    position: relative;
   }
-  .fam {
-    font-size: 0.62em;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--ink-soft);
-  }
-  .tiles {
-    display: flex;
-    gap: 4px;
-  }
+  .item,
   .tile {
     position: relative;
-    padding: 2px;
     border: 1px solid transparent;
-    border-radius: 11px;
     background: none;
     cursor: pointer;
     transition:
       transform 0.12s,
       border-color 0.12s,
       opacity 0.12s;
+  }
+  .item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 3px 4px 2px;
+    border-radius: 12px;
+  }
+  .item:hover,
+  .item.open {
+    border-color: var(--line);
+    background: var(--well);
+  }
+  .fam {
+    font-size: 0.6em;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  .flyout {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 4;
+    display: flex;
+    gap: 10px;
+    padding: 8px 10px;
+  }
+  .tier {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .tl {
+    font-size: 0.58em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .tile {
+    padding: 2px;
+    border-radius: 11px;
   }
   .tile:hover {
     transform: translateY(-2px);
@@ -200,14 +308,15 @@
   .tile.available {
     opacity: 0.75;
   }
-  .tile.armed {
+  .tile.armed,
+  .item.armed {
     border-color: var(--gold);
     box-shadow: 0 0 12px var(--gold-soft);
   }
   .count {
     position: absolute;
     right: -2px;
-    bottom: -2px;
+    top: 30px;
     min-width: 18px;
     padding: 0 4px;
     border-radius: 999px;
@@ -216,16 +325,19 @@
     color: white;
     background: var(--player);
   }
-  .plus {
+  .tile .count {
+    top: auto;
+    bottom: -2px;
+  }
+  .unlock {
     position: absolute;
-    right: -2px;
+    right: -3px;
     top: -3px;
-    width: 16px;
-    height: 16px;
+    display: grid;
+    place-items: center;
+    width: 17px;
+    height: 17px;
     border-radius: 50%;
-    font-size: 0.75em;
-    font-weight: 800;
-    line-height: 16px;
     color: #1d160a;
     background: var(--gold);
   }
@@ -256,7 +368,7 @@
     cursor: pointer;
   }
   .tip {
-    position: fixed;
+    position: absolute;
     transform: translate(-50%, -100%);
     z-index: 5;
     display: flex;

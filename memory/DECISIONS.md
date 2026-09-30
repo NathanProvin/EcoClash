@@ -773,3 +773,16 @@ Template:
   - `grid_size` goes 64 → 43 (172 m). The loader no longer requires `grid_size` to be a multiple of `chunk_size`: edge hash chunks are partial, which the hashing and its test already supported.
   - Openings, flora caps (map shares) and the bot scale with `n`. The sim-ai test match, the relay test (openings at 10 and 32) and the prototype's default size follow the balance. The WASM parity check (64) and `cli:check` (48) keep their own sizes on purpose.
 - **Consequences:** bot report at 43²: no errors; grasshoppers now appear next to earthworms. Budgets in INSTRUCTIONS §5.5 are restated at 43².
+
+## D-071 · 2026-09-30 · Build bar by family with tier flyouts, unlock icon (feedback round 2)
+- **Status:** accepted (user: "change the + sign … by an unlock icon … instant display the 3 tiers of species on hover of a generic species group item")
+- **Decision:**
+  - The build bar shows one item per family (Herbs, Shrubs, Trees │ Soil life, Insects, Small mammals, Birds, Carnivores). Each item shows:
+    - its armed species, else its highest unlocked one, else the first;
+    - the family name;
+    - the group's count;
+    - a padlock badge when a species of the group can be unlocked.
+  - Hovering an item opens its flyout at once, with the species in Tier 1 / 2 / 3 columns. The tiles behave as before (arm, Shift to keep dropping, unlock, locked) and keep the stats tooltip. A 120 ms grace covers the gap; a click pins the flyout; arming or Esc closes it.
+  - The "+" badge is an open padlock (`unlock` icon).
+  - Fix: the tooltip was `position: fixed` inside the transformed dock, which placed it off-screen. It is now placed in the dock's coordinates.
+- **Consequences:** The bar is one short row whatever the number of species per family. Hotkeys per family can come with M5 keybinds.

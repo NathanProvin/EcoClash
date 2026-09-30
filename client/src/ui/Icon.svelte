@@ -7,6 +7,7 @@
     tree: "M12 22v-6m0 0H7l3-4H8l4-6 4 6h-2l3 4z",
     layers: "M12 4 3 9l9 5 9-5zm-9 9 9 5 9-5",
     menu: "M4 7h16M4 12h16M4 17h16",
+    unlock: "M8 11V7a4 4 0 0 1 7.7-1.5M5 11h14v10H5z",
   } as const;
 
   let { name, size = 18 }: { name: keyof typeof PATHS; size?: number } = $props();

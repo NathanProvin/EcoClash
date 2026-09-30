@@ -335,3 +335,7 @@
 
 ## 2026-09-30 · Map 43² (D-070)
 - **Done:** 43×43 map; the chunk-multiple rule is dropped (partial edge chunks); tests, the relay test and the bot report adapted. All checks pass.
+
+## 2026-09-30 · Family build bar (D-071)
+- **Done:** family items with instant tier flyouts, a padlock unlock badge, the tooltip placement fix; checked in the browser (flyout, tooltip in real-time units).
+- **Found:** live matches started at 4× (the replay viewer's default speed leaked into live play), so the round-1 rhythm ran 4× too fast.

@@ -74,7 +74,7 @@
     border-radius: 999px;
     left: 50%;
     transform: translateX(-50%);
-    bottom: 150px;
+    bottom: 104px;
     width: min(680px, calc(100% - 24px));
   }
   .strip.live {

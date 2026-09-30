@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M5a, the playable alpha (D-073, D-075). The fps gate passed (60 fps). Next task: 8, onboarding.
+- **Now:** M5a, the playable alpha (D-073, D-075). The fps gate passed (60 fps). Tasks 1–7 and 8a done. Left: 8b guided scenario, 9 static deploy (needs the user's hosting choice and account).
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-09-30
@@ -97,7 +97,8 @@ Goal: a build strangers can play against the bot and understand at a glance. One
   - Match setup: vs bot, difficulty, map seed, sandbox; replaces the URL parameters.
   - Options: quality, keybinds.
   - "Play again" on the end screen.
-- [ ] **8. Onboarding:** contextual first-match tips (plant, spread, unlock, call animals, drop, win conditions) through the notification stack, then a short guided scenario.
+- [x] **8a. First-match tips** (D-082): contextual, once each, through the notification stack; switch in Options.
+- [ ] **8b. Guided scenario:** a short scripted tutorial match with objectives (plant, unlock, call, drop, win). Split from 8.
 - [ ] **9. Static deploy** (Cloudflare Pages or itch.io), build-version badge, feedback link.
 
 ## M7-lite · Balance loop (pulled forward, D-073)

@@ -98,7 +98,7 @@ Goal: a build strangers can play against the bot and understand at a glance. One
   - Options: quality, keybinds.
   - "Play again" on the end screen.
 - [x] **8a. First-match tips** (D-082): contextual, once each, through the notification stack; switch in Options.
-- [ ] **8b. Guided scenario:** a short scripted tutorial match with objectives (plant, unlock, call, drop, win). Split from 8.
+- [ ] **8b. Tutorial:** a separate "Tutorial" entry in the main menu (user, 2026-09-30), next to Play: a short scripted match with objectives (plant, unlock, call, drop, win). Split from 8.
 - [ ] **9. Static deploy** (Cloudflare Pages or itch.io), build-version badge, feedback link.
 
 ## M7-lite · Balance loop (pulled forward, D-073)

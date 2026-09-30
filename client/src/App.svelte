@@ -364,6 +364,8 @@
       }
       viewer = await Viewer.create(canvas, replay, quality);
       viewer.resize();
+      // Dev only: lets a browser check drive the camera (window.ecoViewer.zoomToCell(...)).
+      if (import.meta.env.DEV) Object.assign(window, { ecoViewer: viewer });
       for (const [layer, on] of Object.entries(layers)) viewer.setVisible(layer as Layer, on);
       tick = 0;
       playing = true;

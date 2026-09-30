@@ -30,7 +30,7 @@ export const WORLD = {
   earthStone: "#8b8479", // bedrock at the bottom
   sky: "#dfe8ec",
   horizon: "#c9d3cf",
-  sun: "#fff4e0",
+  sun: "#ffe7c4", // warm, low (D-086)
   groundLight: "#6b5f4c",
 } as const;
 

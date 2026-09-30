@@ -3,15 +3,21 @@
 // P2 dashed: frontier.ts, D-040), raised to the generated relief with water and rocks
 // (terrain.ts, D-085); herbs are grass blades (grass.ts), shrubs and trees come from
 // PlantView (plants.ts: species forms, natural colours, growth, D-067, D-072), animals from
-// AnimalView (animals.ts, D-065, D-068). 1 cell = CELL world units (4 m, D-047).
+// AnimalView (animals.ts, D-065, D-068). Light (D-086): a low warm sun with soft shadows, the
+// ground tinted by slope, wetness and height, bloom and tilt-shift on High. 1 cell = CELL world
+// units (4 m, D-047).
 
 import { MapControls } from "three/addons/controls/MapControls.js";
+import { bloom } from "three/addons/tsl/display/BloomNode.js";
+import { dof } from "three/addons/tsl/display/DepthOfFieldNode.js";
 import * as THREE from "three/webgpu";
 import {
   color,
   float,
   mix,
   mx_noise_float,
+  normalWorld,
+  pass,
   positionLocal,
   positionWorld,
   smoothstep,
@@ -52,6 +58,12 @@ const GHOST_SIZE = 0.02;
 /** Grass blends from one field frame to the next over the time between the last two frames,
  *  within these bounds (s). */
 const BLEND_S = { min: 0.2, max: 2 } as const;
+/** Ground tints (D-086): wet within `wet` m above the water, dry on the top `dry` share of the
+ *  relief, bare rock on slopes past `rock` (1 - normal.y). */
+const TINT = { wet: 1.5, dry: [0.55, 0.9], rock: [0.03, 0.1] } as const;
+/** High preset post-processing: a light bloom on highlights, and a tilt-shift blur that keeps a
+ *  band around the camera's target sharp (`range`: share of the camera distance). */
+const POST = { bloom: 0.12, bloomRadius: 0.4, bloomThreshold: 0.85, range: 0.45, bokeh: 1.5 };
 
 /** Keys held by the player, read each frame for keyboard camera moves. */
 export interface CameraKeys {
@@ -76,6 +88,10 @@ export class Viewer {
   private readonly frontierData: Uint8Array;
   private readonly frontierTex: THREE.DataTexture;
   private readonly showFrontier = uniform(1);
+  private readonly sun: THREE.DirectionalLight;
+  /** High preset: the post-processing pipeline, and the camera's distance to its target. */
+  private post: THREE.RenderPipeline | null = null;
+  private readonly focus = uniform(1);
   /** The map's heights (D-085), the ground mesh (picking), the height texture (shaders). */
   private readonly field: Heightfield;
   private readonly ground: THREE.Mesh;
@@ -127,9 +143,17 @@ export class Viewer {
 
     this.scene.background = new THREE.Color(WORLD.sky);
     this.scene.fog = new THREE.Fog(WORLD.horizon, size * 2.2, size * 5); // haze beyond the slab
-    this.scene.add(new THREE.HemisphereLight(WORLD.sky, WORLD.groundLight, 1.4));
-    const sun = new THREE.DirectionalLight(WORLD.sun, 2.2); // one low key light (§7.1)
+    this.scene.add(new THREE.HemisphereLight(WORLD.sky, WORLD.groundLight, 1.3));
+    const sun = new THREE.DirectionalLight(WORLD.sun, 2.6); // one low key light (§7.1)
     sun.position.set(-size, size * 0.6, -size * 0.4);
+    // Soft shadows over the whole slab (the light looks at the origin).
+    const reach = size * 0.75;
+    Object.assign(sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach });
+    Object.assign(sun.shadow.camera, { near: size * 0.3, far: size * 2.6 });
+    sun.shadow.bias = -0.0005;
+    sun.shadow.normalBias = 0.05;
+    sun.shadow.camera.updateProjectionMatrix();
+    this.sun = sun;
     this.scene.add(sun);
 
     this.camera = new THREE.PerspectiveCamera(40, 1, 0.1, size * 6);
@@ -171,9 +195,14 @@ export class Viewer {
     this.frontierTex.colorSpace = THREE.SRGBColorSpace;
     const line = texture(this.frontierTex, uv());
     const soilColour = mix(earth, humus, mottle).mul(grain);
-    groundMat.colorNode = mix(soilColour, line.rgb, line.a.mul(this.showFrontier));
+    groundMat.colorNode = mix(
+      this.terrainTint(soilColour, grain),
+      line.rgb,
+      line.a.mul(this.showFrontier),
+    );
     groundMat.emissiveNode = line.rgb.mul(line.a.mul(this.showFrontier).mul(0.35));
     this.ground = new THREE.Mesh(groundGeometry(this.field), groundMat);
+    this.ground.receiveShadow = true;
     this.scene.add(this.ground);
 
     // The map as a diorama slab: an earth cross-section on its sides, topsoil to bedrock.
@@ -213,12 +242,13 @@ export class Viewer {
         new THREE.Color().setRGB(r / 255, g / 255, b / 255, THREE.SRGBColorSpace),
       );
     this.plantLinear = { 1: linear(1), 2: linear(2) };
-    this.plants = new PlantView(this.scene, n, new LowPolyPlants(), this.now);
+    this.plants = new PlantView(this.scene, n, new LowPolyPlants(), this.now, sun.position);
     this.animals = new AnimalView(this.scene, replay.meta, replay.maxAnimals());
 
     this.aura = makeAura();
     this.scene.add(this.aura);
     this.ghost = new Ghost(this.scene);
+    this.applyLight();
   }
 
   static async create(
@@ -228,6 +258,10 @@ export class Viewer {
   ): Promise<Viewer> {
     // WebGPU when available, WebGL2 otherwise (INSTRUCTIONS §3.1).
     const renderer = new THREE.WebGPURenderer({ canvas, antialias: true });
+    renderer.shadowMap.enabled = true; // the presets switch the sun's shadow on and off
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Neutral tone mapping: hues stay, only highlights roll off instead of clipping.
+    renderer.toneMapping = THREE.NeutralToneMapping;
     await renderer.init();
     return new Viewer(canvas, replay, renderer, quality);
   }
@@ -235,7 +269,9 @@ export class Viewer {
   private makeGrass(): THREE.Mesh {
     const perCell = QUALITY[this.quality].grass;
     const n = this.replay.meta.n;
-    return makeGrass(n, perCell, this.floraTex, this.floraPrev, this.blend, this.heights);
+    const grass = makeGrass(n, perCell, this.floraTex, this.floraPrev, this.blend, this.heights);
+    grass.receiveShadow = true;
+    return grass;
   }
 
   resetView(): void {
@@ -256,9 +292,37 @@ export class Viewer {
     this.camera.updateProjectionMatrix();
   }
 
+  /** The preset's light: the sun's shadow map (0: none) and the post-processing pipeline. */
+  private applyLight(): void {
+    const { shadow, post } = QUALITY[this.quality];
+    this.sun.castShadow = shadow > 0;
+    if (shadow > 0 && this.sun.shadow.mapSize.x !== shadow) {
+      this.sun.shadow.mapSize.set(shadow, shadow);
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+    }
+    this.post?.dispose();
+    this.post = null;
+    this.post = post ? this.makePost() : null;
+  }
+
+  private makePost(): THREE.RenderPipeline {
+    const scene = pass(this.scene, this.camera);
+    const colour = scene.getTextureNode("output");
+    const sharp = this.focus.mul(POST.range);
+    const tilted = dof(colour, scene.getViewZNode(), this.focus, sharp, POST.bokeh);
+    const glow = bloom(colour, POST.bloom, POST.bloomRadius, POST.bloomThreshold);
+    // DepthOfFieldNode is typed without the node operators.
+    return new THREE.RenderPipeline(
+      this.renderer,
+      glow.add(tilted as unknown as THREE.Node<"color">),
+    );
+  }
+
   /** Switch the quality preset: rebuild the grass at its density, apply its resolution. */
   setQuality(q: Quality): void {
     this.quality = q;
+    this.applyLight();
     const visible = this.grass.visible;
     this.scene.remove(this.grass);
     this.grass.geometry.dispose();
@@ -309,6 +373,25 @@ export class Viewer {
   centre(cell: { row: number; col: number }): THREE.Vector3 {
     const at = cellCenter(cell, this.replay.meta.n);
     return at.setY(this.field.at(at.x, at.z));
+  }
+
+  /** The soil tinted by the terrain (D-086): darker and greener near water, paler on the high
+   *  ground, bare rock colour on steep slopes. */
+  private terrainTint(soil: THREE.Node<"vec3">, grain: THREE.Node<"float">): THREE.Node<"vec3"> {
+    const y = positionWorld.y;
+    let out = soil;
+    const water = this.field.water;
+    if (water !== null) {
+      const wet = smoothstep(water, water + TINT.wet, y).oneMinus();
+      out = mix(out, out.mul(vec3(0.62, 0.7, 0.56)), wet);
+    }
+    const relief = this.replay.terrain?.reliefM ?? 0;
+    if (relief > 0) {
+      const dry = smoothstep(relief * TINT.dry[0], relief * TINT.dry[1], y);
+      out = mix(out, out.mul(vec3(1.12, 1.08, 0.94)), dry.mul(0.8));
+    }
+    const rocky = smoothstep(TINT.rock[0], TINT.rock[1], normalWorld.y.oneMinus());
+    return mix(out, color(WORLD.rock).mul(grain), rocky.mul(0.7));
   }
 
   /** The water surface over the valleys (D-085): transparent, tinted by depth (read from the height
@@ -364,6 +447,8 @@ export class Viewer {
         mesh.setColorAt(i, tint.clone().multiplyScalar(r.shade));
       });
       mesh.count = list.length;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
       return mesh;
     });
     this.scene.add(...shapes);
@@ -511,7 +596,12 @@ export class Viewer {
       if (f.t >= 1) this.flight = undefined;
     }
     this.controls.update();
-    void this.renderer.render(this.scene, this.camera);
+    if (this.post) {
+      this.focus.value = this.camera.position.distanceTo(this.controls.target);
+      this.post.render();
+    } else {
+      void this.renderer.render(this.scene, this.camera);
+    }
   }
 
   /** Ids of the player's animals inside a screen rectangle (CSS pixels of the canvas). A click

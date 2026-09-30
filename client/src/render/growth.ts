@@ -5,20 +5,44 @@
 // and (start time, from, to); the shader scales the model around that point by a smoothstep of
 // the time since `start`. So nothing is written or uploaded per frame, only when models change
 // (flora frames, 1.25 Hz at most). Any geometry and material can grow this way, so real models
-// (glTF, with wind in the same position node) can replace the placeholders later.
+// (glTF, with wind in the same position node) can replace the placeholders later. Wind (D-086)
+// bends each model away from its root in the same node: rigid, stronger the taller.
 
 import {
   clamp,
   instancedDynamicBufferAttribute,
   mix,
+  mx_noise_float,
   positionLocal,
+  sin,
   smoothstep,
+  vec2,
   vec3,
 } from "three/tsl";
 import * as THREE from "three/webgpu";
 
 /** Seconds for a model to grow in, change size, or wither away. */
 export const GROW_S = 3;
+
+/** Wind (D-086): the prevailing direction (x, z) and a gust field over the map. `wind` gives a
+ *  horizontal push in about -0.3..1.3 at a root (world x / z) and time (s); callers scale it. */
+const WIND = { dir: [0.9, 0.44], gustScale: 0.03, gustSpeed: 0.12, swayHz: 0.35 } as const;
+
+type Vec2Node = THREE.Node<"vec2">;
+type FloatNode = THREE.Node<"float">;
+
+export function wind(root: Vec2Node, t: FloatNode): Vec2Node {
+  const gust = mx_noise_float(vec3(root.mul(WIND.gustScale), t.mul(WIND.gustSpeed)))
+    .mul(0.5)
+    .add(0.5);
+  const sway = sin(
+    t
+      .mul(Math.PI * 2 * WIND.swayHz)
+      .add(root.x.mul(0.21))
+      .add(root.y.mul(0.13)),
+  );
+  return vec2(...WIND.dir).mul(gust.add(sway.mul(0.3)));
+}
 
 /** An instance's pose: centre, footprint scale across, scale up, rotation about Y, colour, and
  *  the ground point it grows from (a tree's parts share their trunk base). */
@@ -53,12 +77,14 @@ export class GrowingMesh<K> {
   private readonly m = new Float32Array(16);
   private dirty = false;
 
-  /** `now` is the time uniform the renderer sets once per frame (seconds). */
+  /** `now` is the time uniform the renderer sets once per frame (seconds); `sway` is the wind's
+   *  push at the top of a model, in metres per metre above its root (0: still). */
   constructor(
     geometry: THREE.BufferGeometry,
     capacity: number,
     material: THREE.MeshStandardNodeMaterial,
     now: THREE.UniformNode<"float", number>,
+    sway = 0,
   ) {
     const n = Math.max(capacity, 1);
     this.mesh = new THREE.InstancedMesh(geometry, material, n);
@@ -77,7 +103,13 @@ export class GrowingMesh<K> {
       instancedDynamicBufferAttribute(a, "vec3") as unknown as ReturnType<typeof vec3>;
     const [root, g] = [attr(this.root), attr(this.grow)];
     const k = smoothstep(0, 1, clamp(now.sub(g.x).div(GROW_S), 0, 1));
-    material.positionNode = root.add(positionLocal.sub(root).mul(mix(g.y, g.z, k)));
+    const grown = root.add(positionLocal.sub(root).mul(mix(g.y, g.z, k)));
+    if (sway === 0) {
+      material.positionNode = grown;
+    } else {
+      const push = wind(root.xz, now).mul(grown.y.sub(root.y).mul(sway));
+      material.positionNode = grown.add(vec3(push.x, 0, push.y));
+    }
   }
 
   get count(): number {

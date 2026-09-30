@@ -129,7 +129,9 @@ export function slabGeometry(field: Heightfield, depth: number): THREE.BufferGeo
     const start = positions.length / 3;
     for (let i = 0; i <= segments; i++) {
       const [x, z] = edge(-half + (2 * half * i) / segments);
-      positions.push(x, field.at(x, z), z, x, -depth, z);
+      // Up to the water where the ground dips under it, so the water never overhangs the edge.
+      const top = Math.max(field.at(x, z), field.water ?? -Infinity);
+      positions.push(x, top, z, x, -depth, z);
     }
     for (let i = 0; i < segments; i++) {
       const [a, b, c, d] = [start + 2 * i, start + 2 * i + 1, start + 2 * i + 2, start + 2 * i + 3];

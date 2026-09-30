@@ -394,3 +394,8 @@
 ## 2026-09-30 · World overhaul 1c: terrain rendering (D-085)
 - **Done:** displaced ground with the frontier in its material, water plane with depth tint, rock outcrops, heights for everything standing on the map; smoothed shores. Checked in the browser (seed 3); client, Rust, WASM and relay checks green.
 - **Next:** 2, light and shaders.
+
+## 2026-09-30 · World overhaul 2: light and shaders (D-086)
+- **Done:** sun shadows per preset, neutral tone mapping, wind on grass and plants, ground tints (wet, dry, slope), foliage rim light, bloom and tilt-shift on High, a dev camera hook. Checked in the browser on Low, Medium and High; client checks green.
+- **Note:** the pale yellow herbs on P2's side are the wildflowers' natural colour, not a lighting bug.
+- **Next:** 3, the species revamp.

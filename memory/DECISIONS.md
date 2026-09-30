@@ -949,3 +949,18 @@ Template:
   - **Rocks:** 2–4 jittered low-poly stones per rock cell, three shapes, instanced, flat shaded.
   - Plants, grass roots (height texture), animals, rings, the aura, pings, the drop cursor and camera targets stand on the relief.
 - **Consequences:** new palette entries (shallows, deep water, rock). Shadows, wind and slope tints come with step 2.
+
+## D-086 · 2026-09-30 · Light and shaders
+- **Status:** accepted (world overhaul step 2)
+- **Decision:**
+  - **Sun:** warmer (`#ffe7c4`), a little stronger, soft PCF shadows over the whole slab. Plants, rocks and animal bodies cast; the ground, grass, plants and rocks receive. The map size comes from the preset: off on Low, 1024 on Medium, 2048 on High.
+  - **Tone mapping:** Khronos Neutral, so bright colours roll off instead of clipping, with hues kept. This takes the place of a separate colour grade (no LUT).
+  - **Wind** (`growth.ts` `wind()`): a prevailing direction, times a slow noise gust field plus a gentle sway.
+    - Grass tips bend up to 0.12 m, by (height share)².
+    - Shrubs and trees bend rigidly from their root, 0.02 m per metre of height, in the GrowingMesh position node (the seam from D-072).
+  - **Ground tints:** darker and greener within 1.5 m above the water, paler on the top of the relief, the rock colour on steep slopes.
+  - **Foliage rim:** a warm edge light on plant parts, stronger when looking toward the sun (fake translucency).
+  - **High only:** a `RenderPipeline` with a depth-of-field tilt-shift and a light bloom. The focus is the camera's distance to its target, and the sharp band is 45 % of it.
+  - Slab walls rise to the water level at the map edge, so ponds no longer overhang it.
+  - **Dev hook:** `window.ecoViewer` (dev builds only), so browser checks can drive the camera.
+- **Consequences:** checked in the browser on all three presets, switched at runtime. The fps check on the reference laptop is still to do (the user).

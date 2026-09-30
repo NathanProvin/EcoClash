@@ -1,15 +1,18 @@
 // Instanced grass (INSTRUCTIONS §7.2, D-055): the herbaceous stratum (L1) as GPU blades. One merged
 // static geometry; the vertex shader reads the flora texture (RGB = owner's L1 colour, A = L1 cover)
 // of the last two field frames and blends them (D-072), so blades grow and fade between frames
-// at each blade's root, so density and colour follow the fields with no per-frame CPU work.
+// at each blade's root, so density and colour follow the fields with no per-frame CPU work. Blades
+// bend in the wind (D-086), the tip most.
 
-import { attribute, float, mix, positionLocal, smoothstep, texture, vec3 } from "three/tsl";
+import { attribute, float, mix, positionLocal, smoothstep, texture, time, vec3 } from "three/tsl";
 import * as THREE from "three/webgpu";
+import { wind } from "./growth";
 import { CELL, rand } from "./layout";
 
 const BLADE_WIDTH = 0.14; // metres at the base
 const BLADE_HEIGHT = [0.3, 0.55] as const; // shortest, tallest (below the shrub band)
 export const TUFT = 3; // blades per tuft, fanned 60 degrees apart
+const BEND = 0.12; // metres the tallest blade's tip moves in a full gust
 const TUFT_SPREAD = 0.1; // metres between a tuft's blades
 
 /** Vertex data of every blade: one triangle each (base left, base right, tip). */
@@ -88,7 +91,10 @@ export function makeGrass(
   const material = new THREE.MeshStandardNodeMaterial({ roughness: 0.9 });
   // Roots on the relief (D-085): the ground's height at the root, from the height texture.
   const y = heights ? texture(heights, at).level(float(0)).r : float(0);
-  material.positionNode = vec3(root.x, y, root.y).add(positionLocal.mul(grow));
+  const tip = positionLocal.y.div(BLADE_HEIGHT[1]);
+  const push = wind(root, time).mul(tip.mul(tip).mul(BEND));
+  const blade = positionLocal.add(vec3(push.x, 0, push.y)).mul(grow);
+  material.positionNode = vec3(root.x, y, root.y).add(blade);
   const shade = mix(float(0.7), float(1.15), positionLocal.y.div(BLADE_HEIGHT[1])); // dark base
   material.colorNode = texel.rgb.mul(shade);
 

@@ -4,6 +4,18 @@
 // the seam for art: today's LowPolyPlants builds trunks and blob crowns from primitives; a glTF
 // style can bring per-species meshes (and wind, in the growth position node) with no change here.
 
+import {
+  cameraPosition,
+  color,
+  dot,
+  normalView,
+  positionViewDirection,
+  positionWorld,
+  pow,
+  saturate,
+  smoothstep,
+  uniform,
+} from "three/tsl";
 import * as THREE from "three/webgpu";
 import { GrowingMesh, type Pose } from "./growth";
 import {
@@ -115,6 +127,11 @@ export class LowPolyPlants implements PlantStyle {
   }
 }
 
+/** Wind push at a model's top, metres per metre above its root (D-086). */
+const SWAY = 0.02;
+/** Fake translucency (D-086): a warm rim on edges, brighter when looking toward the sun. */
+const RIM = { power: 2.5, base: 0.06, backlit: 0.3 } as const;
+
 /** Parts per model at most: keys hold up to this many parts per slot. */
 const PARTS = 4;
 /** Slots per stratum at most, in keys. */
@@ -133,15 +150,25 @@ export class PlantView {
     private readonly n: number,
     private readonly style: PlantStyle,
     now: THREE.UniformNode<"float", number>,
+    toSun = new THREE.Vector3(0, 1, 0),
   ) {
     const cells = n * n;
+    const sun = uniform(toSun.clone().normalize());
+    const facing = positionWorld.sub(cameraPosition).normalize().dot(sun); // 1: into the sun
+    const edge = pow(saturate(dot(normalView, positionViewDirection)).oneMinus(), RIM.power);
+    const rim = color(WORLD.sun).mul(
+      edge.mul(smoothstep(0, 0.9, facing).mul(RIM.backlit).add(RIM.base)),
+    );
     this.meshes = style.meshes.map((s) => {
       const capacity = cells * (MAX_MODELS[1] * s.perModel[0] + MAX_MODELS[2] * s.perModel[1]);
       const material = new THREE.MeshStandardNodeMaterial({
         roughness: s.roughness,
         flatShading: true,
       });
-      const g = new GrowingMesh<number>(s.geometry, capacity, material, now);
+      material.emissiveNode = rim;
+      const g = new GrowingMesh<number>(s.geometry, capacity, material, now, SWAY);
+      g.mesh.castShadow = true;
+      g.mesh.receiveShadow = true;
       scene.add(g.mesh);
       return g;
     });

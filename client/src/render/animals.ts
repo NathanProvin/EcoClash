@@ -173,7 +173,10 @@ export class AnimalView {
         new THREE.MeshStandardNodeMaterial({ roughness: 0.9, flatShading: true }),
       );
     const bodies = {} as Record<Body, THREE.InstancedMesh>;
-    for (const b of BODIES) bodies[b] = lit(bodyGeometry(b));
+    for (const b of BODIES) {
+      bodies[b] = lit(bodyGeometry(b));
+      bodies[b].castShadow = true; // D-086
+    }
     this.bodies = bodies;
     const faint = (opacity: number) =>
       new THREE.MeshBasicNodeMaterial({ transparent: true, opacity, depthWrite: false });

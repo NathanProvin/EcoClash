@@ -1,14 +1,17 @@
-// Quality presets (INSTRUCTIONS §7.3, D-056): grass density and render resolution for now; shadows
-// and post-processing join them in M5. The choice is a per-viewer convenience kept in the browser.
+// Quality presets (INSTRUCTIONS §7.3, D-056, D-086): grass density, render resolution, sun shadows
+// (map size, 0 = off) and post-processing (bloom and tilt-shift). The choice is a per-viewer
+// convenience kept in the browser.
 
 export type Quality = "low" | "medium" | "high";
 
-export const QUALITY: Record<Quality, { grass: number; pixelRatio: number }> = {
-  low: { grass: 6, pixelRatio: 1 }, // grass tufts per cell; device pixel ratio cap
-  medium: { grass: 12, pixelRatio: 1.5 },
-  high: { grass: 24, pixelRatio: 2 },
+export const QUALITY: Record<
+  Quality,
+  { grass: number; pixelRatio: number; shadow: number; post: boolean }
+> = {
+  low: { grass: 6, pixelRatio: 1, shadow: 0, post: false }, // tufts per cell; device pixel cap
+  medium: { grass: 12, pixelRatio: 1.5, shadow: 1024, post: false },
+  high: { grass: 24, pixelRatio: 2, shadow: 2048, post: true },
 };
-
 const KEY = "ecoclash.quality";
 
 /** The stored preset, or "medium" when none is stored, it is unknown, or storage is blocked. */

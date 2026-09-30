@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** the world overhaul (terrain, light, species, movement, drops), before M5a 8b and 9. 1a done.
+- **Now:** the world overhaul (terrain, light, species, movement, drops), before M5a 8b and 9. 1a–1b done.
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-09-30
@@ -104,7 +104,7 @@ Goal: a build strangers can play against the bot and understand at a glance. One
 ## World overhaul (before M5a 8b and 9; user, 2026-09-30)
 In this order:
 - [x] **1a. Map generator** (D-083): seeded relief, an anti-diagonal river (shallows, deep pools), ponds, rock outcrops, home clearings, moisture; 180° symmetry; `World::generate_terrain`, `sim-cli --terrain 1`, `sim-wasm generateTerrain / terrainFrame`.
-- [ ] **1b. Terrain rules**: rock and deep cells block plants and walkers; shallows slow walkers and let plants seep across; movement media (walk, swim, amphibious, fly); pathfinding (`pathing.rs`).
+- [x] **1b. Terrain rules** (D-084): rock and deep cells block plants and walkers; shallows slow walkers and let plants seep across; movement media (walk, swim, amphibious, fly); pathfinding (`pathing.rs`).
 - [ ] **1c. Terrain rendering**: displaced ground, heights everywhere, water surface, rocks, frontier on the relief, slab sides.
 - [ ] **2. Light and shaders**: shadows, wind, terrain blending, foliage rim light, colour grade; bloom and tilt-shift on High.
 - [ ] **3. Species revamp**: the user's 15-plant, 33-animal table; 4 plant strata; groups and tiers; aquatic species; new bodies; bot.

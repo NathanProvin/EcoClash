@@ -382,6 +382,7 @@ mod tests {
         let b = balance();
         let n = usize::try_from(b.sim.grid_size).unwrap();
         let mut w = World::new(&b, 1, n);
+        w.generate_terrain(&sim_core::terrain::TerrainParams::from_balance(&b), 1); // a real map (D-083)
         let home = u32::try_from(n / 4).unwrap();
         let away = u32::try_from(n - 1 - n / 4).unwrap();
         w.setup_plant(1, "grasses", home, home, 3);

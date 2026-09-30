@@ -10,6 +10,7 @@ pub mod fauna;
 pub mod fixed;
 pub mod flora;
 pub mod hash;
+pub mod pathing;
 pub mod rng;
 pub mod snapshot;
 pub mod terrain;

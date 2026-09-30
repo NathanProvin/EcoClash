@@ -63,7 +63,17 @@ Victory conditions are defined in `INSTRUCTIONS.md` §2.3 (territory share or to
 
 ### 2.3 Terrain modifiers [Placeholder — do NOT implement in V1]
 
-**V1:** flat terrain and one basic soil (loam). All modifiers equal 1.0.
+**V1:** one basic soil (loam); soil type and light modifiers equal 1.0.
+
+**Terrain (author's decision, D-083, D-084):** every match has a generated map, the same for both players (180° symmetry):
+- **Relief:** hills and valleys. It shapes moisture: valleys and banks are wet, hills dry. There is no movement penalty.
+- **Water:** a river runs between the two homes (the natural front line), and a few ponds lie in the low ground.
+  - **Shallows:** animals wade across (walkers at half speed). Land plants seep across slowly, through their water response (f_water).
+  - **Deep pools** in the river and **deep pond centres:** no land plant grows there, and walkers cannot enter.
+- **Rock outcrops** on the high ground: nothing grows there, and walkers cannot enter.
+- **Animals** have a medium: walk (land and shallows), swim (water), amphibious (land and water), fly (anywhere). They find their way around what they cannot cross.
+- **Territory:** rock and deep water are never owned, so borders stop at them.
+- **Homes** are kept dry, flat and rock-free.
 
 **Planned soil types:**
 

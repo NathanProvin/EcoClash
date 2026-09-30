@@ -332,6 +332,11 @@ impl Flora {
     #[must_use]
     pub fn suitability(&self, st: &FloraState, s: usize, k: usize) -> i64 {
         let p = &self.p;
+        // Rock and deep water: nothing takes root (D-084). Shallows only through the water
+        // response below.
+        if matches!(st.ground[k], crate::terrain::ROCK | crate::terrain::DEEP) {
+            return 0;
+        }
         let mut suit = p.aff[s][usize::from(st.soil_type[k])];
         if p.succession {
             let dev = div(
@@ -1083,6 +1088,32 @@ mod tests {
         assert!(
             st.owner.iter().filter(|&&o| o != 0).count() > before,
             "plants spread"
+        );
+    }
+
+    /// Rock and deep water refuse plants; shallows take them, but slowly (D-084).
+    #[test]
+    fn rock_and_deep_water_refuse_plants_and_shallows_slow_them() {
+        let f = flora();
+        let grasses = f.p.index("grasses").unwrap();
+        let mut st = FloraState::new(&f.p, 4);
+        st.soil.fill(U16);
+        st.ground[0] = crate::terrain::ROCK;
+        st.ground[1] = crate::terrain::DEEP;
+        st.ground[2] = crate::terrain::SHALLOW;
+        st.water[2] = U16; // shallows are full of water
+        assert_eq!(
+            f.plant(&mut st, 1, grasses, &[0, 1]),
+            0,
+            "no roots in rock or deep water"
+        );
+        let (land, shallow) = (
+            f.suitability(&st, grasses, 3),
+            f.suitability(&st, grasses, 2),
+        );
+        assert!(
+            shallow > 0 && shallow * 3 < land,
+            "shallows: slow, not closed ({shallow} vs {land})"
         );
     }
 

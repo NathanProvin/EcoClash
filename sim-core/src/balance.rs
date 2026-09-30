@@ -77,6 +77,9 @@ pub struct FaunaRules {
     pub flee_radius: u32,
     pub refuge_flora: Vec<String>,
     pub refuge_cover: f64,
+    /// Terrain (D-084): speed share in shallows for walkers; cells a path search may explore.
+    pub shallow_speed: f64,
+    pub path_cells: u32,
     /// Local carrying capacity (D-066): seconds of bites the food in sight must hold per animal
     /// (grazers, decomposers), and huntable prey in sight per predator.
     pub food_reserve: f64,
@@ -193,6 +196,35 @@ pub struct FaunaSpecies {
     pub sight: u32,
     /// Animals per spawned card.
     pub group: u32,
+    /// Where it can stand (D-084): walk (land, shallows), swim (water), amphibious (land and
+    /// water), fly (anywhere).
+    #[serde(default)]
+    pub medium: Medium,
+}
+
+/// Where an animal can stand (D-084).
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Medium {
+    #[default]
+    Walk,
+    Swim,
+    Amphibious,
+    Fly,
+}
+
+impl Medium {
+    /// Whether an animal of this medium may stand on a cell of this ground class.
+    #[must_use]
+    pub fn stands(self, ground: u8) -> bool {
+        use crate::terrain::{LAND, ROCK, SHALLOW, is_water};
+        match self {
+            Medium::Walk => ground == LAND || ground == SHALLOW,
+            Medium::Swim => is_water(ground),
+            Medium::Amphibious => ground != ROCK,
+            Medium::Fly => true,
+        }
+    }
 }
 
 /// Everything `sim-core` reads from the data files, validated.
@@ -380,6 +412,10 @@ impl Balance {
             "[agents] max_agents must be >= 2".into(),
         )?;
         let fa = &self.fauna;
+        check(
+            (0.0..=1.0).contains(&fa.shallow_speed) && fa.path_cells > 0,
+            "[fauna] shallow_speed in [0, 1], path_cells > 0".into(),
+        )?;
         check(
             fa.food_reserve >= 0.0
                 && (0.0..=1.0).contains(&fa.catch_chance)

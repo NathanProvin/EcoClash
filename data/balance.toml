@@ -80,6 +80,10 @@ drop_radius = 4         # a drop (herbivores off own land, predators) lands with
 flee_radius = 3         # prey flee enemy hunters closer than this
 refuge_flora = ["hawthorn", "bramble"]
 refuge_cover = 0.5      # summed cover of refuge flora that hides small fauna (D-023)
+# Terrain (D-084): walkers cross shallows at this share of their speed; a path search explores at
+# most this many cells before giving up (then the animal stays).
+shallow_speed = 0.5
+path_cells = 400
 # Local carrying capacity (D-066): a birth needs food nearby, within the species' sight.
 food_reserve = 900      # grazers, decomposers: seconds of bites the food in sight must hold per animal
 prey_per_predator = 4   # predators: huntable enemy prey in sight per predator

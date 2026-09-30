@@ -386,3 +386,7 @@
 ## 2026-09-30 · World overhaul 1a: map generator (D-083)
 - **Done:** seeded, symmetric maps with relief, a river between the homes, ponds, rock outcrops, moisture; in the state and hashes; `wasm:check` with terrain; all checks pass.
 - **Next:** 1b terrain rules (blocked cells, media, pathfinding).
+
+## 2026-09-30 · World overhaul 1b: terrain rules (D-084)
+- **Done:** rock and deep water block plants and walkers, shallows slow walkers and let plants seep, media (walk, swim, amphibious, fly), bounded A* pathfinding with waypoints; tests; the bot on real maps; tick budget holds.
+- **Next:** 1c terrain rendering.

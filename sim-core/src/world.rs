@@ -161,7 +161,7 @@ impl World {
         for c in self.queue.take(self.tick) {
             self.apply(&c);
         }
-        self.fauna.walk(self.state.n, &mut self.rng);
+        self.fauna.walk(&self.state, &mut self.rng);
         if self.tick.is_multiple_of(self.flora_every) {
             self.fauna
                 .act(&self.flora.p, &mut self.state, &mut self.rng);
@@ -759,6 +759,7 @@ mod perf {
         let every = u64::from(b.sim.flora_every_ticks);
 
         let mut w = World::new(&b, 1, n);
+        w.generate_terrain(&TerrainParams::from_balance(&b), 1); // paths around water and rock (D-084)
         w.set_sandbox(true); // plants any species
         let mut seq = 0;
         let m = u32::try_from(n).unwrap();
@@ -792,6 +793,7 @@ mod perf {
         println!("{n}x{n} mid-game: {mid:?} per flora tick, {owned} cells owned");
 
         let mut w = World::new(&b, 1, n);
+        w.generate_terrain(&TerrainParams::from_balance(&b), 1);
         w.set_sandbox(true);
         w.state.soil.iter_mut().for_each(|s| *s = U16);
         for (player, cols) in [(1u8, 0..n / 2), (2u8, n / 2..n)] {
@@ -822,7 +824,7 @@ mod perf {
         let species = w.fauna.p.names.len();
         for k in 0..1500 {
             let (player, half) = if k % 2 == 0 { (1u8, 0) } else { (2u8, n / 2) };
-            let cell = (k * 7919) % (n * n / 2);
+            let cell = (k * 7919) % (n * (n / 2)); // rows < n, also for odd n
             let (row, col) = (cell / (n / 2), half + cell % (n / 2));
             let s = k % species;
             let full = w.fauna.p.body[s] * i64::from(crate::fixed::ONE);

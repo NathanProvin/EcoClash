@@ -55,6 +55,7 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 - `water`: moisture. It modulates growth.
 - `dead_biomass`: litter, which decomposers consume.
 - `light`: optional and static in v1. Later reduced by tree canopy.
+- `ground` and `elevation` (D-083, D-084): a generated map per match (relief, a river, ponds, rock outcrops, 180° symmetric). Rock and deep water block plants and walkers; shallows slow walkers and let plants seep across. Animals path around obstacles (`pathing.rs`).
 
 ### 2.3 Economy and victory
 

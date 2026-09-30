@@ -916,3 +916,25 @@ Template:
   - `FloraState` gains `ground` (land, shallow, deep, rock) and `elevation`, both in the chunk hashes, so peers with different maps desync at once. The generator settings join the balance hash (version 10).
   - `World::new` stays flat, which keeps tests and flat-map parity exact. The game calls `World::generate_terrain` (`sim-wasm generateTerrain`, `sim-cli --terrain 1`; `wasm:check` runs with terrain on). `sim-wasm terrainFrame()` exports it for the renderer.
 - **Consequences:** Tests: symmetry, determinism, homes clear, the river between the homes yet crossable, every walkable cell reachable, water and rock shares, moisture ranges. An ignored `map_preview` test prints maps. The rules (1b) and the look (1c) come next.
+
+## D-084 · 2026-09-30 · Terrain rules and pathfinding
+- **Status:** accepted (user: "Rocks and deep water block walking and planting; the river and ponds are shallows and allow crossing; plants can slowly disseminate; birds fly over; animals path around obstacles")
+- **Decision:**
+  - **Plants:** suitability is 0 on rock and deep water, so nothing is planted there, grows there or claims it. Shallows go through the water response: land plants now have `water_optimum` 0.5 (the flat map's moisture, so flat maps and Python parity stay exact) and `water_tolerance` 0.6. In full-water shallows they grow at about a sixth of the land rate, which is the slow seeping across the river.
+  - **Animals** get a `medium` in species.toml (walk by default; swim, amphibious, fly), with a `stands(ground)` rule:
+    - walkers: land and shallows, at `shallow_speed` (0.5) in shallows;
+    - swimmers: water only;
+    - amphibious: everything but rock;
+    - fliers: anywhere.
+  - **Pathfinding** (`pathing.rs`): each animal heads for a waypoint (new hashed fields `py`, `px`):
+    - the target itself when the straight line is clear;
+    - else the farthest of the next 6 cells of a bounded A* path (8 neighbours, no corner cutting, at most `path_cells` 400 cells explored);
+    - routed again when a new target is set or the waypoint is reached;
+    - with no path, the animal stays.
+    - A drift step that would enter a blocked cell is dropped.
+  - **Targets and spawns:** food, prey, flee and stroll targets, and spawn and drop sites, only use cells the species can stand on.
+- **Consequences:**
+  - Tests: walkers get around a rock wall through its gap and never stand on rock; swimmers stay in water; fliers cross rock; shallows halve walking speed; rock and deep refuse plants; shallows are slow, not closed; the pathing unit tests.
+  - Performance at 43² with terrain: 1.2 ms per tick on average with 1,500 animals, worst tick 8.8 ms.
+  - The bot plays on generated maps (its tests and report).
+  - Fix: the benchmark placed animals past the last row on odd grid sizes.

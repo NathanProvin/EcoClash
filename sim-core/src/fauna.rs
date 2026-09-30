@@ -14,12 +14,14 @@
 
 use std::collections::BTreeMap;
 
-use crate::balance::Balance;
+use crate::balance::{Balance, Medium};
 use crate::commands::OrderKind;
 use crate::fixed::{ONE, div_round};
 use crate::flora::{FloraParams, FloraState, U16, round};
 use crate::hash::Hasher;
+use crate::pathing;
 use crate::rng::Pcg32;
+use crate::terrain::SHALLOW;
 
 const ONE_I: i64 = ONE as i64;
 const HALF: i64 = ONE_I / 2;
@@ -84,6 +86,11 @@ pub struct FaunaParams {
     wobble_keep: i64,
     scatter: i64,
     wander: i64,
+    /// Terrain (D-084): where each species can stand; speed share in shallows for walkers (Q16);
+    /// cells a path search may explore.
+    pub medium: Vec<Medium>,
+    shallow_speed: i64,
+    path_cells: usize,
     /// Animals per player, all species.
     player_cap: i64,
     /// Ticks per flora tick.
@@ -185,6 +192,9 @@ impl FaunaParams {
             wobble_keep: round(fa.wobble_keep * one),
             scatter: round(fa.scatter * one),
             wander: round(fa.wander_radius * one),
+            medium: sp.iter().map(|s| s.medium).collect(),
+            shallow_speed: round(fa.shallow_speed * one),
+            path_cells: usize::try_from(fa.path_cells).unwrap_or(1),
             player_cap: i64::from(b.agents.max_agents / 2),
             every: i64::from(b.sim.flora_every_ticks),
             offs,
@@ -245,8 +255,11 @@ impl FaunaParams {
             self.wobble_keep,
             self.scatter,
             self.wander,
+            self.shallow_speed,
+            i64::try_from(self.path_cells).unwrap_or(0),
             self.player_cap,
         ]);
+        h.i64s(&self.medium.iter().map(|&m| m as i64).collect::<Vec<_>>());
     }
 }
 
@@ -274,6 +287,10 @@ pub struct Agents {
     /// Brownian drift added to the walk each tick (Q16 cells per tick; D-065).
     pub wy: Vec<i64>,
     pub wx: Vec<i64>,
+    /// Where it heads now on its way to the target, around obstacles (Q16 cells; D-084);
+    /// `ROUTE` when a new route is due.
+    pub py: Vec<i64>,
+    pub px: Vec<i64>,
     pub next_id: u32,
 }
 
@@ -318,6 +335,8 @@ impl Agents {
         self.gx.push(x);
         self.wy.push(0);
         self.wx.push(0);
+        self.py.push(y);
+        self.px.push(x);
     }
 
     fn retain(&mut self, keep: &[bool]) {
@@ -339,6 +358,8 @@ impl Agents {
         filter(&mut self.gx, keep);
         filter(&mut self.wy, keep);
         filter(&mut self.wx, keep);
+        filter(&mut self.py, keep);
+        filter(&mut self.px, keep);
     }
 
     pub fn hash_into(&self, h: &mut Hasher) {
@@ -360,6 +381,8 @@ impl Agents {
             &self.gx,
             &self.wy,
             &self.wx,
+            &self.py,
+            &self.px,
         ] {
             h.i64s(v);
         }
@@ -372,6 +395,39 @@ fn cell_of(q: i64) -> usize {
 
 fn centre(cell: usize) -> i64 {
     i64::try_from(cell).unwrap_or(0) * ONE_I + HALF
+}
+
+/// A waypoint is due (`Agents::py`), and one is reached within a quarter cell.
+const ROUTE: i64 = i64::MIN;
+const QUARTER: i64 = ONE_I / 4;
+/// The waypoint is the farthest of this many next path cells in straight view.
+const LOOKAHEAD: usize = 6;
+
+/// Where to head next from `from` toward `to` (Q16 cells): `to` itself when the way is clear,
+/// else a cell along a path around what it cannot stand on; None when no path is found.
+fn waypoint(
+    n: usize,
+    stand: &dyn Fn(usize) -> bool,
+    from: (i64, i64),
+    to: (i64, i64),
+    limit: usize,
+) -> Option<(i64, i64)> {
+    if pathing::line_clear(n, stand, from, to) {
+        return Some(to);
+    }
+    let start = pathing::cell_at(from.0, from.1, n)?;
+    let end = pathing::cell_at(to.0, to.1, n)?;
+    let path = pathing::route(n, stand, start, end, limit)?;
+    let seen = |k: usize| pathing::line_clear(n, stand, from, (centre(k / n), centre(k % n)));
+    let next = path
+        .iter()
+        .skip(1)
+        .take(LOOKAHEAD)
+        .rev()
+        .copied()
+        .find(|&k| seen(k));
+    let k = next.or_else(|| path.get(1).copied())?;
+    Some((centre(k / n), centre(k % n)))
 }
 
 /// A uniform draw in `-r..=r`.
@@ -431,6 +487,7 @@ impl Fauna {
                 a.order[i] = FREE;
                 a.ty[i] = a.y[i];
                 a.tx[i] = a.x[i];
+                (a.py[i], a.px[i]) = (a.y[i], a.x[i]);
                 continue;
             }
             a.order[i] = if kind == OrderKind::Move {
@@ -444,6 +501,7 @@ impl Fauna {
                 centre(goal.1) + offset(a.id[i], 2, r),
             );
             (a.ty[i], a.tx[i]) = (a.gy[i], a.gx[i]);
+            a.py[i] = ROUTE;
         }
         taken
     }
@@ -452,12 +510,35 @@ impl Fauna {
     /// (any direction, not per axis), plus its Brownian drift: a random kick each tick, of which
     /// `wobble_keep` carries over (a discrete Ornstein-Uhlenbeck walk), so paths curve and idle
     /// animals shuffle (D-065). Positions stay on the map.
-    pub fn walk(&mut self, n: usize, rng: &mut Pcg32) {
+    pub fn walk(&mut self, st: &FloraState, rng: &mut Pcg32) {
+        let n = st.n;
         let (a, p) = (&mut self.agents, &self.p);
         let edge = i64::try_from(n).unwrap_or(1) * ONE_I - 1;
         for i in 0..a.len() {
-            let v = p.speed[usize::from(a.sp[i])];
-            let (dy, dx) = (a.ty[i] - a.y[i], a.tx[i] - a.x[i]);
+            let s = usize::from(a.sp[i]);
+            let medium = p.medium[s];
+            let stand = |k: usize| medium.stands(st.ground[k]);
+            // Obstacles (D-084): head for a waypoint, routed again when due or reached.
+            let due = a.py[i] == ROUTE;
+            let reached =
+                !due && (a.py[i] - a.y[i]).abs() < QUARTER && (a.px[i] - a.x[i]).abs() < QUARTER;
+            let there = a.py[i] == a.ty[i] && a.px[i] == a.tx[i];
+            if due || (reached && !there) {
+                let from = (a.y[i], a.x[i]);
+                match waypoint(n, &stand, from, (a.ty[i], a.tx[i]), p.path_cells) {
+                    Some((y, x)) => (a.py[i], a.px[i]) = (y, x),
+                    None => {
+                        // No way there: stay.
+                        (a.ty[i], a.tx[i]) = from;
+                        (a.py[i], a.px[i]) = from;
+                    }
+                }
+            }
+            let mut v = p.speed[s];
+            if medium == Medium::Walk && st.ground[a.cell(i, n)] == SHALLOW {
+                v = div_round(v * p.shallow_speed, ONE_I).max(1);
+            }
+            let (dy, dx) = (a.py[i] - a.y[i], a.px[i] - a.x[i]);
             let len = i64::try_from((dy * dy + dx * dx).unsigned_abs().isqrt()).unwrap_or(i64::MAX);
             let (sy, sx) = if len <= v {
                 (dy, dx)
@@ -467,8 +548,21 @@ impl Fauna {
             let kick = div_round(v * p.wobble, ONE_I);
             a.wy[i] = div_round(a.wy[i] * p.wobble_keep, ONE_I) + spread(rng, kick);
             a.wx[i] = div_round(a.wx[i] * p.wobble_keep, ONE_I) + spread(rng, kick);
-            a.y[i] = (a.y[i] + sy + a.wy[i]).clamp(0, edge);
-            a.x[i] = (a.x[i] + sx + a.wx[i]).clamp(0, edge);
+            // Never onto a cell it cannot stand on: drop the drift, else stay.
+            let open = |y: i64, x: i64| pathing::cell_at(y, x, n).is_some_and(stand);
+            let (y, x) = (
+                (a.y[i] + sy + a.wy[i]).clamp(0, edge),
+                (a.x[i] + sx + a.wx[i]).clamp(0, edge),
+            );
+            if open(y, x) {
+                (a.y[i], a.x[i]) = (y, x);
+            } else {
+                (a.wy[i], a.wx[i]) = (0, 0);
+                let (y, x) = ((a.y[i] + sy).clamp(0, edge), (a.x[i] + sx).clamp(0, edge));
+                if open(y, x) {
+                    (a.y[i], a.x[i]) = (y, x);
+                }
+            }
         }
     }
 
@@ -814,6 +908,9 @@ impl Fauna {
                             prey[a.cell(j, n)] = true;
                         }
                     }
+                    for k in 0..n2 {
+                        prey[k] &= p.medium[s].stands(st.ground[k]);
+                    }
                     vec![prey]
                 } else {
                     let mut crowd = vec![0i64; n2];
@@ -838,8 +935,11 @@ impl Fauna {
                         let k = a.cell(i, n);
                         enough[k] || stock(k) < 1 // crowded cells: wander off instead
                     });
+                    let stand = |k: usize| p.medium[s].stands(st.ground[k]);
                     let on = |pred: &dyn Fn(u8) -> bool| -> Vec<bool> {
-                        (0..n2).map(|k| enough[k] && pred(st.owner[k])).collect()
+                        (0..n2)
+                            .map(|k| enough[k] && stand(k) && pred(st.owner[k]))
+                            .collect()
                     };
                     if p.role[s] == Role::Herbivore {
                         // [enemy food, food on any land]: an attack-move hunts the first, a free
@@ -885,6 +985,13 @@ impl Fauna {
                     limit(a.x[i] + spread(rng, w)),
                 )
             });
+            // A target it cannot stand on (a flight into a pond, a stroll onto rock): stay.
+            let fits = pathing::cell_at(ty, tx, n)
+                .is_some_and(|k| self.p.medium[usize::from(a.sp[i])].stands(st.ground[k]));
+            let (ty, tx) = if fits { (ty, tx) } else { (a.y[i], a.x[i]) };
+            if (ty, tx) != (a.ty[i], a.tx[i]) {
+                a.py[i] = ROUTE;
+            }
             a.ty[i] = ty;
             a.tx[i] = tx;
         }
@@ -931,9 +1038,11 @@ impl Fauna {
         if count <= 0 {
             return Err("population cap reached".into());
         }
+        let stand = |k: usize| p.medium[s].stands(st.ground[k]);
         let home: Vec<bool> = (0..n2)
             .map(|k| {
-                st.owner[k] == player
+                stand(k)
+                    && st.owner[k] == player
                     && (0..fl.names.len())
                         .any(|j| p.habitat[s] >> j & 1 == 1 && st.bio[j * n2 + k] >= fl.est_thr[j])
             })
@@ -953,6 +1062,7 @@ impl Fauna {
                     for j in 0..a.len() {
                         let k = a.cell(j, n);
                         if a.owner[j] == 3 - player
+                            && stand(k)
                             && !safe[j]
                             && p.eats_fauna[s] >> a.sp[j] & 1 == 1
                             && near_click(k)
@@ -973,6 +1083,7 @@ impl Fauna {
                 let food: Vec<bool> = (0..n2)
                     .map(|k| {
                         st.owner[k] != player
+                            && stand(k)
                             && near_click(k)
                             && (0..fl.names.len())
                                 .any(|j| p.eats_flora[s] >> j & 1 == 1 && st.bio[j * n2 + k] >= 1)
@@ -1108,19 +1219,19 @@ mod tests {
 
     #[test]
     fn walking_steers_straight_at_the_species_speed() {
-        let (_, mut fa, _, mut rng) = setup(8);
+        let (_, mut fa, st, mut rng) = setup(8);
         fa.p.wobble = 0; // no drift: the pure steering
         fa.agents.push(0, 1, centre(1), centre(1), ONE_I, 0);
         (fa.agents.ty[0], fa.agents.tx[0]) = (centre(5), centre(4)); // a 3-4-5 triangle
         let v = fa.p.speed[0];
-        fa.walk(8, &mut rng);
+        fa.walk(&st, &mut rng);
         let (dy, dx) = (fa.agents.y[0] - centre(1), fa.agents.x[0] - centre(1));
         assert!(
             (dy - v * 4 / 5).abs() <= 1 && (dx - v * 3 / 5).abs() <= 1,
             "any angle, speed v"
         );
         for _ in 0..1000 {
-            fa.walk(8, &mut rng);
+            fa.walk(&st, &mut rng);
         }
         assert_eq!(
             (fa.agents.y[0], fa.agents.x[0]),
@@ -1131,11 +1242,11 @@ mod tests {
 
     #[test]
     fn the_drift_makes_idle_animals_shuffle_near_their_spot() {
-        let (_, mut fa, _, mut rng) = setup(8);
+        let (_, mut fa, st, mut rng) = setup(8);
         fa.agents.push(0, 1, centre(0), centre(0), ONE_I, 0); // a corner: the edge holds
         let (mut moved, mut far) = (false, 0);
         for _ in 0..500 {
-            fa.walk(8, &mut rng);
+            fa.walk(&st, &mut rng);
             let a = &fa.agents;
             moved |= a.y[0] != centre(0) || a.x[0] != centre(0);
             far = far.max((a.y[0] - centre(0)).abs().max((a.x[0] - centre(0)).abs()));
@@ -1324,7 +1435,7 @@ mod tests {
         );
         assert_eq!(fa.agents.ty[1], centre(2), "the enemy vole ignores it");
         for t in 0..400 {
-            fa.walk(16, &mut rng);
+            fa.walk(&st, &mut rng);
             if t % 8 == 0 {
                 fa.act(&fl.p, &mut st, &mut rng); // food all around: an order ignores it
             }
@@ -1476,7 +1587,7 @@ mod tests {
                     }
                 }
                 for _ in 0..8 {
-                    fa.walk(64, &mut rng);
+                    fa.walk(&st, &mut rng);
                 }
                 fa.act(&fl.p, &mut st, &mut rng);
                 fl.step(&mut st);
@@ -1486,6 +1597,68 @@ mod tests {
             }
             println!("{line}");
         }
+    }
+
+    /// A wall of rock down column 4 with one gap at the bottom row (D-084).
+    fn walled(st: &mut FloraState) {
+        for y in 0..7 {
+            st.ground[y * 8 + 4] = crate::terrain::ROCK;
+        }
+    }
+
+    #[test]
+    fn walkers_go_around_rock_and_never_stand_on_it() {
+        let (_, mut fa, mut st, mut rng) = setup(8);
+        walled(&mut st);
+        let voles = fa.p.index("voles").unwrap();
+        fa.agents.push(voles, 1, centre(1), centre(1), ONE_I, 0);
+        (fa.agents.ty[0], fa.agents.tx[0], fa.agents.py[0]) = (centre(1), centre(6), ROUTE);
+        for _ in 0..3000 {
+            fa.walk(&st, &mut rng);
+            let k = fa.agents.cell(0, 8);
+            assert_ne!(st.ground[k], crate::terrain::ROCK, "never on rock");
+            if k == 8 + 6 {
+                return; // arrived on the far side, through the gap
+            }
+        }
+        panic!("did not get around the wall");
+    }
+
+    #[test]
+    fn swimmers_stay_in_water_fliers_cross_rock_and_shallows_slow_walkers() {
+        let (_, mut fa, mut st, mut rng) = setup(8);
+        let voles = fa.p.index("voles").unwrap();
+        // A swimmer in a pond (column 0..2) asked to walk ashore stays in the water.
+        for y in 0..8 {
+            for x in 0..3 {
+                st.ground[y * 8 + x] = crate::terrain::SHALLOW;
+            }
+        }
+        fa.p.medium[voles] = Medium::Swim;
+        fa.agents.push(voles, 1, centre(1), centre(1), ONE_I, 0);
+        (fa.agents.ty[0], fa.agents.tx[0], fa.agents.py[0]) = (centre(1), centre(6), ROUTE);
+        for _ in 0..200 {
+            fa.walk(&st, &mut rng);
+            assert!(crate::terrain::is_water(st.ground[fa.agents.cell(0, 8)]));
+        }
+        // A flier goes straight over a wall of rock.
+        let (_, mut fa, mut st, mut rng) = setup(8);
+        walled(&mut st);
+        fa.p.medium[voles] = Medium::Fly;
+        fa.p.wobble = 0;
+        fa.agents.push(voles, 1, centre(1), centre(1), ONE_I, 0);
+        (fa.agents.ty[0], fa.agents.tx[0], fa.agents.py[0]) = (centre(1), centre(6), ROUTE);
+        fa.walk(&st, &mut rng);
+        assert_eq!(fa.agents.px[0], centre(6), "a straight line");
+        // A walker in the shallows moves at the shallow share of its speed.
+        let (_, mut fa, mut st, mut rng) = setup(8);
+        st.ground.fill(crate::terrain::SHALLOW);
+        fa.p.wobble = 0;
+        fa.agents.push(voles, 1, centre(1), centre(1), ONE_I, 0);
+        (fa.agents.ty[0], fa.agents.tx[0], fa.agents.py[0]) = (centre(1), centre(6), ROUTE);
+        fa.walk(&st, &mut rng);
+        let slow = div_round(fa.p.speed[voles] * fa.p.shallow_speed, ONE_I);
+        assert_eq!(fa.agents.x[0] - centre(1), slow);
     }
 
     #[test]

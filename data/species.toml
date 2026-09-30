@@ -11,7 +11,8 @@
 #   effect       special effect, shown in the UI
 #
 # Model (second block): level / tier = tech-tree position (flora L1..L3, fauna F1..F5).
-#   Plants: biomass_rate = logistic r (1/s); k_max = biomass capacity of a cell (u16);
+#   Plants: water_optimum / water_tolerance = moisture response (0..1; land plants 0.5 / 0.6:
+#   neutral on a flat map, slow in the shallows, D-084); biomass_rate = logistic r (1/s); k_max = biomass capacity of a cell (u16);
 #   shade_cast / shade_tolerance 0..1; soil_gain = soil development per second at full cover.
 #   Animals: role, eats, habitat (flora names or L1..L3; predators eat fauna names), small =
 #   can hide in a refuge, body (energy capacity), bite (1/s), upkeep (share of body per s),
@@ -32,6 +33,8 @@ k_max = 2500
 shade_cast = 0.0
 shade_tolerance = 0.9
 soil_gain = 0.0045
+water_optimum = 0.5
+water_tolerance = 0.6
 
 [flora.grasses]
 growth = 1.2
@@ -48,6 +51,8 @@ k_max = 8000
 shade_cast = 0.0
 shade_tolerance = 0.1
 soil_gain = 0.0024
+water_optimum = 0.5
+water_tolerance = 0.6
 
 [flora.ferns]
 growth = 0.36
@@ -64,6 +69,8 @@ k_max = 6000
 shade_cast = 0.1
 shade_tolerance = 0.9
 soil_gain = 0.0018
+water_optimum = 0.5
+water_tolerance = 0.6
 
 [flora.wildflowers]
 growth = 0.6
@@ -80,6 +87,8 @@ k_max = 6000
 shade_cast = 0.0
 shade_tolerance = 0.2
 soil_gain = 0.003
+water_optimum = 0.5
+water_tolerance = 0.6
 
 [flora.nettle]
 growth = 0.7
@@ -96,6 +105,8 @@ k_max = 9000
 shade_cast = 0.1
 shade_tolerance = 0.5
 soil_gain = 0.002
+water_optimum = 0.5
+water_tolerance = 0.6
 
 [flora.bramble]
 growth = 0.8
@@ -112,6 +123,8 @@ k_max = 10000
 shade_cast = 0.2
 shade_tolerance = 0.4
 soil_gain = 0.0024
+water_optimum = 0.5
+water_tolerance = 0.6
 
 [flora.elder]
 growth = 1.2
@@ -128,6 +141,8 @@ k_max = 20000
 shade_cast = 0.3
 shade_tolerance = 0.3
 soil_gain = 0.0024
+water_optimum = 0.5
+water_tolerance = 0.6
 
 [flora.hazel]
 growth = 0.72
@@ -144,6 +159,8 @@ k_max = 22000
 shade_cast = 0.4
 shade_tolerance = 0.8
 soil_gain = 0.0024
+water_optimum = 0.5
+water_tolerance = 0.6
 
 [flora.hawthorn]
 growth = 0.48
@@ -160,6 +177,8 @@ k_max = 25000
 shade_cast = 0.5
 shade_tolerance = 0.3
 soil_gain = 0.0024
+water_optimum = 0.5
+water_tolerance = 0.6
 
 [flora.oak]
 growth = 0.24
@@ -176,6 +195,8 @@ k_max = 60000
 shade_cast = 0.4
 shade_tolerance = 0.2
 soil_gain = 0.0015
+water_optimum = 0.5
+water_tolerance = 0.6
 
 [flora.beech]
 growth = 0.288
@@ -192,6 +213,8 @@ k_max = 65000
 shade_cast = 0.85
 shade_tolerance = 0.8
 soil_gain = 0.0015
+water_optimum = 0.5
+water_tolerance = 0.6
 
 [flora.chestnut]
 growth = 0.48
@@ -208,6 +231,8 @@ k_max = 55000
 shade_cast = 0.6
 shade_tolerance = 0.4
 soil_gain = 0.0015
+water_optimum = 0.5
+water_tolerance = 0.6
 
 [fauna.earthworms]
 growth = 20

@@ -378,3 +378,7 @@
 ## 2026-09-30 · M5a task 7: menus (D-081)
 - **Done:** Play → match setup (opponent, seed, sandbox; remembered; URL overrides), Options (quality, icons, perf, shortcuts), Play again, victory-near and last-minutes toasts. 55 client tests; the setup checked in the browser.
 - **Next:** M5a task 8, onboarding.
+
+## 2026-09-30 · M5a task 8a: first-match tips (D-082)
+- **Done:** seven contextual tips through the toast stack, once each, Options switch. 57 client tests; checked in the browser.
+- **Next:** 8b guided scenario; 9 static deploy (needs the user's hosting choice and account).

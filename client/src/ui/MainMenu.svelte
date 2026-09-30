@@ -13,6 +13,8 @@
     onQuality,
     icons = $bindable(),
     perf = $bindable(),
+    tips,
+    onTips,
     onStart,
   }: {
     setup: MatchSetup;
@@ -20,6 +22,8 @@
     onQuality: (q: Quality) => void;
     icons: boolean;
     perf: boolean;
+    tips: boolean;
+    onTips: (on: boolean) => void;
     onStart: () => void;
   } = $props();
 
@@ -113,6 +117,10 @@
         </label>
         <label class="row">Strategic icons <input type="checkbox" bind:checked={icons} /></label>
         <label class="row">Performance readout <input type="checkbox" bind:checked={perf} /></label>
+        <label class="row">
+          <span>First-match tips <small>on: shown again</small></span>
+          <input type="checkbox" checked={tips} onchange={(e) => onTips(e.currentTarget.checked)} />
+        </label>
         <details>
           <summary>Shortcuts</summary>
           <dl>

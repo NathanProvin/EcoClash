@@ -9,6 +9,7 @@
   import { SvelteMap } from "svelte/reactivity";
   import { strategicGroups } from "./game/groups";
   import { loadSetup, saveSetup, withUrl } from "./game/setup";
+  import { ALL_TIPS, loadSeen, saveSeen, TIPS, TipWatch } from "./game/tips";
   import { loadReplay, type Role, type Source, type Species } from "./replay/replay";
   import { Live, type Outcome } from "./worker/live";
   import {
@@ -81,6 +82,9 @@
   let watch = new RaidWatch();
   let front = new FrontWatch();
   let victory = new VictoryWatch();
+  let tips = new TipWatch(loadSeen(), saveSeen);
+  let tipsOn = $state(loadSeen().size < TIPS.length); // Options switch (D-082)
+  let raided = false; // a raid alert was raised this match (for the tips)
   let lastScan = 0;
   let seenNotice = 0; // `at` of the last order notice turned into a toast
   let available: Set<string> | null = null; // species you could buy (and afford) at the last scan
@@ -172,6 +176,7 @@
     const lost = front.scan(fields.owner, l.meta.n, me, now / 1000);
     if (lost) found.push(lost);
     for (const a of found) {
+      raided ||= a.text.startsWith("Enemy");
       const at = { row: a.row, col: a.col };
       toast(a.text, "alert", at, a.severity);
       v.ping(at, WORLD.alert);
@@ -194,6 +199,18 @@
         if (!available.has(name)) toast(`${label(name)} can be unlocked`, "info");
     }
     available = can;
+    const animalsUnlocked = kinds.filter((_, i) => {
+      const s = fauna[i];
+      return s ? unlocked.has(s.name) : false;
+    }).length;
+    const tip = tips.scan({
+      t: tick * l.meta.dt,
+      canUnlock: can.size > 0,
+      animalsUnlocked,
+      animals: v.visibleAnimals().filter((a) => a.owner === me).length,
+      raided,
+    });
+    if (tip) toast(tip, "tip");
   }
 
   /** Arrows at the screen edge toward pings out of view. */
@@ -327,6 +344,8 @@
     watch = new RaidWatch();
     front = new FrontWatch();
     victory = new VictoryWatch();
+    tips = new TipWatch(loadSeen(), saveSeen);
+    raided = false;
     try {
       if (name === LIVE) {
         // ?seed=N&size=N (0 = the balance grid size); a fixed default seed keeps runs reproducible
@@ -692,6 +711,11 @@
       onQuality={setQuality}
       bind:icons={showIcons}
       bind:perf={showPerf}
+      tips={tipsOn}
+      onTips={(on) => {
+        tipsOn = on;
+        saveSeen(on ? new Set() : ALL_TIPS()); // on: every tip again; off: none
+      }}
       onStart={launch}
     />
   {/if}

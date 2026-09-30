@@ -116,7 +116,7 @@ export class RaidWatch {
 export interface Toast {
   id: number;
   text: string;
-  kind: "alert" | "info" | "notice";
+  kind: "alert" | "info" | "notice" | "tip";
   /** When it appeared (ms, performance.now). */
   at: number;
   cell?: { row: number; col: number };
@@ -124,12 +124,16 @@ export interface Toast {
 }
 
 /** How long a toast stays (ms), and how many show at once. */
-export const TOAST = { alertMs: 8000, otherMs: 5000, max: 4 } as const;
+export const TOAST = { alertMs: 8000, tipMs: 12000, otherMs: 5000, max: 4 } as const;
 
 /** The toasts still showing at `now`, newest last. */
 export function fresh(toasts: readonly Toast[], now: number): Toast[] {
   return toasts
-    .filter((t) => now - t.at < (t.kind === "alert" ? TOAST.alertMs : TOAST.otherMs))
+    .filter((t) => {
+      const ms =
+        t.kind === "alert" ? TOAST.alertMs : t.kind === "tip" ? TOAST.tipMs : TOAST.otherMs;
+      return now - t.at < ms;
+    })
     .slice(-TOAST.max);
 }
 

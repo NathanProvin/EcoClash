@@ -84,6 +84,21 @@
   .info {
     color: var(--ink-soft);
   }
+  .tip {
+    max-width: min(560px, 90vw);
+    border-radius: 14px;
+    border-color: var(--gold-soft);
+    color: var(--ink);
+  }
+  .tip::before {
+    content: "Tip";
+    margin-right: 4px;
+    font-size: 0.8em;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
   .arrow {
     position: absolute;
     z-index: 6;

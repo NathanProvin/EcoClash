@@ -410,3 +410,7 @@
   - bot and tests updated; replay regenerated;
   - checked in the browser (sandbox: water plants, deer, bison, fish).
 - **Next:** 4, movement per species.
+
+## 2026-09-30 · World overhaul 4: movement per species (D-088)
+- **Done:** per-species drift, drift memory and stop-and-go rests; calmer, slower herbivores; lighter insects; a test; seen in the browser (rabbits graze calmly around their spot).
+- **Next:** 5, a drop animation you can actually see.

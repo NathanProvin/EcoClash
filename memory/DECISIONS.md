@@ -988,3 +988,19 @@ Template:
   - Tick budget with 1,500 animals: 1.1 ms on average, worst tick 8.3 ms.
   - The demo replay was regenerated.
   - Known: the hard bot over-spends and stalls before trees (M7 tuning).
+
+## D-088 · 2026-09-30 · Movement per species
+- **Status:** accepted (user: "the brownian noise is good for insect, even if a bit fast and erratic; for small herbivores it must be calmer and slower, adapt by specie")
+- **Decision:**
+  - species.toml gets optional per-species movement keys, each defaulting to the `[fauna]` value:
+    - `wobble`: the drift kick, a share of speed;
+    - `wobble_keep`: the drift kept per tick;
+    - `rest`: the chance to stay put at an idle decision instead of strolling (stop-and-go grazing).
+  - All three are hashed with the balance.
+  - **Values** (placeholders):
+    - insects and soil life: wobble 0.25–0.3, slower (grasshoppers 2 → 1.5 cells/s);
+    - small herbivores: wobble 0.06–0.1, keep 0.9, rest 0.5, slow (vole 0.6, rabbit 1.2);
+    - large herbivores: wobble 0.04–0.06, rest 0.5–0.6, slow and steady (bison 0.8, deer 1.2);
+    - hunters: low drift, rest 0.2–0.6, their chase speed kept;
+    - birds: a light drift.
+- **Consequences:** a test checks that a rabbit covers much less ground than a grasshopper and rests at idle decisions. Parity, native vs WASM and the relay test are green.

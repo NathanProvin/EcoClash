@@ -25,6 +25,8 @@
 #   Animals: role, eats, habitat, small = can hide in a refuge, swarm = drawn as a swarm, not a
 #   unit (D-065), body (energy capacity), bite (1/s), upkeep (share of body per s), speed and
 #   sight (cells), group (animals per spawned card), medium = walk, swim, amphibious or fly (D-084).
+#   Movement (D-088): wobble / wobble_keep = drift kick (share of speed) and drift kept per tick,
+#   defaulting to [fauna]; rest = chance to stay put at an idle decision (stop-and-go).
 
 [flora.lichen_and_moss]
 growth = 0.28
@@ -328,9 +330,10 @@ swarm = true
 body = 50
 bite = 15
 upkeep = 0.01
-speed = 1
+speed = 0.8
 sight = 4
 group = 10
+wobble = 0.3
 
 [fauna.fungi]
 growth = 25
@@ -349,9 +352,10 @@ swarm = true
 body = 60
 bite = 20
 upkeep = 0.008
-speed = 0.5
+speed = 0.4
 sight = 4
 group = 10
+wobble = 0.2
 
 [fauna.raven]
 growth = 90
@@ -374,6 +378,8 @@ upkeep = 0.004
 speed = 4
 sight = 12
 group = 1
+wobble = 0.15
+rest = 0.3
 
 [fauna.grasshoppers]
 growth = 30
@@ -392,9 +398,10 @@ swarm = true
 body = 80
 bite = 25
 upkeep = 0.012
-speed = 2
+speed = 1.5
 sight = 6
 group = 15
+wobble = 0.3
 
 [fauna.rabbits]
 growth = 45
@@ -413,9 +420,12 @@ swarm = false
 body = 600
 bite = 180
 upkeep = 0.01
-speed = 3
+speed = 1.2
 sight = 8
 group = 4
+wobble = 0.08
+wobble_keep = 0.9
+rest = 0.5
 
 [fauna.bison]
 growth = 150
@@ -434,9 +444,12 @@ swarm = false
 body = 6000
 bite = 1200
 upkeep = 0.003
-speed = 2
+speed = 0.8
 sight = 10
 group = 2
+wobble = 0.04
+wobble_keep = 0.9
+rest = 0.6
 
 [fauna.slugs]
 growth = 30
@@ -455,9 +468,10 @@ swarm = true
 body = 100
 bite = 30
 upkeep = 0.01
-speed = 1
+speed = 0.6
 sight = 5
 group = 8
+wobble = 0.25
 
 [fauna.bank_vole]
 growth = 40
@@ -476,9 +490,12 @@ swarm = false
 body = 300
 bite = 90
 upkeep = 0.01
-speed = 2
+speed = 0.6
 sight = 6
 group = 6
+wobble = 0.1
+wobble_keep = 0.9
+rest = 0.5
 
 [fauna.roe_deer]
 growth = 120
@@ -497,9 +514,12 @@ swarm = false
 body = 3000
 bite = 700
 upkeep = 0.004
-speed = 3
+speed = 1.2
 sight = 10
 group = 2
+wobble = 0.05
+wobble_keep = 0.9
+rest = 0.6
 
 [fauna.caterpillars]
 growth = 30
@@ -518,9 +538,10 @@ swarm = true
 body = 120
 bite = 36
 upkeep = 0.01
-speed = 1
+speed = 0.8
 sight = 6
 group = 15
+wobble = 0.25
 
 [fauna.red_squirrel]
 growth = 45
@@ -539,9 +560,12 @@ swarm = false
 body = 400
 bite = 110
 upkeep = 0.01
-speed = 3
+speed = 1.0
 sight = 8
 group = 4
+wobble = 0.1
+wobble_keep = 0.9
+rest = 0.5
 
 [fauna.red_deer]
 growth = 150
@@ -560,9 +584,12 @@ swarm = false
 body = 5000
 bite = 1000
 upkeep = 0.003
-speed = 3
+speed = 1.2
 sight = 12
 group = 2
+wobble = 0.05
+wobble_keep = 0.9
+rest = 0.6
 
 [fauna.bark_beetles]
 growth = 30
@@ -581,9 +608,10 @@ swarm = true
 body = 120
 bite = 40
 upkeep = 0.01
-speed = 1
+speed = 0.8
 sight = 6
 group = 15
+wobble = 0.25
 
 [fauna.beaver]
 growth = 60
@@ -603,9 +631,12 @@ medium = "amphibious"
 body = 1200
 bite = 300
 upkeep = 0.006
-speed = 2
+speed = 0.8
 sight = 8
 group = 2
+wobble = 0.06
+wobble_keep = 0.9
+rest = 0.5
 
 [fauna.wild_boar]
 growth = 120
@@ -624,9 +655,12 @@ swarm = false
 body = 4000
 bite = 900
 upkeep = 0.003
-speed = 3
+speed = 1.0
 sight = 10
 group = 3
+wobble = 0.06
+wobble_keep = 0.9
+rest = 0.5
 
 [fauna.larvae]
 growth = 30
@@ -646,9 +680,10 @@ medium = "swim"
 body = 80
 bite = 25
 upkeep = 0.012
-speed = 1
+speed = 0.8
 sight = 5
 group = 15
+wobble = 0.3
 
 [fauna.roach]
 growth = 40
@@ -668,9 +703,12 @@ medium = "swim"
 body = 300
 bite = 90
 upkeep = 0.01
-speed = 2
+speed = 1.0
 sight = 6
 group = 6
+wobble = 0.15
+wobble_keep = 0.85
+rest = 0.3
 
 [fauna.mallard]
 growth = 60
@@ -690,9 +728,12 @@ medium = "amphibious"
 body = 800
 bite = 200
 upkeep = 0.006
-speed = 3
+speed = 0.8
 sight = 10
 group = 3
+wobble = 0.08
+wobble_keep = 0.9
+rest = 0.5
 
 [fauna.great_tit]
 growth = 60
@@ -714,6 +755,8 @@ upkeep = 0.005
 speed = 4
 sight = 10
 group = 2
+wobble = 0.2
+rest = 0.2
 
 [fauna.frog]
 growth = 60
@@ -732,9 +775,12 @@ swarm = false
 medium = "amphibious"
 body = 300
 upkeep = 0.005
-speed = 2
+speed = 1.5
 sight = 6
 group = 2
+wobble = 0.1
+wobble_keep = 0.9
+rest = 0.6
 
 [fauna.badger]
 growth = 120
@@ -752,9 +798,12 @@ small = false
 swarm = false
 body = 1500
 upkeep = 0.003
-speed = 3
+speed = 2
 sight = 10
 group = 1
+wobble = 0.06
+wobble_keep = 0.9
+rest = 0.4
 
 [fauna.kestrel]
 growth = 90
@@ -776,6 +825,8 @@ upkeep = 0.004
 speed = 6
 sight = 14
 group = 1
+wobble = 0.15
+rest = 0.2
 
 [fauna.pine_marten]
 growth = 120
@@ -796,6 +847,9 @@ upkeep = 0.003
 speed = 4
 sight = 12
 group = 1
+wobble = 0.08
+wobble_keep = 0.9
+rest = 0.3
 
 [fauna.fox]
 growth = 120
@@ -813,9 +867,12 @@ small = false
 swarm = false
 body = 3000
 upkeep = 0.003
-speed = 4
+speed = 3.5
 sight = 12
 group = 1
+wobble = 0.06
+wobble_keep = 0.9
+rest = 0.4
 
 [fauna.lynx]
 growth = 180
@@ -836,6 +893,9 @@ upkeep = 0.002
 speed = 4
 sight = 14
 group = 1
+wobble = 0.05
+wobble_keep = 0.9
+rest = 0.5
 
 [fauna.wolf]
 growth = 180
@@ -853,9 +913,12 @@ small = false
 swarm = false
 body = 6000
 upkeep = 0.002
-speed = 5
+speed = 4.5
 sight = 16
 group = 2
+wobble = 0.05
+wobble_keep = 0.9
+rest = 0.4
 
 [fauna.brown_bear]
 growth = 240
@@ -873,9 +936,12 @@ small = false
 swarm = false
 body = 9000
 upkeep = 0.0015
-speed = 3
+speed = 2.5
 sight = 14
 group = 1
+wobble = 0.04
+wobble_keep = 0.9
+rest = 0.5
 
 [fauna.pike]
 growth = 90
@@ -894,9 +960,12 @@ swarm = false
 medium = "swim"
 body = 800
 upkeep = 0.004
-speed = 3
+speed = 2.5
 sight = 8
 group = 1
+wobble = 0.04
+wobble_keep = 0.9
+rest = 0.6
 
 [fauna.heron]
 growth = 120
@@ -915,9 +984,12 @@ swarm = false
 medium = "amphibious"
 body = 1200
 upkeep = 0.003
-speed = 4
+speed = 2
 sight = 12
 group = 1
+wobble = 0.04
+wobble_keep = 0.9
+rest = 0.6
 
 [fauna.otter]
 growth = 150
@@ -936,6 +1008,9 @@ swarm = false
 medium = "amphibious"
 body = 2500
 upkeep = 0.003
-speed = 4
+speed = 2.5
 sight = 12
 group = 1
+wobble = 0.08
+wobble_keep = 0.9
+rest = 0.4

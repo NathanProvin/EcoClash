@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** the world overhaul (terrain, light, species, movement, drops), before M5a 8b and 9. 1a–1c, 2 and 3 done; next 4, movement per species.
+- **Now:** the world overhaul (terrain, light, species, movement, drops), before M5a 8b and 9. 1a–1c, 2, 3 and 4 done; next 5, the visible drop animation.
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-09-30
@@ -108,7 +108,7 @@ In this order:
 - [x] **1c. Terrain rendering** (D-085): displaced ground, heights everywhere, water surface, rocks, frontier on the relief, slab sides.
 - [x] **2. Light and shaders** (D-086): shadows, wind, terrain blending, foliage rim light, colour grade; bloom and tilt-shift on High.
 - [x] **3. Species revamp**: the user's 15-plant, 30-animal table; 4 plant strata; groups and tiers; aquatic species; new bodies; bot.
-- [ ] **4. Movement per species**: calmer, slower small herbivores; stop-and-go; less erratic insects.
+- [x] **4. Movement per species** (D-088): calmer, slower small herbivores; stop-and-go; less erratic insects.
 - [ ] **5. Visible drop animation**: high fall, readable canopy, ground shadow, dust ring.
 
 ## M7-lite · Balance loop (pulled forward, D-073)

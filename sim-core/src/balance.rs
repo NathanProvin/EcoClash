@@ -207,6 +207,14 @@ pub struct FaunaSpecies {
     /// water), fly (anywhere).
     #[serde(default)]
     pub medium: Medium,
+    /// Movement style (D-088): drift kick and drift kept per tick, overriding `[fauna]`, and the
+    /// chance to stay put at an idle decision (stop-and-go) instead of strolling.
+    #[serde(default)]
+    pub wobble: Option<f64>,
+    #[serde(default)]
+    pub wobble_keep: Option<f64>,
+    #[serde(default)]
+    pub rest: f64,
 }
 
 /// Where an animal can stand (D-084).
@@ -458,6 +466,12 @@ impl Balance {
             check(
                 s.body > 0 && s.speed > 0.0 && s.group > 0 && s.growth > 0.0,
                 format!("{n}: body, speed, group and growth must be > 0"),
+            )?;
+            check(
+                s.wobble.is_none_or(|w| w >= 0.0)
+                    && s.wobble_keep.is_none_or(|k| (0.0..1.0).contains(&k))
+                    && (0.0..=1.0).contains(&s.rest),
+                format!("{n}: wobble >= 0, wobble_keep in [0, 1), rest in [0, 1]"),
             )?;
         }
         Ok(())

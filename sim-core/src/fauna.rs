@@ -80,10 +80,12 @@ pub struct FaunaParams {
     strike: usize,
     /// Chance of a kill per flora tick (Q16).
     catch: i64,
-    /// Organic movement (D-065): drift kick per tick (Q16 share of speed), drift kept per tick
-    /// (Q16), target scatter and stroll radius (Q16 cells).
-    wobble: i64,
-    wobble_keep: i64,
+    /// Organic movement (D-065, D-088), per species: drift kick per tick (Q16 share of speed),
+    /// drift kept per tick (Q16), chance to rest at an idle decision (Q16); then the target scatter
+    /// and stroll radius (Q16 cells).
+    pub wobble: Vec<i64>,
+    pub wobble_keep: Vec<i64>,
+    rest: Vec<i64>,
     scatter: i64,
     wander: i64,
     /// Terrain (D-084): where each species can stand; speed share in shallows for walkers (Q16);
@@ -188,8 +190,15 @@ impl FaunaParams {
             prey_per: i64::from(fa.prey_per_predator),
             strike: usize::try_from(fa.strike_radius).unwrap_or(0),
             catch: round(fa.catch_chance * one),
-            wobble: round(fa.wobble * one),
-            wobble_keep: round(fa.wobble_keep * one),
+            wobble: sp
+                .iter()
+                .map(|s| round(s.wobble.unwrap_or(fa.wobble) * one))
+                .collect(),
+            wobble_keep: sp
+                .iter()
+                .map(|s| round(s.wobble_keep.unwrap_or(fa.wobble_keep) * one))
+                .collect(),
+            rest: sp.iter().map(|s| round(s.rest * one)).collect(),
             scatter: round(fa.scatter * one),
             wander: round(fa.wander_radius * one),
             medium: sp.iter().map(|s| s.medium).collect(),
@@ -236,6 +245,9 @@ impl FaunaParams {
             &self.cap,
             &self.breed,
             &self.yld,
+            &self.wobble,
+            &self.wobble_keep,
+            &self.rest,
         ] {
             h.i64s(v);
         }
@@ -251,8 +263,6 @@ impl FaunaParams {
             self.prey_per,
             i64::try_from(self.strike).unwrap_or(0),
             self.catch,
-            self.wobble,
-            self.wobble_keep,
             self.scatter,
             self.wander,
             self.shallow_speed,
@@ -545,9 +555,9 @@ impl Fauna {
             } else {
                 (div_round(dy * v, len), div_round(dx * v, len))
             };
-            let kick = div_round(v * p.wobble, ONE_I);
-            a.wy[i] = div_round(a.wy[i] * p.wobble_keep, ONE_I) + spread(rng, kick);
-            a.wx[i] = div_round(a.wx[i] * p.wobble_keep, ONE_I) + spread(rng, kick);
+            let (kick, keep) = (div_round(v * p.wobble[s], ONE_I), p.wobble_keep[s]);
+            a.wy[i] = div_round(a.wy[i] * keep, ONE_I) + spread(rng, kick);
+            a.wx[i] = div_round(a.wx[i] * keep, ONE_I) + spread(rng, kick);
             // Never onto a cell it cannot stand on: drop the drift, else stay.
             let open = |y: i64, x: i64| pathing::cell_at(y, x, n).is_some_and(stand);
             let (y, x) = (
@@ -972,11 +982,16 @@ impl Fauna {
         }
 
         // 3. Attack-moves with nothing in sight head on; everyone else strolls to a random point
-        //    within `wander` cells (D-065).
+        //    within `wander` cells (D-065), or rests where it is, by its species' `rest` chance
+        //    (stop-and-go grazing, D-088).
         let a = &mut self.agents;
         for i in 0..len {
             if target[i].is_none() && a.order[i] == ATTACK {
                 target[i] = Some((a.gy[i], a.gx[i]));
+            }
+            let rest = self.p.rest[usize::from(a.sp[i])];
+            if target[i].is_none() && rest > 0 && i64::from(rng.below(1 << 16)) < rest {
+                target[i] = Some((a.y[i], a.x[i]));
             }
             let (ty, tx) = target[i].unwrap_or_else(|| {
                 let w = self.p.wander;
@@ -1220,7 +1235,7 @@ mod tests {
     #[test]
     fn walking_steers_straight_at_the_species_speed() {
         let (_, mut fa, st, mut rng) = setup(8);
-        fa.p.wobble = 0; // no drift: the pure steering
+        fa.p.wobble.fill(0); // no drift: the pure steering
         fa.agents.push(0, 1, centre(1), centre(1), ONE_I, 0);
         (fa.agents.ty[0], fa.agents.tx[0]) = (centre(5), centre(4)); // a 3-4-5 triangle
         let v = fa.p.speed[0];
@@ -1237,6 +1252,44 @@ mod tests {
             (fa.agents.y[0], fa.agents.x[0]),
             (centre(5), centre(4)),
             "arrives"
+        );
+    }
+
+    /// Movement per species (D-088): a rabbit drifts far less than a grasshopper, and rests at
+    /// idle decisions, so over a while it covers much less ground.
+    #[test]
+    fn calm_species_drift_less_and_rest_between_strolls() {
+        let (f, mut fa, st, mut rng) = setup(12);
+        let (rabbit, hopper) = (
+            fa.p.index("rabbits").unwrap(),
+            fa.p.index("grasshoppers").unwrap(),
+        );
+        assert!(fa.p.wobble[rabbit] < fa.p.wobble[hopper]);
+        for s in [rabbit, hopper] {
+            fa.agents.push(s, 1, centre(6), centre(6), ONE_I, 0);
+        }
+        let mut path = [0i64; 2];
+        let mut stayed = 0;
+        for t in 0..800 {
+            if t % 8 == 0 {
+                fa.decide(&f.p, &st, &mut rng);
+                let a = &fa.agents;
+                stayed += i32::from((a.ty[0], a.tx[0]) == (a.y[0], a.x[0]));
+                fa.agents.energy.fill(fa.p.body[rabbit] * ONE_I); // never hungry
+            }
+            let before = (fa.agents.y.clone(), fa.agents.x.clone());
+            fa.walk(&st, &mut rng);
+            for (j, d) in path.iter_mut().enumerate() {
+                *d += (fa.agents.y[j] - before.0[j]).abs() + (fa.agents.x[j] - before.1[j]).abs();
+            }
+        }
+        assert!(
+            path[0] * 2 < path[1],
+            "the rabbit moves much less: {path:?}"
+        );
+        assert!(
+            stayed > 10,
+            "the rabbit rests at idle decisions ({stayed} of 100)"
         );
     }
 
@@ -1645,7 +1698,7 @@ mod tests {
         let (_, mut fa, mut st, mut rng) = setup(8);
         walled(&mut st);
         fa.p.medium[rabbits] = Medium::Fly;
-        fa.p.wobble = 0;
+        fa.p.wobble.fill(0);
         fa.agents.push(rabbits, 1, centre(1), centre(1), ONE_I, 0);
         (fa.agents.ty[0], fa.agents.tx[0], fa.agents.py[0]) = (centre(1), centre(6), ROUTE);
         fa.walk(&st, &mut rng);
@@ -1653,7 +1706,7 @@ mod tests {
         // A walker in the shallows moves at the shallow share of its speed.
         let (_, mut fa, mut st, mut rng) = setup(8);
         st.ground.fill(crate::terrain::SHALLOW);
-        fa.p.wobble = 0;
+        fa.p.wobble.fill(0);
         fa.agents.push(rabbits, 1, centre(1), centre(1), ONE_I, 0);
         (fa.agents.ty[0], fa.agents.tx[0], fa.agents.py[0]) = (centre(1), centre(6), ROUTE);
         fa.walk(&st, &mut rng);

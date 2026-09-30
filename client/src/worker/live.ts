@@ -35,6 +35,7 @@ export type ToMain =
       species: string;
       n: number;
       tickHz: number;
+      pace: number;
       plantRadius: number;
       maxAgents: number;
       balanceHash: string;
@@ -131,6 +132,7 @@ export class Live implements Source {
       counts: [],
       n: ready.n,
       dt: 1 / ready.tickHz,
+      pace: ready.pace,
       ticks: 1,
       field_every: 1,
       builds: [],

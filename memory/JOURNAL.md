@@ -329,3 +329,6 @@
 ## 2026-09-29 · Animal models (D-068)
 - **Done:** six body types (rodent, hedgehog, rabbit, canid, cat, bird) at true relative sizes (×2.5), in natural colours, facing their travel direction, on player-coloured rings; birds above the canopy; swarm dots in the herbs. New tests on the bodies and forms.
 - **Next:** the user's hands-on pass on feedback round 1 (and the fps reading, now with the heavier plant models).
+
+## 2026-09-30 · Feedback round 2: ecology pace (D-069)
+- **Done:** `pace = 0.4` scales every ecological rate and the income; movement and the clock stay real time. All Rust and Python tests, fixture parity, `cli:check`, `wasm:check`, `relay:test` and the client checks pass.

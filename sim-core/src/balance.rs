@@ -14,6 +14,8 @@ use serde::Deserialize;
 pub struct Sim {
     pub tick_hz: u32,
     pub flora_every_ticks: u32,
+    /// Seconds of ecology per real second (D-069): scales every rate, not movement or time.
+    pub pace: f64,
     pub env_every_ticks: u32,
     pub grid_size: u32,
     pub chunk_size: u32,
@@ -224,11 +226,12 @@ impl Balance {
         Ok(b)
     }
 
-    /// Seconds per flora tick.
+    /// Seconds of ecology per flora tick: the real flora period times `pace` (D-069). Every
+    /// ecological rate (growth, spread, bites, upkeep, breeding) is converted with it.
     #[must_use]
     #[allow(clippy::float_arithmetic)] // load-time conversion, see fixed::Q16::from_balance
     pub fn flora_dt(&self) -> f64 {
-        f64::from(self.sim.flora_every_ticks) / f64::from(self.sim.tick_hz)
+        f64::from(self.sim.flora_every_ticks) / f64::from(self.sim.tick_hz) * self.sim.pace
     }
 
     /// The prototype's asserts (tools/prototype/flora.py), as errors.
@@ -239,6 +242,10 @@ impl Balance {
         check(
             self.sim.tick_hz > 0 && self.sim.flora_every_ticks > 0,
             "[sim] ticks must be > 0".into(),
+        )?;
+        check(
+            self.sim.pace > 0.0 && self.sim.pace <= 1.0,
+            "[sim] pace must be in (0, 1]".into(),
         )?;
         check(
             self.sim.grid_size.is_multiple_of(self.sim.chunk_size),

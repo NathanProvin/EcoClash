@@ -79,5 +79,9 @@ describe("build card helpers", () => {
   it("describes a card in two short lines", () => {
     expect(statLines(sp("grasses", "flora", 1, 1, 0))[1]).toContain("per cell");
     expect(statLines(sp("fox", "fauna", 5, 1, 0))[1]).toContain("×1.5 off your land");
+    const fox = sp("fox", "fauna", 5, 1, 0);
+    const [slow, full] = [statLines(fox, 0.4)[0] ?? "", statLines(fox, 1)[0] ?? ""];
+    const every = (line: string) => Number(/every ([\d.]+) s/.exec(line)?.[1]);
+    expect(every(slow)).toBeCloseTo(every(full) / 0.4, 5); // real seconds at 0.4 pace
   });
 });

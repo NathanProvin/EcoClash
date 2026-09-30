@@ -29,9 +29,11 @@ pub struct Economy {
     /// Flora period as a fraction: `flora_every_ticks / tick_hz` seconds.
     every: i64,
     hz: i64,
+    /// Seconds of ecology per real second (Q16, D-069): yields are per ecology second.
+    pace: i64,
     /// Points banked, per player (Q16).
     pub bank: [i64; 2],
-    /// Income over the last flora tick, per player (Q16 points per second).
+    /// Income over the last flora tick, per player (Q16 points per real second).
     pub income: [i64; 2],
     /// Species cards unlocked, per player (plants, then animals).
     pub unlocked: [Vec<bool>; 2],
@@ -85,6 +87,7 @@ impl Economy {
                 .collect(),
             every: i64::from(b.sim.flora_every_ticks),
             hz: i64::from(b.sim.tick_hz),
+            pace: round(b.sim.pace * one),
             bank: [start; 2],
             income: [0; 2],
         }
@@ -110,6 +113,7 @@ impl Economy {
             income[usize::from(a.owner[i] - 1)] += fauna.p.yld[usize::from(a.sp[i])];
         }
         for (pi, inc) in income.into_iter().enumerate() {
+            let inc = div_round(inc * self.pace, ONE_I); // per ecology second -> per real second
             self.income[pi] = inc;
             self.bank[pi] += div_round(inc * self.every, self.hz);
         }
@@ -121,7 +125,8 @@ impl Economy {
             .i64s(&self.yld)
             .i64s(&self.unlock_cost)
             .i64s(&self.spawn_cost)
-            .i64(self.surcharge);
+            .i64(self.surcharge)
+            .i64(self.pace);
     }
 
     /// The state that changes during a match, for the tick hash.
@@ -285,11 +290,12 @@ mod tests {
         st.bio[g * 16 + 6] = p.kmax[g]; // P2's cell counts for P2 only
         e.update(&p, &st, &fauna);
         let yld = e.yld[g];
-        assert_eq!(e.income, [yld * 4 + div_round(yld, 2), yld]);
+        let real = |v: i64| div_round(v * e.pace, ONE_I); // income is per real second
+        assert_eq!(e.income, [real(yld * 4 + div_round(yld, 2)), real(yld)]);
         let period = |inc: i64| div_round(inc * e.every, e.hz);
         assert_eq!(
             e.bank,
-            [start[0] + period(e.income[0]), start[1] + period(yld)]
+            [start[0] + period(e.income[0]), start[1] + period(real(yld))]
         );
     }
 }

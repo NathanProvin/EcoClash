@@ -83,12 +83,12 @@ def run(
         p: [o for o in sorted(BUILDS[b], key=lambda o: o[0]) if fauna or len(o) == 5]
         for p, b in zip(PLAYERS, builds, strict=True)
     }
-    steps = round(minutes * 60 / flora.dt)
-    snap_steps = {round(m * 60 / flora.dt): m for m in snap_min if m <= minutes}
+    steps = round(minutes * 60 / flora.step_s)
+    snap_steps = {round(m * 60 / flora.step_s): m for m in snap_min if m <= minutes}
     rows, snaps, log = [], {}, []
     total = {f"{k}_p{p}": 0 for k in ("taken", "kills", "grazed") for p in PLAYERS}
     for i in range(steps + 1):
-        t = i * flora.dt
+        t = i * flora.step_s
         for p in PLAYERS:
             home = base if p == 1 else n - 1 - base
             for o in [o for o in orders[p] if o[0] <= t]:
@@ -146,7 +146,7 @@ def run(
                     total[k] += v
         dom = flora.dominant(st)
         census = alive(flora, fauna, st, ag)
-        row = {"t_s": round(t + flora.dt, 3)}
+        row = {"t_s": round(t + flora.step_s, 3)}
         for p in PLAYERS:
             mine = st.owner == p
             # Frontier: own cells next to an enemy cell. front_hi: share of it held by L2+.
@@ -173,7 +173,7 @@ def run(
                 bodies = fauna.body[ag.sp[ag.owner == p]].sum() if fauna else 0
                 row[f"standing_p{p}"] = row[f"biomass_p{p}"] + float(bodies)
                 row[f"bank_p{p}"] = round(economy.bank[p], 1)
-                row[f"yield_p{p}"] = round(rate, 3)
+                row[f"yield_p{p}"] = round(rate * flora.pace, 3)  # per real second
         row.update(total)
         rows.append(row)
         if economy:
@@ -349,7 +349,7 @@ def export_replay(out: Path, balance, flora, fauna, n, record, rows, log, builds
     meta = {
         "version": 3,
         "n": n,
-        "dt": flora.dt,
+        "dt": flora.step_s,
         "ticks": len(record),
         "field_every": FIELD_EVERY,
         "builds": list(builds),

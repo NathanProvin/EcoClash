@@ -25,6 +25,7 @@ class FakeWorker {
           species: JSON.stringify(species),
           n: 2,
           tickHz: 10,
+          pace: 1,
           plantRadius: 2,
           maxAgents: 2000,
           balanceHash: "0",

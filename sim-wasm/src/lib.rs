@@ -17,6 +17,7 @@ pub struct Sim {
     balance_hash: u64,
     species: String,
     tick_hz: u32,
+    pace: f64,
     plant_radius: u32,
     max_agents: u32,
     /// Scripted opponents, and the next sequence number of each one's commands.
@@ -36,6 +37,7 @@ impl Sim {
             balance_hash: balance_hash(&b),
             species: species_table(&b),
             tick_hz: b.sim.tick_hz,
+            pace: b.sim.pace,
             plant_radius: b.flora.plant_radius,
             max_agents: b.agents.max_agents,
             bots: Vec::new(),
@@ -158,6 +160,12 @@ impl Sim {
     #[wasm_bindgen(getter, js_name = tickHz)]
     pub fn tick_hz(&self) -> u32 {
         self.tick_hz
+    }
+
+    /// Seconds of ecology per real second (D-069).
+    #[wasm_bindgen(getter)]
+    pub fn pace(&self) -> f64 {
+        self.pace
     }
 
     /// Radius in cells of a player's plant order (`[flora] plant_radius`).

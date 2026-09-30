@@ -106,13 +106,18 @@ export function families(
   return [...out.values()];
 }
 
-/** The stat lines of a species card's tooltip. */
-export function statLines(s: Species): string[] {
+/** The stat lines of a species card's tooltip, in real seconds: the stat sheet counts ecology
+ *  seconds, which run at `pace` per real second (D-069). */
+export function statLines(s: Species, pace = 1): string[] {
   const { growth, yield: y, spawn_cost: cost } = s.stats;
+  const r = (v: number) => Number(v.toPrecision(2));
   return s.kind === "flora"
-    ? [`Spreads ${growth}/s · yields ${y}/s per cell`, `Costs ${cost} per cell · ${capText(s)}`]
+    ? [
+        `Spreads ${r(growth * pace)}/s · yields ${r(y * pace)}/s per cell`,
+        `Costs ${cost} per cell · ${capText(s)}`,
+      ]
     : [
-        `Breeds every ${growth} s · yields ${y}/s`,
+        `Breeds every ${r(growth / pace)} s · yields ${r(y * pace)}/s`,
         `Costs ${cost} each, ×1.5 off your land · ${capText(s)}`,
       ];
 }

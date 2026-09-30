@@ -50,6 +50,8 @@ export interface ReplayMeta {
   counts: number[][][]; // per field frame: [player 1, player 2] counts in species order
   n: number;
   dt: number;
+  /** Seconds of ecology per real second (D-069); replays of the prototype before it: 1. */
+  pace?: number;
   ticks: number;
   field_every: number;
   builds: string[];

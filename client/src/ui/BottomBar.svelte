@@ -118,7 +118,7 @@
     <div class="tip panel" style:left="{hover.x}px" style:top="{hover.y}px" role="tooltip">
       <strong>{label(s.name)}</strong>
       <span class="sub">tier {s.tier} · {s.kind === "flora" ? "plant" : s.role}</span>
-      {#each statLines(s) as line (line)}<span>{line}</span>{/each}
+      {#each statLines(s, replay.meta.pace) as line (line)}<span>{line}</span>{/each}
       <em>{s.stats.effect}</em>
       {#if state === "available"}
         <span class="act">Click to unlock · {s.stats.unlock_cost}</span>

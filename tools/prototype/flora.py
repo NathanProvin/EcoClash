@@ -83,7 +83,9 @@ class Flora:
         self.dtype = np.float64 if mode == "float" else np.int64
         self.rng = np.random.default_rng(seed)
         f, sim, terrain = balance["flora"], balance["sim"], balance["terrain"]
-        self.dt = sim["flora_every_ticks"] / sim["tick_hz"]
+        self.step_s = sim["flora_every_ticks"] / sim["tick_hz"]  # real seconds per flora step
+        self.pace = sim["pace"]  # seconds of ecology per real second (D-069)
+        self.dt = self.step_s * self.pace  # ecology seconds per step: every rate uses it
         self.sw = {k: switches.get(k, f[k]) for k in SWITCHES}
         self.names = [k for k, v in f.items() if isinstance(v, dict)]
         sp = [f[n] for n in self.names]  # species index = table order

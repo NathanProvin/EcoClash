@@ -756,3 +756,13 @@ Template:
   - Animals stand on the ground and face the way they go (the heading holds while they stand still). Birds fly at `FLIGHT_Y` (5.5 m, above the canopy) with a slight bob.
   - Every controllable animal stands on a ring in its owner's colour (predators in the vivid predator tint), radius max(0.45 m, 0.75 × drawn length). A selected animal's ring turns white. Picking aims at the model's height.
   - Soil life and insects stay faint dots (D-065), now in the herbs (0.15 m) instead of floating at 2.6 m.
+
+## D-069 · 2026-09-30 · Ecology pace 0.4 (feedback round 2)
+- **Status:** accepted (user: "the rhythm is too fast, reduce the base game speed [to] 0.4x current rate"; answers: 0.4×, ecology only)
+- **Decision:**
+  - `[sim] pace = 0.4`: seconds of ecology per real second. `Balance::flora_dt()` returns the real flora period × pace, and every ecological rate is converted with it: growth, spread, soil, bites, upkeep, breeding, `food_reserve`.
+  - Income: the economy multiplies by pace, so `income` is per real second and the bank follows.
+  - Unchanged: animal movement and drift (per real tick), the 10 Hz tick, the match clock and the 20 min time limit. Orders stay responsive.
+  - The prototype splits `step_s` (real) from `dt` (ecology). Flora parity stays exact (fixture regenerated).
+  - The client gets `pace` from `sim-wasm`; card tooltips show real seconds (breed every growth / pace s, yields × pace).
+  - Balance hash version 9. The relay test's second unlock moves to tick 2800 (income is slower).

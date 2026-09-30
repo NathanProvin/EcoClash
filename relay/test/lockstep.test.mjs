@@ -25,7 +25,7 @@ function script(player, tick, ids) {
     400: [{ type: "spawn", species: "earthworms", row: r, col: c }],
     700: [{ type: "plant", species: "wildflowers", row: r, col: c + 4, radius: 2 }],
     1200: ids.length ? [{ type: "order", ids, kind: "move", row: 32, col: 32 }] : [],
-    1500: [{ type: "unlock", species: "grasshoppers" }],
+    2800: [{ type: "unlock", species: "grasshoppers" }], // income runs at the 0.4 pace (D-069)
   };
   return orders[tick] ?? [];
 }

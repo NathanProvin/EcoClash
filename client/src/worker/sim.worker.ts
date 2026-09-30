@@ -127,6 +127,7 @@ async function begin(
     species: s.speciesTable(),
     n,
     tickHz: s.tickHz,
+    pace: s.pace,
     plantRadius: s.plantRadius,
     maxAgents: s.maxAgents,
     balanceHash: s.balanceHash,

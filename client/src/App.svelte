@@ -165,8 +165,10 @@
         joining = false;
         player = live.me; // view your own side
         replay = live;
+        speed = 1; // a match starts in real time (D-069)
       } else {
         replay = await loadReplay(`replays/${name}`);
+        speed = 4; // replays: fast playback
       }
       viewer = await Viewer.create(canvas, replay, quality);
       viewer.resize();

@@ -786,3 +786,8 @@ Template:
   - The "+" badge is an open padlock (`unlock` icon).
   - Fix: the tooltip was `position: fixed` inside the transformed dock, which placed it off-screen. It is now placed in the dock's coordinates.
 - **Consequences:** The bar is one short row whatever the number of species per family. Hotkeys per family can come with M5 keybinds.
+
+## D-069a · 2026-09-30 · Live matches start at 1×; pace back to 1.0
+- **Status:** accepted (user, after the finding below: "Pace 1.0")
+- **Finding:** `App.svelte` defaulted the playback speed to 4× for replays, and live matches inherited it, so every live match ran at 4×. The round-2 "0.4× the current rate" was relative to that.
+- **Decision:** a live match starts at 1× and replays at 4×. `[sim] pace` is set to 1.0; the knob stays for tuning (M7). At 1×, the ecology now runs at 0.25× what the user played, and animals too.

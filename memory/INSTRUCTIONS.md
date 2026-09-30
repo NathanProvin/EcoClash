@@ -217,7 +217,7 @@ Integer implementation constraint (it must already be modelled in the M0 prototy
 
 - Agents: every tick (10 Hz).
 - Flora fields: every N ticks (default 8, i.e. 1.25 Hz; D-038). Keep `growth × dt ≤ 1` (the loader checks it).
-- **Ecology pace (D-069):** `[sim] pace` (default 0.4) is the number of seconds of ecology per real second. Every ecological rate (growth, spread, soil, bites, upkeep, breeding, income) is converted with `dt = flora_every / tick_hz × pace`; animal movement, the tick rate and the match clock stay in real time. The stat sheets count ecology seconds; the UI shows real seconds.
+- **Ecology pace (D-069):** `[sim] pace` (default 1.0, D-069) is the number of seconds of ecology per real second. Every ecological rate (growth, spread, soil, bites, upkeep, breeding, income) is converted with `dt = flora_every / tick_hz × pace`; animal movement, the tick rate and the match clock stay in real time. The stat sheets count ecology seconds; the UI shows real seconds.
 - Nutrients / water: every M ticks (default 10).
 - Later: **chunk sleeping**. 32×32 chunks with no change above a threshold skip updates.
 

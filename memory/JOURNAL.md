@@ -339,3 +339,4 @@
 ## 2026-09-30 · Family build bar (D-071)
 - **Done:** family items with instant tier flyouts, a padlock unlock badge, the tooltip placement fix; checked in the browser (flyout, tooltip in real-time units).
 - **Found:** live matches started at 4× (the replay viewer's default speed leaked into live play), so the round-1 rhythm ran 4× too fast.
+- **Then (D-069a):** live matches start at 1× (replays 4×); pace back to 1.0 by the user's choice.

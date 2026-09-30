@@ -43,10 +43,14 @@ function command(s: Sim, player: number, payload: object) {
 function sendFields(s: Sim) {
   floraTick = s.floraTick;
   const frame = s.fieldFrame().buffer as ArrayBuffer; // a fresh copy out of WASM memory
+  const pressure = s.pressureFrame().buffer as ArrayBuffer;
   const bank = [s.bank(1), s.bank(2)];
   const income = [s.income(1), s.income(2)];
   const standing = [s.standing(1), s.standing(2)];
-  post({ type: "fields", tick: s.tick, frame, bank, income, standing }, [frame]);
+  post({ type: "fields", tick: s.tick, frame, pressure, bank, income, standing }, [
+    frame,
+    pressure,
+  ]);
 }
 
 function loop() {

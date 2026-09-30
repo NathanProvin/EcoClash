@@ -1,8 +1,33 @@
 //! Read-only view of the world for renderers and tools (INSTRUCTIONS §6). The renderer never
 //! mutates the simulation: it gets a `Snapshot`, a copy in display units.
 
-use crate::fixed::div_round;
+use crate::fauna::{Fauna, Role};
+use crate::fixed::{ONE, div_round};
 use crate::flora::{Flora, FloraState, U16};
+
+/// Pressure display (D-076): an enemy grazer on a cell pushes like a quarter of a fully covered
+/// smothering neighbour, and this much push draws the widest frontier line.
+const GRAZER_PUSH: i64 = ONE as i64 / 4;
+const PUSH_FULL: i64 = 2 * ONE as i64;
+
+/// How hard the non-owner pushes into each cell, 0..=255, for the frontier lines (D-076): the
+/// flora step's smothering attack (`Flora::push`) plus the enemy grazers standing on the cell.
+/// Derived from the state, never hashed: a view, like the snapshot.
+#[must_use]
+pub fn pressure_frame(flora: &Flora, st: &FloraState, fauna: &Fauna) -> Vec<u8> {
+    let mut push = flora.push(st);
+    let a = &fauna.agents;
+    for i in 0..a.len() {
+        let k = a.cell(i, st.n);
+        let grazer = fauna.p.role[usize::from(a.sp[i])] == Role::Herbivore;
+        if grazer && st.owner[k] == 3 - a.owner[i] {
+            push[k] += GRAZER_PUSH;
+        }
+    }
+    push.iter()
+        .map(|&v| u8::try_from(div_round(v.clamp(0, PUSH_FULL) * 255, PUSH_FULL)).unwrap_or(255))
+        .collect()
+}
 
 /// The flora fields of one tick, one byte per cell and layer.
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -417,6 +417,12 @@ impl World {
     pub fn snapshot(&self) -> Snapshot {
         Snapshot::new(self.tick, &self.flora, &self.state)
     }
+
+    /// How hard the non-owner pushes into each cell, 0..=255 (display only, D-076).
+    #[must_use]
+    pub fn pressure_frame(&self) -> Vec<u8> {
+        crate::snapshot::pressure_frame(&self.flora, &self.state, &self.fauna)
+    }
 }
 
 #[cfg(test)]

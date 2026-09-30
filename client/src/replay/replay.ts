@@ -32,6 +32,7 @@ export interface Fields {
   soil: Uint8Array; // soil development 0..255
   species: Uint8Array[]; // cover 0..255 per plant species (species-table order)
   cover: Uint8Array[]; // cover 0..255 per stratum L1..L3 (sum of its species, capped)
+  pressure?: Uint8Array; // live only: how hard the non-owner pushes into each cell, 0..255 (D-076)
 }
 
 /** What stands on one cell at one tick (the cell panel). */

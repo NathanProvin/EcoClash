@@ -357,3 +357,6 @@
 - **Done:**
   - Letter shortcuts (A, S, T, Q/E) match the printed letter, so AZERTY works; digits stay on the digit row.
   - The species tooltip clears when the flyout closes (arming, grace timer, Esc). Checked in the browser.
+
+## 2026-09-30 · M5a task 2: pressure borders (D-076)
+- **Done:** display-only push from the sim's smothering term plus enemy grazers; frontier lines 0.5–2 m wide by push. Rust and client tests, `wasm:check`, the bot report pass.

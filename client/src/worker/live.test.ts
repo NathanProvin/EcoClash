@@ -79,6 +79,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     type: "fields",
     tick: 8,
     frame: frame.buffer,
+    pressure: new Uint8Array(4).buffer,
     bank: [1000, 990],
     income: [4, 2],
     standing: [5000, 4000],

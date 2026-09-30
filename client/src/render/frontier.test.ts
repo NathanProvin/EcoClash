@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { paintFrontier, TEXELS } from "./frontier";
+import { paintFrontier, TEXELS, widthFor, WIDTH } from "./frontier";
 
 const color = { 1: [0, 0, 255], 2: [255, 128, 0] } as const;
 
@@ -33,4 +33,25 @@ test("P1 frontier is solid, P2 frontier is dashed, interiors and map edges stay 
   // colour of P1's line
   const t = ((side - 1) * side + p1Line) * 4;
   expect([...out.subarray(t, t + 3)]).toEqual([0, 0, 255]);
+});
+
+test("a line widens with its player's push into the enemy cell across the edge (D-076)", () => {
+  expect(widthFor(0)).toBe(WIDTH.min);
+  expect(widthFor(255)).toBe(WIDTH.max);
+  const n = 4;
+  const owner = new Uint8Array(n * n).map((_, k) => (k % n < 2 ? 1 : 2));
+  // P1 pushes hard into row 0 of P2's first column, not at all elsewhere.
+  const pressure = new Uint8Array(n * n);
+  pressure[2] = 255;
+  const side = n * TEXELS;
+  const out = new Uint8Array(side * side * 4);
+  paintFrontier(owner, n, color, out, pressure);
+  const edge = TEXELS * 2 - 1; // P1's last texel column
+  const widthAt = (y: number) => {
+    let w = 0;
+    while (w < TEXELS && alpha(out, side, edge - w, y) === 255) w++;
+    return w;
+  };
+  expect(widthAt(1)).toBe(WIDTH.max); // row 0 of cells: the push
+  expect(widthAt(TEXELS + 1)).toBe(WIDTH.min); // row 1: no push
 });

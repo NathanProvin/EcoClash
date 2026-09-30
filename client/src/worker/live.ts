@@ -54,6 +54,7 @@ export type ToMain =
       type: "fields";
       tick: number;
       frame: ArrayBuffer;
+      pressure: ArrayBuffer;
       bank: number[];
       income: number[];
       standing: number[];
@@ -229,6 +230,7 @@ export class Live implements Source {
       if (m.result && !this.result) this.result = JSON.parse(m.result) as Outcome;
     } else if (m.type === "fields") {
       this.current = this.decode(this.current.frame + 1, new Uint8Array(m.frame), m);
+      this.current.pressure = new Uint8Array(m.pressure);
     } else if (m.type === "notice") {
       const at = performance.now();
       this.notices = [...this.notices, ...m.notices.map((n) => ({ ...n, at }))].slice(-4);

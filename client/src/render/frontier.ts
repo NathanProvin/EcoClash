@@ -1,17 +1,26 @@
 // Territory frontier lines (D-040): each player's border is drawn just inside its own cells, P1
-// solid and P2 dashed, so the two sides differ without relying on colour. Painted into an RGBA
-// overlay of TEXELS x TEXELS per cell, rows flipped like the ground texture (viewer.ts).
+// solid and P2 dashed, so the two sides differ without relying on colour. Where a player pushes
+// into the enemy cell across the edge, its line widens with that push (D-076), so the fronts
+// being won show at a glance. Painted into an RGBA overlay of TEXELS x TEXELS per cell, rows
+// flipped like the ground texture (viewer.ts).
 
-export const TEXELS = 8; // per cell side: the line is one texel (CELL / 8 = 0.5 m) wide
+export const TEXELS = 8; // per cell side: a texel is CELL / 8 = 0.5 m
 const DASH = 4; // P2 dashes: DASH texels (2 m) on, DASH off
+export const WIDTH = { min: 1, max: 4 } as const; // line width in texels: 0.5 m .. 2 m
+
+/** Line width (texels) for a push of 0..255 into the cell across the edge. */
+export const widthFor = (push: number) =>
+  WIDTH.min + Math.round(((WIDTH.max - WIDTH.min) * Math.min(Math.max(push, 0), 255)) / 255);
 
 /** Paint the frontier of both players into `out` ((n * TEXELS)² RGBA texels, cleared first).
- *  `color[p]` is the RGB of player p. Map edges are not frontiers. */
+ *  `color[p]` is the RGB of player p; `pressure[k]` (optional) is how hard the non-owner pushes
+ *  into cell k, 0..255. Map edges are not frontiers. */
 export function paintFrontier(
   owner: Uint8Array,
   n: number,
   color: Record<1 | 2, readonly number[]>,
   out: Uint8Array,
+  pressure?: Uint8Array,
 ): void {
   out.fill(0);
   const side = n * TEXELS;
@@ -38,11 +47,20 @@ export function paintFrontier(
       ];
       if (!(up || down || left || right)) continue; // interior cell
       const [x0, y0] = [c * TEXELS, r * TEXELS];
+      // Width toward each side: this player's push into the enemy cell across it.
+      const w = (rr: number, cc: number) => {
+        const q = rr * n + cc;
+        const enemy = rr >= 0 && rr < n && cc >= 0 && cc < n && owner[q] === 3 - p;
+        return enemy && pressure ? widthFor(pressure[q] ?? 0) : WIDTH.min;
+      };
+      const [wu, wd, wl, wr] = [w(r - 1, c), w(r + 1, c), w(r, c - 1), w(r, c + 1)];
       for (let i = 0; i < TEXELS; i++) {
-        if (up) put(x0 + i, y0, p, x0 + i);
-        if (down) put(x0 + i, y0 + TEXELS - 1, p, x0 + i);
-        if (left) put(x0, y0 + i, p, y0 + i);
-        if (right) put(x0 + TEXELS - 1, y0 + i, p, y0 + i);
+        for (let d = 0; d < WIDTH.max; d++) {
+          if (up && d < wu) put(x0 + i, y0 + d, p, x0 + i);
+          if (down && d < wd) put(x0 + i, y0 + TEXELS - 1 - d, p, x0 + i);
+          if (left && d < wl) put(x0 + d, y0 + i, p, y0 + i);
+          if (right && d < wr) put(x0 + TEXELS - 1 - d, y0 + i, p, y0 + i);
+        }
       }
     }
   }

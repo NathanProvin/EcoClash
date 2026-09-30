@@ -361,6 +361,45 @@ impl Flora {
         dom
     }
 
+    /// How hard the non-owner's plants push into each owned cell (Q16 cover units; 0 on empty
+    /// cells), for display (D-076): the flora step's attack term (step 4), i.e. over the 4
+    /// neighbours held by the enemy, the best cover of an enemy species able to smother this
+    /// cell (a higher level than its dominant one, suitable here). Same-level fronts push 0.
+    #[must_use]
+    pub fn push(&self, st: &FloraState) -> Vec<i64> {
+        let (p, n, cells) = (&self.p, st.n, st.n * st.n);
+        let dom = self.dominant(st);
+        (0..cells)
+            .map(|k| {
+                let enemy = match st.owner[k] {
+                    1 => 2,
+                    2 => 1,
+                    _ => return 0,
+                };
+                let (y, x) = (k / n, k % n);
+                let near = [
+                    (y > 0).then(|| k - n),
+                    (y + 1 < n).then(|| k + n),
+                    (x > 0).then(|| k - 1),
+                    (x + 1 < n).then(|| k + 1),
+                ];
+                let able: Vec<usize> = (0..p.species())
+                    .filter(|&s| p.level[s] > dom[k] && self.suitability(st, s, k) > 0)
+                    .collect();
+                near.into_iter()
+                    .flatten()
+                    .filter(|&m| st.owner[m] == enemy)
+                    .map(|m| {
+                        able.iter()
+                            .map(|&s| div(st.bio[s * cells + m] * ONE_I, p.kmax[s]))
+                            .max()
+                            .unwrap_or(0)
+                    })
+                    .sum()
+            })
+            .collect()
+    }
+
     /// Seed species `s` on own or empty `cells` (gamerules §8), alongside what already grows
     /// there, up to its cell cap (first cells in the given order). Returns the cells planted.
     pub fn plant(&self, st: &mut FloraState, player: u8, s: usize, cells: &[usize]) -> usize {
@@ -1039,5 +1078,46 @@ mod tests {
             st.owner.iter().filter(|&&o| o != 0).count() > before,
             "plants spread"
         );
+    }
+
+    /// The displayed push (D-076) is the step's attack: positive exactly on the cells a higher
+    /// enemy level smothers, zero behind the front and on same-level fronts.
+    #[test]
+    fn push_shows_where_higher_enemy_levels_smother() {
+        let mut f = flora();
+        let (oak, grasses) = (f.p.index("oak").unwrap(), f.p.index("grasses").unwrap());
+        let n = 4;
+        let mut st = FloraState::new(&f.p, n);
+        st.soil.fill(U16); // developed soil: every level is suitable
+        for k in 0..n * n {
+            let (player, s) = if k % n < 2 { (1, oak) } else { (2, grasses) };
+            st.owner[k] = player;
+            st.bio[s * n * n + k] = f.p.kmax[s];
+            st.gauge[s * n * n + k] = ONE_I;
+        }
+        let push = f.push(&st);
+        for k in 0..n * n {
+            match k % n {
+                2 => assert!(push[k] > 0, "P2 grass next to P1 oaks is pushed"),
+                _ => assert_eq!(push[k], 0, "no push behind the front, none on the oaks"),
+            }
+        }
+        let before: Vec<i64> = (0..n * n).map(|k| st.bio[grasses * n * n + k]).collect();
+        f.step(&mut st);
+        for k in (0..n * n).filter(|k| k % n == 2) {
+            assert!(
+                st.bio[grasses * n * n + k] < before[k],
+                "and that is where it smothers"
+            );
+        }
+
+        // Oaks against oaks: a frozen front, no push.
+        let mut st = FloraState::new(&f.p, n);
+        st.soil.fill(U16);
+        for k in 0..n * n {
+            st.owner[k] = if k % n < 2 { 1 } else { 2 };
+            st.bio[oak * n * n + k] = f.p.kmax[oak];
+        }
+        assert!(f.push(&st).iter().all(|&v| v == 0));
     }
 }

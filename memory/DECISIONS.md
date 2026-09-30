@@ -834,3 +834,12 @@ Template:
     - **a drop cursor** showing the armed species' model; parachute drops as a stretch.
   - Keyboard shortcuts follow the printed letter (`e.key`), so AZERTY and QWERTY both work.
 - **Consequences:** The detailed task list and order are in ROADMAP M5a. The fps gate passed: steady 60 fps on the reference laptop.
+
+## D-076 · 2026-09-30 · Pressure borders
+- **Status:** accepted (user: "a dynamically changing border width, depending of the strength of attack of the player in the local area")
+- **Decision:**
+  - `Flora::push` gives, per owned cell, the flora step's attack term: over the 4 neighbours held by the enemy, the best cover of an enemy species able to smother the cell (higher level than its dominant one, suitable there).
+  - `snapshot::pressure_frame` adds a quarter of a full neighbour per enemy grazer on the cell, and maps 2 full neighbours to 255. Display constants live there.
+  - The frame is derived and never hashed. `sim-wasm` exports `pressureFrame()`, and the worker sends it with each field frame.
+  - `frontier.ts`: each player's line is 1–4 texels wide (0.5–2 m), from its push into the enemy cell across the edge. P1 solid, P2 dashed as before. Replays have no pressure and draw thin lines.
+- **Consequences:** A test shows the push is positive exactly where the step smothers, and zero on same-level (frozen) fronts. In a bot-vs-bot report at 43², 227 cells are under push at the end, the strongest at 255.

@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** M5a, the playable alpha (D-073, D-075). The fps gate passed (60 fps). Next task: 2, pressure borders.
+- **Now:** M5a, the playable alpha (D-073, D-075). The fps gate passed (60 fps). Next task: 3, notifications and pop-ups.
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-09-30
@@ -78,7 +78,7 @@ Goal: a build strangers can play against the bot and understand at a glance. One
 - [x] **1. Bug fixes.**
   - Letter shortcuts by the printed letter (`e.key`), not the key position (`e.code`). On AZERTY, the A key fired the QWERTY-Q rotate binding. This covers A, S, T, Q/E rotation and group digits.
   - The species tooltip stays on screen after the flyout closes (the tile is removed without a pointer-leave). Clear it on close, on arming and on Esc.
-- [ ] **2. Pressure borders.** Each player's frontier line gets wider where that player pushes harder into enemy land: one glance shows where the fronts are won.
+- [x] **2. Pressure borders.** Each player's frontier line gets wider where that player pushes harder into enemy land: one glance shows where the fronts are won.
   - Sim (derived, not hashed): `sim-core` computes per cell the push of the non-owner, with the same term as smothering in `flora.rs` step 4 (`attack`: neighbour cover of species able to smother), plus the bites of enemy grazers on the cell.
   - Export: `pressureFrame()` in `sim-wasm`, n² bytes, sent with the field frames. Replays have none and draw normal lines.
   - `frontier.ts`: line width 1–4 texels (0.5–2 m), from the pressure on the enemy cell across the edge. P1 solid, P2 dashed as today.

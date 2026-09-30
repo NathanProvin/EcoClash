@@ -459,6 +459,10 @@ mod tests {
                 animals
             );
         }
+        let push = w.pressure_frame();
+        let pushed = push.iter().filter(|&&v| v > 0).count();
+        let strongest = push.iter().max().copied().unwrap_or(0);
+        println!("pushed cells {pushed}, strongest push {strongest}/255 (D-076)");
         println!("result {:?}, notices {}", w.result, w.notices.len());
     }
 }

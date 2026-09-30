@@ -225,6 +225,12 @@ impl Sim {
         self.world.snapshot().field_frame()
     }
 
+    /// How hard the non-owner pushes into each cell, 0..=255, for the frontier lines (D-076).
+    #[wasm_bindgen(js_name = pressureFrame)]
+    pub fn pressure_frame(&self) -> Vec<u8> {
+        self.world.pressure_frame()
+    }
+
     /// Plant species names, in id order (the order of the cover layers).
     #[wasm_bindgen(js_name = speciesNames)]
     pub fn species_names(&self) -> Vec<String> {

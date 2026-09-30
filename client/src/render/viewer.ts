@@ -19,7 +19,7 @@ import {
   uv,
   vec3,
 } from "three/tsl";
-import { interpolate, type Animal, type Source } from "../replay/replay";
+import { interpolate, type Animal, type Fields, type Source } from "../replay/replay";
 import { AnimalView } from "./animals";
 import { paintFrontier, TEXELS } from "./frontier";
 import { makeGrass } from "./grass";
@@ -338,7 +338,7 @@ export class Viewer {
       // Moving forward blends the grass in; the first frame or a scrub back shows at once.
       const step = this.lastFrame >= 0 && fields.frame > this.lastFrame;
       this.lastFrame = fields.frame;
-      this.paintFields(fields.owner, fields.soil, fields.species, fields.cover, now, step);
+      this.paintFields(fields, now, step);
     }
     this.blend.value = Math.min(1, (now - this.blendFrom) / this.blendS);
     this.plants.frame(now);
@@ -390,14 +390,8 @@ export class Viewer {
     return this.shown;
   }
 
-  private paintFields(
-    owner: Uint8Array,
-    soilDev: Uint8Array,
-    species: Uint8Array[],
-    cover: Uint8Array[],
-    now: number,
-    step: boolean,
-  ): void {
+  private paintFields(fields: Fields, now: number, step: boolean): void {
+    const { owner, soil: soilDev, species, cover } = fields;
     const n = this.replay.meta.n;
     const tint = { 1: hexToRgb(PLAYER[1].base), 2: hexToRgb(PLAYER[2].base) };
     const [herbs = [], shrubs = [], trees = []] = this.byLevel;
@@ -453,7 +447,7 @@ export class Viewer {
     this.floraTex.needsUpdate = true;
     this.floraPrev.needsUpdate = true;
     this.groundTex.needsUpdate = true;
-    paintFrontier(owner, n, tint, this.frontierData);
+    paintFrontier(owner, n, tint, this.frontierData, fields.pressure);
     this.frontierTex.needsUpdate = true;
   }
 

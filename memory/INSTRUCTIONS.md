@@ -264,7 +264,7 @@ Optimisations, in order: algorithmic → multi-rate → chunk sleeping → WASM 
 ### 7.1 Direction
 
 - **Macro diorama look:** a top-down camera, subtle tilt-shift depth of field, and a terrarium / nature documentary feel.
-- **Constrained palette:** 5–7 colours per biome, plus one hue per player. The palette is defined in one file (`client/src/render/palette.ts`). Player colours (D-040): **P1 blue `#0072B2`, P2 orange `#E69F00`** (Okabe–Ito), validated for colour-blind separation. They never carry identity alone: each player's frontier line also has its own pattern (P1 solid, P2 dashed).
+- **Constrained palette:** 5–7 colours per biome, plus one hue per player. The palette is defined in one file (`client/src/render/palette.ts`). Player colours (D-040): **P1 blue `#0072B2`, P2 orange `#E69F00`** (Okabe–Ito), validated for colour-blind separation. They never carry identity alone: each player's frontier line also has its own pattern (P1 solid, P2 dashed). Its width shows that player's push into the enemy cell across it (0.5–2 m; D-076).
 - **One key light:** a low sun, a soft sky (hemisphere / HDRI), and tinted distance fog. A single colour-grading LUT for the whole game.
 - Test for the direction: the scene must look good **with placeholder cubes** for units.
 

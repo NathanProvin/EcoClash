@@ -7,7 +7,15 @@
   // armed), buys it when it can be unlocked, or does nothing while locked. A click on a family
   // item pins its flyout (touch, keyboard); Esc closes it. With animals selected, a selection
   // strip sits above the bar. Replays show the same bar, read-only.
-  import { cardState, families, label, MEDAL, quickStats, roleName } from "../game/species";
+  import {
+    cardState,
+    families,
+    foodsOf,
+    label,
+    MEDAL,
+    quickStats,
+    roleName,
+  } from "../game/species";
   import type { Source, Species } from "../replay/replay";
   import FamilyIcon from "./FamilyIcon.svelte";
   import Icon from "./Icon.svelte";
@@ -227,6 +235,25 @@
           <span class="stat" title={q.title}><Icon name={q.icon} size={13} />{q.value}</span>
         {/each}
       </span>
+      {#if s.kind === "fauna"}
+        <!-- D-122: foods in rank order, primary largest. -->
+        <span class="feeds">
+          Feeds on
+          {#if s.role === "decomposer"}
+            <span class="dead">dead biomass</span>
+          {:else}
+            {#each foodsOf(s, species) as f, i (f.name)}
+              <span
+                class="food rank{i}"
+                title="{['Primary', 'Secondary', 'Tertiary'][i] ?? ''} food"
+                ><FamilyIcon family={f.family} size={18} /><span
+                  class="medal {MEDAL[f.tier - 1] ?? 'bronze'}"
+                ></span>{label(f.name)}</span
+              >
+            {/each}
+          {/if}
+        </span>
+      {/if}
       {#if state === "available"}
         <span class="act"><Icon name="unlock" size={12} /> {s.stats.unlock_cost} to unlock</span>
       {:else if state === "locked"}
@@ -455,6 +482,32 @@
   .dim,
   em {
     color: var(--ink-soft);
+  }
+  .feeds {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 6px;
+    font-size: 0.9em;
+    color: var(--ink-soft);
+  }
+  .food {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: var(--ink);
+  }
+  .food.rank0 {
+    font-weight: 700;
+  }
+  .food.rank1 {
+    opacity: 0.85;
+  }
+  .food.rank2 {
+    opacity: 0.7;
+  }
+  .dead {
+    color: var(--ink);
   }
   .act {
     display: inline-flex;

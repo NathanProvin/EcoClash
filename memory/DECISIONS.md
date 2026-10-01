@@ -1321,3 +1321,14 @@ Template:
   - The plants' own GPU grow-in follows when the cells sprout.
   - The feedback shows on every click, whatever the sim decides; a refused order still leaves its notice.
 - **Consequences:** tests cover the flight and the fade. Checked in the browser at the overview and close up, with the timing slowed for the screenshots.
+
+## D-122 · 2026-10-01 · Ranked diets, and "Feeds on" on species cards
+- **Status:** accepted (user approved the proposed food web; an animal needs at least a primary and a secondary food, and tier 3 a tertiary)
+- **Decision:**
+  - Grazer families feed on their own plant layer first, then a neighbouring one: H1 meadow, H2 undergrowth, H3 shrubs, H4 canopy, HW water.
+  - Hunter families target an animal size: P1 insect eaters, P2 small hunters, P3 big game, PW water life.
+  - Each tier 1 and 2 animal has two foods, each tier 3 three. Every plant and every animal is someone's food.
+  - `eats` lists species in rank order, primary first; recyclers eat dead biomass. The full table is in `data/species.toml`.
+  - The species tooltip has a "Feeds on" row: each food is a chip (family pictogram, tier medal, name), primary first in bold. Species artwork is still placeholder, so pictograms and names carry the meaning.
+  - Helpers `foodsOf` and `eatersOf` (`game/species.ts`) serve the tooltip and the tech tree.
+- **Consequences:** the ranks only order the list for now; the rule follows in D-123.

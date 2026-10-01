@@ -15,6 +15,22 @@ export function glyph(s: Species): string {
   return { herbivore: "●", decomposer: "∙", predator: "▲" }[s.role] ?? "●";
 }
 
+/** What `s` feeds on (D-122), primary first; a family name stands for its plants. Recyclers
+ *  eat dead biomass, which is no species: none. */
+export function foodsOf(s: Species, all: readonly Species[]): Species[] {
+  return s.eats.flatMap((e) =>
+    all.filter((o) => o.name === e || (o.kind === "flora" && o.family === e)),
+  );
+}
+
+/** Who feeds on `s`, and the rank `s` has in each diet (0: their primary food). */
+export function eatersOf(s: Species, all: readonly Species[]): { s: Species; rank: number }[] {
+  return all.flatMap((o) => {
+    const rank = o.eats.findIndex((e) => e === s.name || (s.kind === "flora" && e === s.family));
+    return rank < 0 ? [] : [{ s: o, rank }];
+  });
+}
+
 /** A role as players read it: decomposers are "recyclers" (D-092; the data keeps `decomposer`). */
 export function roleName(role: string): string {
   return role === "decomposer" ? "recycler" : role;

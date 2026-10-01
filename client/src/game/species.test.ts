@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { ReplayMeta, Species } from "../replay/replay";
-import { capText, cardState, families, label, quickStats, unlockedAt } from "./species";
+import {
+  capText,
+  cardState,
+  eatersOf,
+  families,
+  foodsOf,
+  label,
+  quickStats,
+  unlockedAt,
+} from "./species";
 
 function sp(
   name: string,
@@ -63,6 +72,21 @@ describe("species helpers", () => {
     expect(cardState(meta, elder, p1)).toBe("available"); // tier 1 of L3
     expect(cardState(meta, fox, p1)).toBe("locked"); // needs an L3 plant
     expect(cardState(meta, fox, unlockedAt(meta, 2, 300))).toBe("available");
+  });
+});
+
+describe("food web (D-122)", () => {
+  it("lists foods in rank order and finds who eats a species", () => {
+    const grass = sp("grasses", "flora", 1, 2, 0);
+    const flowers = sp("wildflowers", "flora", 1, 3, 0);
+    const rabbit = { ...sp("rabbits", "fauna", 0, 2, 0), eats: ["grasses", "wildflowers"] };
+    const fox = { ...sp("fox", "fauna", 0, 3, 0), eats: ["rabbits"] };
+    const all = [grass, flowers, rabbit, fox];
+    expect(foodsOf(rabbit, all).map((s) => s.name)).toEqual(["grasses", "wildflowers"]);
+    expect(eatersOf(flowers, all)).toEqual([{ s: rabbit, rank: 1 }]);
+    expect(eatersOf(rabbit, all)).toEqual([{ s: fox, rank: 0 }]);
+    const herd = { ...rabbit, eats: ["L1"] }; // a family stands for its plants
+    expect(foodsOf(herd, all).map((s) => s.name)).toEqual(["grasses", "wildflowers"]);
   });
 });
 

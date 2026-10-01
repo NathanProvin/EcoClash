@@ -61,10 +61,12 @@ impl Level {
     }
 }
 
-/// Unlock order: meadow income first, then succession, then the food web (D-087). Land only:
+/// Unlock order (players start with lichen & moss only, D-118): meadow income first, then succession, then the food web (D-087). Land only:
 /// the bot leaves the aquatic families (W, HW, PW) to players for now.
 const UNLOCKS: &[&str] = &[
+    "grasses",
     "wildflowers",
+    "earthworms",
     "elder",
     "grasshoppers",
     "ferns",

@@ -491,8 +491,8 @@ mod tests {
 
     fn orders() -> Vec<Command> {
         vec![
-            plant(0, 1, 0, "grasses", 3, 3),
-            plant(0, 2, 0, "grasses", 36, 36),
+            plant(0, 1, 0, "lichen_and_moss", 3, 3), // the only plant unlocked at start (D-118)
+            plant(0, 2, 0, "lichen_and_moss", 36, 36),
             plant(0, 1, 1, "lichen_and_moss", 3, 10),
             plant(50, 2, 1, "ferns", 30, 36),
         ]
@@ -519,15 +519,20 @@ mod tests {
             },
         };
         let mut cmds = orders();
+        cmds.push(Command {
+            tick: 99,
+            player: 1,
+            seq: 4,
+            payload: Payload::Unlock {
+                species: "earthworms".into(),
+            },
+        });
         cmds.push(spawn(5, "earthworms"));
         cmds.push(spawn(6, "fox")); // no shrubs yet: refused
         let (a, mut w) = play(7, 40, 300, &cmds);
         let (b, _) = play(7, 40, 300, &cmds);
         assert_eq!(a, b);
-        assert!(
-            !w.fauna.agents.is_empty(),
-            "earthworms spawned on own grass"
-        );
+        assert!(!w.fauna.agents.is_empty(), "earthworms spawned on own land");
         let (plain, _) = play(7, 40, 300, &orders());
         assert_ne!(a[299], plain[299], "animals are part of the state hash");
         let notices = w.take_notices();
@@ -550,7 +555,7 @@ mod tests {
         let mut w = World::new(&b, 1, 40);
         assert!(w.setup_plant(1, "grasses", 5, 5, 3) > 0, "setup plants...");
         let bank = w.economy.bank[0];
-        w.submit(plant(0, 1, 0, "grasses", 20, 20)); // a paid order
+        w.submit(plant(0, 1, 0, "lichen_and_moss", 20, 20)); // a paid order
         w.submit(plant(0, 1, 1, "wildflowers", 30, 30)); // locked at start
         w.step();
         // The order paid for its cells (the same tick's income is far smaller); setup did not.
@@ -604,6 +609,9 @@ mod tests {
         w.setup_plant(2, "grasses", 15, 15, 3);
         let grasshoppers = w.economy.animal(w.fauna.p.index("grasshoppers").unwrap());
         w.economy.bank[0] = 100_000 << 16;
+        w.economy
+            .unlock(1, w.flora.p.index("grasses").unwrap())
+            .unwrap(); // its habitat
         w.economy.unlock(1, grasshoppers).unwrap();
         let (base, drop) = (
             w.economy.unit_cost(grasshoppers, false),
@@ -670,7 +678,7 @@ mod tests {
     #[test]
     fn a_plant_between_flora_ticks_changes_the_hash_at_once() {
         let (a, _) = play(1, 40, 3, &[]);
-        let (b, _) = play(1, 40, 3, &[plant(2, 1, 0, "grasses", 5, 5)]);
+        let (b, _) = play(1, 40, 3, &[plant(2, 1, 0, "lichen_and_moss", 5, 5)]);
         assert_eq!(a[..2], b[..2]);
         assert_ne!(a[2], b[2], "tick 2 planted: its chunk was re-hashed");
     }
@@ -711,14 +719,14 @@ mod tests {
     #[test]
     fn snapshot_field_frame_uses_the_replay_layout() {
         let ticks = 2 * every() + 1;
-        let (_, w) = play(1, 12, ticks, &[plant(0, 1, 0, "grasses", 5, 5)]);
+        let (_, w) = play(1, 12, ticks, &[plant(0, 1, 0, "lichen_and_moss", 5, 5)]);
         let snap = w.snapshot();
         let frame = snap.field_frame();
         let cells = 12 * 12;
         assert_eq!(frame.len(), cells * (2 + w.flora.p.species()));
         assert_eq!(&frame[..cells], &w.state.owner[..]);
-        let grasses = w.flora.p.index("grasses").unwrap();
-        let cover = &frame[(2 + grasses) * cells..(3 + grasses) * cells];
+        let lichen = w.flora.p.index("lichen_and_moss").unwrap();
+        let cover = &frame[(2 + lichen) * cells..(3 + lichen) * cells];
         assert!(cover[5 * 12 + 5] > 0 && cover[0] == 0);
         assert_eq!((snap.tick, snap.flora_tick), (ticks, 3));
     }

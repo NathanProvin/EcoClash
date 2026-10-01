@@ -242,12 +242,15 @@ mod tests {
                 .unwrap()
         };
         let (grasses, wildflowers, bramble) = (idx("grasses"), idx("wildflowers"), idx("bramble"));
-        let (worms, fox) = (idx("earthworms"), idx("fox"));
+        let (lichen, worms, fox) = (idx("lichen_and_moss"), idx("earthworms"), idx("fox"));
+        assert!(e.is_unlocked(1, lichen), "free at start (D-118)");
+        assert!(!e.is_unlocked(1, grasses) && !e.is_unlocked(1, worms));
         assert!(
-            e.is_unlocked(1, grasses) && e.is_unlocked(1, worms),
-            "free at start"
+            e.check_unlock(1, wildflowers)
+                .unwrap_err()
+                .contains("tier 2")
         );
-        assert!(!e.is_unlocked(1, wildflowers));
+        e.unlock(1, grasses).unwrap();
         assert!(e.check_unlock(1, bramble).unwrap_err().contains("tier 2"));
         let before = e.bank[0];
         e.unlock(1, wildflowers).unwrap();

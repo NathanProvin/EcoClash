@@ -20,8 +20,10 @@ const N = 32; // data/balance.toml grid_size (D-091)
 function script(player, tick, ids) {
   const [r, c] = player === 1 ? [8, 8] : [23, 23];
   const orders = {
+    50: [{ type: "unlock", species: "grasses" }], // only lichen & moss at start (D-118)
     100: [{ type: "plant", species: "grasses", row: r + 4, col: c, radius: 2 }],
     250: [{ type: "unlock", species: "wildflowers" }],
+    300: [{ type: "unlock", species: "earthworms" }],
     400: [{ type: "spawn", species: "earthworms", row: r, col: c }],
     700: [{ type: "plant", species: "wildflowers", row: r, col: c + 4, radius: 2 }],
     1200: ids.length ? [{ type: "order", ids, kind: "move", row: 16, col: 16 }] : [],
@@ -61,7 +63,7 @@ function player(url, { cheat = false } = {}) {
           queued = t;
           for (const p of script(ls.player, t, animalsOf(sim, ls.player))) ls.queue(p);
           if (cheat && t === 1000) {
-            const extra = { type: "plant", species: "grasses", row: 2, col: 2, radius: 1 };
+            const extra = { type: "plant", species: "lichen_and_moss", row: 2, col: 2, radius: 1 };
             sim.submit(JSON.stringify({ tick: t, player: ls.player, seq: 999, payload: extra }));
           }
         }
@@ -100,11 +102,11 @@ test("two players stay in sync for 5 minutes through the relay", async () => {
   assert.equal(relay.status.desync, null);
   assert.ok(relay.status.checked >= TICKS / 10 - 1, `hash checks: ${relay.status.checked}`);
   assert.deepEqual([a.player, b.player].sort(), [1, 2]);
-  // The orders really played: both players called animals and bought two cards.
+  // The orders really played: both players called animals and bought four cards.
   const fresh = [...new Sim(BALANCE, SPECIES, 1n, N).unlocked(1)].filter(Boolean).length;
   for (const p of [a, b]) {
     assert.ok(p.animals.length > 0, `P${p.player} animals`);
-    assert.equal(p.unlocked, fresh + 2, `P${p.player} unlocks`);
+    assert.equal(p.unlocked, fresh + 4, `P${p.player} unlocks`);
   }
 });
 

@@ -1288,3 +1288,8 @@ Template:
   - A panel at the top left shows the current objective and progress dots, and a toast marks each one done. At the end, "Tutorial complete" offers the main menu; the match goes on.
   - First-match tips are paused during the tutorial, and the "choose your spawn" banner gives way to the first objective. Play again on the end screen replays the tutorial.
 - **Consequences:** played through in the browser, from founding to the completion panel. The completion check used a temporary low goal. Grazers wander into enemy grass by themselves, so objective 5 can complete without an order; the text still teaches the order and the drop.
+
+## D-118 · 2026-10-01 · Players start with lichen & moss only
+- **Status:** accepted (user: at the start, only lichen & moss; everything else locked)
+- **Decision:** grasses unlock for 200 (the family's tier-2 value) and earthworms for 250; lichen & moss is the only free card. The bot unlocks grasses first, then wildflowers and earthworms. Tests that planted grasses by command now plant lichen & moss or unlock grasses first; the relay test's script unlocks grasses and earthworms before using them.
+- **Consequences:** the first minutes are a lichen colony earning toward grasses. Fixture regenerated; parity, native vs WASM, `cli:check`, relay and Python tests green.

@@ -50,7 +50,7 @@ water_tolerance = 0.6
 [flora.grasses]
 growth = 1.2
 spawn_cost = 20
-unlock_cost = 0
+unlock_cost = 200
 yield = 0.2
 cap = 0.5
 effect = "Pioneer: fastest spread; the main early income."
@@ -316,7 +316,7 @@ water_tolerance = 0.5
 [fauna.earthworms]
 growth = 20
 spawn_cost = 50
-unlock_cost = 0
+unlock_cost = 250
 yield = 0.01
 cap = 300
 effect = "Decomposer: turns dead biomass into soil development."

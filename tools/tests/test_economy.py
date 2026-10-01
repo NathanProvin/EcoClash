@@ -17,7 +17,8 @@ def economy(bal=None):
 
 def test_start_unlocks_and_tier_path():
     ec = economy()
-    assert ec.missing(1, "grasses") == [] and ec.missing(1, "earthworms") == []
+    assert ec.missing(1, "lichen_and_moss") == []  # the only card free at start (D-118)
+    assert ec.missing(1, "grasses") == ["grasses"] and ec.missing(1, "earthworms") == ["earthworms"]
     # the family's lower tiers first (D-087)
     assert ec.missing(1, "bramble") == ["ferns", "nettle", "bramble"]
 

@@ -5,6 +5,10 @@
 export const BOTS = ["easy", "normal", "hard", "none"] as const;
 export type Bot = (typeof BOTS)[number];
 
+/** Map sizes (D-103): cells per side. Mid is the balance's default grid. */
+export const MAP_SIZES = { small: 24, mid: 32, large: 44 } as const;
+export type MapSize = keyof typeof MAP_SIZES;
+
 export interface MatchSetup {
   /** The P2 opponent: a bot level, or "none" for an empty map to practise on. */
   bot: Bot;
@@ -12,9 +16,11 @@ export interface MatchSetup {
   seed: number;
   /** Everything unlocked and free (practice). */
   sandbox: boolean;
+  /** Map size (D-103). */
+  map: MapSize;
 }
 
-export const DEFAULT_SETUP: MatchSetup = { bot: "normal", seed: 1, sandbox: false };
+export const DEFAULT_SETUP: MatchSetup = { bot: "normal", seed: 1, sandbox: false, map: "mid" };
 const KEY = "ecoclash.setup";
 
 /** A random seed for a new map (1 .. 999 999). */
@@ -45,6 +51,7 @@ export function withUrl(setup: MatchSetup, search: string): MatchSetup {
     bot: (q.get("bot") as Bot | null) ?? setup.bot,
     seed: q.has("seed") ? Number(q.get("seed")) : setup.seed,
     sandbox: q.has("sandbox") ? q.get("sandbox") === "1" : setup.sandbox,
+    map: (q.get("map") as MapSize | null) ?? setup.map,
   });
 }
 
@@ -54,5 +61,6 @@ function clean(s: Partial<MatchSetup>): MatchSetup {
     bot: BOTS.includes(s.bot as Bot) ? (s.bot as Bot) : DEFAULT_SETUP.bot,
     seed: Number.isFinite(seed) && seed > 0 ? seed : DEFAULT_SETUP.seed,
     sandbox: s.sandbox === true,
+    map: s.map && Object.hasOwn(MAP_SIZES, s.map) ? s.map : DEFAULT_SETUP.map,
   };
 }

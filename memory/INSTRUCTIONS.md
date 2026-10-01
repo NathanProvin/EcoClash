@@ -199,7 +199,7 @@ Required tests:
 
 ### 5.1 Grid
 
-- Default size **32×32**, 1 cell = 4 m, so the map is 128 m across (configurable; D-047, D-049, D-070, D-091). Hash chunks at the map edge may be partial. One cell holds several plant models (up to 10 herbs, 5 shrubs, 3 trees), placed at random offsets for a natural look.
+- Default size **32×32**, 1 cell = 4 m, so the map is 128 m across (configurable; D-047, D-049, D-070, D-091). The match setup offers Small 24, Mid 32, Large 44 (D-103); lockstep matches use the default. Hash chunks at the map edge may be partial. One cell holds several plant models (up to 10 herbs, 5 shrubs, 3 trees), placed at random offsets for a natural look.
 - Each field is a flat `Vec<u16>` (row-major). Per-player flora layers: `flora[player][species]`.
 - Rendering never sees the grid as pixels. Fields are uploaded as textures and sampled bilinearly.
 

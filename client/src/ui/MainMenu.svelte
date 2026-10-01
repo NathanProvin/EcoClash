@@ -4,7 +4,14 @@
   // "Options" holds the display settings and the list of shortcuts; "Species" (a catalog of every
   // species) is still to come. Background: drop an image at client/public/menu/background.webp
   // and it replaces the painted placeholder.
-  import { BOTS, randomSeed, type Bot, type MatchSetup } from "../game/setup";
+  import {
+    BOTS,
+    MAP_SIZES,
+    randomSeed,
+    type Bot,
+    type MapSize,
+    type MatchSetup,
+  } from "../game/setup";
   import type { Quality } from "../render/quality";
 
   let {
@@ -34,6 +41,7 @@
     hard: "Bot · hard",
     none: "No opponent",
   };
+  const MAP_NAMES: Record<MapSize, string> = { small: "Small", mid: "Mid", large: "Large" };
   /** Shortcuts (letters follow the printed key, D-075). */
   const KEYS: [string, string][] = [
     ["Left-click / drag", "Inspect a cell / select your animals"],
@@ -83,6 +91,17 @@
               <label class="choice" class:on={setup.bot === b}>
                 <input type="radio" name="bot" value={b} bind:group={setup.bot} />
                 {BOT_NAMES[b]}
+              </label>
+            {/each}
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Map size</legend>
+          <div class="choices three">
+            {#each Object.keys(MAP_SIZES) as m (m)}
+              <label class="choice" class:on={setup.map === m}>
+                <input type="radio" name="map" value={m} bind:group={setup.map} />
+                {MAP_NAMES[m as MapSize]}
               </label>
             {/each}
           </div>
@@ -253,6 +272,9 @@
     grid-template-columns: 1fr 1fr;
     gap: 6px;
     margin-top: 6px;
+  }
+  .choices.three {
+    grid-template-columns: 1fr 1fr 1fr;
   }
   .choice {
     padding: 8px 10px;

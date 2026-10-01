@@ -8,7 +8,7 @@
   import { onDestroy, onMount } from "svelte";
   import { SvelteMap } from "svelte/reactivity";
   import { strategicGroups } from "./game/groups";
-  import { loadSetup, saveSetup, withUrl } from "./game/setup";
+  import { loadSetup, MAP_SIZES, saveSetup, withUrl } from "./game/setup";
   import { ALL_TIPS, loadSeen, saveSeen, TIPS, TipWatch } from "./game/tips";
   import { loadReplay, type Role, type Source, type Species } from "./replay/replay";
   import { Live, type Outcome } from "./worker/live";
@@ -358,7 +358,9 @@
         const relay = q.get("relay") ?? undefined; // ?relay=ws://host:port: lockstep (D-062)
         joining = !!relay;
         const s = withUrl(setup, location.search); // the menu's setup; URL parameters win
-        live = await Live.start(s.seed, Number(q.get("size") ?? 0), s.sandbox, s.bot, relay);
+        // ?size=N wins (tools); a lockstep match uses the balance grid, the same for both peers.
+        const size = relay ? 0 : Number(q.get("size") ?? MAP_SIZES[s.map]);
+        live = await Live.start(s.seed, size, s.sandbox, s.bot, relay);
         joining = false;
         player = live.me; // view your own side
         replay = live;

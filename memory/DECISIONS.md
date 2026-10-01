@@ -1167,3 +1167,7 @@ Template:
 - **Consequences:**
   - Tests over 120 seeds: every type appears; each respects its relief cap, dryness, river edges, central lake, flood share and cliff rule. Symmetry and reachability hold at 24, 32 and 44 cells.
   - Seen in the browser: plains, mountains, lakeland.
+
+## D-103 · 2026-10-01 · Map size in the match setup
+- **Status:** accepted (user: Small, Mid, Large in the start menu)
+- **Decision:** the match setup has a Map size choice: Small 24, Mid 32 (the balance grid) or Large 44 cells per side (`game/setup.ts` `MAP_SIZES`). It is remembered with the setup, `?map=` overrides it, and `?size=N` still wins for tools. Lockstep matches keep the balance grid, so both peers agree. The generator is tested at all three sizes.

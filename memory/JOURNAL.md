@@ -459,3 +459,6 @@
 
 ## 2026-10-01 · Map types (D-102)
 - **Done:** eight weighted map types (plains to mountains, lakeland, marsh), relief and water scaled per type, flooded lowlands; tests; browser check.
+
+## 2026-10-01 · Map size option (D-103)
+- **Done:** Small / Mid / Large in the match setup; tests; seen in the browser (Large lakeland). Next: the user's playtest, then M5a 8b and 9.

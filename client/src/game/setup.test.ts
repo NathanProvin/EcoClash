@@ -13,8 +13,10 @@ describe("match setup", () => {
   it("remembers the chosen setup, and falls back to the default on bad data", () => {
     const store = memory();
     expect(loadSetup(store)).toEqual(DEFAULT_SETUP);
-    saveSetup({ bot: "hard", seed: 42, sandbox: true }, store);
-    expect(loadSetup(store)).toEqual({ bot: "hard", seed: 42, sandbox: true });
+    saveSetup({ bot: "hard", seed: 42, sandbox: true, map: "large" }, store);
+    expect(loadSetup(store)).toEqual({ bot: "hard", seed: 42, sandbox: true, map: "large" });
+    store.setItem("ecoclash.setup", '{"bot":"easy","seed":3,"map":"huge"}');
+    expect(loadSetup(store).map).toBe("mid"); // not a size: the default
     store.setItem("ecoclash.setup", '{"bot":"godlike","seed":-3}');
     expect(loadSetup(store)).toEqual(DEFAULT_SETUP);
     store.setItem("ecoclash.setup", "not json");
@@ -22,12 +24,13 @@ describe("match setup", () => {
   });
 
   it("lets URL parameters override it", () => {
-    const chosen = { bot: "easy", seed: 5, sandbox: false } as const;
+    const chosen = { bot: "easy", seed: 5, sandbox: false, map: "mid" } as const;
     expect(withUrl(chosen, "")).toEqual(chosen);
-    expect(withUrl(chosen, "?bot=none&seed=9&sandbox=1")).toEqual({
+    expect(withUrl(chosen, "?bot=none&seed=9&sandbox=1&map=small")).toEqual({
       bot: "none",
       seed: 9,
       sandbox: true,
+      map: "small",
     });
   });
 

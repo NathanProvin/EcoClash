@@ -1293,3 +1293,7 @@ Template:
 - **Status:** accepted (user: at the start, only lichen & moss; everything else locked)
 - **Decision:** grasses unlock for 200 (the family's tier-2 value) and earthworms for 250; lichen & moss is the only free card. The bot unlocks grasses first, then wildflowers and earthworms. Tests that planted grasses by command now plant lichen & moss or unlock grasses first; the relay test's script unlocks grasses and earthworms before using them.
 - **Consequences:** the first minutes are a lichen colony earning toward grasses. Fixture regenerated; parity, native vs WASM, `cli:check`, relay and Python tests green.
+
+## D-119 · 2026-10-01 · Unlockable cards: padlock and a biomass gauge
+- **Status:** accepted (user: unlockable cards lacked the padlock; fill the icon from the bottom as the budget grows)
+- **Decision:** an unlockable card shows the padlock, like a locked one. Its icon is grey with a full-colour copy on top, clipped from the bottom to bank ÷ unlock cost and eased over 0.4 s. Once affordable, the icon is full colour and the padlock turns gold. Locked cards stay grey with a dark padlock; a family item still gets a padlock only when all of its species are locked (D-107).

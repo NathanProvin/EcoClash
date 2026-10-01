@@ -59,6 +59,14 @@
     return fauna.filter((s) => s.name in by).map((s) => ({ s, n: by[s.name] ?? 0 }));
   });
 
+  /** Biomass in the bank now, and how far it goes toward unlocking `s` (0..1; D-119). */
+  const bank = $derived.by(() => {
+    void tick; // the series grows in place: read it again every tick
+    return replay.meta.series[`bank_p${player}`]?.at(-1) ?? 0;
+  });
+  const funded = (s: Species) =>
+    s.stats.unlock_cost > 0 ? Math.min(bank / s.stats.unlock_cost, 1) : 1;
+
   /** Live cards follow the tech tree: unlocked (arm it), available (buy it), locked. */
   const cardOf = (s: Species) => (live ? cardState(replay.meta, s, unlocked) : "unlocked");
 
@@ -170,10 +178,28 @@
                         onpointerenter={(e) => show(e, s)}
                         onpointerleave={() => (hover = null)}
                       >
-                        <SpeciesIcon {s} size={38} />
-                        {#if count(s)}<span class="count num">{count(s)}</span>{/if}
-                        {#if state === "locked"}
-                          <span class="lock"><Icon name="lock" size={12} /></span>
+                        {#if state === "available"}
+                          <!-- A gauge (D-119): the icon fills with colour from the bottom as the
+                               bank nears the unlock cost; the padlock turns gold once affordable. -->
+                          {@const f = funded(s)}
+                          <span class="grey"><SpeciesIcon {s} size={38} /></span>
+                          <span class="fill">
+                            <span
+                              class="clip"
+                              style:clip-path="inset({(100 - f * 100).toFixed(1)}% 0 0 0)"
+                            >
+                              <SpeciesIcon {s} size={38} />
+                            </span>
+                          </span>
+                          <span class="lock" class:ready={f >= 1}
+                            ><Icon name="lock" size={12} /></span
+                          >
+                        {:else}
+                          <SpeciesIcon {s} size={38} />
+                          {#if count(s)}<span class="count num">{count(s)}</span>{/if}
+                          {#if state === "locked"}
+                            <span class="lock"><Icon name="lock" size={12} /></span>
+                          {/if}
                         {/if}
                       </button>
                     {/each}
@@ -324,8 +350,26 @@
     filter: grayscale(0.85);
     cursor: default;
   }
-  .tile.available {
-    opacity: 0.75;
+  .grey {
+    display: grid;
+    filter: grayscale(0.9);
+    opacity: 0.5;
+  }
+  .fill {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+  }
+  .clip {
+    display: grid;
+    transition: clip-path 0.4s ease-out;
+  }
+  .lock.ready {
+    color: #1d1a12;
+    background: var(--gold);
+    box-shadow: 0 0 8px var(--gold-soft);
   }
   .tile.armed,
   .item.armed {

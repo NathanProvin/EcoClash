@@ -109,32 +109,69 @@ pub struct Terrain {
     pub generate: bool,
     pub noise_cells: [u32; 3],
     pub noise_weights: [f64; 3],
-    /// Valleys (D-096): lattice spacing of the fold noise (cells), half width of a valley as a
-    /// share of the noise range, and its depth as a share of the relief.
+    /// Valleys (D-096): lattice spacing of the fold noise (cells) and half width of a valley as a
+    /// share of the noise range (each map type sets their depth).
     pub valley_cells: u32,
     pub valley_width: f64,
-    pub valley_depth: f64,
-    /// Plateaus (0 or 1: none), how steep the steps between them are, and the drop to a
-    /// neighbour (share of the relief) that makes a cell a cliff, unless the rock noise is below
-    /// `cliff_gaps` there (a pass).
-    pub terraces: u32,
+    /// How steep the steps between plateaus are, and the drop to a neighbour (share of the full
+    /// relief) that makes a cell a cliff, unless the rock noise is below `cliff_gaps` there.
     pub cliff_steepness: f64,
     pub cliff_drop: f64,
     pub cliff_gaps: f64,
     pub river_width: f64,
     pub deep_share: f64,
-    pub ponds: u32,
     pub pond_radius: u32,
     pub lake_radius: u32,
-    pub rock_share: f64,
     pub home_clear: u32,
     pub water_level: f64,
     pub bank_rise: f64,
     pub moisture_dry: f64,
     pub moisture_wet: f64,
     pub bank_cells: u32,
-    /// Render only: metres from the lowest to the highest ground.
+    /// Render only: metres from the lowest to the highest ground of the most rugged map.
     pub relief_m: f64,
+    /// The kinds of map a seed may draw (D-102), with their weights.
+    pub map_types: Vec<MapType>,
+}
+
+/// One kind of map (D-102): how high and rugged its relief, how much rock, what water.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MapType {
+    pub name: String,
+    /// Relative chance of being drawn.
+    pub weight: u32,
+    /// Height of the relief, as a share of the full relief (`relief_m`).
+    pub relief: f64,
+    /// Plateaus (0 or 1: none).
+    pub terraces: u32,
+    /// Depth of the winding valleys, as a share of the relief.
+    pub valley_depth: f64,
+    /// Rock bands on the steep steps.
+    pub cliffs: bool,
+    /// Share of the land that is rock outcrop.
+    pub rock_share: f64,
+    pub water: Water,
+    /// Pairs of ponds in the basins, on top of the water layout.
+    #[serde(default)]
+    pub ponds: u32,
+    /// Flood layout: share of the map under water (the lowest ground), and the share of that
+    /// water which is deep.
+    #[serde(default)]
+    pub flood: f64,
+    #[serde(default)]
+    pub flood_deep: f64,
+}
+
+/// A map type's main water (D-102): none, a river crossing the map, a central lake fed by two
+/// streams, or the lowest ground flooded (lakes or marshes along the topography).
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Water {
+    None,
+    River,
+    Lake,
+    Flood,
 }
 
 /// One plant species of `species.toml` (`[flora.<name>]`).
@@ -344,13 +381,11 @@ impl Balance {
                 && t.river_width >= 1.0
                 && t.valley_cells > 0
                 && share(t.valley_width)
-                && share(t.valley_depth)
                 && t.cliff_steepness >= 1.0
                 && share(t.cliff_drop)
                 && share(t.cliff_gaps)
                 && t.lake_radius >= 1
                 && share(t.deep_share)
-                && share(t.rock_share)
                 && share(t.water_level)
                 && share(t.bank_rise)
                 && share(t.moisture_dry)
@@ -359,6 +394,19 @@ impl Balance {
                 && t.relief_m >= 0.0,
             "[terrain] generator: noise cells > 0, weights >= 0 (not all 0), river width >= 1, \
              shares in [0, 1], bank_cells > 0"
+                .into(),
+        )?;
+        check(
+            t.map_types.iter().map(|m| m.weight).sum::<u32>() > 0
+                && t.map_types.iter().all(|m| {
+                    m.relief > 0.0
+                        && m.relief <= 1.0
+                        && share(m.valley_depth)
+                        && share(m.rock_share)
+                        && share(m.flood)
+                        && share(m.flood_deep)
+                }),
+            "[[terrain.map_types]]: at least one with weight > 0; relief in (0, 1], shares in [0, 1]"
                 .into(),
         )?;
         check(

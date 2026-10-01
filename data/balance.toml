@@ -42,25 +42,114 @@ generate = true          # false: the flat V1 map (tests, prototype parity)
 noise_cells = [12, 6, 3] # value-noise lattice spacing per octave (cells)
 noise_weights = [0.6, 0.3, 0.1]
 valley_cells = 8         # winding valleys: lattice spacing of the fold noise (cells) ...
-valley_width = 0.12      # ... half width (share of the noise range) ...
-valley_depth = 0.35      # ... and depth (share of the relief)
-terraces = 4             # plateaus (0 or 1: none) ...
-cliff_steepness = 2.0    # ... joined by steps this much steeper than the slope
+valley_width = 0.12      # ... and half width (share of the noise range); depth: per map type
+cliff_steepness = 2.0    # plateaus are joined by steps this much steeper than the slope
 cliff_drop = 0.14        # a drop to a neighbour of this share of the relief makes a cliff (rock) ...
 cliff_gaps = 0.5         # ... except where the rock noise is below this (passes)
 river_width = 2.0        # cells (streams feeding a lake: 1)
 deep_share = 0.15        # chance that a river cell is a deep (uncrossable) pool
-ponds = 3                # ponds per half map in the pond layout (others: 1, lake: none)
 pond_radius = 3          # cells; ponds of radius >= 2 have a deep centre
 lake_radius = 3          # cells; the central lake (radius 2 or 3)
-rock_share = 0.03        # share of the land that is rock outcrop (the highest ground)
 home_clear = 4           # cells around each home kept dry, rock-free and flatter
-water_level = 0.1        # height of every water bed, as a share of the relief
-bank_rise = 0.1          # banks rise this share of the relief per cell away from water
+water_level = 0.1        # height of every water bed, as a share of the map's relief
+bank_rise = 0.1          # banks rise this share of the map's relief per cell away from water
 moisture_dry = 0.3       # land moisture on the highest ground ...
 moisture_wet = 0.75      # ... and in the lowest land / next to water (water cells: 1)
 bank_cells = 4           # water raises land moisture over this many cells
-relief_m = 16.0          # render only: metres from the lowest to the highest ground
+relief_m = 16.0          # render only: metres of relief of a map type with relief = 1
+
+# Map types (D-102): each seed draws one, by weight. relief: share of the full relief; terraces:
+# plateaus (0: none); valley_depth: share of the relief; cliffs: rock bands on steep steps;
+# rock_share: outcrops on the high ground; water: none, river (crossing the map), lake (central,
+# fed by two streams) or flood (the lowest `flood` share of the map under water, `flood_deep` of
+# it deep); ponds: pairs of ponds in the basins, on top.
+[[terrain.map_types]]
+name = "plains"
+weight = 2
+relief = 0.12
+terraces = 0
+valley_depth = 0.1
+cliffs = false
+rock_share = 0.01
+water = "none"
+
+[[terrain.map_types]]
+name = "meadows"
+weight = 2
+relief = 0.25
+terraces = 0
+valley_depth = 0.2
+cliffs = false
+rock_share = 0.015
+water = "none"
+ponds = 2
+
+[[terrain.map_types]]
+name = "hills"
+weight = 2
+relief = 0.55
+terraces = 0
+valley_depth = 0.35
+cliffs = false
+rock_share = 0.03
+water = "river"
+
+[[terrain.map_types]]
+name = "mountains"
+weight = 2
+relief = 1.0
+terraces = 4
+valley_depth = 0.45
+cliffs = true
+rock_share = 0.07
+water = "none"
+ponds = 1
+
+[[terrain.map_types]]
+name = "canyon"
+weight = 1
+relief = 0.9
+terraces = 3
+valley_depth = 0.5
+cliffs = true
+rock_share = 0.05
+water = "river"
+
+[[terrain.map_types]]
+name = "lakeland"
+weight = 2
+relief = 0.45
+terraces = 0
+valley_depth = 0.3
+cliffs = false
+rock_share = 0.02
+water = "flood"
+flood = 0.14
+flood_deep = 0.35
+
+[[terrain.map_types]]
+name = "marsh"
+weight = 2
+relief = 0.12
+terraces = 0
+valley_depth = 0.15
+cliffs = false
+rock_share = 0.0
+water = "flood"
+flood = 0.3
+flood_deep = 0.08
+ponds = 1
+
+[[terrain.map_types]]
+name = "lake"
+weight = 1
+relief = 0.5
+terraces = 2
+valley_depth = 0.3
+cliffs = false
+rock_share = 0.03
+water = "lake"
+ponds = 1
 
 # Flora cell model (gamerules §2.1, §3; D-019). Species stats are in species.toml.
 # Rates are per second; fractions are of the species' k_max. Biomass is in u16 units (0..65535).

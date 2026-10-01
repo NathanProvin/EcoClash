@@ -1136,3 +1136,34 @@ Template:
 ## D-101 · 2026-10-01 · The bot waits before founding its colony
 - **Status:** accepted (user: the bot still started with land at once; "make him wait a few seconds")
 - **Decision:** with no land yet, the bot founds its colony only after 15 s (easy), 10 s (normal) or 6 s (hard). Until then it sends nothing. Tested: no spawn command during the wait.
+
+## D-102 · 2026-10-01 · Map types: real diversity of relief, rock and water
+- **Status:** accepted (user: every map was high relief with a crossing river; wants flat dry maps, rocky mountain valleys, marshes, lakes, really diverse)
+- **Decision:** each seed first draws a map type by weight from `[[terrain.map_types]]` in balance.toml.
+  - **Settings per type:**
+    - relief height (a share of the full relief);
+    - terraces;
+    - valley depth;
+    - cliffs on or off;
+    - rock share;
+    - water: none, river, lake, or flood (the lowest share of the map under water, part of it deep);
+    - extra ponds.
+  - **The types:**
+
+    | Type | Relief | Rock | Water |
+    |---|---|---|---|
+    | plains | 0.12 | almost none | none |
+    | meadows | 0.25 | little | 2 pond pairs |
+    | hills | 0.55 | some | river |
+    | mountains | 1.0, terraced | cliffs, many outcrops | 1 pond pair |
+    | canyon | 0.9 | cliffs | river |
+    | lakeland | 0.45 | little | 14 % flooded |
+    | marsh | 0.12 | none | 30 % flooded, mostly shallow |
+    | lake | 0.5 | some | central lake |
+
+  - Water beds and banks scale with the type's relief. Moisture is relative to the map's own heights.
+  - Cliffs only appear on cliff types, and need a real drop.
+  - `BALANCE_HASH_VERSION` 12.
+- **Consequences:**
+  - Tests over 120 seeds: every type appears; each respects its relief cap, dryness, river edges, central lake, flood share and cliff rule. Symmetry and reachability hold at 24, 32 and 44 cells.
+  - Seen in the browser: plains, mountains, lakeland.

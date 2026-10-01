@@ -456,3 +456,6 @@
 
 ## 2026-10-01 · Bot founding delay (D-101)
 - **Done:** level-dependent wait before the bot's first planting; test. Next: map types for real diversity, map size option.
+
+## 2026-10-01 · Map types (D-102)
+- **Done:** eight weighted map types (plains to mountains, lakeland, marsh), relief and water scaled per type, flooded lowlands; tests; browser check.

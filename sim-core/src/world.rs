@@ -731,7 +731,7 @@ mod tests {
         let mut w = World::new(&b, 1, n);
         let tp = TerrainParams::from_balance(&b);
         let seed = (1..)
-            .find(|&s| terrain::generate(&tp, n, s).layout == terrain::RIVER)
+            .find(|&s| tp.types[terrain::generate(&tp, n, s).kind].water == terrain::RIVER)
             .unwrap(); // a map with a river (D-096)
         w.generate_terrain(&tp, seed);
         w.economy.sandbox = true;

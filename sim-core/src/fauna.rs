@@ -1589,6 +1589,23 @@ mod tests {
         assert_eq!(run("grasses", full, ONE_I), 1, "a sated fox does not hunt");
     }
 
+    /// D-125: cattails are a refuge in the water: a small roach in its owner's dense cattails
+    /// cannot be hunted; in open water it can.
+    #[test]
+    fn cattails_hide_small_water_animals() {
+        let (fl, mut fa, mut st, _) = setup(8);
+        let (roach, cattails) = (
+            fa.p.index("roach").unwrap(),
+            fl.p.index("cattails").unwrap(),
+        );
+        let k = 3 * 8 + 3;
+        st.owner[k] = 2;
+        fa.agents.push(roach, 2, centre(3), centre(3), ONE_I, 0);
+        assert_eq!(fa.safe(&fl.p, &st), vec![false], "open water");
+        st.bio[cattails * 64 + k] = fl.p.kmax[cattails];
+        assert_eq!(fa.safe(&fl.p, &st), vec![true], "hidden in the cattails");
+    }
+
     #[test]
     fn herbivores_feed_as_well_at_home_on_a_smaller_bite() {
         let (fl, mut fa, mut st, mut rng) = setup(8);

@@ -2,13 +2,13 @@
   // Build-bar family pictograms (D-105): one sober line drawing per family, tied to what the
   // family is (blades of grass, a fern frond, a bush, a tree, a lily pad, a grasshopper, a
   // snail, a caterpillar on its leaf, a beetle, a bird, a fox, a paw, a fish, a heron, a
-  // mushroom), on the family's tone. 24 x 24 paths, coloured by `currentColor`.
+  // mushroom), on the family's tone. Water plants: a lily pad and a cattail (D-125). 24 x 24 paths, coloured by `currentColor`.
   const PATHS: Record<string, string> = {
     L1: "M8 20c0-4-1-7.5-3.5-11M12 20V5.5M16 20c0-4 1-7.5 3.5-11M10 20c0-3-.6-5.5-2-7.5M14 20c0-3 .6-5.5 2-7.5M3.5 20h17",
     L2: "M12 21c0-7 1.5-12 5-16M12.3 17 8 15M12.8 13 8.5 10.5M14 9.4 10.5 6.8M12.7 16.5l4.3-1.3M13.4 12.5l3.9-1.8M14.6 8.6l3-1.9",
     L3: "M6 18a3.5 3.5 0 0 1 .3-7A5 5 0 0 1 15.6 9a3.8 3.8 0 0 1 2.9 7.2A2.5 2.5 0 0 1 17 18zM12 18v3M9 21h6",
     L4: "M12 21v-6M9 21h6M12 15c-4.5 0-7-2.4-7-6a7 7 0 0 1 14 0c0 3.6-2.5 6-7 6z",
-    W: "M2.5 18c3-1.8 6.5-1.8 9.5 0s6.5 1.8 9.5 0M5 14.5c0-1.4 2.2-2.5 5-2.5s5 1.1 5 2.5c-3 .9-7 .9-10 0zM18 15V4M18 7l2.5-2.2M18 10l-2.5-2",
+    W: "M2.5 18c3-1.8 6.5-1.8 9.5 0s6.5 1.8 9.5 0M5 14.5c0-1.4 2.2-2.5 5-2.5s5 1.1 5 2.5c-3 .9-7 .9-10 0zM18 15V9.2M16.8 6.6a1.2 2.6 0 1 0 2.4 0 1.2 2.6 0 1 0-2.4 0M18 4V2.4M18 12.6l2.4-2.4",
     H1: "M3.5 14.5c4-3.5 10-4.5 14-2 1.8 1.1 1.4 3.2-.6 3.2H6.5M17 12l3-6.5M8.5 15.7 7 19.5M13 15.7l1 3.8M19.2 10.7l2.3-.6",
     H2: "M3 18h14.5A3.5 3.5 0 0 0 21 14.5V9.5M19.3 9.5 18 6.5M21 9.5l1-3M12.5 18a5.5 5.5 0 1 0-5.5-5.5 3 3 0 0 0 3 3 1.6 1.6 0 0 0 1.6-1.6",
     H3: "M3.5 20.5c0-9 6-15.5 17-17-1 10.5-7.5 17-17 17zM9 14.5a1.6 1.6 0 1 0 3.2 0 1.6 1.6 0 1 0-3.2 0M12.2 12a1.6 1.6 0 1 0 3.2 0 1.6 1.6 0 1 0-3.2 0M15.4 9.5a1.6 1.6 0 1 0 3.2 0 1.6 1.6 0 1 0-3.2 0",

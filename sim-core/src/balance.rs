@@ -598,7 +598,7 @@ mod tests {
         let b = Balance::from_toml(BALANCE, SPECIES).expect("data files load");
         let names: Vec<&str> = b.flora_species.iter().map(|(n, _)| n.as_str()).collect();
         assert_eq!(names.first(), Some(&"lichen_and_moss"));
-        assert_eq!(names.last(), Some(&"willow"));
+        assert_eq!(names.last(), Some(&"cattails")); // D-125: replaced the willow
         assert_eq!(names.len(), 15);
         assert!(b.flora.succession);
         assert_eq!(

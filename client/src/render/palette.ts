@@ -54,6 +54,7 @@ export const FLORA: Record<string, string> = {
   oak: "#5b7936",
   beech: "#7c9d3d",
   chestnut: "#4c6a2d",
+  cattails: "#7d9a4a", // reed green; the seed heads are drawn brown (D-125)
 };
 const FLORA_BY_LEVEL = ["#8bb356", "#6f9148", "#5b7936"] as const;
 

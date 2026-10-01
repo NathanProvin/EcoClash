@@ -88,7 +88,6 @@ export const FORM: Record<string, Form> = {
   elder: { w: 1.0, h: 0.75, blobs: 3 }, // loose, spreading
   hazel: { w: 0.85, h: 1.15, blobs: 3 }, // upright, many stems
   hawthorn: { w: 0.9, h: 0.85, blobs: 2 }, // dense, compact
-  willow: { w: 1.25, h: 0.8, blobs: 3 }, // wide, drooping
   ferns: { w: 1.25, h: 0.5, blobs: 3 }, // low spreading fronds
   nettle: { w: 0.6, h: 1.35, blobs: 2 }, // upright stems
   bramble: { w: 1.3, h: 0.6, blobs: 3 }, // sprawling mound

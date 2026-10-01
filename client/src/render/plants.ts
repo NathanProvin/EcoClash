@@ -59,6 +59,11 @@ export interface PlantStyle {
 /** Reed beds: stems per clump, their height per metre of clump radius, stem radius (m). */
 const REED = { stems: 5, height: 4.5, radius: 0.05 } as const;
 
+/** Cattails (D-125): stems per stand, their height per metre of stand radius, stem radius, and
+ *  the brown seed head (height and radius, m) near the top. */
+const CATTAIL = { stems: 7, height: 3.2, radius: 0.035, head: 0.32, headR: 0.07 } as const;
+const CATTAIL_HEAD = "#6b4a2e";
+
 /** Blob sizes beyond the first one, relative to the main blob, and their spread. */
 const BLOB = { size: 0.62, spread: 0.5 } as const;
 
@@ -85,7 +90,19 @@ export class LowPolyPlants implements PlantStyle {
       roughness: 0.4,
       perModel: [0, 0, 0, 1],
     },
+    // Cattails: thin stems and their seed heads (D-125).
+    {
+      geometry: new THREE.CylinderGeometry(0.6, 1, 1, 5).translate(0, 0.5, 0),
+      roughness: 0.9,
+      perModel: [0, CATTAIL.stems, 0, 0],
+    },
+    {
+      geometry: new THREE.CylinderGeometry(1, 1, 1, 6).translate(0, 0.5, 0),
+      roughness: 0.95,
+      perModel: [0, CATTAIL.stems, 0, 0],
+    },
   ] satisfies PlantStyle["meshes"];
+  private readonly head = new THREE.Color(CATTAIL_HEAD);
 
   parts(stratum: Stratum, m: Placement, x: number, z: number, name: string): Part[] {
     const form = formOf(name);
@@ -119,6 +136,20 @@ export class LowPolyPlants implements PlantStyle {
         const [bw, bh] = [rb * form.w, rb * form.h];
         const shade = 0.78 + 0.2 * rand(b, salt);
         out.push({ mesh: 3, x: p.x, y: bh * 0.4, z: p.z, w: bw, h: bh, angle: p.a, shade });
+      }
+      return out;
+    }
+    if (stratum === "shrub" && name === "cattails") {
+      for (let i = 0; i < CATTAIL.stems; i++) {
+        const a = m.angle + (i * Math.PI * 2) / CATTAIL.stems;
+        const d = r * 0.7 * rand(i, salt);
+        const h = r * CATTAIL.height * (0.75 + 0.25 * rand(i + 9, salt));
+        const [sx, sz] = [x + Math.cos(a) * d, z + Math.sin(a) * d];
+        const shade = 0.85 + 0.25 * rand(i + 3, salt);
+        out.push({ mesh: 6, x: sx, y: 0, z: sz, w: CATTAIL.radius, h, angle: a, shade });
+        const y = h * 0.8;
+        const [hw, hh] = [CATTAIL.headR, CATTAIL.head];
+        out.push({ mesh: 7, x: sx, y, z: sz, w: hw, h: hh, angle: a, shade: 1, color: this.head });
       }
       return out;
     }

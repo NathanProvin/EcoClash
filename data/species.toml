@@ -295,24 +295,24 @@ soil_gain = 0.0024
 water_optimum = 0.9
 water_tolerance = 0.35
 
-[flora.willow]
-growth = 0.4
-spawn_cost = 150
-unlock_cost = 2500
-yield = 0.7
+[flora.cattails]
+growth = 0.5
+spawn_cost = 60
+unlock_cost = 1600
+yield = 0.4
 cap = 0.3
-effect = "Riverside tree: anchors the banks on both sides of the water."
+effect = "Dense stands in the shallows: small water animals hide in them."
 family = "W"
 tier = 3
-level = 4
+level = 3
 pioneer = false
-biomass_rate = 0.03
-k_max = 50000
-shade_cast = 0.5
+biomass_rate = 0.08
+k_max = 20000
+shade_cast = 0.35
 shade_tolerance = 0.4
-soil_gain = 0.0015
-water_optimum = 0.8
-water_tolerance = 0.5
+soil_gain = 0.002
+water_optimum = 0.9
+water_tolerance = 0.35
 
 [fauna.earthworms]
 growth = 20
@@ -620,11 +620,11 @@ spawn_cost = 900
 unlock_cost = 4500
 yield = 0.1
 cap = 60
-effect = "Fells trees and willows near water."
+effect = "Fells chestnuts and oaks near water."
 family = "H4"
 tier = 2
 role = "herbivore"
-eats = ["willow", "algae_and_lilies"]
+eats = ["chestnut", "oak"]
 habitat = ["W"]
 small = false
 swarm = false

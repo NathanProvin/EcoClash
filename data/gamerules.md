@@ -41,8 +41,8 @@ Victory conditions are defined in `INSTRUCTIONS.md` §2.3 (territory share or to
 |---|---|---|
 | L1 | Herbaceous | Lichen & moss, grasses, wildflowers; algae & water lilies |
 | L2 | Intermediate (undergrowth) | Ferns, nettles, brambles; reeds |
-| L3 | Shrub | Elder, hawthorn, hazel |
-| L4 | Canopy (trees) | Oak, chestnut, beech; willow |
+| L3 | Shrub | Elder, hawthorn, hazel; cattails |
+| L4 | Canopy (trees) | Oak, chestnut, beech |
 
 Aquatic plants (family W) sit in the stratum of their height: they want the water through their moisture response, so they hold the shallows and wet banks (D-087).
 
@@ -58,7 +58,7 @@ Aquatic plants (family W) sit in the stratum of their height: they want the wate
 | Biome | Field signature | Signature flora | Signature fauna |
 |---|---|---|---|
 | **Temperate deciduous forest** | High nutrients, medium water | Moss, ferns, understory plants, hazel, oak, beech, chestnut | Mycelium, bark beetles, wood mice, roe deer, wild boar, woodpecker, tawny owl, lynx |
-| **Wet meadow** | High water, medium nutrients | Sphagnum, sedges & rushes, willow, alder | Slugs & snails, voles, frogs & toads, grey heron |
+| **Wet meadow** | High water, medium nutrients | Sphagnum, sedges & rushes, cattails, alder | Slugs & snails, voles, frogs & toads, grey heron |
 | **Meadow & bocage** (hedgerow farmland) | Medium water and nutrients; lines of hedgerow cells | Grasses, wildflowers, nettle, bramble, elder, hawthorn & blackthorn, hedgerow oaks | Grasshoppers, pollinators, rabbits, hedgehog, buzzard, weasel, fox |
 
 ### 2.3 Terrain modifiers [Placeholder — do NOT implement in V1]
@@ -272,7 +272,7 @@ All dead organisms, plants and animals, feed `Dead biomass`.
 
 - Predators attack enemy agents whose species is in their diet. Damage reduces health, and a killed agent becomes dead biomass.
 - Predators cannot attack species outside their diet. A fox ignores slugs, for example.
-- **Refuge (D-023):** a player's small fauna inside own cells with dense hawthorn & blackthorn or bramble cannot be hunted. Predators are otherwise kept in check by their own predators (§5.2).
+- **Refuge (D-023):** a player's small fauna inside own cells with dense hawthorn & blackthorn or bramble, or in the water dense cattails (D-125), cannot be hunted. Predators are otherwise kept in check by their own predators (§5.2).
 
 ### 6.3 Spawn conditions
 

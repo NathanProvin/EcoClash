@@ -178,7 +178,7 @@ lockout_s = 30          # a cell grazed bare turns neutral; its former owner may
 herbivore_range = 10    # prototype only (tools/prototype): sim-core drops herbivores near the click
 drop_radius = 4         # a drop (herbivores off own land, predators) lands within this many cells of the click (D-061)
 flee_radius = 3         # prey flee enemy hunters closer than this
-refuge_flora = ["hawthorn", "bramble"]
+refuge_flora = ["hawthorn", "bramble", "cattails"]  # cattails: refuge in the water (D-125)
 refuge_cover = 0.5      # summed cover of refuge flora that hides small fauna (D-023)
 # Terrain (D-084): walkers cross shallows at this share of their speed; a path search explores at
 # most this many cells before giving up (then the animal stays).

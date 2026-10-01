@@ -1353,3 +1353,12 @@ Template:
   - The side panel shows the focused species: stats, feeds on, eaten or hunted by (clickable chips), habitat, what unlocking needs, and the Unlock button.
   - The layout and relations are pure and tested (`game/foodweb.ts`).
 - **Consequences:** the old levels × tiers grid is gone.
+
+## D-125 · 2026-10-01 · Cattails replace the willow
+- **Status:** accepted (user: the willow added little; a tier-3 aquatic plant should replace it; named cattails)
+- **Decision:**
+  - `[flora.cattails]` is the W tier-3 plant: shrub height (level 3), likes shallows and wet banks like the reeds, unlock 1600 (W costs: 400 → 800 → 1600).
+  - Its role uses the existing refuge rule: `"cattails"` joins `[fauna] refuge_flora`, so small water animals (larvae, roach, frog) in their owner's dense cattails cannot be hunted.
+  - The beaver now eats chestnut, then oak.
+  - Drawn as thin stems with brown seed heads; the water-plant pictogram shows a cattail.
+- **Consequences:** a test checks that a roach in cattails is safe and one in open water is not. Fixture regenerated; every check is green.

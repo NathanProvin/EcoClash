@@ -514,3 +514,6 @@
 
 ## 2026-10-01 · Tech tree as a food web (D-124)
 - **Done:** food-web layout, side-anchored links, focus and counters modes, side panel; checked in the browser. Fixed in review: links hidden behind sibling nodes, column overflow, wrapped family headers, "Eaten by" for plants.
+
+## 2026-10-01 · Cattails (D-125)
+- **Done:** cattails replace the willow (data, refuge, model, pictogram, docs, tests); the beaver eats chestnut and oak. Seen in the browser on a marsh map, after algae had built up the soil.

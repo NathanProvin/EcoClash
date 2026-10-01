@@ -746,7 +746,8 @@ function makeAura(): THREE.Group {
   canvas.width = canvas.height = 256;
   const g = canvas.getContext("2d");
   if (!g) throw new Error("2D canvas unavailable");
-  const ring = g.createRadialGradient(128, 128, 36, 128, 128, 128);
+  // A band half as wide as before (D-093), around the same middle radius.
+  const ring = g.createRadialGradient(128, 128, 64, 128, 128, 120);
   ring.addColorStop(0, "rgba(232,234,236,0)");
   ring.addColorStop(0.55, "rgba(232,234,236,0.5)");
   ring.addColorStop(0.72, "rgba(232,234,236,0.32)");
@@ -754,7 +755,7 @@ function makeAura(): THREE.Group {
   g.fillStyle = ring;
   g.fillRect(0, 0, 256, 256);
   for (let i = 0; i < 48; i++) {
-    const [a, r, s] = [rand(i, 1) * Math.PI * 2, 78 + rand(i, 2) * 50, 10 + rand(i, 3) * 14];
+    const [a, r, s] = [rand(i, 1) * Math.PI * 2, 86 + rand(i, 2) * 24, 6 + rand(i, 3) * 7];
     const [x, y] = [128 + Math.cos(a) * r, 128 + Math.sin(a) * r];
     const puff = g.createRadialGradient(x, y, 0, x, y, s);
     puff.addColorStop(0, "rgba(240,241,243,0.22)");
@@ -769,7 +770,7 @@ function makeAura(): THREE.Group {
     const material = new THREE.MeshBasicNodeMaterial({ map, transparent: true, depthWrite: false });
     material.opacity = [0.9, 0.55, 0.3][i] ?? 0.3;
     const layer = new THREE.Mesh(
-      new THREE.PlaneGeometry(CELL * (2.6 + i * 0.5), CELL * (2.6 + i * 0.5)).rotateX(-Math.PI / 2),
+      new THREE.PlaneGeometry(CELL * (2.6 + i * 0.25), CELL * (2.6 + i * 0.25)).rotateX(-Math.PI / 2),
       material,
     );
     layer.position.y = height;

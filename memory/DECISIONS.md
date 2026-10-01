@@ -1044,3 +1044,10 @@ Template:
   - The tier-3 recycler is the black woodpecker (flies, eats litter, needs trees), with the raven's placeholder stats and a lower speed. Its effect text announces "speeds up the decay of dead trees". The rule itself is to come (for example a faster litter recycling on tree cells).
   - The demo replay was regenerated.
 - **Consequences:** all checks are green; seen in the browser (flyout, tooltip).
+
+## D-093 · 2026-10-01 · A thinner selection ring
+- **Status:** accepted (user: "divide by 2 the width of the ring of fog for the cell selection")
+- **Decision:** the fog band of the selected-cell aura is half as wide, at the same middle radius:
+  - gradient from radius 64 to 120 of 128 (was 36 to 128);
+  - puffs at radius 86–110 and size 6–13;
+  - the three stacked layers grow by 0.25 cell instead of 0.5.

@@ -427,3 +427,6 @@
 
 ## 2026-10-01 · Recyclers, black woodpecker (D-092)
 - **Done:** the player-facing rename, the woodpecker in place of the raven (gameplay to come).
+
+## 2026-10-01 · Thinner selection ring (D-093)
+- **Done:** the aura band halved; checked in the browser.

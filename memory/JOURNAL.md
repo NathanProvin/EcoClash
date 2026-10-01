@@ -477,3 +477,6 @@
 
 ## 2026-10-01 · Smooth front line (D-108)
 - **Done:** blurred ownership field, contour band in the ground shader, glide between frames; tests; seen in the browser.
+
+## 2026-10-01 · Bigger, sparser forest (D-109)
+- **Done:** layout sizes and counts, tests; a grown oak and hawthorn forest checked in the browser.

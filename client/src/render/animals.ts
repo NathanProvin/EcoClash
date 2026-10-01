@@ -83,7 +83,7 @@ export function drawnLength(form: AnimalForm): number {
   return (form.length * ANIMAL_SCALE) / (1 + LARGE * form.length);
 }
 /** Birds fly this high (m): above the canopy (trunks up to 2.6 m, then the crown). */
-export const FLIGHT_Y = 5.5;
+export const FLIGHT_Y = 7.5;
 /** Ground ring radius (m): max(min, k x drawn length); width as a share of the radius. */
 export const RING = { min: 0.45, k: 0.75, width: 0.18 } as const;
 

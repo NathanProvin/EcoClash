@@ -1228,3 +1228,7 @@ Template:
   - The previous field frame is blended into the current one by the grass `blend` uniform, so the line glides over the frame interval.
   - The 8-texel overlay is gone.
 - **Consequences:** the fronts are smooth curves at any zoom; tests check the 0.5 crossing, the ramp and the push channels.
+
+## D-109 · 2026-10-01 · Bigger, sparser trees and shrubs
+- **Status:** accepted (user: the grown forest should look better; models +33 %, density −33 %)
+- **Decision:** shrub and tree models are 33 % bigger (trunk radius ×1.2). A cell holds at most 2 shrubs (was 3) and 1 tree, 2 on a third of the cells (`treesIn`, average 4/3; was 2). Flying animals fly at 7.5 m (was 5.5) to clear the taller canopy. Render only: the sim is unchanged.

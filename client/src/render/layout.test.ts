@@ -13,6 +13,7 @@ import {
   SHRUB,
   SHRUB_GAP,
   stratumOf,
+  treesIn,
   TREE,
   TRUNK_CLEAR,
   TRUNK_GAP,
@@ -65,7 +66,7 @@ describe("cellSlots", () => {
     const xs = new Set<string>();
     for (let cell = 0; cell < 50; cell++)
       for (const s of cellSlots(cell)[1] ?? []) xs.add(s.x.toFixed(2));
-    expect(xs.size).toBeGreaterThan(120); // positions vary freely, not a few grid columns
+    expect(xs.size).toBeGreaterThan(90); // positions vary freely, not a few grid columns
   });
 });
 
@@ -93,13 +94,22 @@ describe("plantLayout", () => {
     expect(plantLayout(7, []).flat()).toHaveLength(0);
     const full = (species: number) => [{ species, cover: 1 }];
     const counts = plantLayout(7, [full(1), full(4), full(9), full(12)]).map((m) => m.length);
-    expect(counts).toEqual([...MAX_MODELS]);
+    expect(counts).toEqual([MAX_MODELS[0], MAX_MODELS[1], treesIn(7), MAX_MODELS[3]]);
     const half = [
       { species: 9, cover: 0.5 },
       { species: 10, cover: 0.5 },
     ];
-    const trees = plantLayout(7, [[], [], half])[2] ?? [];
+    const two = Array.from({ length: 100 }, (_, c) => c).find((c) => treesIn(c) === 2) ?? 0;
+    const trees = plantLayout(two, [[], [], half])[2] ?? [];
     expect(new Set(trees.map((t) => t.species))).toEqual(new Set([9, 10]));
+  });
+});
+
+describe("treesIn", () => {
+  it("puts 1 tree per cell, 2 on about a third of the cells (D-109)", () => {
+    let total = 0;
+    for (let cell = 0; cell < 3000; cell++) total += treesIn(cell);
+    expect(total / 3000).toBeCloseTo(4 / 3, 1);
   });
 });
 

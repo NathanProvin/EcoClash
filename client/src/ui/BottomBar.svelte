@@ -7,7 +7,7 @@
   // armed), buys it when it can be unlocked, or does nothing while locked. A click on a family
   // item pins its flyout (touch, keyboard); Esc closes it. With animals selected, a selection
   // strip sits above the bar. Replays show the same bar, read-only.
-  import { cardState, families, label, quickStats, roleName } from "../game/species";
+  import { cardState, families, label, MEDAL, quickStats, roleName } from "../game/species";
   import type { Source, Species } from "../replay/replay";
   import FamilyIcon from "./FamilyIcon.svelte";
   import Icon from "./Icon.svelte";
@@ -39,7 +39,6 @@
 
   const TIERS = [1, 2, 3] as const;
   /** Tier medals (D-106): bronze, silver, gold. */
-  const MEDAL = ["bronze", "silver", "gold"] as const;
   const MEDAL_NAME = ["Tier 1 · small", "Tier 2 · medium", "Tier 3 · large"] as const;
   const GRACE_MS = 120; // time to cross the gap between an item and its flyout
 
@@ -293,23 +292,7 @@
     align-items: center;
     gap: 4px;
   }
-  /* Tier medals and rings (D-106): bronze, silver, gold. */
-  .bronze {
-    --medal: #b08d57;
-  }
-  .silver {
-    --medal: #c3c9cf;
-  }
-  .gold {
-    --medal: #d4af37;
-  }
-  .medal {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--medal);
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
-  }
+  /* Tier rings (D-106); the medal colours are in app.css. */
   .tile {
     box-shadow: inset 0 0 0 1.5px var(--medal);
   }

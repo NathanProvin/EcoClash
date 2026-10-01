@@ -142,6 +142,9 @@ export function families(species: Species[]): Family[] {
   return [...out.values()];
 }
 
+/** Tier medal classes (D-106), by tier - 1; colours in app.css. */
+export const MEDAL = ["bronze", "silver", "gold"] as const;
+
 /** One quick stat of a species tooltip (D-106): an icon, a short value, the words on hover. */
 export interface QuickStat {
   icon: "coin" | "biomass" | "spread" | "egg" | "cap";

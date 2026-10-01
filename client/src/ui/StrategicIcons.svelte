@@ -1,9 +1,10 @@
 <script lang="ts">
-  // Strategic icons (D-078): a species icon with a head count over each large group of your
-  // animals, at a fixed screen size, so the whole army reads at a glance. Clicking one selects
-  // the group (swarms cannot be ordered: their icons only show).
+  // Strategic icons (D-078, D-114): the family pictogram of the build bar with a head count over
+  // each large group of your animals, at a fixed screen size, so the whole army reads at a
+  // glance. Clicking one selects the group (swarms cannot be ordered: their icons only show).
+  import { label, MEDAL } from "../game/species";
   import type { Species } from "../replay/replay";
-  import SpeciesIcon from "./SpeciesIcon.svelte";
+  import FamilyIcon from "./FamilyIcon.svelte";
 
   let {
     icons,
@@ -28,11 +29,13 @@
     class:swarm={!i.order}
     style:left="{i.x}px"
     style:top="{i.y}px"
-    title={i.order ? "Select this group" : "A swarm: it cannot be ordered"}
+    title="{label(i.s.name)} · {i.order
+      ? 'click to select the group'
+      : 'a swarm: it cannot be ordered'}"
     onclick={() => i.order && onSelect(i.ids)}
   >
-    <SpeciesIcon s={i.s} size={26} />
-    <span class="num">{i.count}</span>
+    <FamilyIcon family={i.s.family} size={30} />
+    <span class="num"><span class="medal {MEDAL[i.s.tier - 1] ?? 'bronze'}"></span>{i.count}</span>
   </button>
 {/each}
 
@@ -40,26 +43,46 @@
   .icon {
     position: absolute;
     z-index: 3;
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    padding: 2px 7px 2px 2px;
+    padding: 0;
     transform: translate(-50%, -120%);
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    background: var(--panel);
-    backdrop-filter: var(--blur);
-    color: var(--ink);
-    font-size: 0.72em;
-    font-weight: 700;
+    border: 0;
+    border-radius: 9px;
+    background: none;
+    box-shadow:
+      0 0 0 2px var(--player),
+      0 3px 10px rgba(0, 0, 0, 0.35);
     cursor: pointer;
-    border-bottom: 2px solid var(--player);
+    transition: transform 0.12s;
   }
   .icon:hover {
-    border-color: var(--accent);
+    transform: translate(-50%, -120%) scale(1.1);
+  }
+  .icon > :global(.icon) {
+    display: grid;
+  }
+  .num {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    right: -9px;
+    bottom: -7px;
+    min-width: 18px;
+    padding: 1px 5px;
+    border-radius: 999px;
+    background: rgba(20, 24, 20, 0.85);
+    box-shadow: 0 0 0 1.5px var(--player);
+    color: #fff;
+    font-size: 0.68em;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.4;
   }
   .icon.swarm {
     cursor: default;
-    opacity: 0.8;
+    opacity: 0.85;
+    box-shadow:
+      0 0 0 2px var(--player),
+      0 0 0 4px rgba(0, 0, 0, 0.25);
   }
 </style>

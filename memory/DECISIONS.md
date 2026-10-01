@@ -1252,3 +1252,7 @@ Template:
   - Caps raised: oak, chestnut, beech and willow 0.1 → 0.3; elder, hawthorn and hazel 0.15 → 0.35.
   - The prototype mirrors the flip rule (D-034); it has no lockout, so the claim exemption is `sim-core` only.
 - **Consequences:** the same test now advances about one column every 70 flora ticks and takes the grazed cell. Fixture regenerated; parity, native vs WASM and `cli:check` exact.
+
+## D-114 · 2026-10-01 · Strategic icons use the family pictograms
+- **Status:** accepted (user: update the strategic icons to the new group icons)
+- **Decision:** each strategic icon is the build bar's family pictogram (`FamilyIcon`) ringed in the player colour, with a head-count badge carrying the tier medal (bronze, silver, gold), so species of one family stay apart. The medal classes moved to `app.css`, and `MEDAL` to `game/species.ts`, shared with the build bar. The tooltip names the species.

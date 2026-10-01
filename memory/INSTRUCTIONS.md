@@ -70,6 +70,7 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 
 - Seed / plant (grass patches, shrubs, trees) on any free cell; nobody owns land at the start, so the first planting is the player's spawn (D-095).
 - Spawn agents from trees (costs biomass).
+- Play catastrophe cards (D-129): a bark beetle outbreak, a violent storm, a chemical spill. Expensive, paid at each use, then cooling down; they hit both sides in their disc (gamerules §10b).
 - Standard RTS unit control (D-053): drag or click to select, right-click to move (on an enemy cell: attack-move), A + click to attack-move, S to stop, Shift or Ctrl + 1–9 to set a control group, 1–9 to recall it. The camera pans with the arrow keys or a right-drag.
 - Camera: top-down RTS camera with pan, zoom and limited tilt.
 

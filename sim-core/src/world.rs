@@ -9,6 +9,7 @@
 //! Ticks are never skipped (INSTRUCTIONS §6).
 
 use crate::balance::Balance;
+use crate::catastrophe::{CatastropheParams, Catastrophes};
 use crate::commands::{Command, CommandQueue, OrderKind, Payload, disc};
 use crate::economy::Economy;
 use crate::fauna::{Fauna, FaunaParams};
@@ -59,6 +60,8 @@ pub struct World {
     pub state: FloraState,
     pub economy: Economy,
     pub fauna: Fauna,
+    /// Catastrophe cards: cooldowns and the ones at work (D-129).
+    pub catastrophes: Catastrophes,
     /// Why recent orders did nothing, for the UI: (player, text). Not part of the state hash;
     /// callers drain it (`take_notices`).
     pub notices: Vec<(u8, String)>,
@@ -120,6 +123,7 @@ impl World {
             state,
             economy: Economy::new(balance, &fauna.p),
             fauna,
+            catastrophes: Catastrophes::new(CatastropheParams::from_balance(balance)),
             notices: Vec::new(),
             drops: Vec::new(),
             result: None,
@@ -169,6 +173,8 @@ impl World {
             // Dead wood (D-127): old trees die standing; standing dead wood rots.
             self.flora.rot_deadwood(&mut self.state);
             self.flora.natural_deaths(&mut self.state, &mut self.rng);
+            self.catastrophes
+                .act(&self.flora, &mut self.state, &mut self.rng); // D-129
             self.economy.update(&self.flora.p, &self.state, &self.fauna);
             if self.result.is_none() {
                 self.result = self.judge();
@@ -229,6 +235,23 @@ impl World {
                         c.player,
                         format!("{species}: nothing took there (soil too poor, land taken, or cap reached)"),
                     ));
+                }
+            }
+            Payload::Catastrophe { kind, row, col } => {
+                let n = self.state.n;
+                let k = self.catastrophes.p.index(kind);
+                let inside = usize::try_from(*row).is_ok_and(|r| r < n)
+                    && usize::try_from(*col).is_ok_and(|c| c < n);
+                let (Some(k), true, true) = (k, valid_player, inside) else {
+                    self.rejected += 1;
+                    return;
+                };
+                let at = (*row, *col);
+                if let Err(why) =
+                    self.catastrophes
+                        .cast(&mut self.economy, c.player, k, at, self.tick)
+                {
+                    self.notices.push((c.player, format!("{kind}: {why}")));
                 }
             }
             Payload::Spawn { species, row, col } => {
@@ -412,6 +435,12 @@ impl World {
     }
 
     /// Animals dropped by spawn commands since the last call, as (first id, count).
+    /// Catastrophes cast since the last call, as (player, card, row, col), for the animations
+    /// (D-129).
+    pub fn take_effects(&mut self) -> Vec<(u8, usize, u32, u32)> {
+        std::mem::take(&mut self.catastrophes.effects)
+    }
+
     pub fn take_drops(&mut self) -> Vec<(u32, u32)> {
         std::mem::take(&mut self.drops)
     }
@@ -428,6 +457,7 @@ impl World {
             .u64(inc)
             .u64(digest);
         self.economy.hash_state(&mut h);
+        self.catastrophes.hash_state(&mut h);
         if let Some(o) = self.result {
             h.u64(u64::from(o.winner)).u64(o.reason as u64).u64(o.tick);
         }
@@ -471,6 +501,116 @@ mod tests {
             include_str!("../../data/species.toml"),
         )
         .expect("data files load")
+    }
+
+    /// D-129: a world of oaks on developed soil, P1 rich, and a catastrophe command.
+    fn forest(n: usize) -> World {
+        let mut w = World::new(&balance(), 3, n);
+        w.state.soil.fill(crate::flora::U16);
+        let oak = w.flora.p.index("oak").unwrap();
+        let n2 = n * n;
+        for k in 0..n2 {
+            w.state.owner[k] = if k % n < n / 2 { 1 } else { 2 };
+            w.state.bio[oak * n2 + k] = 20_000;
+            w.state.gauge[oak * n2 + k] = i64::from(ONE);
+        }
+        w.economy.bank = [1_000_000 << 16, 1_000_000 << 16];
+        w
+    }
+
+    fn cast(tick: u64, player: u8, seq: u32, kind: &str, row: u32, col: u32) -> Command {
+        let payload = Payload::Catastrophe {
+            kind: kind.into(),
+            row,
+            col,
+        };
+        Command {
+            tick,
+            player,
+            seq,
+            payload,
+        }
+    }
+
+    fn trees_at(w: &World, k: usize) -> i64 {
+        let n2 = w.state.n * w.state.n;
+        let oak = w.flora.p.index("oak").unwrap();
+        w.state.bio[oak * n2 + k]
+    }
+
+    /// D-129: bark beetles kill every tree in their disc within the outbreak, both players',
+    /// into standing dead wood; the cells outside keep theirs. The card then cools down.
+    #[test]
+    fn bark_beetles_turn_a_wood_into_dead_trees() {
+        let mut w = forest(16);
+        w.submit(cast(0, 1, 0, "bark_beetle_outbreak", 8, 8));
+        let bank = w.economy.bank[0];
+        for _ in 0..40 * every() {
+            w.step();
+        }
+        assert!(w.economy.bank[0] < bank, "paid");
+        let r = 4;
+        for k in crate::commands::disc(16, 8, 8, r) {
+            assert_eq!(trees_at(&w, k), 0, "cell {k}: dead");
+            assert!(w.state.snag[k] > 0, "cell {k}: a dead tree stands");
+        }
+        let inside = crate::commands::disc(16, 8, 8, r);
+        let outside_dead = (0..256)
+            .filter(|k| !inside.contains(k) && trees_at(&w, *k) == 0)
+            .count();
+        assert!(
+            outside_dead < 10,
+            "outside the disc, only old age: {outside_dead}"
+        );
+        assert_eq!(w.take_effects(), vec![(1, 0, 8, 8)]);
+        w.submit(cast(w.tick, 1, 0, "bark_beetle_outbreak", 2, 2));
+        w.step();
+        let notes = w.take_notices();
+        assert!(
+            notes
+                .iter()
+                .any(|(p, t)| *p == 1 && t.contains("not ready")),
+            "{notes:?}"
+        );
+        assert!(trees_at(&w, 2 * 16 + 2) > 0, "refused: nothing happened");
+    }
+
+    /// D-129: a storm fells some shrubs and trees inside its disc, none outside; a spill lays
+    /// its cells bare (no plants, no soil development, no owner); a short bank refuses a cast.
+    #[test]
+    fn storms_fell_inside_their_disc_and_spills_lay_bare() {
+        let mut w = forest(32);
+        w.submit(cast(0, 2, 0, "storm", 10, 10));
+        for _ in 0..20 * every() {
+            w.step();
+        }
+        let inside = crate::commands::disc(32, 10, 10, 9);
+        let felled = inside.iter().filter(|&&k| trees_at(&w, k) == 0).count();
+        assert!(felled > 0 && felled < inside.len(), "some felled: {felled}");
+        for k in (0..32 * 32).filter(|k| !inside.contains(k)) {
+            // Outside, trees stand, or died of old age (standing dead wood, D-127): not felled.
+            assert!(
+                trees_at(&w, k) > 0 || w.state.snag[k] > 0,
+                "cell {k} outside the storm"
+            );
+        }
+        w.submit(cast(w.tick, 1, 0, "chemical_spill", 25, 25));
+        for _ in 0..2 * every() {
+            w.step();
+        }
+        for k in crate::commands::disc(32, 25, 25, 1) {
+            assert_eq!(w.state.owner[k], 0);
+            assert_eq!(w.state.soil[k], 0);
+            assert_eq!(trees_at(&w, k), 0);
+        }
+        w.economy.bank[1] = 0;
+        w.submit(cast(w.tick, 2, 0, "chemical_spill", 2, 2));
+        w.step();
+        let notes = w.take_notices();
+        assert!(
+            notes.iter().any(|(p, t)| *p == 2 && t.contains("needs")),
+            "{notes:?}"
+        );
     }
 
     /// D-127: standing dead wood is part of the state hash.

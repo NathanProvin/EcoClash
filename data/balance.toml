@@ -174,6 +174,38 @@ natural_death_s = 10800 # mean life of a tree stand (ecology seconds, 3 h): tree
 wood_share = 0.3        # share of a dead stand that stays standing as dead wood; the rest falls as litter
 rot_s = 600             # time for standing dead wood to rot away without recyclers (ecology seconds)
 
+# Catastrophe cards (D-129): late-game trump cards, available from the start, paid at each use,
+# then cooling down (real seconds) before the same player may play them again. They hit
+# everything in their disc, both players alike. act: kill_trees (trees die standing, D-127),
+# storm (shrubs and trees felled to litter), spill (back to bare soil); chance: per cell per
+# flora tick while it acts.
+[catastrophes.bark_beetle_outbreak]
+act = "kill_trees"
+cost = 6000
+radius = 4
+cooldown_s = 300
+duration_s = 8
+chance = 0.35
+effect = "Bark beetles swarm the woods: the trees in the area die standing within seconds."
+
+[catastrophes.storm]
+act = "storm"
+cost = 9000
+radius = 9
+cooldown_s = 420
+duration_s = 6
+chance = 0.06
+effect = "A violent storm sweeps a wide area: here and there, shrubs and trees are felled."
+
+[catastrophes.chemical_spill]
+act = "spill"
+cost = 4000
+radius = 1
+cooldown_s = 240
+duration_s = 0
+chance = 1.0
+effect = "A chemical spill poisons a few cells: back to bare soil, owned by no one."
+
 [fauna]
 transfer = 0.1          # share of eaten biomass that becomes the eater's energy (10 % rule)
 diet_yield = [1.0, 0.75, 0.5]  # energy from a primary, secondary, tertiary food, as a share of the transfer (D-123)

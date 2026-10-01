@@ -4,6 +4,7 @@
 //! integers and fixed-point only, one hand-rolled RNG, stable iteration order, explicit overflow.
 
 pub mod balance;
+pub mod catastrophe;
 pub mod commands;
 pub mod economy;
 pub mod fauna;

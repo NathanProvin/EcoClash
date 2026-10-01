@@ -46,6 +46,13 @@ fn command(species: Vec<String>) -> impl Strategy<Value = Command> {
                         radius,
                     },
                     1 => Payload::Spawn { species, row, col },
+                    3 if ids.len() % 2 == 0 => Payload::Catastrophe {
+                        kind: ["storm", "bark_beetle_outbreak", "chemical_spill", "nope"]
+                            [(col % 4) as usize]
+                            .into(),
+                        row,
+                        col,
+                    },
                     _ => Payload::Order {
                         ids,
                         kind: [OrderKind::Move, OrderKind::Attack, OrderKind::Stop]

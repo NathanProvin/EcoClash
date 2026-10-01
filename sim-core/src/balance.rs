@@ -69,6 +69,37 @@ pub struct AgentRules {
 /// Foods per diet: primary, secondary, tertiary (D-123).
 pub const DIET_RANKS: usize = 3;
 
+/// What a catastrophe card does to the cells of its disc (D-129).
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Act {
+    /// Tree stands die, standing as dead wood (D-127).
+    KillTrees,
+    /// Shrubs and trees are felled to litter.
+    Storm,
+    /// Back to bare soil: no plants, litter, dead wood or soil development; nobody owns it.
+    Spill,
+}
+
+/// `[catastrophes.<name>]` (D-129): one catastrophe card.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CatastropheRule {
+    pub act: Act,
+    /// Biomass per use.
+    pub cost: f64,
+    /// Radius of the disc it hits (cells).
+    pub radius: u32,
+    /// Real seconds before the same player may play it again.
+    pub cooldown_s: f64,
+    /// Real seconds it acts (0: one flora tick).
+    pub duration_s: f64,
+    /// Chance per cell per flora tick, in (0, 1].
+    pub chance: f64,
+    /// The card's text for players.
+    pub effect: String,
+}
+
 /// `[deadwood]` (D-127): natural tree death, standing dead wood and its rot.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -325,6 +356,8 @@ pub struct Balance {
     pub agents: AgentRules,
     pub fauna: FaunaRules,
     pub deadwood: DeadwoodRules,
+    /// Catastrophe cards by name, in name order (D-129).
+    pub catastrophes: std::collections::BTreeMap<String, CatastropheRule>,
     #[allow(clippy::struct_field_names)]
     pub r#match: MatchRules,
     /// Plant species in file order: the index is the species id.
@@ -342,6 +375,7 @@ struct BalanceFile {
     agents: AgentRules,
     fauna: FaunaRules,
     deadwood: DeadwoodRules,
+    catastrophes: std::collections::BTreeMap<String, CatastropheRule>,
     r#match: MatchRules,
 }
 
@@ -359,6 +393,7 @@ impl Balance {
             agents: file.agents,
             fauna: file.fauna,
             deadwood: file.deadwood,
+            catastrophes: file.catastrophes,
             r#match: file.r#match,
             flora_species: section(&doc, "flora")?,
             fauna_species: section(&doc, "fauna")?,
@@ -512,6 +547,18 @@ impl Balance {
             d.natural_death_s > 0.0 && d.rot_s > 0.0 && d.wood_share > 0.0 && d.wood_share <= 1.0,
             "[deadwood] natural_death_s and rot_s > 0, wood_share in (0, 1]".into(),
         )?;
+        for (name, c) in &self.catastrophes {
+            check(
+                c.cost >= 0.0
+                    && c.cooldown_s >= 0.0
+                    && c.duration_s >= 0.0
+                    && c.chance > 0.0
+                    && c.chance <= 1.0,
+                format!(
+                    "[catastrophes.{name}] cost, cooldown_s, duration_s >= 0, chance in (0, 1]"
+                ),
+            )?;
+        }
         let flora = |x: &str| {
             self.flora_species
                 .iter()

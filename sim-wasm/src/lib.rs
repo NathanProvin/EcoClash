@@ -17,6 +17,7 @@ pub struct Sim {
     world: World,
     balance_hash: u64,
     species: String,
+    catastrophes: String,
     tick_hz: u32,
     flora_every: u32,
     pace: f64,
@@ -44,6 +45,7 @@ impl Sim {
         Ok(Sim {
             balance_hash: balance_hash(&b),
             species: species_table(&b),
+            catastrophes: catastrophe_table(&b),
             tick_hz: b.sim.tick_hz,
             flora_every: b.sim.flora_every_ticks,
             pace: b.sim.pace,
@@ -336,6 +338,46 @@ impl Sim {
     pub fn species_table(&self) -> String {
         self.species.clone()
     }
+
+    /// The catastrophe cards (D-129), as JSON: name, act, cost, radius, cooldown, duration,
+    /// effect.
+    #[wasm_bindgen(js_name = catastropheTable)]
+    pub fn catastrophe_table(&self) -> String {
+        self.catastrophes.clone()
+    }
+
+    /// Ticks before `player` may play each card again (0: ready), in table order (D-129).
+    #[wasm_bindgen(js_name = catastropheWait)]
+    pub fn catastrophe_wait(&self, player: u8) -> Vec<u32> {
+        let ready = &self.world.catastrophes.ready;
+        let Some(r) = ready.get(usize::from(player.max(1) - 1)) else {
+            return Vec::new();
+        };
+        r.iter()
+            .map(|&t| u32::try_from(t.saturating_sub(self.world.tick)).unwrap_or(u32::MAX))
+            .collect()
+    }
+
+    /// Catastrophes cast since the last call, as flat (player, card, row, col) quadruples.
+    #[wasm_bindgen(js_name = takeEffects)]
+    pub fn take_effects(&mut self) -> Vec<u32> {
+        self.world
+            .take_effects()
+            .into_iter()
+            .flat_map(|(p, k, r, c)| [u32::from(p), u32::try_from(k).unwrap_or(0), r, c])
+            .collect()
+    }
+}
+
+fn catastrophe_table(b: &Balance) -> String {
+    let cards = b.catastrophes.iter().map(|(name, c)| {
+        serde_json::json!({
+            "name": name, "act": format!("{:?}", c.act).to_lowercase(), "cost": c.cost,
+            "radius": c.radius, "cooldown_s": c.cooldown_s, "duration_s": c.duration_s,
+            "effect": c.effect,
+        })
+    });
+    serde_json::Value::Array(cards.collect()).to_string()
 }
 
 fn species_table(b: &Balance) -> String {

@@ -23,6 +23,17 @@ class FakeWorker {
           type: "ready",
           me: 1,
           species: JSON.stringify(species),
+          catastrophes: JSON.stringify([
+            {
+              name: "storm",
+              act: "storm",
+              cost: 9000,
+              radius: 9,
+              cooldown_s: 420,
+              duration_s: 6,
+              effect: "",
+            },
+          ]),
           n: 2,
           tickHz: 10,
           pace: 1,
@@ -95,7 +106,16 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     [1, 0, 1],
     [1, 0, 0],
   ];
-  const tick = { hash: "aa", ms: 2, unlocked, result: "", stalled: false, drops: [1, 2] };
+  const tick = {
+    hash: "aa",
+    ms: 2,
+    unlocked,
+    result: "",
+    stalled: false,
+    drops: [1, 2],
+    waits: [[50], [0]], // P1's storm: 5 s to go at 10 Hz (D-129)
+    effects: [2, 0, 3, 4], // P2 cast a storm at (3, 4)
+  };
   worker.emit({ type: "tick", tick: 8, agents: agents([[1, 0, 0, 0, 1]]), ...tick });
   worker.emit({ type: "tick", tick: 9, agents: agents([[1, 0, 1, 0, 1]]), ...tick });
   expect(live.result).toBeNull();
@@ -105,6 +125,10 @@ test("live source decodes frames into census, HUD series, animals and cells", as
   expect(live.meta.series["t_s"]?.[live.seriesIndex()]).toBeCloseTo(0.8);
   expect([...live.unlocked(1)]).toEqual(["grasses", "rabbits"]);
   expect([...live.unlocked(2)]).toEqual(["grasses"]);
+  expect(live.waits[0]).toEqual([5]); // D-129: ticks to seconds
+  expect(live.takeEffects()[0]).toEqual({ player: 2, card: 0, row: 3, col: 4 });
+  expect(live.takeEffects()).toEqual([]); // drained
+  expect(live.catastrophes[0]?.name).toBe("storm");
 
   expect(live.tick).toBe(9);
   expect(live.counts(9, 1)).toEqual([2, 1, 1]);

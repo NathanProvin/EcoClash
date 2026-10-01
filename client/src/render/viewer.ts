@@ -519,9 +519,10 @@ export class Viewer {
     const n = this.replay.meta.n;
     const offLand = this.owner[cell.row * n + cell.col] !== spec.player;
     const animal = spec.kind === "fauna";
+    const disaster = spec.kind === "catastrophe"; // D-129: the disc it will hit
     // Plants: the disc planted. Animals: the landing spot at home, the drop area elsewhere.
     const cells = animal ? (offLand ? spec.radius : 0.5) : spec.radius + 0.5;
-    const color = animal && offLand ? WORLD.alert : PLAYER[spec.player].base;
+    const color = disaster || (animal && offLand) ? WORLD.alert : PLAYER[spec.player].base;
     const at = this.centre(cell);
     const least = this.camera.position.distanceTo(at) * GHOST_SIZE;
     this.ghost.aim(at, cells * CELL, color, least);
@@ -559,6 +560,37 @@ export class Viewer {
       r1,
       waves: o.waves ?? PING.waves,
     });
+  }
+
+  /** A catastrophe's animation (D-129) on its disc (`radius` cells) for `durationS` seconds, in
+   *  its tone: beetles swarm in brown puffs, a storm rolls in grey rings and blows leaves, a
+   *  spill spreads a sickly ring and bubbles. Small, nothing fancy. */
+  catastropheFx(
+    act: string,
+    cell: { row: number; col: number },
+    radius: number,
+    durationS: number,
+    tone: string,
+  ): void {
+    const at = this.centre(cell);
+    const r = (radius + 0.5) * CELL;
+    const now = performance.now() / 1000;
+    const color = new THREE.Color(tone);
+    const puffs = Math.max(2, Math.round(durationS / 1.2));
+    if (act === "storm") {
+      this.ping(cell, tone, { radius: r, waves: 2 });
+      this.ping(cell, "#5d666d", { radius: r * 0.7, waves: 2, delay: 0.5 });
+      const leaf = new THREE.Color("#6f8f3c");
+      for (let i = 0; i < puffs; i++) this.seeds.add(at.x, at.z, r, leaf, now + i, this.surface);
+    } else if (act === "spill") {
+      this.ping(cell, tone, { radius: r, waves: 3 });
+      for (let i = 0; i < 3; i++) this.seeds.add(at.x, at.z, r, color, now + i * 0.4, this.surface);
+    } else {
+      this.ping(cell, tone, { radius: r, waves: 2 });
+      const dark = new THREE.Color("#3b2a1c");
+      for (let i = 0; i < puffs; i++)
+        this.seeds.add(at.x, at.z, r * 0.8, dark, now + (i * durationS) / puffs, this.surface);
+    }
   }
 
   /** Planting feedback (D-121): seeds arc out from the clicked cell onto the planting area

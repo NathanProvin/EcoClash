@@ -15,7 +15,8 @@ import { LowPolyPlants, type PlantStyle } from "./plants";
 /** The armed species, as the cursor needs it. */
 export interface GhostSpec {
   name: string;
-  kind: "flora" | "fauna";
+  /** "catastrophe": a ring of the card's radius, no model (D-129). */
+  kind: "flora" | "fauna" | "catastrophe";
   /** Plants: height level and family (aquatic herbs float as pads, D-087). */
   level: number;
   family?: string;
@@ -68,6 +69,7 @@ export class Ghost {
         flatShading: true,
         depthWrite: false,
       });
+    if (spec.kind === "catastrophe") return; // the ring only
     if (spec.kind === "fauna") {
       const form = animalForm(spec.name, spec.role);
       const coat = material(new THREE.Color("#ffffff"));

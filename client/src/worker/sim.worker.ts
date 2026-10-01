@@ -70,9 +70,24 @@ function loop() {
     const unlocked = [[...s.unlocked(1)], [...s.unlocked(2)]];
     const stalled = net?.stalled ?? false;
     const drops = [...s.takeDrops()];
-    post({ type: "tick", tick: s.tick, hash, ms, agents, unlocked, result: over, stalled, drops }, [
-      agents,
-    ]);
+    const waits = [[...s.catastropheWait(1)], [...s.catastropheWait(2)]]; // D-129, in ticks
+    const effects = [...s.takeEffects()];
+    post(
+      {
+        type: "tick",
+        tick: s.tick,
+        hash,
+        ms,
+        agents,
+        unlocked,
+        result: over,
+        stalled,
+        drops,
+        waits,
+        effects,
+      },
+      [agents],
+    );
     if (s.floraTick !== floraTick) sendFields(s);
     const notices = JSON.parse(s.takeNotices()) as { player: number; text: string }[];
     if (notices.length) post({ type: "notice", notices });
@@ -120,6 +135,7 @@ async function begin(
     type: "ready",
     me: net?.player ?? 1,
     species: s.speciesTable(),
+    catastrophes: s.catastropheTable(), // D-129
     n,
     tickHz: s.tickHz,
     pace: s.pace,

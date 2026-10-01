@@ -375,6 +375,38 @@ impl Flora {
         true
     }
 
+    /// Fell every plant of level `min_level` and up in cell `k` to litter (a storm, D-129); a
+    /// cell left with no plant turns neutral.
+    pub fn fell(&self, st: &mut FloraState, k: usize, min_level: u8) {
+        let (p, n2) = (&self.p, st.n * st.n);
+        for s in (0..p.species()).filter(|&s| p.level[s] >= min_level) {
+            st.dead[k] += st.bio[s * n2 + k];
+            st.bio[s * n2 + k] = 0;
+            st.gauge[s * n2 + k] = 0;
+        }
+        if (0..p.species()).all(|s| st.bio[s * n2 + k] < 1) {
+            st.owner[k] = 0;
+            st.prog[0][k] = 0;
+            st.prog[1][k] = 0;
+        }
+    }
+
+    /// Cell `k` back to bare soil (a chemical spill, D-129): no plants, litter, dead wood, soil
+    /// development or claim progress, and no owner.
+    pub fn lay_bare(&self, st: &mut FloraState, k: usize) {
+        let n2 = st.n * st.n;
+        for s in 0..self.p.species() {
+            st.bio[s * n2 + k] = 0;
+            st.gauge[s * n2 + k] = 0;
+        }
+        st.dead[k] = 0;
+        st.snag[k] = 0;
+        st.soil[k] = 0;
+        st.owner[k] = 0;
+        st.prog[0][k] = 0;
+        st.prog[1][k] = 0;
+    }
+
     /// One flora tick of old age (D-127): every cell with trees dies with chance `death`.
     pub fn natural_deaths(&self, st: &mut FloraState, rng: &mut crate::rng::Pcg32) {
         let n2 = st.n * st.n;

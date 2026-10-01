@@ -17,6 +17,8 @@
     roleName,
   } from "../game/species";
   import type { Source, Species } from "../replay/replay";
+  import type { Catastrophe } from "../game/catastrophes";
+  import CatastropheDeck from "./CatastropheDeck.svelte";
   import FamilyIcon from "./FamilyIcon.svelte";
   import Icon from "./Icon.svelte";
   import SpeciesIcon from "./SpeciesIcon.svelte";
@@ -32,6 +34,10 @@
     onUnlock,
     onPickSpecies,
     onClear,
+    catastrophes = [],
+    waits = [],
+    castArmed = null,
+    onCast = () => {},
   }: {
     replay: Source;
     tick: number;
@@ -43,6 +49,11 @@
     onUnlock: (name: string) => void;
     onPickSpecies: (name: string) => void;
     onClear: () => void;
+    /** Catastrophe cards (D-129; live matches), seconds before each is ready, the armed one. */
+    catastrophes?: Catastrophe[];
+    waits?: number[];
+    castArmed?: string | null;
+    onCast?: (name: string) => void;
   } = $props();
 
   const TIERS = [1, 2, 3] as const;
@@ -219,6 +230,7 @@
         {/if}
       </div>
     {/each}
+    <CatastropheDeck cards={catastrophes} {waits} {bank} armed={castArmed} onArm={onCast} />
   </nav>
 
   {#if hover}

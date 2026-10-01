@@ -33,6 +33,9 @@ pub enum Payload {
         #[serde(default)]
         col: u32,
     },
+    /// Play a catastrophe card (D-129) centred on a cell; `kind` is its name in
+    /// `[catastrophes.*]`.
+    Catastrophe { kind: String, row: u32, col: u32 },
 }
 
 /// What an order asks (gamerules §9.2).

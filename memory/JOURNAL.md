@@ -527,3 +527,7 @@
 
 ## 2026-10-01 · Falling trees (D-128)
 - **Done:** GPU fall in `GrowingMesh`, `PlantView` fells tree parts unless a dead tree now stands there, tests, browser check.
+
+## 2026-10-01 · Catastrophe cards (D-129)
+- **Done:** sim module, balance, command, cooldowns, effects, wasm bindings, deck UI, targeting ring, animations, enemy-cast toasts, tests. In the browser, the beetle outbreak turned a forest patch into dead trees, the storm felled shrubs and blew leaves, the spill left a bare hole, and the card showed its cooldown.
+- **Next:** weather (later); the bot learning catastrophes; M5a 9 (deploy) when the user is ready.

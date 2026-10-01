@@ -357,6 +357,18 @@ A species can be spawned only when **all** of the following hold:
 
 ---
 
+## 10b. Catastrophe cards (D-129)
+
+Late-game trump cards, at the far right of the build bar: available from the start (no unlock), expensive, paid at each use, then cooling down before the same player may play them again. They hit **everything** in their disc, both players' plants alike, so aiming matters. Values in `data/balance.toml` `[catastrophes.*]`.
+
+| Card | Area | Effect | Cost · cooldown |
+|---|---|---|---|
+| Bark beetle outbreak | radius 4 | Over 8 s, the tree stands die and stay as standing dead trees (§6, D-127) | 6000 · 5 min |
+| Violent storm | radius 9 (about a quarter of a mid map) | Over 6 s, some cells lose all their shrubs and trees, felled to litter | 9000 · 7 min |
+| Chemical spill | radius 1 | The cells go back to bare soil: no plants, litter, dead wood or soil development, owned by no one | 4000 · 4 min |
+
+Weather (seasons, drought, rain) comes later.
+
 ## 11. Game phases, endgame and anti-stalemate
 
 ### 11.1 Phases (V1; written for 20 minutes, the match now lasts up to 60, D-094)

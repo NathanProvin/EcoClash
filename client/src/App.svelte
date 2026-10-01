@@ -10,6 +10,7 @@
   import { strategicGroups } from "./game/groups";
   import { loadSetup, MAP_SIZES, saveSetup, withUrl } from "./game/setup";
   import { ALL_TIPS, loadSeen, saveSeen, TIPS, TipWatch } from "./game/tips";
+  import { CATASTROPHE_LOOK } from "./game/catastrophes";
   import { advance, OBJECTIVES, TUTORIAL_SETUP } from "./game/tutorial";
   import { loadReplay, type Role, type Source, type Species } from "./replay/replay";
   import { Live, type Outcome } from "./worker/live";
@@ -89,6 +90,7 @@
   let raided = false; // a raid alert was raised this match (for the tips)
   let homeless = $state(false); // no land yet: the first planting is the spawn (D-095)
   let tutorial = $state(false); // the match is the tutorial (M5a 8b)
+  let castArmed: string | null = $state(null); // the catastrophe card armed (D-129)
   let tutorialStep = $state(0);
   let raidOrdered = false; // an order sent animals onto enemy land (tutorial)
   let lastScan = 0;
@@ -149,11 +151,30 @@
     });
   }
 
+  /** Seconds before each catastrophe card is ready again for you (D-129). */
+  const catastropheWaits = $derived.by(() => {
+    void tick; // refreshed with every tick message
+    return live?.waits[me - 1] ?? [];
+  });
+
   // Drop cursor (D-079): the armed species' model follows the cursor; "×1.5" off your land.
   let dropTag: { x: number; y: number } | null = $state(null);
   $effect(() => {
     const s = planting ? replay?.meta.species.find((x) => x.name === planting) : undefined;
     const l = live;
+    const card = castArmed ? l?.catastrophes.find((c) => c.name === castArmed) : undefined;
+    if (card) {
+      // D-129: the disc the card will hit, a ring only.
+      viewer?.setGhost({
+        name: card.name,
+        kind: "catastrophe",
+        level: 0,
+        role: "herbivore",
+        player: me,
+        radius: card.radius,
+      });
+      return;
+    }
     viewer?.setGhost(
       s && l
         ? {
@@ -349,6 +370,16 @@
         if (tick >= r.meta.ticks - 1) playing = false;
       }
       if (!techOpen) viewer.moveCamera(keys, seconds);
+      if (live) {
+        for (const e of live.takeEffects()) {
+          const c = live.catastrophes[e.card];
+          if (!c) continue;
+          const at = { row: e.row, col: e.col };
+          const look = CATASTROPHE_LOOK[c.act];
+          viewer.catastropheFx(c.act, at, c.radius, c.duration_s, look?.color ?? WORLD.alert);
+          if (e.player !== me) toast(`Enemy ${label(c.name).toLowerCase()}!`, "alert", at, 2);
+        }
+      }
       viewer.render(tick);
     }
     perfFrames++;
@@ -485,6 +516,13 @@
     }
     if (!box || !viewer) return;
     const click = Math.abs(box.x1 - box.x0) < 4 && Math.abs(box.y1 - box.y0) < 4;
+    if (click && castArmed && live) {
+      const at = viewer.pickCell(box.x0, box.y0);
+      if (at) live.catastrophe(me, castArmed, at.row, at.col);
+      if (!e.shiftKey) castArmed = null;
+      box = null;
+      return;
+    }
     if (click && attackArmed) {
       order("attack", viewer.pickCell(box.x0, box.y0));
       if (!e.shiftKey) attackArmed = false;
@@ -544,6 +582,7 @@
       if (confirmLeave) confirmLeave = false;
       else if (techOpen) techOpen = false;
       else if (attackArmed) attackArmed = false;
+      else if (castArmed) castArmed = null;
       else if (planting) planting = null;
       else if (cell) inspect(null);
       else select([]);
@@ -683,10 +722,20 @@
       onUnlock={unlock}
       onPickSpecies={pickSpecies}
       onClear={() => select([])}
+      catastrophes={live?.catastrophes ?? []}
+      waits={catastropheWaits}
+      {castArmed}
+      onCast={(name) => {
+        castArmed = name;
+        planting = null;
+      }}
     />
-    {#if attackArmed || planting}
+    {#if attackArmed || planting || castArmed}
       <p class="hint">
-        {#if attackArmed}
+        {#if castArmed}
+          <strong>{label(castArmed)}:</strong> click the centre of the area · it hits both sides · Esc:
+          cancel
+        {:else if attackArmed}
           <strong>Attack-move:</strong> click a cell: your animals go there, feeding on any enemy food
           on the way · Esc: cancel
         {:else if planting}

@@ -1401,3 +1401,34 @@ Template:
   - `PlantView.dropAll` fells tree parts (trunk and crown meshes): all parts of one model fall to one side, a hash of its slot.
   - Only trees removed while no dead wood stands in the cell fall: grazed down, lost front, and later storms. A tree that died standing (D-127) withers while its dead trunk grows in. Everything else withers as before.
 - **Consequences:** tests cover the fall pose and its timing. Checked in the browser (felled trees lie flat with their crowns beside them); the hidden tab only renders on screenshots, so the timing was staged.
+
+## D-129 · 2026-10-01 · Catastrophe cards
+- **Status:** accepted (user: a catastrophe deck at the far right of the unit bar, late-game trump cards, unlocked, expensive; the user chose reuse after a cooldown, and that they hit everything in their area)
+- **Decision:**
+  - `[catastrophes.<name>]` in `balance.toml` gives `act`, cost, radius, cooldown, duration, chance per cell per flora tick, and the card text:
+    - `kill_trees`: bark beetle outbreak, r 4, 8 s, 0.35;
+    - `storm`: violent storm, r 9, 6 s, 0.06;
+    - `spill`: chemical spill, r 1, one tick.
+  - `sim-core/src/catastrophe.rs` holds the converted cards, the active effects and per-player cooldowns (all hashed), and `cast`.
+  - `Payload::Catastrophe { kind, row, col }`: refused with a notice while cooling down or short of biomass; sandbox is free.
+  - Each flora tick, the active effects act on their disc:
+    - beetles through `Flora::kill_trees` (dead trees, D-127);
+    - the storm through `Flora::fell` (shrubs and trees to litter, so they fall, D-128);
+    - the spill through `Flora::lay_bare`.
+  - `take_effects` reports casts (player, card, row, col) for the animations.
+  - Client:
+    - a `CatastropheDeck` after the recyclers, with a cloud-and-lightning pictogram;
+    - cards (beetle, storm, drum) with a gold cost, and a sweep with the seconds left while cooling;
+    - a click arms a card: the drop ghost shows the disc as a ring, a map click casts, Esc cancels;
+    - `viewer.catastropheFx` draws small rings and particles in each card's tone;
+    - an enemy cast raises an alert toast.
+- **Consequences:**
+  - Balance hash version 16. The determinism `proptest` streams include catastrophe commands.
+  - Tests:
+    - beetles kill every tree in the disc into dead wood; outside, only old age;
+    - cooldown refusal;
+    - a storm fells some cells inside and none outside;
+    - a spill leaves bare, ownerless, soil-0 cells;
+    - a short bank is refused;
+    - client: card status, plumbing.
+  - The bot does not cast catastrophes yet: for the balance loop (M7-lite).

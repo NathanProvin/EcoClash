@@ -2,6 +2,7 @@
 // snapshot as a `Source`, so the viewer and HUD draw it like a replay. Plants come with each flora
 // tick; animals with every tick, and are interpolated between the last two frames.
 
+import type { Catastrophe } from "../game/catastrophes";
 import type { TerrainFrame } from "../render/terrain";
 import {
   cellAt,
@@ -34,6 +35,7 @@ export type ToMain =
       type: "ready";
       me: number; // the player this client commands (the relay assigns it)
       species: string;
+      catastrophes: string; // the catastrophe cards as JSON (D-129)
       n: number;
       tickHz: number;
       pace: number;
@@ -56,6 +58,8 @@ export type ToMain =
       result: string; // the verdict as JSON once the match is decided, else ""
       stalled: boolean; // relayed: waiting for the other player's turn
       drops: number[]; // animals just dropped by spawn commands: flat (first id, count) pairs
+      waits: number[][]; // per player, ticks before each catastrophe card is ready (D-129)
+      effects: number[]; // catastrophes just cast: flat (player, card, row, col) quadruples
     }
   | {
       type: "fields";
@@ -129,6 +133,11 @@ export class Live implements Source {
   /** Share of the map that wins, and the match length (s): for the "victory near" alerts. */
   readonly victory: number;
   readonly timeLimitS: number;
+  /** Catastrophe cards (D-129), and per player the seconds before each is ready again. */
+  readonly catastrophes: Catastrophe[];
+  waits: number[][] = [[], []];
+  private effects: { player: number; card: number; row: number; col: number }[] = [];
+  private readonly tickHz: number;
   private readonly maxAgents: number;
   private current: Fields;
   private flora: number[][] = [[], []]; // cells per plant species, per player, current frame
@@ -156,6 +165,8 @@ export class Live implements Source {
     this.timeLimitS = ready.timeLimitS;
     this.me = ready.me === 2 ? 2 : 1;
     this.maxAgents = ready.maxAgents;
+    this.catastrophes = JSON.parse(ready.catastrophes) as Catastrophe[];
+    this.tickHz = ready.tickHz;
     this.meta = {
       version: REPLAY_VERSION,
       species,
@@ -214,6 +225,19 @@ export class Live implements Source {
     this.send({ type: "command", player, payload: { type: "spawn", species, row, col } });
   }
 
+  /** Play catastrophe card `kind` centred on a cell (D-129); the sim refuses it, with a notice,
+   *  while it cools down or when the bank is short. */
+  catastrophe(player: 1 | 2, kind: string, row: number, col: number): void {
+    this.send({ type: "command", player, payload: { type: "catastrophe", kind, row, col } });
+  }
+
+  /** Catastrophes cast since the last call (both players'), for the animations. */
+  takeEffects(): { player: number; card: number; row: number; col: number }[] {
+    const out = this.effects;
+    this.effects = [];
+    return out;
+  }
+
   /** Unlock a species card (gamerules §4); the sim refuses it, with a notice, if not allowed. */
   unlock(player: 1 | 2, species: string): void {
     this.send({ type: "command", player, payload: { type: "unlock", species } });
@@ -257,6 +281,16 @@ export class Live implements Source {
       this.unlockedFlags = m.unlocked;
       this.stalled = m.stalled;
       this.noteDrops(m.drops, this.cur.at);
+      this.waits = m.waits.map((w) => w.map((t) => t / this.tickHz));
+      for (let i = 0; i + 3 < m.effects.length; i += 4) {
+        const [player, card, row, col] = m.effects.slice(i, i + 4) as [
+          number,
+          number,
+          number,
+          number,
+        ];
+        this.effects.push({ player, card, row, col });
+      }
       if (m.result && !this.result) this.result = JSON.parse(m.result) as Outcome;
     } else if (m.type === "fields") {
       this.current = this.decode(this.current.frame + 1, new Uint8Array(m.frame), m);

@@ -1029,3 +1029,10 @@ Template:
     - grass is 18 tufts per cell (was 24), the resolution cap 1.5 (was 2).
   - The 25 % smaller map (D-091) cuts the cell count by 45 %.
 - **Consequences:** the late-game fps on High is the user's to check on the reference laptop.
+
+## D-091 · 2026-10-01 · Map side 43 → 32 (128 m)
+- **Status:** accepted (user: "reduce map size again: -25%")
+- **Decision:** `grid_size = 32`: 1,024 cells instead of 1,849, homes at (8, 8) and its mirror. The generator keeps its values: at 32 the map still has the river with shallows and deep pools, the ponds, the rock outcrops and clear homes (the `map_preview` test now prints 32²). The relay test, the prototype's default size and the docs follow.
+- **Consequences:**
+  - Tick at 32² with 1,500 animals: 0.7 ms on average, worst 4.4 ms.
+  - Flora parity, `cli:check`, native vs WASM and the relay test are green.

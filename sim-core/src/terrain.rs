@@ -513,7 +513,7 @@ mod tests {
     #[test]
     #[ignore = "preview, not a check"]
     fn map_preview() {
-        let (p, n) = (params(), 43);
+        let (p, n) = (params(), 32);
         for seed in [1, 7] {
             let m = generate(&p, n, seed);
             let home = homes(n);

@@ -421,3 +421,6 @@
 
 ## 2026-10-01 · Quality switch crash, High performance (D-090)
 - **Done:** the crash root cause (a disposed shadow map still in use) is fixed; the post pipeline is kept; fewer shadow casters, shadows redrawn every 2nd frame, a lighter High.
+
+## 2026-10-01 · Map side 32 (D-091)
+- **Done:** 32×32 map, generator checked, tests and docs follow; tick budget well within.

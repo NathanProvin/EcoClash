@@ -14,17 +14,17 @@ initSync({ module: readFileSync(new URL("../../sim-wasm/pkg/sim_wasm_bg.wasm", i
 const BALANCE = readFileSync(new URL("../../data/balance.toml", import.meta.url), "utf8");
 const SPECIES = readFileSync(new URL("../../data/species.toml", import.meta.url), "utf8");
 const TICKS = 3000; // 5 minutes at 10 Hz
-const N = 43; // data/balance.toml grid_size (D-070)
+const N = 32; // data/balance.toml grid_size (D-091)
 
 /** Each player's orders, by the tick they are issued at. `ids` are the player's animals. */
 function script(player, tick, ids) {
-  const [r, c] = player === 1 ? [10, 10] : [32, 32];
+  const [r, c] = player === 1 ? [8, 8] : [23, 23];
   const orders = {
     100: [{ type: "plant", species: "grasses", row: r + 4, col: c, radius: 2 }],
     250: [{ type: "unlock", species: "wildflowers" }],
     400: [{ type: "spawn", species: "earthworms", row: r, col: c }],
     700: [{ type: "plant", species: "wildflowers", row: r, col: c + 4, radius: 2 }],
-    1200: ids.length ? [{ type: "order", ids, kind: "move", row: 21, col: 21 }] : [],
+    1200: ids.length ? [{ type: "order", ids, kind: "move", row: 16, col: 16 }] : [],
     2800: [{ type: "unlock", species: "grasshoppers" }], // income runs at the 0.4 pace (D-069)
   };
   return orders[tick] ?? [];
@@ -76,8 +76,8 @@ function player(url, { cheat = false } = {}) {
       const m = JSON.parse(String(e.data));
       if (m.type === "start") {
         sim = new Sim(BALANCE, SPECIES, BigInt(m.seed), N);
-        sim.setupPlant(1, "grasses", 10, 10, 3); // the same opening on every client
-        sim.setupPlant(2, "grasses", 32, 32, 3);
+        sim.setupPlant(1, "grasses", 8, 8, 3); // the same opening on every client
+        sim.setupPlant(2, "grasses", 23, 23, 3);
         ls = new Lockstep(sim, m, (x) => ws.send(JSON.stringify(x)));
         run();
       } else if (m.type === "bundle") {

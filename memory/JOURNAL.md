@@ -434,3 +434,6 @@
 ## 2026-10-01 · Victory 90 % / 60 min (D-094)
 - **Done:** new victory values, docs. All five requests of the day are in (D-090…D-094).
 - **Next:** the user's fps check on High, then M5a 8b (Tutorial) and 9 (deploy).
+
+## 2026-10-01 · Open start (D-095)
+- **Done:** no opening patches, spawn banner, bot founding play and test. Next: varied maps.

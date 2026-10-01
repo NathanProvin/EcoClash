@@ -1056,3 +1056,15 @@ Template:
 - **Status:** accepted (user: "60min timer and 90% map coverage")
 - **Decision:** `[match] victory_territory = 0.90`, `time_limit_s = 3600`. The client reads both from the sim, so the HUD, the near-victory toasts and the end screen follow. The decaying-threshold switch stays off. Q-013 keeps them tunable.
 - **Consequences:** the Python victory test now uses 91 %. All checks are green.
+
+## D-095 · 2026-10-01 · No starting land: the first planting is the spawn
+- **Status:** accepted (user: "no player has any cell already colonized; choosing the spawn point is going to be a strategic part"; spawn anywhere on land; the clock runs and you plant when ready)
+- **Decision:**
+  - The free opening patches (D-058) are gone from the live match.
+  - A player founds the colony with a first planting, paid from the start budget, on any free land cell (the plant rules already allowed any free cell).
+  - The HUD shows "Choose your spawn" until the player holds land.
+  - The bot founds its colony on the free cell that suits its first spreader best, nearest its side of the map (the generator's home clearing).
+- **Consequences:**
+  - New test: a bot founds its colony on an empty map.
+  - The relay test and the bot tests keep their own scripted openings (`setup_plant`).
+  - Checked in the browser.

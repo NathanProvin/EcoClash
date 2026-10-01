@@ -85,6 +85,7 @@
   let tips = new TipWatch(loadSeen(), saveSeen);
   let tipsOn = $state(loadSeen().size < TIPS.length); // Options switch (D-082)
   let raided = false; // a raid alert was raised this match (for the tips)
+  let homeless = $state(false); // no land yet: the first planting is the spawn (D-095)
   let lastScan = 0;
   let seenNotice = 0; // `at` of the last order notice turned into a toast
   let available: Set<string> | null = null; // species you could buy (and afford) at the last scan
@@ -192,6 +193,7 @@
         .map((s) => s.name),
     );
     const share = [1, 2].map((p) => l.meta.series[`territory_p${p}`]?.at(-1) ?? 0);
+    homeless = (share[me - 1] ?? 0) === 0;
     for (const text of victory.scan(share, me, l.victory, tick * l.meta.dt, l.timeLimitS)) {
       toast(text, "info");
     }
@@ -348,6 +350,7 @@
     victory = new VictoryWatch();
     tips = new TipWatch(loadSeen(), saveSeen);
     raided = false;
+    homeless = name === LIVE;
     try {
       if (name === LIVE) {
         // ?seed=N&size=N (0 = the balance grid size); a fixed default seed keeps runs reproducible
@@ -661,6 +664,11 @@
     <div class="p{live ? me : player}" style:display="contents">
       <StrategicIcons {icons} onSelect={(ids) => select(ids)} />
     </div>
+    {#if live && homeless && !outcome}
+      <p class="found panel">
+        <strong>Choose your spawn.</strong> Pick a plant in the bar and click anywhere on land.
+      </p>
+    {/if}
     <Toasts {toasts} {arrows} onGo={(t) => t.cell && viewer?.lookAt(t.cell)} />
     {#if cellInfo && cell}
       <CellPanel
@@ -773,6 +781,18 @@
     border-radius: 999px;
   }
   .hint strong {
+    color: var(--gold);
+  }
+  .found {
+    position: absolute;
+    top: 74px;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    padding: 6px 14px;
+    pointer-events: none;
+  }
+  .found strong {
     color: var(--gold);
   }
   .veil {

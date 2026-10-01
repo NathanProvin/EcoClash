@@ -770,7 +770,9 @@ function makeAura(): THREE.Group {
     const material = new THREE.MeshBasicNodeMaterial({ map, transparent: true, depthWrite: false });
     material.opacity = [0.9, 0.55, 0.3][i] ?? 0.3;
     const layer = new THREE.Mesh(
-      new THREE.PlaneGeometry(CELL * (2.6 + i * 0.25), CELL * (2.6 + i * 0.25)).rotateX(-Math.PI / 2),
+      new THREE.PlaneGeometry(CELL * (2.6 + i * 0.25), CELL * (2.6 + i * 0.25)).rotateX(
+        -Math.PI / 2,
+      ),
       material,
     );
     layer.position.y = height;

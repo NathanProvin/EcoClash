@@ -68,7 +68,7 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 
 ### 2.4 Player actions (v1)
 
-- Seed / plant (grass patches, shrubs, trees) within or next to own territory.
+- Seed / plant (grass patches, shrubs, trees) on any free cell; nobody owns land at the start, so the first planting is the player's spawn (D-095).
 - Spawn agents from trees (costs biomass).
 - Standard RTS unit control (D-053): drag or click to select, right-click to move (on an enemy cell: attack-move), A + click to attack-move, S to stop, Shift or Ctrl + 1–9 to set a control group, 1–9 to recall it. The camera pans with the arrow keys or a right-drag.
 - Camera: top-down RTS camera with pan, zoom and limited tilt.

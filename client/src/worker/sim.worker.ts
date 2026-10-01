@@ -14,14 +14,6 @@ import wasmUrl from "../../../sim-wasm/pkg/sim_wasm_bg.wasm?url";
 import { Lockstep, type FromRelay } from "../net/lockstep";
 import type { ToMain, ToWorker } from "./live";
 
-// Starting patches until match setup exists (M4): the tick-0 plant orders of the prototype
-// builds (tools/prototype/match.py BUILDS), offsets in cells of a 128 map from the home point
-// (n/4, n/4), mirrored for P2. [species, row offset, col offset, radius]
-const OPENING: [string, number, number, number][] = [
-  ["grasses", 0, 0, 3],
-  ["lichen_and_moss", 0, 8, 3],
-];
-
 let sim: Sim | undefined;
 let paused = false;
 let speed = 1;
@@ -113,15 +105,8 @@ async function begin(
   s.setSandbox(sandbox);
   s.generateTerrain(); // this match's map, from its seed (D-083)
   if (bot !== "none") s.addBot(2, bot); // the scripted opponent plays P2 (D-060)
+  // No starting land (D-095): each player's first planting, anywhere, is their spawn.
   const n = Math.sqrt(s.fieldFrame().length / (2 + s.speciesNames().length));
-  const base = Math.floor(n / 4);
-  for (const player of [1, 2]) {
-    for (const [name, dr, dc, radius] of OPENING) {
-      let [row, col] = [base + Math.round((dr * n) / 128), base + Math.round((dc * n) / 128)];
-      if (player === 2) [row, col] = [n - 1 - row, n - 1 - col];
-      s.setupPlant(player, name, row, col, radius); // match setup: free (D-058)
-    }
-  }
   sim = s;
   if (room) {
     const ws = room.ws;

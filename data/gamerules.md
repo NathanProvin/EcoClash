@@ -22,7 +22,7 @@ Victory conditions are defined in `INSTRUCTIONS.md` §2.3 (territory share or to
 ### 1.1 V1 scope
 
 - **Terrain:** a generated map with relief, a river, ponds and rock outcrops (§2.3, D-083); one basic soil type.
-- **Start:** the whole map is **bare soil**. **[Proposed]** Each player starts with a starting biomass budget, and chooses where to spawn the first organisms. Lichen & moss, grasses and earthworms are unlocked at start (D-087); **[Proposed]** the budget covers about one more unlock plus a few seedings; the map is mirrored and each player seeds only in their own half during the first minute.
+- **Start (author's decision, D-095):** the whole map is **bare soil** and nobody owns a cell. Each player starts with a biomass budget; the clock runs from the start, and a player's first planting, anywhere on land, is their **spawn point**: water, relief and rocks around it are a strategic choice. Lichen & moss, grasses and earthworms are unlocked at start (D-087).
 - **Progression:** the landscape emerges through succession, **bare soil → meadow → increasingly developed shrub strata → forest**.
 - **Out of V1:** wet meadow and the other biomes (§2.2); pollinators and fire (`INSTRUCTIONS.md` §2.5).
 - **V1 species (author's table, D-087):** 15 plants in 5 families and 30 animals in 10 families, three tiers each (small, medium, large). See §4.2 and §5.

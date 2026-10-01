@@ -129,6 +129,9 @@ impl Bot {
             home: centroid(w, self.player).unwrap_or((n / 2, n / 2)),
             enemy: centroid(w, 3 - self.player).unwrap_or((n / 2, n / 2)),
         };
+        if centroid(w, self.player).is_none() {
+            return self.found(&view).into_iter().collect(); // no land yet: found the colony
+        }
         let plays: [Play; 8] = [
             Bot::unlock,
             Bot::expand,
@@ -172,6 +175,23 @@ impl Bot {
                 species: (*name).into(),
             })
         })
+    }
+
+    /// No land yet (D-095): found the colony with the first unlocked spreader, on the free cell
+    /// that suits it nearest the bot's side of the map (the generator's home clearing).
+    fn found(&self, v: &View) -> Option<Payload> {
+        let (w, n) = (v.w, v.n);
+        let name = SPREADERS.iter().find(|name| {
+            Bot::sheet(w, name).is_some_and(|i| w.economy.is_unlocked(self.player, i))
+        })?;
+        let s = w.flora.p.index(name)?;
+        let home = sim_core::terrain::homes(n)[usize::from(self.player - 1)];
+        let k = (0..n * n)
+            .filter(|&k| {
+                w.state.owner[k] == 0 && w.flora.suitability(&w.state, s, k) >= i64::from(ONE) / 2
+            })
+            .min_by_key(|&k| (dist2(k, n, (home / n, home % n)), k))?;
+        Some(self.plant(name, k, n))
     }
 
     /// Grass on the free cell next to own land nearest the enemy: push the front.
@@ -425,6 +445,28 @@ mod tests {
         let unlocked = w.economy.unlocked[1].iter().filter(|&&u| u).count();
         let free = w.economy.unlocked[0].iter().filter(|&&u| u).count();
         assert!(unlocked > free, "the bot unlocked cards");
+    }
+
+    #[test]
+    fn a_bot_founds_its_colony_on_an_empty_map() {
+        let b = balance();
+        let n = usize::try_from(b.sim.grid_size).unwrap();
+        let mut w = World::new(&b, 1, n);
+        w.generate_terrain(&sim_core::terrain::TerrainParams::from_balance(&b), 1);
+        let mut bot = Bot::new(2, Level::Easy, b.flora.plant_radius);
+        for seq in 0..600 {
+            for payload in bot.think(&w) {
+                w.submit(Command {
+                    tick: w.tick,
+                    player: 2,
+                    seq,
+                    payload,
+                });
+            }
+            w.step();
+        }
+        assert!(w.territory()[1] > 0, "the bot spawned and holds land");
+        assert_eq!(w.territory()[0], 0, "the idle player has none");
     }
 
     #[test]

@@ -72,24 +72,33 @@ export function capText(s: Species): string {
     : `${s.stats.cap} animals`;
 }
 
-/** Family names, in build-bar order (D-087). */
+/** Family names, in build-bar order (D-087, D-105): land plants, land animals, the water
+ *  families together, then the recyclers at the far right. */
 const FAMILY: Record<string, string> = {
   L1: "Herbs",
   L2: "Undergrowth",
   L3: "Shrubs",
   L4: "Trees",
-  W: "Water plants",
-  D: "Recyclers",
   H1: "Grazers",
   H2: "Undergrowth eaters",
   H3: "Shrub eaters",
   H4: "Tree eaters",
-  HW: "Water grazers",
   P1: "Insect eaters",
   P2: "Small hunters",
   P3: "Big hunters",
+  W: "Water plants",
+  HW: "Water grazers",
   PW: "Water hunters",
+  D: "Recyclers",
 };
+
+/** Build-bar sections (D-105): a separator stands between two. */
+export type Section = "plants" | "animals" | "water" | "recyclers";
+export function sectionOf(family: string, kind: Species["kind"]): Section {
+  if (family === "W" || family === "HW" || family === "PW") return "water";
+  if (family === "D") return "recyclers";
+  return kind === "flora" ? "plants" : "animals";
+}
 const ORDER = Object.keys(FAMILY);
 
 /** Swarms (D-065): faint dots that show they are there, not units to select or order: soil life
@@ -99,25 +108,34 @@ export const isSwarm = (s: Species): boolean => s.kind === "fauna" && s.swarm ==
 /** Display name of a family. */
 export const familyName = (key: string): string => FAMILY[key] ?? key;
 
-/** The build card's groups (D-063, D-087): plants then animals, one group per family, species
- *  in tier order then stat-sheet order. */
-export function families(
-  species: Species[],
-): { kind: Species["kind"]; key: string; name: string; species: Species[] }[] {
-  const out = new Map<
-    string,
-    { kind: Species["kind"]; key: string; name: string; species: Species[] }
-  >();
+export interface Family {
+  kind: Species["kind"];
+  key: string;
+  name: string;
+  section: Section;
+  species: Species[];
+}
+
+/** The build bar's groups (D-063, D-087, D-105): one per family, in bar order (unknown families
+ *  last), species in tier order then stat-sheet order. */
+export function families(species: Species[]): Family[] {
+  const out = new Map<string, Family>();
   const rank = (key: string) => (ORDER.includes(key) ? ORDER.indexOf(key) : ORDER.length);
   const sorted = [...species].sort(
     (a, b) =>
-      Number(a.kind === "fauna") - Number(b.kind === "fauna") ||
       rank(a.family) - rank(b.family) ||
+      Number(a.kind === "fauna") - Number(b.kind === "fauna") ||
       a.tier - b.tier,
   );
   for (const s of sorted) {
     const key = s.family;
-    const group = out.get(key) ?? { kind: s.kind, key, name: familyName(key), species: [] };
+    const group = out.get(key) ?? {
+      kind: s.kind,
+      key,
+      name: familyName(key),
+      section: sectionOf(key, s.kind),
+      species: [],
+    };
     group.species.push(s);
     out.set(key, group);
   }

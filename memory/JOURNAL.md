@@ -465,3 +465,6 @@
 
 ## 2026-10-01 · Lichen pace fix (D-104)
 - **Done:** found the early-game gap (lichen stats, about 9x slower than grasses), buffed lichen to 78 % of grasses' pace, added a test. Next: build bar revamp.
+
+## 2026-10-01 · Build bar sections and pictograms (D-105)
+- **Done:** new order with water and recyclers on the right, icon-only items, 15 family pictograms. Next: tier rings, padlocks, quick-stat tooltips.

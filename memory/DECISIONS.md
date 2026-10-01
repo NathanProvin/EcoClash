@@ -1184,3 +1184,19 @@ Template:
 - **Consequences:**
   - New test `pioneers_found_at_a_comparable_pace` (flat map, mirrored spots, 2 min): lichen holds at least 70 % of grasses' land and still less.
   - Fixture regenerated; parity and every check are green.
+
+## D-105 · 2026-10-01 · A compact build bar: sections and family pictograms
+- **Status:** accepted (user: too much space between icons; water species grouped on the right; recyclers at the far right; nicer, sober family icons tied to their concept; option chosen: icon only, name on hover)
+- **Decision:**
+  - **Bar order and sections** (`families()`, tested), with a thin separator between sections:
+    1. land plants L1–L4;
+    2. land animals H1–H4, P1–P3;
+    3. water W, HW, PW;
+    4. recyclers D.
+  - Family items are icon-only (the name on hover and as the flyout header), with tighter gaps. The "can unlock" badge sits inside the icon corner.
+  - **`FamilyIcon.svelte`:** one line pictogram per family on its tone:
+    - plants: a grass tuft, a fern frond, a bush, a tree;
+    - land animals: a grasshopper, a snail, a caterpillar on a leaf, a beetle, a bird, a fox head, a paw;
+    - water: a lily pad with a reed, a fish, a heron;
+    - recyclers: a mushroom.
+  - The bar shrinks from about 1,440 px to about 960 px.

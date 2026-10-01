@@ -75,6 +75,16 @@ describe("build card helpers", () => {
       sp("grasses", "flora", 1, 1, 0),
     ]);
     expect(groups.map((g) => g.name)).toEqual(["Herbs", "Shrubs", "Small hunters"]);
+    // D-105: the water families together on the right, the recyclers at the far right.
+    const bar = families([
+      sp("earthworms", "fauna", 0, 1, 0, [], "D"),
+      sp("algae", "flora", 1, 1, 0, [], "W"),
+      sp("pike", "fauna", 0, 1, 0, [], "PW"),
+      sp("fox", "fauna", 0, 1, 0),
+      sp("grasses", "flora", 1, 1, 0),
+    ]);
+    expect(bar.map((g) => g.key)).toEqual(["L1", "P2", "W", "PW", "D"]);
+    expect(bar.map((g) => g.section)).toEqual(["plants", "animals", "water", "water", "recyclers"]);
     expect(groups[0]?.species.map((s) => s.name)).toEqual(["grasses", "wildflowers"]);
   });
 

@@ -1,6 +1,7 @@
 <script lang="ts">
-  // RTS build bar (D-030, D-063, D-071): one item per family (herbs, shrubs, trees; soil life …
-  // carnivores), so the bar stays short however many species come. Hovering an item opens its
+  // RTS build bar (D-030, D-063, D-071, D-105): one pictogram per family, in sections (land
+  // plants | land animals | water | recyclers), names on hover, so the bar stays short however
+  // many species come. Hovering an item opens its
   // flyout at once: the family's species in three tier columns. Hovering a species tile shows its
   // stats; clicking arms it (the next map click plants it or calls the animal; Shift keeps it
   // armed), buys it when it can be unlocked, or does nothing while locked. A click on a family
@@ -8,6 +9,7 @@
   // strip sits above the bar. Replays show the same bar, read-only.
   import { cardState, families, label, roleName, statLines } from "../game/species";
   import type { Source, Species } from "../replay/replay";
+  import FamilyIcon from "./FamilyIcon.svelte";
   import Icon from "./Icon.svelte";
   import SpeciesIcon from "./SpeciesIcon.svelte";
 
@@ -57,13 +59,6 @@
 
   /** Live cards follow the tech tree: unlocked (arm it), available (buy it), locked. */
   const cardOf = (s: Species) => (live ? cardState(replay.meta, s, unlocked) : "unlocked");
-
-  /** A family item's face: its armed species, else its highest unlocked one, else the first. */
-  function face(list: Species[]): Species | undefined {
-    const armed = list.find((s) => s.name === planting);
-    const open = list.filter((s) => cardOf(s) === "unlocked");
-    return armed ?? open[open.length - 1] ?? list[0];
-  }
 
   let open: string | null = $state(null);
   let pinned = $state(false);
@@ -132,9 +127,9 @@
 
   <nav class="bar panel" aria-label="Species">
     {#each groups as g, i (g.name)}
-      {@const s0 = face(g.species)}
       {@const total = g.species.reduce((t, s) => t + count(s), 0)}
-      {#if i > 0 && g.kind !== groups[i - 1]?.kind}<span class="sep" aria-hidden="true"></span>{/if}
+      {#if i > 0 && g.section !== groups[i - 1]?.section}<span class="sep" aria-hidden="true"
+        ></span>{/if}
       <div class="group" role="group" onpointerenter={() => enter(g.name)} onpointerleave={leave}>
         <button
           class="item"
@@ -142,47 +137,50 @@
           class:armed={g.species.some((s) => s.name === planting)}
           aria-expanded={open === g.name}
           aria-label={g.name}
+          title={g.name}
           onclick={() => pin(g.name)}
         >
-          {#if s0}<SpeciesIcon s={s0} size={40} />{/if}
+          <FamilyIcon family={g.key} size={40} />
           {#if total}<span class="count num">{total}</span>{/if}
           {#if g.species.some((s) => cardOf(s) === "available")}
             <span class="unlock" title="A species can be unlocked"
               ><Icon name="unlock" size={11} /></span
             >
           {/if}
-          <span class="fam">{g.name}</span>
         </button>
 
         {#if open === g.name}
           <div class="flyout panel" role="menu" aria-label="{g.name} species">
-            {#each TIERS as t (t)}
-              {@const list = g.species.filter((s) => s.tier === t)}
-              {#if list.length}
-                <div class="tier">
-                  <span class="tl">Tier {t}</span>
-                  {#each list as s (s.name)}
-                    {@const state = cardOf(s)}
-                    <button
-                      class="tile {state}"
-                      class:armed={planting === s.name}
-                      class:none={count(s) === 0 && state === "unlocked"}
-                      role="menuitem"
-                      aria-label={label(s.name)}
-                      onclick={() => click(s)}
-                      onpointerenter={(e) => show(e, s)}
-                      onpointerleave={() => (hover = null)}
-                    >
-                      <SpeciesIcon {s} size={38} />
-                      {#if count(s)}<span class="count num">{count(s)}</span>{/if}
-                      {#if state === "available"}
-                        <span class="unlock"><Icon name="unlock" size={11} /></span>
-                      {/if}
-                    </button>
-                  {/each}
-                </div>
-              {/if}
-            {/each}
+            <span class="fh">{g.name}</span>
+            <div class="tiers">
+              {#each TIERS as t (t)}
+                {@const list = g.species.filter((s) => s.tier === t)}
+                {#if list.length}
+                  <div class="tier">
+                    <span class="tl">Tier {t}</span>
+                    {#each list as s (s.name)}
+                      {@const state = cardOf(s)}
+                      <button
+                        class="tile {state}"
+                        class:armed={planting === s.name}
+                        class:none={count(s) === 0 && state === "unlocked"}
+                        role="menuitem"
+                        aria-label={label(s.name)}
+                        onclick={() => click(s)}
+                        onpointerenter={(e) => show(e, s)}
+                        onpointerleave={() => (hover = null)}
+                      >
+                        <SpeciesIcon {s} size={38} />
+                        {#if count(s)}<span class="count num">{count(s)}</span>{/if}
+                        {#if state === "available"}
+                          <span class="unlock"><Icon name="unlock" size={11} /></span>
+                        {/if}
+                      </button>
+                    {/each}
+                  </div>
+                {/if}
+              {/each}
+            </div>
           </div>
         {/if}
       </div>
@@ -227,14 +225,14 @@
   }
   .bar {
     display: flex;
-    align-items: flex-start; /* icons in one row, whatever the label lines */
-    gap: 2px;
-    padding: 8px 12px 6px;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 8px;
   }
   .sep {
     align-self: stretch;
     width: 1px;
-    margin: 4px 6px;
+    margin: 4px 4px;
     background: var(--line);
   }
   .group {
@@ -253,25 +251,13 @@
   }
   .item {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    padding: 3px 4px 2px;
+    padding: 2px;
     border-radius: 12px;
   }
   .item:hover,
   .item.open {
     border-color: var(--line);
     background: var(--well);
-  }
-  .fam {
-    width: 6.6em; /* long family names wrap on two lines (D-087) */
-    font-size: 0.6em;
-    line-height: 1.15;
-    letter-spacing: 0.06em;
-    text-align: center;
-    text-transform: uppercase;
-    color: var(--ink-soft);
   }
   .flyout {
     position: absolute;
@@ -280,8 +266,21 @@
     transform: translateX(-50%);
     z-index: 4;
     display: flex;
-    gap: 10px;
-    padding: 8px 10px;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px 8px;
+  }
+  .fh {
+    font-size: 0.66em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--ink-soft);
+  }
+  .tiers {
+    display: flex;
+    gap: 8px;
   }
   .tier {
     display: flex;
@@ -322,7 +321,7 @@
   .count {
     position: absolute;
     right: -2px;
-    top: 30px;
+    bottom: -2px;
     min-width: 18px;
     padding: 0 4px;
     border-radius: 999px;
@@ -331,18 +330,14 @@
     color: white;
     background: var(--player);
   }
-  .tile .count {
-    top: auto;
-    bottom: -2px;
-  }
   .unlock {
     position: absolute;
-    right: -3px;
-    top: -3px;
+    right: 1px;
+    top: 1px;
     display: grid;
     place-items: center;
-    width: 17px;
-    height: 17px;
+    width: 15px;
+    height: 15px;
     border-radius: 50%;
     color: #1d160a;
     background: var(--gold);

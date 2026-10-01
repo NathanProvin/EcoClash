@@ -1219,3 +1219,12 @@ Template:
 ## D-107 · 2026-10-01 · One padlock: closed, on what is still locked
 - **Status:** accepted (user: open and closed padlocks were confusing)
 - **Decision:** the open-padlock badges are gone. The closed padlock sits on species tiles that are locked, and on a family item when all of its species are locked. Unlockable cards look normal; their tooltip gives the unlock cost.
+
+## D-108 · 2026-10-01 · A smooth, slowly evolving front line
+- **Status:** accepted (user: the jagged square front is clear but not calm; wants a curvy line that evolves slowly)
+- **Decision:**
+  - `frontierField` fills one RGBA texel per cell (P1 and P2 ownership, each side's push into the other) and blurs it twice with a 3×3 binomial kernel.
+  - The ground shader samples it linearly and draws each player's line in the band just inside its territory where the blurred ownership crosses 0.5, widened by its push.
+  - The previous field frame is blended into the current one by the grass `blend` uniform, so the line glides over the frame interval.
+  - The 8-texel overlay is gone.
+- **Consequences:** the fronts are smooth curves at any zoom; tests check the 0.5 crossing, the ramp and the push channels.

@@ -1,56 +1,32 @@
 import { expect, test } from "vitest";
-import { paintFrontier, TEXELS, widthFor, WIDTH } from "./frontier";
+import { frontierField } from "./frontier";
 
-const color = { 1: [0, 0, 255], 2: [255, 128, 0] } as const;
+/** Channel j of grid cell (r, c), undoing the row flip, as 0..1. */
+const at = (out: Uint8Array, n: number, r: number, c: number, j: number) =>
+  (out[((n - 1 - r) * n + c) * 4 + j] ?? 0) / 255;
 
-/** Alpha of the texel at grid-space (x, y), undoing the row flip. */
-function alpha(out: Uint8Array, side: number, x: number, y: number): number {
-  return out[((side - 1 - y) * side + x) * 4 + 3] ?? 0;
-}
-
-test("both frontiers are solid lines (D-099), interiors and map edges stay clear", () => {
-  // 4 columns: P1 P1 P2 P2, on 4 rows
-  const n = 4;
-  const owner = new Uint8Array(n * n).map((_, k) => (k % n < 2 ? 1 : 2));
-  const side = n * TEXELS;
-  const out = new Uint8Array(side * side * 4);
-  paintFrontier(owner, n, color, out);
-
-  const p1Line = TEXELS * 2 - 1; // last texel column of the P1 cells
-  const p2Line = TEXELS * 2; // first texel column of the P2 cells
-  const p1 = Array.from({ length: side }, (_, y) => alpha(out, side, p1Line, y));
-  const p2 = Array.from({ length: side }, (_, y) => alpha(out, side, p2Line, y));
-  expect(p1.every((a) => a === 255)).toBe(true);
-  expect(p2.every((a) => a === 255)).toBe(true);
-
-  // map edges and cell interiors: nothing
-  for (let y = 0; y < side; y++) {
-    expect(alpha(out, side, 0, y)).toBe(0);
-    expect(alpha(out, side, side - 1, y)).toBe(0);
-    expect(alpha(out, side, 1, y)).toBe(0);
-  }
-  // colour of P1's line
-  const t = ((side - 1) * side + p1Line) * 4;
-  expect([...out.subarray(t, t + 3)]).toEqual([0, 0, 255]);
+test("each player's ownership is a smooth field crossing 0.5 at the front (D-108)", () => {
+  // 6 columns: P1 P1 P1 P2 P2 P2
+  const n = 6;
+  const owner = new Uint8Array(n * n).map((_, k) => (k % n < 3 ? 1 : 2));
+  const out = new Uint8Array(n * n * 4);
+  frontierField(owner, n, out);
+  const row = (j: number) => Array.from({ length: n }, (_, c) => at(out, n, 2, c, j));
+  const p1 = row(0);
+  expect(p1[0]).toBe(1); // deep inside, and at the map edge: no crossing there
+  expect(p1[2]).toBeGreaterThan(0.5); // the front cell: still P1's side ...
+  expect(p1[3]).toBeLessThan(0.5); // ... the crossing lies between columns 2 and 3
+  expect((p1[2] ?? 0) - (p1[3] ?? 0)).toBeLessThan(0.6); // a gradual ramp, not a step
+  expect(row(1)[3]).toBeGreaterThan(0.5); // P2 mirrors it
 });
 
-test("a line widens with its player's push into the enemy cell across the edge (D-076)", () => {
-  expect(widthFor(0)).toBe(WIDTH.min);
-  expect(widthFor(255)).toBe(WIDTH.max);
-  const n = 4;
-  const owner = new Uint8Array(n * n).map((_, k) => (k % n < 2 ? 1 : 2));
-  // P1 pushes hard into row 0 of P2's first column, not at all elsewhere.
+test("pushes land on the attacker's channel, near the front", () => {
+  const n = 6;
+  const owner = new Uint8Array(n * n).map((_, k) => (k % n < 3 ? 1 : 2));
   const pressure = new Uint8Array(n * n);
-  pressure[2] = 255;
-  const side = n * TEXELS;
-  const out = new Uint8Array(side * side * 4);
-  paintFrontier(owner, n, color, out, pressure);
-  const edge = TEXELS * 2 - 1; // P1's last texel column
-  const widthAt = (y: number) => {
-    let w = 0;
-    while (w < TEXELS && alpha(out, side, edge - w, y) === 255) w++;
-    return w;
-  };
-  expect(widthAt(1)).toBe(WIDTH.max); // row 0 of cells: the push
-  expect(widthAt(TEXELS + 1)).toBe(WIDTH.min); // row 1: no push
+  pressure[2 * n + 3] = 255; // P1 pushes into the P2 cell (2, 3)
+  const out = new Uint8Array(n * n * 4);
+  frontierField(owner, n, out, pressure);
+  expect(at(out, n, 2, 2, 2)).toBeGreaterThan(0); // P1's push, felt on its side of the front
+  expect(at(out, n, 2, 2, 3)).toBe(0); // P2 does not push
 });

@@ -30,7 +30,7 @@ import {
 import { interpolate, type Animal, type Fields, type Source } from "../replay/replay";
 import { AnimalView } from "./animals";
 import { Ghost, type GhostSpec } from "./ghost";
-import { paintFrontier, TEXELS } from "./frontier";
+import { BAND, frontierField } from "./frontier";
 import {
   groundGeometry,
   Heightfield,
@@ -93,6 +93,7 @@ export class Viewer {
   private readonly groundTex: THREE.DataTexture;
   private readonly frontierData: Uint8Array;
   private readonly frontierTex: THREE.DataTexture;
+  private readonly frontierPrev: THREE.DataTexture; // blended into, like the grass (D-108)
   private readonly showFrontier = uniform(1);
   private readonly sun: THREE.DirectionalLight;
   /** High preset: the post-processing pipeline (built once, on first use; D-090), whether it is
@@ -199,21 +200,34 @@ export class Viewer {
     const mottle = smoothstep(0.05, 0.8, patches).mul(0.6);
     this.field = new Heightfield(n, replay.terrain);
     this.heights = this.field.texture();
-    // Frontier lines, painted in the ground itself so they follow the relief (D-085); crisp texels
-    // up close.
-    const side = n * TEXELS;
-    this.frontierData = new Uint8Array(side * side * 4);
-    this.frontierTex = new THREE.DataTexture(this.frontierData, side, side);
-    this.frontierTex.magFilter = THREE.NearestFilter;
-    this.frontierTex.colorSpace = THREE.SRGBColorSpace;
-    const line = texture(this.frontierTex, uv());
-    const soilColour = mix(earth, humus, mottle).mul(grain);
-    groundMat.colorNode = mix(
-      this.terrainTint(soilColour, grain),
-      line.rgb,
-      line.a.mul(this.showFrontier),
+    // Front lines (D-108), drawn in the ground itself so they follow the relief (D-085): each
+    // player's line is the band just inside its territory where its blurred ownership crosses
+    // 0.5 (frontier.ts), widened by its push, gliding from the last field frame to this one.
+    const field = (data: Uint8Array) => {
+      const t = new THREE.DataTexture(data, n, n);
+      t.magFilter = THREE.LinearFilter;
+      t.minFilter = THREE.LinearFilter;
+      return t;
+    };
+    this.frontierData = new Uint8Array(n * n * 4);
+    this.frontierTex = field(this.frontierData);
+    this.frontierPrev = field(new Uint8Array(n * n * 4));
+    const front = mix(
+      texture(this.frontierPrev, uv()),
+      texture(this.frontierTex, uv()),
+      this.blend,
     );
-    groundMat.emissiveNode = line.rgb.mul(line.a.mul(this.showFrontier).mul(0.35));
+    const band = (own: THREE.Node<"float">, push: THREE.Node<"float">) => {
+      const top = push.mul(BAND.max - BAND.min).add(0.5 + BAND.min);
+      const aa = 0.012;
+      return smoothstep(0.5, 0.5 + aa, own).mul(smoothstep(top, top.add(aa), own).oneMinus());
+    };
+    const [l1, l2] = [band(front.r, front.b), band(front.g, front.a)];
+    const lineRgb = mix(color(PLAYER[2].base), color(PLAYER[1].base), l1.div(l1.add(l2).add(1e-4)));
+    const lineA = l1.max(l2).mul(this.showFrontier);
+    const soilColour = mix(earth, humus, mottle).mul(grain);
+    groundMat.colorNode = mix(this.terrainTint(soilColour, grain), lineRgb, lineA);
+    groundMat.emissiveNode = lineRgb.mul(lineA.mul(0.35));
     this.ground = new THREE.Mesh(groundGeometry(this.field), groundMat);
     this.ground.receiveShadow = true;
     this.scene.add(this.ground);
@@ -672,6 +686,7 @@ export class Viewer {
       });
     // Grass: the frame shown so far becomes the one to blend from.
     if (step) (this.floraPrev.image.data as Uint8Array).set(this.floraData);
+    if (step) (this.frontierPrev.image.data as Uint8Array).set(this.frontierData);
     for (let c = 0; c < n * n; c++) {
       const soil = soilColor(soilDev[c] ?? 0);
       const o = owner[c] ?? 0;
@@ -700,7 +715,9 @@ export class Viewer {
       const alpha = Math.min(255, Math.round(weight * 255)); // land herbs' cover
       this.floraData.set([(rgb[0] ?? 0) / w, (rgb[1] ?? 0) / w, (rgb[2] ?? 0) / w, alpha], c * 4);
     }
+    frontierField(owner, n, this.frontierData, fields.pressure);
     if (!step) (this.floraPrev.image.data as Uint8Array).set(this.floraData); // no blend
+    if (!step) (this.frontierPrev.image.data as Uint8Array).set(this.frontierData);
     const since = now - this.lastPaint;
     this.blendS = Math.min(BLEND_S.max, Math.max(BLEND_S.min, since));
     this.blendFrom = now;
@@ -717,8 +734,8 @@ export class Viewer {
     this.floraTex.needsUpdate = true;
     this.floraPrev.needsUpdate = true;
     this.groundTex.needsUpdate = true;
-    paintFrontier(owner, n, tint, this.frontierData, fields.pressure);
     this.frontierTex.needsUpdate = true;
+    this.frontierPrev.needsUpdate = true;
   }
 
   private animatePings(now: number): void {

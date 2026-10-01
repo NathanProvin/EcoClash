@@ -10,11 +10,11 @@ export const TUTORIAL_SETUP: MatchSetup = { bot: "easy", seed: 2, sandbox: false
 export interface TutorialState {
   /** Share of the map the player holds (0..1). */
   owned: number;
-  /** Species unlocked since the start. */
-  unlocked: number;
-  /** The player's animals on the map. */
+  /** Species cards the player has unlocked. */
+  unlocked: ReadonlySet<string>;
+  /** The player's animals that can take orders (swarms cannot), and those on enemy land after an
+   *  order sent them there. */
   animals: number;
-  /** The player's animals standing on enemy land. */
   onEnemy: number;
 }
 
@@ -28,35 +28,37 @@ export interface Objective {
  *  into the bot's. */
 export const TUTORIAL_GOAL = 0.55;
 
+/** Players start with lichen & moss only (D-118); grasses then feed the rabbits, the first animal
+ *  that can be selected and ordered (grasshoppers are a swarm). */
 export const OBJECTIVES: Objective[] = [
   {
     title: "Found your colony",
-    text: "Open the first family in the bar (Herbs), pick a plant, then click anywhere on land.",
+    text: "Lichen & moss is your only plant at first. Open Herbs in the bar, pick it, then click anywhere on land.",
     done: (s) => s.owned > 0,
   },
   {
     title: "Let it spread",
-    text: "Plants spread by themselves. Plant more along your border to speed it up. Goal: 5 % of the map.",
+    text: "Plants spread by themselves and earn biomass. Plant more along your border to speed it up. Goal: 5 % of the map.",
     done: (s) => s.owned >= 0.05,
   },
   {
-    title: "Unlock a species",
-    text: "Your plants earn biomass. Open a family and click a card you can afford to unlock it.",
-    done: (s) => s.unlocked > 0,
+    title: "Unlock Grasses",
+    text: "Open Herbs: the Grasses card fills with colour as you save up. Click it when its padlock turns gold, then plant grasses on your land.",
+    done: (s) => s.unlocked.has("grasses"),
   },
   {
-    title: "Call an animal",
-    text: "Pick a grazer (a yellow family) and click your own land: it comes at base price.",
+    title: "Call rabbits",
+    text: "In Grazers (yellow), unlock Grasshoppers, then Rabbits. Pick Rabbits and click your grass: they come at base price.",
     done: (s) => s.animals > 0,
   },
   {
     title: "Raid the enemy",
-    text: "Drag to select your animals and right-click enemy land, or drop new grazers onto enemy grass (×1.5).",
+    text: "Drag a box over your rabbits to select them, press A, then click enemy land: they march there and graze it bare.",
     done: (s) => s.onEnemy > 0,
   },
   {
     title: "Take the land",
-    text: `Grow until you hold ${TUTORIAL_GOAL * 100} % of the map. Shrubs and trees smother enemy grass.`,
+    text: `Grow until you hold ${Math.round(TUTORIAL_GOAL * 100)} % of the map. Shrubs and trees smother enemy grass; grazed-bare land is yours to take.`,
     done: (s) => s.owned >= TUTORIAL_GOAL,
   },
 ];

@@ -98,7 +98,7 @@ Goal: a build strangers can play against the bot and understand at a glance. One
   - Options: quality, keybinds.
   - "Play again" on the end screen.
 - [x] **8a. First-match tips** (D-082): contextual, once each, through the notification stack; switch in Options.
-- [x] **8b. Tutorial** (D-117): a "Tutorial" entry next to Play: the easy bot on a small meadows map (seed 2), six objectives in order (found, spread to 5 %, unlock, call, raid, hold 55 %), progress dots, a "Tutorial complete" panel.
+- [x] **8b. Tutorial** (D-117): a "Tutorial" entry next to Play: the easy bot on a small meadows map (seed 2), six objectives in order (found with lichen, spread to 5 %, unlock grasses, call rabbits, raid with A + click, hold 55 %; D-120), progress dots, a "Tutorial complete" panel.
 - [ ] **9. Static deploy** (Cloudflare Pages or itch.io), build-version badge, feedback link.
 
 ## World overhaul (before M5a 8b and 9; user, 2026-09-30)

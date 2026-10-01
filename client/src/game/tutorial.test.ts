@@ -3,22 +3,24 @@ import { advance, OBJECTIVES, TUTORIAL_GOAL, type TutorialState } from "./tutori
 
 const at = (s: Partial<TutorialState>): TutorialState => ({
   owned: 0,
-  unlocked: 0,
+  unlocked: new Set(["lichen_and_moss"]),
   animals: 0,
   onEnemy: 0,
   ...s,
 });
+const grasses = new Set(["lichen_and_moss", "grasses"]);
 
 describe("tutorial objectives", () => {
   it("complete in order, one after the other", () => {
     expect(advance(0, at({}))).toBe(0);
     expect(advance(0, at({ owned: 0.01 }))).toBe(1); // founded, not yet 5 %
     expect(advance(1, at({ owned: 0.06 }))).toBe(2);
-    // An animal called before unlocking anything does not skip the unlock step.
+    // Rabbits called before grasses were unlocked do not skip the grasses step.
     expect(advance(2, at({ owned: 0.06, animals: 3 }))).toBe(2);
-    expect(advance(2, at({ owned: 0.06, unlocked: 1, animals: 3 }))).toBe(4);
-    expect(advance(4, at({ owned: 0.1, unlocked: 1, animals: 3, onEnemy: 1 }))).toBe(5);
-    const all = at({ owned: TUTORIAL_GOAL, unlocked: 2, animals: 5, onEnemy: 2 });
+    expect(advance(2, at({ owned: 0.06, unlocked: grasses }))).toBe(3);
+    expect(advance(3, at({ owned: 0.06, unlocked: grasses, animals: 2 }))).toBe(4);
+    expect(advance(4, at({ owned: 0.1, unlocked: grasses, animals: 2, onEnemy: 1 }))).toBe(5);
+    const all = at({ owned: TUTORIAL_GOAL, unlocked: grasses, animals: 5, onEnemy: 2 });
     expect(advance(5, all)).toBe(OBJECTIVES.length);
   });
 

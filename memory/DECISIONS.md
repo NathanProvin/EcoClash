@@ -1297,3 +1297,17 @@ Template:
 ## D-119 · 2026-10-01 · Unlockable cards: padlock and a biomass gauge
 - **Status:** accepted (user: unlockable cards lacked the padlock; fill the icon from the bottom as the budget grows)
 - **Decision:** an unlockable card shows the padlock, like a locked one. Its icon is grey with a full-colour copy on top, clipped from the bottom to bank ÷ unlock cost and eased over 0.4 s. Once affordable, the icon is full colour and the padlock turns gold. Locked cards stay grey with a dark padlock; a family item still gets a padlock only when all of its species are locked (D-107).
+
+## D-120 · 2026-10-01 · Tutorial teaches the raid with rabbits
+- **Status:** accepted (user: grasshoppers could not be selected or attack-moved; use rabbits)
+- **Cause:** grasshoppers are a swarm, and swarms cannot be selected or ordered (D-065).
+- **Decision:** with the lichen-only start (D-118), the objectives are:
+  1. Found with lichen & moss.
+  2. Spread to 5 %.
+  3. Unlock and plant grasses.
+  4. Unlock grasshoppers, then rabbits, and call rabbits.
+  5. Select the rabbits, press A, click enemy land.
+  6. Hold 55 %.
+
+  Objectives 4 and 5 count only animals that can take orders. Objective 5 also needs a move or attack order onto enemy land: in the test run, grazing rabbits had drifted over the front and completed it on their own. The goal reads "55 %" (it showed a float tail).
+- **Consequences:** played through in the browser: box selection picked the nine rabbits, and A + click sent them to graze the enemy's front cells.

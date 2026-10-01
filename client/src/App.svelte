@@ -23,7 +23,7 @@
     type Severity,
     type Toast,
   } from "./game/alerts";
-  import { cardState, isSwarm, label, unlockedAt, unlockedNow } from "./game/species";
+  import { cardState, isSwarm, label, unlockedNow } from "./game/species";
   import { WORLD } from "./render/palette";
   import { Viewer, type CameraKeys, type Layer } from "./render/viewer";
   import { loadQuality, saveQuality, type Quality } from "./render/quality";
@@ -90,6 +90,7 @@
   let homeless = $state(false); // no land yet: the first planting is the spawn (D-095)
   let tutorial = $state(false); // the match is the tutorial (M5a 8b)
   let tutorialStep = $state(0);
+  let raidOrdered = false; // an order sent animals onto enemy land (tutorial)
   let lastScan = 0;
   let seenNotice = 0; // `at` of the last order notice turned into a toast
   let available: Set<string> | null = null; // species you could buy (and afford) at the last scan
@@ -212,15 +213,19 @@
     }).length;
     if (tutorial) {
       const n = l.meta.n;
-      const mine = v.visibleAnimals().filter((a) => a.owner === me);
+      // Swarms cannot be selected or ordered: the tutorial teaches with animals that can.
+      const mine = v.visibleAnimals().filter((a) => {
+        const sp = fauna[a.species];
+        return a.owner === me && sp !== undefined && !isSwarm(sp);
+      });
       const onEnemy = mine.filter(
         (a) => fields.owner[Math.floor(a.y) * n + Math.floor(a.x)] === 3 - me,
       ).length;
       const step = advance(tutorialStep, {
         owned: share[me - 1] ?? 0,
-        unlocked: unlocked.size - unlockedAt(l.meta, me, 0).size,
+        unlocked,
         animals: mine.length,
-        onEnemy,
+        onEnemy: raidOrdered ? onEnemy : 0, // grazers drifting over the front do not count
       });
       if (step !== tutorialStep) {
         tutorialStep = step;
@@ -438,6 +443,7 @@
   function order(kind: "move" | "attack" | "stop", at?: { row: number; col: number } | null) {
     if (!live || !selection.size) return;
     live.order(me, [...selection], kind, at?.row ?? 0, at?.col ?? 0);
+    if (kind !== "stop" && at && enemyAt(at)) raidOrdered = true; // for the tutorial
   }
 
   /** An enemy cell: enemy land, or enemy animals on it (right-click there attacks). */
@@ -563,6 +569,7 @@
   async function launch(asTutorial = false) {
     tutorial = asTutorial;
     tutorialStep = 0;
+    raidOrdered = false;
     if (!asTutorial) saveSetup(setup);
     inMenu = false;
     chosen = LIVE;

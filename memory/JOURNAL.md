@@ -524,3 +524,6 @@
 ## 2026-10-01 · Dead trees (D-127)
 - **Done:** sim (snag field, natural death, blocking, rot, woodpecker diet), export, dead-tree model, cell chip, tests.
 - **Fixed in the browser:** the branches collapsed to slivers (a scale across a leaning geometry), and the mean life was raised from 30 min to 3 h.
+
+## 2026-10-01 · Falling trees (D-128)
+- **Done:** GPU fall in `GrowingMesh`, `PlantView` fells tree parts unless a dead tree now stands there, tests, browser check.

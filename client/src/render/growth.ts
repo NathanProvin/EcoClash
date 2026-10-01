@@ -10,6 +10,8 @@
 
 import {
   clamp,
+  cos,
+  dot,
   instancedDynamicBufferAttribute,
   mix,
   mx_noise_float,
@@ -23,6 +25,27 @@ import * as THREE from "three/webgpu";
 
 /** Seconds for a model to grow in, change size, or wither away. */
 export const GROW_S = 3;
+/** Seconds for a felled tree to fall flat (D-128), before it withers away on the ground. */
+export const FALL_S = 1.4;
+/** A fall start that never comes: the model stands. */
+const STANDING = 1e9;
+
+/** Where model point `u` (relative to its root) lies once tilted by `theta` toward ground
+ *  direction `dir` (radians about Y, 0 = +x): the shader's fall, on the CPU (D-128). */
+export function fallen(u: [number, number, number], dir: number, theta: number): number[] {
+  const [dx, dz] = [Math.cos(dir), Math.sin(dir)];
+  const s = u[0] * dx + u[2] * dz;
+  const s2 = s * Math.cos(theta) + u[1] * Math.sin(theta);
+  const h2 = -s * Math.sin(theta) + u[1] * Math.cos(theta);
+  return [u[0] + dx * (s2 - s), h2, u[2] + dz * (s2 - s)];
+}
+
+/** How far a fall started at `start` has tilted at `t` (radians): accelerating, like a falling
+ *  tree, flat (pi / 2) after FALL_S. */
+export function fallAngle(start: number, t: number): number {
+  const k = Math.min(Math.max((t - start) / FALL_S, 0), 1);
+  return k * k * (Math.PI / 2);
+}
 
 /** Wind (D-086): the prevailing direction (x, z) and a gust field over the map. `wind` gives a
  *  horizontal push in about -0.3..1.3 at a root (world x / z) and time (s); callers scale it. */
@@ -73,6 +96,7 @@ export class GrowingMesh<K> {
   private readonly dying = new Map<K, number>(); // key -> time it can be freed
   private readonly root: THREE.InstancedBufferAttribute; // x, 0, z
   private readonly grow: THREE.InstancedBufferAttribute; // start, from, to
+  private readonly fall: THREE.InstancedBufferAttribute; // fall start, direction (D-128)
   private readonly width: Float32Array; // the pose's `w`, to resize from the current size
   private readonly m = new Float32Array(16);
   private dirty = false;
@@ -95,15 +119,31 @@ export class GrowingMesh<K> {
     this.mesh.count = 0;
     this.root = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3);
     this.grow = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3);
+    this.fall = new THREE.InstancedBufferAttribute(new Float32Array(n * 2).fill(STANDING), 2);
     this.width = new Float32Array(n);
-    for (const a of [this.root, this.grow]) a.setUsage(THREE.DynamicDrawUsage);
+    for (const a of [this.root, this.grow, this.fall]) a.setUsage(THREE.DynamicDrawUsage);
     // positionLocal is already instanced here (NodeMaterial.setupPosition): scale around root.
     // The attribute helper is typed Node<string>: name its vec3 type for the arithmetic below.
     const attr = (a: THREE.InstancedBufferAttribute) =>
       instancedDynamicBufferAttribute(a, "vec3") as unknown as ReturnType<typeof vec3>;
     const [root, g] = [attr(this.root), attr(this.grow)];
     const k = smoothstep(0, 1, clamp(now.sub(g.x).div(GROW_S), 0, 1));
-    const grown = root.add(positionLocal.sub(root).mul(mix(g.y, g.z, k)));
+    const sized = positionLocal.sub(root).mul(mix(g.y, g.z, k));
+    // A felled tree (D-128) tilts about its root toward `dir`, accelerating (see `fallen`).
+    const f = instancedDynamicBufferAttribute(this.fall, "vec2") as unknown as ReturnType<
+      typeof vec2
+    >;
+    const kf = clamp(now.sub(f.x).div(FALL_S), 0, 1);
+    const theta = kf.mul(kf).mul(Math.PI / 2);
+    const dir = vec2(cos(f.y), sin(f.y));
+    const along = dot(sized.xz, dir);
+    const along2 = along.mul(cos(theta)).add(sized.y.mul(sin(theta)));
+    const up2 = along
+      .negate()
+      .mul(sin(theta))
+      .add(sized.y.mul(cos(theta)));
+    const shift = dir.mul(along2.sub(along));
+    const grown = root.add(vec3(sized.x.add(shift.x), up2, sized.z.add(shift.y)));
     if (sway === 0) {
       material.positionNode = grown;
     } else {
@@ -142,6 +182,19 @@ export class GrowingMesh<K> {
     this.set(i, pose, [t, from, 1]);
   }
 
+  /** Fell `key` at `t` toward `dir` (radians about Y, D-128): it falls flat over FALL_S, then
+   *  withers away on the ground; `update` frees it once gone. */
+  fell(key: K, t: number, dir: number): void {
+    const i = this.at.get(key);
+    if (i === undefined || this.dying.has(key)) return;
+    const g = this.grow.array as Float32Array;
+    const shown = growth(g[i * 3] ?? 0, g[i * 3 + 1] ?? 0, g[i * 3 + 2] ?? 0, t);
+    g.set([t + FALL_S, shown, 0], i * 3);
+    (this.fall.array as Float32Array).set([t, dir], i * 2);
+    this.dying.set(key, t + FALL_S + GROW_S);
+    this.dirty = true;
+  }
+
   /** Wither `key` away from `t`; `update` frees it once gone. */
   drop(key: K, t: number): void {
     const i = this.at.get(key);
@@ -166,6 +219,7 @@ export class GrowingMesh<K> {
       [this.mesh.instanceColor, 3],
       [this.root, 3],
       [this.grow, 3],
+      [this.fall, 2],
     ] as const) {
       if (!attr) continue;
       attr.clearUpdateRanges();
@@ -178,6 +232,7 @@ export class GrowingMesh<K> {
     (this.mesh.instanceMatrix.array as Float32Array).set(this.m, i * 16);
     (this.root.array as Float32Array).set([pose.rootX, pose.rootY ?? 0, pose.rootZ], i * 3);
     (this.grow.array as Float32Array).set(grow, i * 3);
+    (this.fall.array as Float32Array).set([STANDING, 0], i * 2); // (re)placed: standing
     this.width[i] = pose.w;
     this.setColor(i, pose.color);
     this.dirty = true;
@@ -205,6 +260,7 @@ export class GrowingMesh<K> {
       move(this.mesh.instanceColor, 3);
       move(this.root, 3);
       move(this.grow, 3);
+      move(this.fall, 2);
       this.width[i] = this.width[last] ?? 0;
       const moved = this.keys[last] as K;
       this.keys[i] = moved;

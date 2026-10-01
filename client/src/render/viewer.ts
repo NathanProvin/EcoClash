@@ -787,6 +787,7 @@ export class Viewer {
       now,
       (x, z) => this.field.at(x, z),
       this.field.water,
+      fields.deadwood,
     );
     this.floraTex.needsUpdate = true;
     this.floraPrev.needsUpdate = true;

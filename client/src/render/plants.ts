@@ -224,6 +224,8 @@ export class PlantView {
   private readonly prev: number[][][] = [];
   private readonly shown: number[][] = [];
   private readonly tmp = new THREE.Color();
+  /** Meshes that trees are made of (trunks, crowns): they fall when felled (D-128). */
+  private readonly treeMesh: boolean[];
 
   constructor(
     scene: THREE.Scene,
@@ -256,6 +258,8 @@ export class PlantView {
       scene.add(g.mesh);
       return g;
     });
+    const tree = STRATA.indexOf("tree");
+    this.treeMesh = style.meshes.map((m) => (m.perModel[tree] ?? 0) > 0);
   }
 
   /** The meshes of a model stratum, for the layer toggles. */
@@ -277,14 +281,18 @@ export class PlantView {
     t: number,
     height: (x: number, z: number) => number = () => 0,
     water: number | null = null,
+    deadwood?: Uint8Array,
   ): void {
     const n = this.n;
     for (let c = 0; c < n * n; c++) {
       const o = owner[c] ?? 0;
       const present = o === 1 || o === 2 ? cover(c) : null;
       const before = this.shown[c] ?? [];
+      // Trees felled by grazers, a storm or a lost front fall over (D-128); trees that died
+      // standing (dead wood now on the cell, D-127) wither away under their dead trunk.
+      const fall = !(deadwood?.[c] ?? 0);
       if (!present) {
-        this.dropAll(before, t); // the cell was lost: its plants wither
+        this.dropAll(before, t, fall); // the cell was lost: its plants wither
         this.shown[c] = [];
         this.prev[c] = [];
         continue;
@@ -316,6 +324,7 @@ export class PlantView {
       this.dropAll(
         before.filter((k) => !keep.has(k)),
         t,
+        fall,
       );
       this.shown[c] = now;
     }
@@ -326,9 +335,18 @@ export class PlantView {
     for (const g of this.meshes) g.update(t);
   }
 
-  /** Keys end with their mesh index (key % KEY_MESHES), see `update`. */
-  private dropAll(keys: number[], t: number): void {
-    for (const key of keys) this.meshes[key % KEY_MESHES]?.drop(key, t);
+  /** Keys end with their mesh index (key % KEY_MESHES), see `update`; tree parts fall when
+   *  `fall`, all the parts of one model toward one side (a hash of its slot). */
+  private dropAll(keys: number[], t: number, fall = false): void {
+    for (const key of keys) {
+      const mesh = key % KEY_MESHES;
+      if (fall && this.treeMesh[mesh]) {
+        const slot = Math.floor(key / KEY_MESHES / PARTS);
+        this.meshes[mesh]?.fell(key, t, rand(slot, 9100) * Math.PI * 2);
+      } else {
+        this.meshes[mesh]?.drop(key, t);
+      }
+    }
   }
 }
 

@@ -1392,3 +1392,12 @@ Template:
   - Kept out of `Flora::step` so the Python parity (D-034) holds, like the lockout.
   - The client draws a weathered grey trunk with bare branches (`DeadTrees`, `plants.ts`) sized by the wood left, from a new `deadwoodFrame` sent with the field frames. The cell panel shows a dead-tree chip.
 - **Consequences:** balance hash version 15. Tests cover the stand, block and rot cycle, the woodpecker's preference (eating and seeking) and the hash. In a first browser run, a 30-minute mean life killed most of a young forest, so it is 3 h.
+
+## D-128 · 2026-10-01 · Falling trees
+- **Status:** accepted (user: a tree eaten by its animals falls on the ground and disappears progressively)
+- **Decision:**
+  - `GrowingMesh` gets a per-instance fall (start, direction) and `fell(key, t, dir)`. In the shader the part tilts about its root toward `dir`, accelerating, flat after `FALL_S` = 1.4 s; then it withers away on the ground over `GROW_S`.
+  - `fallen` and `fallAngle` mirror the maths on the CPU for tests.
+  - `PlantView.dropAll` fells tree parts (trunk and crown meshes): all parts of one model fall to one side, a hash of its slot.
+  - Only trees removed while no dead wood stands in the cell fall: grazed down, lost front, and later storms. A tree that died standing (D-127) withers while its dead trunk grows in. Everything else withers as before.
+- **Consequences:** tests cover the fall pose and its timing. Checked in the browser (felled trees lie flat with their crowns beside them); the hidden tab only renders on screenshots, so the timing was staged.

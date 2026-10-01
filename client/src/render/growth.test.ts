@@ -1,7 +1,7 @@
 import * as THREE from "three/webgpu";
 import { uniform } from "three/tsl";
 import { describe, expect, it } from "vitest";
-import { GROW_S, GrowingMesh, growth, type Pose } from "./growth";
+import { FALL_S, GROW_S, GrowingMesh, fallAngle, fallen, growth, type Pose } from "./growth";
 
 function mesh() {
   const material = new THREE.MeshStandardNodeMaterial();
@@ -84,5 +84,32 @@ describe("GrowingMesh", () => {
     expect(to).toBe(1);
     g.update(GROW_S * 10);
     expect(g.count).toBe(1); // not freed
+  });
+});
+
+describe("felled trees (D-128)", () => {
+  it("tilt about the root toward their side, accelerating, flat after FALL_S", () => {
+    expect(fallAngle(10, 10)).toBe(0);
+    expect(fallAngle(10, 10 + FALL_S / 2)).toBeLessThan(Math.PI / 4); // slow at first
+    expect(fallAngle(10, 10 + FALL_S)).toBeCloseTo(Math.PI / 2);
+    const top = fallen([0, 3, 0], 0, Math.PI / 2); // a 3 m trunk falling toward +x
+    expect(top[0]).toBeCloseTo(3);
+    expect(top[1]).toBeCloseTo(0);
+    expect(top[2]).toBeCloseTo(0);
+    const side = fallen([0, 2, 0], Math.PI / 2, Math.PI / 2); // toward +z
+    expect(side[2]).toBeCloseTo(2);
+  });
+
+  it("lie down, then wither on the ground and go", () => {
+    const g = mesh();
+    g.put("a", pose(1), 0);
+    g.fell("a", GROW_S, 0.5);
+    const [start, from, to] = [...growOf(g, 0)];
+    expect(start).toBeCloseTo(GROW_S + FALL_S, 5); // full size until it lies flat
+    expect([from, to]).toEqual([1, 0]);
+    g.update(GROW_S + FALL_S + GROW_S / 2);
+    expect(g.count).toBe(1);
+    g.update(GROW_S + FALL_S + GROW_S);
+    expect(g.count).toBe(0);
   });
 });

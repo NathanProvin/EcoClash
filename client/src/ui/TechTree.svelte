@@ -17,6 +17,7 @@
   } from "../game/foodweb";
   import {
     cardState,
+    eatersOf,
     families,
     label,
     MEDAL,
@@ -176,6 +177,7 @@
       <span><i class="line threat"></i>eaten by</span>
       <span><i class="dot enemy"></i>the enemy fields it</span>
       <span><Icon name="target" size={12} /> your counter</span>
+      <span><i class="eaten-key">3</i>eaten by 3 species</span>
       <span class="muted">Hover or click a species · thicker = preferred food</span>
     </p>
     <label class="toggle" title="Light only your species that eat what the enemy fields now">
@@ -209,6 +211,7 @@
                 >
                 {#each g.species as s (s.name)}
                   {@const state = cardState(meta, s, unlocked)}
+                  {@const eaten = eatersOf(s, species).length}
                   <button
                     class="node {state} {nodeLook(s)}"
                     bind:this={nodes[s.name]}
@@ -229,6 +232,10 @@
                       >
                     {/if}
                     {#if count(s)}<span class="n">{count(s)}</span>{/if}
+                    {#if eaten}
+                      <!-- D-126: how many species eat it, so counters read at a glance. -->
+                      <span class="eaten" title="Eaten by {eaten} species">{eaten}</span>
+                    {/if}
                     {#if state !== "unlocked"}
                       <span
                         class="lk"
@@ -398,6 +405,18 @@
     height: 8px;
     border-radius: 50%;
   }
+  .eaten-key {
+    display: inline-grid;
+    place-items: center;
+    width: 15px;
+    height: 15px;
+    border: 1px solid var(--threat);
+    border-radius: 999px;
+    color: var(--threat);
+    font-size: 0.85em;
+    font-style: normal;
+    font-weight: 700;
+  }
   .dot.enemy {
     background: var(--enemy);
     box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.5);
@@ -556,6 +575,18 @@
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     color: var(--player-glow);
+  }
+  .eaten {
+    display: inline-grid;
+    place-items: center;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 3px;
+    border: 1px solid var(--threat);
+    border-radius: 999px;
+    color: var(--threat);
+    font-size: 0.78em;
+    font-weight: 700;
   }
   .ctr {
     display: inline-grid;

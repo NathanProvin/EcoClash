@@ -230,6 +230,25 @@ mod tests {
     const BALANCE: &str = include_str!("../../data/balance.toml");
     const SPECIES: &str = include_str!("../../data/species.toml");
 
+    /// D-126: tier-1 insects live one layer lower than they eat, so slugs (ferns' counter) can be
+    /// unlocked with the starting lichen alone; caterpillars need an undergrowth plant first.
+    #[test]
+    fn insects_live_a_layer_below_their_food() {
+        let b = Balance::from_toml(BALANCE, SPECIES).unwrap();
+        let (p, fp) = (FloraParams::from_balance(&b), FaunaParams::from_balance(&b));
+        let mut e = Economy::new(&b, &fp);
+        e.bank[0] = 1_000_000 << 16;
+        let animal = |name: &str| p.species() + fp.index(name).unwrap();
+        assert_eq!(e.check_unlock(1, animal("slugs")), Ok(()));
+        assert!(
+            e.check_unlock(1, animal("caterpillars"))
+                .unwrap_err()
+                .contains("habitat")
+        );
+        e.unlock(1, p.index("ferns").unwrap()).unwrap();
+        assert_eq!(e.check_unlock(1, animal("caterpillars")), Ok(()));
+    }
+
     #[test]
     fn cards_unlock_by_tier_and_habitat_and_cost_points() {
         let b = Balance::from_toml(BALANCE, SPECIES).unwrap();

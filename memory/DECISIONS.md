@@ -1362,3 +1362,21 @@ Template:
   - The beaver now eats chestnut, then oak.
   - Drawn as thin stems with brown seed heads; the water-plant pictogram shows a cattail.
 - **Consequences:** a test checks that a roach in cattails is safe and one in open water is not. Fixture regenerated; every check is green.
+
+## D-126 · 2026-10-01 · A food web where low tiers are easy to counter
+- **Status:** accepted (user: tier-1 plants such as ferns, elder and oak took a high-tier unlock to counter; tier-1 insects should live one layer lower)
+- **Decision:**
+  - Within each plant layer:
+    - the tier-1 insect eats the tier-1 plant first, then the tier-2;
+    - the tier-2 animal eats the tier-2 plant, then the tier-1;
+    - the tier-3 animal eats the tier-3 plant, then the tier-2, then a neighbouring layer.
+  - Tier-1 plants now have 3 eaters (lichen 2), each including a tier-1 insect; tier-3 plants have 1 or 2.
+  - Hunters: the frog now eats slugs first and the pike larvae first.
+  - Insect habitats are one layer lower: slugs on herbs, caterpillars on undergrowth, bark beetles on shrubs (grasshoppers stay on herbs). Slugs can be unlocked with the starting lichen alone, to answer ferns.
+  - Tech-tree nodes show "eaten by N" in red.
+  - Every tier-1 grazer has a hunter of tier 2 at most; slugs have no tier-1 hunter, so the test asks for tier 2 at most.
+- **Consequences:** two tests guard this:
+  - the web test (every plant feeds someone; tier-1 plants have two or more eaters including a tier-1 animal; every grazer is hunted, tier-1 grazers by a tier-2 hunter or lower);
+  - the unlock test (slugs with lichen only; caterpillars only after an undergrowth plant).
+
+  The gradient test is in Rust, which loads the real data files; a client test would have needed a TOML parser.

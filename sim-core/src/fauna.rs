@@ -2013,6 +2013,45 @@ mod tests {
         assert_eq!(cell_of(fa.agents.tx[0]), 9, "the fox goes for the rabbit");
     }
 
+    /// D-126: low tiers are easy to counter. Every plant is someone's food; every tier-1 plant has
+    /// at least two eaters, one of them a tier-1 animal; every grazer has a hunter, and every
+    /// tier-1 grazer one of tier 2 at most.
+    #[test]
+    fn the_food_web_makes_low_tiers_easy_to_counter() {
+        let b = Balance::from_toml(BALANCE, SPECIES).unwrap();
+        let p = FaunaParams::from_balance(&b);
+        let tier = |a: usize| b.fauna_species[a].1.tier;
+        let animals = 0..p.names.len();
+        for (j, (name, s)) in b.flora_species.iter().enumerate() {
+            let eaters: Vec<usize> = animals
+                .clone()
+                .filter(|&a| p.plant_rank(a, j).is_some())
+                .collect();
+            assert!(!eaters.is_empty(), "{name} feeds someone");
+            if s.tier == 1 {
+                assert!(eaters.len() >= 2, "{name}: {} eaters", eaters.len());
+                assert!(
+                    eaters.iter().any(|&a| tier(a) == 1),
+                    "{name}: a tier-1 counter"
+                );
+            }
+        }
+        for v in animals.clone().filter(|&v| p.role[v] == Role::Herbivore) {
+            let hunters: Vec<usize> = animals
+                .clone()
+                .filter(|&a| p.prey_rank(a, v).is_some())
+                .collect();
+            let name = &p.names[v];
+            assert!(!hunters.is_empty(), "{name} is hunted");
+            if tier(v) == 1 {
+                assert!(
+                    hunters.iter().any(|&a| tier(a) <= 2),
+                    "{name}: an early hunter"
+                );
+            }
+        }
+    }
+
     #[test]
     fn frame_layout_matches_the_replay_record() {
         let (_, mut fa, _, _) = setup(8);

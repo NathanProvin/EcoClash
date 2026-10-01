@@ -517,3 +517,6 @@
 
 ## 2026-10-01 · Cattails (D-125)
 - **Done:** cattails replace the willow (data, refuge, model, pictogram, docs, tests); the beaver eats chestnut and oak. Seen in the browser on a marsh map, after algae had built up the soil.
+
+## 2026-10-01 · Food web by tier (D-126)
+- **Done:** new diets and insect habitats, effect texts, docs, two tests, "eaten by N" on tech-tree nodes; checked in the browser (oak: bark beetles, beaver, boar).

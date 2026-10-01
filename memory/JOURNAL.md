@@ -468,3 +468,6 @@
 
 ## 2026-10-01 · Build bar sections and pictograms (D-105)
 - **Done:** new order with water and recyclers on the right, icon-only items, 15 family pictograms. Next: tier rings, padlocks, quick-stat tooltips.
+
+## 2026-10-01 · Tier medals and quick-stat tooltips (D-106)
+- **Done:** tier rings and medal dots, overlaid padlocks, compact tooltips with quick stats; test; seen in the browser. All points of the request are in (D-104…D-106).

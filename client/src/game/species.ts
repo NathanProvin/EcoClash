@@ -142,18 +142,38 @@ export function families(species: Species[]): Family[] {
   return [...out.values()];
 }
 
-/** The stat lines of a species card's tooltip, in real seconds: the stat sheet counts ecology
- *  seconds, which run at `pace` per real second (D-069). */
-export function statLines(s: Species, pace = 1): string[] {
-  const { growth, yield: y, spawn_cost: cost } = s.stats;
+/** One quick stat of a species tooltip (D-106): an icon, a short value, the words on hover. */
+export interface QuickStat {
+  icon: "coin" | "biomass" | "spread" | "egg" | "cap";
+  value: string;
+  title: string;
+}
+
+/** The quick stats of a species, in real seconds: the stat sheet counts ecology seconds, which
+ *  run at `pace` per real second (D-069). Plants: cost per cell, yield per cell, spread, map
+ *  share; animals: cost (×1.5 off your land), yield, breeding period, head cap. */
+export function quickStats(s: Species, pace = 1): QuickStat[] {
+  const { growth, yield: y, spawn_cost: cost, cap } = s.stats;
   const r = (v: number) => Number(v.toPrecision(2));
   return s.kind === "flora"
     ? [
-        `Spreads ${r(growth * pace)}/s · yields ${r(y * pace)}/s per cell`,
-        `Costs ${cost} per cell · ${capText(s)}`,
+        { icon: "coin", value: `${cost}`, title: "Cost per cell planted" },
+        { icon: "biomass", value: `+${r(y * pace)}/s`, title: "Biomass per covered cell" },
+        {
+          icon: "spread",
+          value: `${r(growth * pace)}/s`,
+          title: "Spread: how fast it claims land",
+        },
+        {
+          icon: "cap",
+          value: `${Math.round(cap * 100)}%`,
+          title: "Most of the map one side may hold",
+        },
       ]
     : [
-        `Breeds every ${r(growth / pace)} s · yields ${r(y * pace)}/s`,
-        `Costs ${cost} each, ×1.5 off your land · ${capText(s)}`,
+        { icon: "coin", value: `${cost}`, title: "Cost each, ×1.5 off your land" },
+        { icon: "biomass", value: `+${r(y * pace)}/s`, title: "Biomass per animal" },
+        { icon: "egg", value: `${r(growth / pace)}s`, title: "Breeds at most this often" },
+        { icon: "cap", value: `${cap}`, title: "Most animals one side may have" },
       ];
 }

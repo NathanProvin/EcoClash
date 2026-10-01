@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ReplayMeta, Species } from "../replay/replay";
-import { capText, cardState, families, label, statLines, unlockedAt } from "./species";
+import { capText, cardState, families, label, quickStats, unlockedAt } from "./species";
 
 function sp(
   name: string,
@@ -88,12 +88,12 @@ describe("build card helpers", () => {
     expect(groups[0]?.species.map((s) => s.name)).toEqual(["grasses", "wildflowers"]);
   });
 
-  it("describes a card in two short lines", () => {
-    expect(statLines(sp("grasses", "flora", 1, 1, 0))[1]).toContain("per cell");
-    expect(statLines(sp("fox", "fauna", 5, 1, 0))[1]).toContain("×1.5 off your land");
+  it("gives each card a few quick stats, in real seconds (D-106)", () => {
+    const grass = quickStats(sp("grasses", "flora", 1, 1, 0));
+    expect(grass.map((q) => q.icon)).toEqual(["coin", "biomass", "spread", "cap"]);
     const fox = sp("fox", "fauna", 5, 1, 0);
-    const [slow, full] = [statLines(fox, 0.4)[0] ?? "", statLines(fox, 1)[0] ?? ""];
-    const every = (line: string) => Number(/every ([\d.]+) s/.exec(line)?.[1]);
-    expect(every(slow)).toBeCloseTo(every(full) / 0.4, 5); // real seconds at 0.4 pace
+    expect(quickStats(fox).map((q) => q.icon)).toEqual(["coin", "biomass", "egg", "cap"]);
+    const breeds = (pace: number) => parseFloat(quickStats(fox, pace)[2]?.value ?? "");
+    expect(breeds(0.4)).toBeCloseTo(breeds(1) / 0.4, 5); // real seconds at 0.4 pace
   });
 });

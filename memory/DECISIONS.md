@@ -1200,3 +1200,18 @@ Template:
     - water: a lily pad with a reed, a fish, a heron;
     - recyclers: a mushroom.
   - The bar shrinks from about 1,440 px to about 960 px.
+
+## D-106 · 2026-10-01 · Tier medals, overlaid padlocks, quick-stat tooltips
+- **Status:** accepted (user: tooltips too verbose, want fast access to cost, yield, breeding and other stats plus the short description; padlock over the unit icon; discreet bronze, silver, gold outlines per tier)
+- **Decision:**
+  - **Flyout tiles:**
+    - each has a thin ring in its tier's medal colour (bronze #b08d57, silver #c3c9cf, gold #d4af37);
+    - the "Tier N" column titles become medal dots;
+    - locked tiles show a small padlock over the icon (less faded than before); available ones keep the gold open padlock inside the corner.
+  - **Tooltips:**
+    - Header: medal dot, name and kind.
+    - A 2×2 grid of icon + value quick stats (`quickStats`, tested, real seconds through `pace`):
+      - plants: cost per cell, biomass per cell /s, spread /s, map share cap;
+      - animals: cost (×1.5 off your land in the hover text), biomass /s, breeding period, head cap.
+    - One line for the unlock cost or the lock condition, then the species' short description.
+  - New `Icon` glyphs: coin, spread, egg, cap.

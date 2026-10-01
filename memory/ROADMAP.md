@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-01 rounds done (D-090…D-103: quality crash, lighter High, open start and bot delay, map types, draped rings, grazed-bare lockout, solid frontier, compact cell panel, map size option). Next: the user's playtest, then M5a 8b (Tutorial) and 9 (deploy; ask before publishing).
+- **Now:** 2026-10-01 rounds done (D-090…D-106; latest: lichen pace fix, compact build bar with sections and pictograms, tier medals, quick-stat tooltips). Next: the user's playtest, then M5a 8b (Tutorial) and 9 (deploy; ask before publishing).
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-10-01

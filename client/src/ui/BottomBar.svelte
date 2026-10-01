@@ -7,7 +7,7 @@
   // armed), buys it when it can be unlocked, or does nothing while locked. A click on a family
   // item pins its flyout (touch, keyboard); Esc closes it. With animals selected, a selection
   // strip sits above the bar. Replays show the same bar, read-only.
-  import { cardState, families, label, roleName, statLines } from "../game/species";
+  import { cardState, families, label, quickStats, roleName } from "../game/species";
   import type { Source, Species } from "../replay/replay";
   import FamilyIcon from "./FamilyIcon.svelte";
   import Icon from "./Icon.svelte";
@@ -38,6 +38,9 @@
   } = $props();
 
   const TIERS = [1, 2, 3] as const;
+  /** Tier medals (D-106): bronze, silver, gold. */
+  const MEDAL = ["bronze", "silver", "gold"] as const;
+  const MEDAL_NAME = ["Tier 1 · small", "Tier 2 · medium", "Tier 3 · large"] as const;
   const GRACE_MS = 120; // time to cross the gap between an item and its flyout
 
   const species = $derived(replay.meta.species);
@@ -157,11 +160,11 @@
                 {@const list = g.species.filter((s) => s.tier === t)}
                 {#if list.length}
                   <div class="tier">
-                    <span class="tl">Tier {t}</span>
+                    <span class="medal {MEDAL[t - 1]}" title={MEDAL_NAME[t - 1]}></span>
                     {#each list as s (s.name)}
                       {@const state = cardOf(s)}
                       <button
-                        class="tile {state}"
+                        class="tile {state} {MEDAL[s.tier - 1] ?? 'bronze'}"
                         class:armed={planting === s.name}
                         class:none={count(s) === 0 && state === "unlocked"}
                         role="menuitem"
@@ -174,6 +177,8 @@
                         {#if count(s)}<span class="count num">{count(s)}</span>{/if}
                         {#if state === "available"}
                           <span class="unlock"><Icon name="unlock" size={11} /></span>
+                        {:else if state === "locked"}
+                          <span class="lock"><Icon name="lock" size={12} /></span>
                         {/if}
                       </button>
                     {/each}
@@ -191,22 +196,26 @@
     {@const s = hover.s}
     {@const state = cardOf(s)}
     <div class="tip panel" style:left="{hover.x}px" style:top="{hover.y}px" role="tooltip">
-      <strong>{label(s.name)}</strong>
-      <span class="sub">tier {s.tier} · {s.kind === "flora" ? "plant" : roleName(s.role)}</span>
-      {#each statLines(s, replay.meta.pace) as line (line)}<span>{line}</span>{/each}
-      <em>{s.stats.effect}</em>
+      <span class="head">
+        <span class="medal {MEDAL[s.tier - 1]}"></span>
+        <strong>{label(s.name)}</strong>
+        <span class="sub">{s.kind === "flora" ? "plant" : roleName(s.role)}</span>
+      </span>
+      <span class="stats">
+        {#each quickStats(s, replay.meta.pace) as q (q.icon)}
+          <span class="stat" title={q.title}><Icon name={q.icon} size={13} />{q.value}</span>
+        {/each}
+      </span>
       {#if state === "available"}
-        <span class="act">Click to unlock · {s.stats.unlock_cost}</span>
+        <span class="act"><Icon name="unlock" size={12} /> {s.stats.unlock_cost} to unlock</span>
       {:else if state === "locked"}
         <span class="act dim"
-          >Locked: needs a tier {s.tier - 1}
-          {s.kind === "flora" ? "plant" : "animal"} of this family{s.kind === "fauna"
-            ? " and a habitat plant"
-            : ""}</span
+          ><Icon name="lock" size={12} /> tier {s.tier - 1}{s.kind === "fauna"
+            ? " + habitat plant"
+            : ""} first</span
         >
-      {:else if live}
-        <span class="act">Click, then the map · hold Shift to keep dropping</span>
       {/if}
+      <em>{s.stats.effect}</em>
     </div>
   {/if}
 </footer>
@@ -288,11 +297,37 @@
     align-items: center;
     gap: 4px;
   }
-  .tl {
-    font-size: 0.58em;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--ink-soft);
+  /* Tier medals and rings (D-106): bronze, silver, gold. */
+  .bronze {
+    --medal: #b08d57;
+  }
+  .silver {
+    --medal: #c3c9cf;
+  }
+  .gold {
+    --medal: #d4af37;
+  }
+  .medal {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--medal);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  }
+  .tile {
+    box-shadow: inset 0 0 0 1.5px var(--medal);
+  }
+  .lock {
+    position: absolute;
+    right: 3px;
+    top: 3px;
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.6);
   }
   .tile {
     padding: 2px;
@@ -306,8 +341,8 @@
     opacity: 0.7;
   }
   .tile.locked {
-    opacity: 0.28;
-    filter: grayscale(0.9);
+    opacity: 0.55;
+    filter: grayscale(0.85);
     cursor: default;
   }
   .tile.available {
@@ -374,13 +409,36 @@
     z-index: 5;
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    max-width: 280px;
-    font-size: 0.8em;
+    gap: 4px;
+    width: max-content;
+    max-width: 230px;
+    padding: 7px 10px;
+    font-size: 0.78em;
     pointer-events: none;
   }
-  .tip strong {
-    font-size: 1.1em;
+  .head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .head strong {
+    font-size: 1.08em;
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 3px 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--ink);
+  }
+  .stat :global(svg) {
+    color: var(--ink-soft);
   }
   .sub,
   .dim,
@@ -388,7 +446,13 @@
     color: var(--ink-soft);
   }
   .act {
-    margin-top: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     color: var(--gold);
+  }
+  em {
+    font-size: 0.95em;
+    line-height: 1.3;
   }
 </style>

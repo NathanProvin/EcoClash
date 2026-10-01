@@ -63,6 +63,7 @@ export type ToMain =
       frame: ArrayBuffer;
       pressure: ArrayBuffer;
       lock: ArrayBuffer;
+      deadwood: ArrayBuffer;
       bank: number[];
       income: number[];
       standing: number[];
@@ -261,6 +262,7 @@ export class Live implements Source {
       this.current = this.decode(this.current.frame + 1, new Uint8Array(m.frame), m);
       this.current.pressure = new Uint8Array(m.pressure);
       this.current.lock = new Uint8Array(m.lock);
+      this.current.deadwood = new Uint8Array(m.deadwood);
     } else if (m.type === "notice") {
       const at = performance.now();
       this.notices = [...this.notices, ...m.notices.map((n) => ({ ...n, at }))].slice(-4);

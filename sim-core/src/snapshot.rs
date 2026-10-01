@@ -10,6 +10,29 @@ use crate::flora::{Flora, FloraState, U16};
 const GRAZER_PUSH: i64 = ONE as i64 / 4;
 const PUSH_FULL: i64 = 2 * ONE as i64;
 
+/// Standing dead wood per cell, 0..=255 (D-127): 255 is a full dead stand (the stoutest tree at
+/// full cover, times the standing share); any wood at all shows at least 1. A view, not hashed.
+#[must_use]
+pub fn deadwood_frame(flora: &Flora, st: &FloraState) -> Vec<u8> {
+    let p = &flora.p;
+    let stoutest = p.strata[crate::flora::LEVELS - 1]
+        .iter()
+        .map(|&s| p.kmax[s])
+        .max()
+        .unwrap_or(1);
+    let full = div_round(stoutest * p.wood_share, ONE as i64).max(1);
+    st.snag
+        .iter()
+        .map(|&w| {
+            if w <= 0 {
+                0
+            } else {
+                u8::try_from(div_round(w.min(full) * 255, full).max(1)).unwrap_or(255)
+            }
+        })
+        .collect()
+}
+
 /// How hard the non-owner pushes into each cell, 0..=255, for the frontier lines (D-076): the
 /// flora step's smothering attack (`Flora::push`) plus the enemy grazers standing on the cell.
 /// Derived from the state, never hashed: a view, like the snapshot.

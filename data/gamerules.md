@@ -273,6 +273,7 @@ All dead organisms, plants and animals, feed `Dead biomass`.
 - Predators attack enemy agents whose species is in their diet. Damage reduces health, and a killed agent becomes dead biomass.
 - Predators cannot attack species outside their diet. A fox ignores slugs, for example.
 - **Refuge (D-023):** a player's small fauna inside own cells with dense hawthorn & blackthorn or bramble, or in the water dense cattails (D-125), cannot be hunted. Predators are otherwise kept in check by their own predators (§5.2).
+- **Dead trees (D-127):** trees can die of old age (a small chance, a mean life of 3 h of ecology time). The dead tree stays standing; while it stands, no tree can grow in that cell. It rots away slowly, and recyclers clear it faster, the black woodpecker best of all (dead wood is its primary food).
 
 ### 6.3 Spawn conditions
 

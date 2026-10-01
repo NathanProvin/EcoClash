@@ -67,6 +67,7 @@ describe("Replay", () => {
       strata: [0, 0, 0, 0],
       push: 0,
       lock: null,
+      deadwood: 0,
       plants: [],
       animals: [{ name: "rabbits", owner: 1, count: 1 }],
     });

@@ -86,6 +86,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     frame: frame.buffer,
     pressure: new Uint8Array([0, 128, 0, 0]).buffer,
     lock: new Uint8Array([0, 0, 0, 0, 2, 12, 0, 0]).buffer, // cell 2: P2 barred for 12 s
+    deadwood: new Uint8Array([0, 0, 0, 51]).buffer, // cell 3: a dead tree (D-127)
     bank: [1000, 990],
     income: [4, 2],
     standing: [5000, 4000],
@@ -116,6 +117,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
   expect(live.cell(9, 0, 1).push).toBeCloseTo(128 / 255); // D-100
   expect(live.cell(9, 1, 0).lock).toEqual({ player: 2, s: 12 }); // D-098
   expect(live.cell(9, 0, 0).lock).toBeNull();
+  expect(live.cell(9, 1, 1).deadwood).toBeCloseTo(51 / 255); // D-127
   expect(live.fields().cover[3]?.[1]).toBe(255);
   expect(live.animals(8)[0]?.x).toBe(0); // the frame before...
   expect(live.animals(9)[0]?.x).toBe(1); // ...and the latest one, to interpolate between

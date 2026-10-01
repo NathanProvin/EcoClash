@@ -42,6 +42,7 @@ export interface Fields {
   cover: Uint8Array[]; // cover 0..255 per height stratum L1..L4 (sum of its species, capped)
   pressure?: Uint8Array; // live only: how hard the non-owner pushes into each cell, 0..255 (D-076)
   lock?: Uint8Array; // live only: per cell, the barred player and seconds left (D-098)
+  deadwood?: Uint8Array; // live only: standing dead wood per cell, 0..255 (D-127)
 }
 
 /** What stands on one cell at one tick (the cell panel). */
@@ -58,6 +59,8 @@ export interface CellInfo {
   push: number;
   /** The player barred from taking the cell back, and for how long (D-098; live only). */
   lock: { player: number; s: number } | null;
+  /** Standing dead wood, 0..1 of a full dead stand (D-127): no tree grows there. */
+  deadwood: number;
   plants: { name: string; level: number; cover: number }[]; // cover 0..1
   animals: { name: string; owner: number; count: number }[];
 }
@@ -242,6 +245,7 @@ export function cellAt(
     strata: f.cover.map((c) => (c[k] ?? 0) / 255),
     push: (f.pressure?.[k] ?? 0) / 255,
     lock: f.lock?.[2 * k] ? { player: f.lock[2 * k] ?? 0, s: f.lock[2 * k + 1] ?? 0 } : null,
+    deadwood: (f.deadwood?.[k] ?? 0) / 255,
     plants,
     animals: Object.values(herd),
   };

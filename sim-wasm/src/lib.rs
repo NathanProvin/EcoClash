@@ -318,6 +318,12 @@ impl Sim {
         self.world.pressure_frame()
     }
 
+    /// Standing dead wood per cell, 0..=255 (D-127).
+    #[wasm_bindgen(js_name = deadwoodFrame)]
+    pub fn deadwood_frame(&self) -> Vec<u8> {
+        self.world.deadwood_frame()
+    }
+
     /// Plant species names, in id order (the order of the cover layers).
     #[wasm_bindgen(js_name = speciesNames)]
     pub fn species_names(&self) -> Vec<String> {

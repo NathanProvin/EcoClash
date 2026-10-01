@@ -166,6 +166,9 @@ impl World {
             self.fauna
                 .act(&self.flora.p, &mut self.state, &mut self.rng);
             self.flora.step(&mut self.state);
+            // Dead wood (D-127): old trees die standing; standing dead wood rots.
+            self.flora.rot_deadwood(&mut self.state);
+            self.flora.natural_deaths(&mut self.state, &mut self.rng);
             self.economy.update(&self.flora.p, &self.state, &self.fauna);
             if self.result.is_none() {
                 self.result = self.judge();
@@ -449,6 +452,12 @@ impl World {
     pub fn pressure_frame(&self) -> Vec<u8> {
         crate::snapshot::pressure_frame(&self.flora, &self.state, &self.fauna)
     }
+
+    /// Standing dead wood per cell, 0..=255, for the dead-tree models (D-127).
+    #[must_use]
+    pub fn deadwood_frame(&self) -> Vec<u8> {
+        crate::snapshot::deadwood_frame(&self.flora, &self.state)
+    }
 }
 
 #[cfg(test)]
@@ -462,6 +471,15 @@ mod tests {
             include_str!("../../data/species.toml"),
         )
         .expect("data files load")
+    }
+
+    /// D-127: standing dead wood is part of the state hash.
+    #[test]
+    fn dead_wood_is_hashed() {
+        let mut w = World::new(&balance(), 1, 8);
+        let before = full_hash(&w.state);
+        w.state.snag[9] = 7;
+        assert_ne!(before, full_hash(&w.state));
     }
 
     fn plant(tick: u64, player: u8, seq: u32, species: &str, row: u32, col: u32) -> Command {

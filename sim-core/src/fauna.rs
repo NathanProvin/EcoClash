@@ -54,6 +54,8 @@ pub struct FaunaParams {
     rank_fauna: Vec<[u32; DIET_RANKS]>,
     /// Energy from a food of each rank, as a share of `transfer` (Q16).
     diet_yield: [i64; DIET_RANKS],
+    /// Recyclers' foods by rank (D-127): `LITTER`, `DEADWOOD`, or 0.
+    rank_rot: Vec<[u8; DIET_RANKS]>,
     small: Vec<bool>,
     /// Energy capacity, in biomass units (full energy = body x ONE).
     pub body: Vec<i64>,
@@ -163,6 +165,18 @@ impl FaunaParams {
             names.iter().position(|n| n == e).map_or(0, |i| 1u32 << i)
         });
         let any = |r: &[u32; DIET_RANKS]| r.iter().fold(0, |m, x| m | x);
+        let rank_rot = sp
+            .iter()
+            .map(|s| {
+                let mut ranks = [0u8; DIET_RANKS];
+                if s.role == "decomposer" {
+                    for (r, e) in s.eats.iter().take(DIET_RANKS).enumerate() {
+                        ranks[r] = if e == "deadwood" { DEADWOOD } else { LITTER };
+                    }
+                }
+                ranks
+            })
+            .collect();
         let eats_fauna = rank_fauna.iter().map(any).collect();
         let sight: Vec<i64> = sp.iter().map(|s| i64::from(s.sight)).collect();
         let flee = i64::from(fa.flee_radius);
@@ -181,6 +195,7 @@ impl FaunaParams {
             eats_fauna,
             rank_flora,
             rank_fauna,
+            rank_rot,
             diet_yield: std::array::from_fn(|r| {
                 round(fa.diet_yield.get(r).copied().unwrap_or(1.0) * one)
             }),
@@ -247,6 +262,19 @@ impl FaunaParams {
     pub fn prey_rank(&self, s: usize, prey: usize) -> Option<usize> {
         let ranks = self.rank_fauna.get(s)?;
         (0..DIET_RANKS).find(|&r| ranks[r] >> prey & 1 == 1)
+    }
+
+    /// The rot food recycler `s` finds in cell `k`: the most of its litter and dead wood.
+    fn rot_stock(&self, s: usize, st: &FloraState, k: usize) -> i64 {
+        self.rank_rot[s]
+            .iter()
+            .map(|&f| match f {
+                LITTER => st.dead[k],
+                DEADWOOD => st.snag[k],
+                _ => 0,
+            })
+            .max()
+            .unwrap_or(0)
     }
 
     /// Energy from `amount` of a food of `rank`: the transfer, scaled by the rank's yield.
@@ -474,6 +502,10 @@ fn cell_of(q: i64) -> usize {
 fn centre(cell: usize) -> i64 {
     i64::try_from(cell).unwrap_or(0) * ONE_I + HALF
 }
+
+/// Recyclers' foods (D-127): litter on the ground, standing dead wood.
+const LITTER: u8 = 1;
+const DEADWOOD: u8 = 2;
 
 /// A waypoint is due (`Agents::py`), and one is reached within a quarter cell.
 const ROUTE: i64 = i64::MIN;
@@ -790,17 +822,40 @@ impl Fauna {
         }
     }
 
-    /// Decomposers eat dead biomass and turn it into soil development.
+    /// Decomposers eat the best-ranked rot food in their cell, litter or standing dead wood
+    /// (D-127), and turn it into soil development.
     fn decompose(&mut self, st: &mut FloraState) {
         let (a, p, n) = (&mut self.agents, &self.p, st.n);
-        let orders: Vec<(usize, usize, i64)> = (0..a.len())
-            .filter(|&i| p.role[usize::from(a.sp[i])] == Role::Decomposer)
-            .map(|i| (i, a.cell(i, n), p.bite[usize::from(a.sp[i])]))
-            .collect();
-        for (i, k, eaten) in share(&orders, |k| st.dead[k]) {
-            st.dead[k] -= eaten;
-            a.energy[i] += eaten * p.transfer;
-            st.soil[k] = (st.soil[k] + div_round(eaten * p.soil_per_dead, ONE_I)).min(U16);
+        let mut orders = [Vec::new(), Vec::new()]; // litter, dead wood: (agent, cell, bite)
+        let mut rank_by = vec![0usize; a.len()];
+        for i in 0..a.len() {
+            let s = usize::from(a.sp[i]);
+            if p.role[s] != Role::Decomposer {
+                continue;
+            }
+            let k = a.cell(i, n);
+            let pick = (0..DIET_RANKS).find(|&r| match p.rank_rot[s][r] {
+                LITTER => st.dead[k] >= 1,
+                DEADWOOD => st.snag[k] >= 1,
+                _ => false,
+            });
+            if let Some(r) = pick {
+                rank_by[i] = r;
+                let o = usize::from(p.rank_rot[s][r] == DEADWOOD);
+                orders[o].push((i, k, p.bite[s]));
+            }
+        }
+        for (o, list) in orders.iter().enumerate() {
+            let stock = |k: usize| if o == 0 { st.dead[k] } else { st.snag[k] };
+            for (i, k, eaten) in share(list, stock) {
+                if o == 0 {
+                    st.dead[k] -= eaten;
+                } else {
+                    st.snag[k] -= eaten;
+                }
+                a.energy[i] += p.fed(eaten, rank_by[i]);
+                st.soil[k] = (st.soil[k] + div_round(eaten * p.soil_per_dead, ONE_I)).min(U16);
+            }
         }
     }
 
@@ -914,7 +969,7 @@ impl Fauna {
                             .filter(|j| p.eats_flora[s] >> j & 1 == 1)
                             .map(|j| st.bio[j * n2 + k])
                             .sum(),
-                        Role::Decomposer => st.dead[k],
+                        Role::Decomposer => p.rot_stock(s, st, k),
                         Role::Predator => 0,
                     };
                 }
@@ -1052,7 +1107,7 @@ impl Fauna {
                                 .max()
                                 .unwrap_or(0)
                         } else {
-                            st.dead[k]
+                            p.rot_stock(s, st, k)
                         }
                     };
                     let enough: Vec<bool> = (0..n2)
@@ -1087,11 +1142,24 @@ impl Fauna {
                         }
                         masks
                     } else {
-                        vec![
-                            (0..n2)
-                                .map(|k| enough[k] && stand(k) && st.owner[k] != 3 - pl)
-                                .collect(),
-                        ]
+                        // Recyclers (D-127): their best-ranked rot food first (the woodpecker's
+                        // is standing dead wood), off enemy land.
+                        (0..DIET_RANKS)
+                            .map(|r| {
+                                (0..n2)
+                                    .map(|k| {
+                                        let have = match p.rank_rot[s][r] {
+                                            LITTER => st.dead[k],
+                                            DEADWOOD => st.snag[k],
+                                            _ => 0,
+                                        };
+                                        have >= p.bite[s] * crowd[k].max(1)
+                                            && stand(k)
+                                            && st.owner[k] != 3 - pl
+                                    })
+                                    .collect()
+                            })
+                            .collect()
                     }
                 };
                 for (mi, m) in masks.iter().enumerate() {
@@ -1515,6 +1583,27 @@ mod tests {
             stayed > 10,
             "the rabbit rests at idle decisions ({stayed} of 100)"
         );
+    }
+
+    /// D-127: the woodpecker's primary food is standing dead wood: it eats that before litter in
+    /// its cell, and heads for a dead tree before nearer litter.
+    #[test]
+    fn woodpeckers_go_for_dead_trees_first() {
+        let (f, mut fa, mut st, mut rng) = setup(12);
+        let pecker = fa.p.index("black_woodpecker").unwrap();
+        let k = 6 * 12 + 6;
+        st.snag[k] = 5000;
+        st.dead[k] = 5000;
+        fa.agents.push(pecker, 1, centre(6), centre(6), 0, 0);
+        fa.decompose(&mut st);
+        assert!(st.snag[k] < 5000 && st.dead[k] == 5000, "dead wood first");
+        // Litter next to it, a dead tree four cells away: it heads for the tree.
+        let (mut fa, mut st) = (setup(12).1, FloraState::new(&f.p, 12));
+        st.dead[6 * 12 + 7] = 5000;
+        st.snag[6 * 12 + 10] = 5000;
+        fa.agents.push(pecker, 1, centre(6), centre(6), ONE_I, 0);
+        fa.decide(&f.p, &st, &mut rng);
+        assert_eq!(cell_of(fa.agents.tx[0]), 10);
     }
 
     #[test]

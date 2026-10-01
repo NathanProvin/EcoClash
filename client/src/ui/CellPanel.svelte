@@ -52,6 +52,13 @@
         ><Icon name="lock" size={13} />{info.lock.s}s</span
       >
     {/if}
+    {#if info.deadwood > 0}
+      <span
+        class="chip dead"
+        title="A dead tree stands here: no tree can grow until recyclers or rot clear it"
+        ><Icon name="deadtree" size={15} /></span
+      >
+    {/if}
     <span class="gap"></span>
     <button class="ib" onclick={onZoom} title="Zoom to plant scale" aria-label="Zoom">
       <Icon name="zoom" size={15} />
@@ -150,6 +157,9 @@
   }
   .chip.danger {
     color: var(--alert, #ff7a5c);
+  }
+  .chip.dead {
+    color: #b8ab98;
   }
   .chip.lock.p1 {
     color: var(--p1-glow);

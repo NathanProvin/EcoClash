@@ -331,3 +331,80 @@ export class PlantView {
     for (const key of keys) this.meshes[key % KEY_MESHES]?.drop(key, t);
   }
 }
+
+/** Dead trees (D-127): a weathered grey trunk and a few bare branches, sized by the dead wood
+ *  left. Branch geometry leans out in model space, since instances only turn about Y. */
+const DEAD = { trunk: 3.4, trunkR: 0.26, branches: 5, branch: 1.8, color: "#a89e90" } as const;
+
+export class DeadTrees {
+  private readonly trunks: GrowingMesh<number>;
+  private readonly branches: GrowingMesh<number>;
+  private readonly color = new THREE.Color(DEAD.color);
+  private readonly shown = new Set<number>();
+
+  constructor(scene: THREE.Scene, n: number, now: THREE.UniformNode<"float", number>) {
+    const cells = n * n;
+    const mat = () => new THREE.MeshStandardNodeMaterial({ roughness: 1, flatShading: true });
+    this.trunks = new GrowingMesh<number>(
+      new THREE.CylinderGeometry(0.55, 1, 1, 6).translate(0, 0.5, 0),
+      cells,
+      mat(),
+      now,
+    );
+    this.branches = new GrowingMesh<number>(
+      // Thin and leaning in the geometry: instances scale it evenly by the branch length.
+      new THREE.CylinderGeometry(0.03, 0.065, 1, 4).translate(0, 0.5, 0).rotateZ(-0.9),
+      cells * DEAD.branches,
+      mat(),
+      now,
+    );
+    for (const g of [this.trunks, this.branches]) {
+      g.mesh.castShadow = true;
+      g.mesh.receiveShadow = true;
+      scene.add(g.mesh);
+    }
+  }
+
+  /** A new field frame at `t`: a dead tree on every cell with dead wood, withering when gone. */
+  update(
+    deadwood: Uint8Array | undefined,
+    n: number,
+    t: number,
+    height: (x: number, z: number) => number,
+  ): void {
+    for (let c = 0; c < n * n; c++) {
+      const w = deadwood?.[c] ?? 0;
+      if (w === 0) {
+        if (this.shown.delete(c)) {
+          this.trunks.drop(c, t);
+          for (let b = 0; b < DEAD.branches; b++) this.branches.drop(c * DEAD.branches + b, t);
+        }
+        continue;
+      }
+      this.shown.add(c);
+      const size = 0.45 + 0.55 * Math.sqrt(w / 255);
+      const x = ((c % n) - n / 2 + 0.5 + 0.3 * (rand(c, 7100) - 0.5)) * CELL;
+      const z = (Math.floor(c / n) - n / 2 + 0.5 + 0.3 * (rand(c, 7200) - 0.5)) * CELL;
+      const y = height(x, z);
+      const h = DEAD.trunk * size;
+      const turn = rand(c, 7300) * Math.PI * 2;
+      const root = { rootX: x, rootY: y, rootZ: z, color: this.color };
+      this.trunks.put(c, { ...root, x, y, z, w: DEAD.trunkR * size, h, angle: turn }, t);
+      for (let b = 0; b < DEAD.branches; b++) {
+        const a = turn + (b * Math.PI * 2) / DEAD.branches + rand(c * 8 + b, 7400);
+        const len = DEAD.branch * size * (0.7 + 0.4 * rand(c * 8 + b, 7500));
+        const by = y + h * (0.5 + 0.4 * (b / DEAD.branches));
+        this.branches.put(
+          c * DEAD.branches + b,
+          { ...root, x, y: by, z, w: len, h: len, angle: a },
+          t,
+        );
+      }
+    }
+  }
+
+  frame(t: number): void {
+    this.trunks.update(t);
+    this.branches.update(t);
+  }
+}

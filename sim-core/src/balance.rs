@@ -69,6 +69,19 @@ pub struct AgentRules {
 /// Foods per diet: primary, secondary, tertiary (D-123).
 pub const DIET_RANKS: usize = 3;
 
+/// `[deadwood]` (D-127): natural tree death, standing dead wood and its rot.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeadwoodRules {
+    /// Mean life of a tree stand (ecology seconds): a cell's trees die with dt / this per flora
+    /// tick.
+    pub natural_death_s: f64,
+    /// Share of a dead stand that stays standing as dead wood (the rest falls as litter).
+    pub wood_share: f64,
+    /// Seconds for standing dead wood to rot away on its own (exponential, to litter).
+    pub rot_s: f64,
+}
+
 /// `[fauna]` global rules (gamerules §6; D-023, D-026).
 #[derive(Clone, Debug, Deserialize)]
 pub struct FaunaRules {
@@ -311,6 +324,7 @@ pub struct Balance {
     pub economy: EconomyRules,
     pub agents: AgentRules,
     pub fauna: FaunaRules,
+    pub deadwood: DeadwoodRules,
     #[allow(clippy::struct_field_names)]
     pub r#match: MatchRules,
     /// Plant species in file order: the index is the species id.
@@ -327,6 +341,7 @@ struct BalanceFile {
     economy: EconomyRules,
     agents: AgentRules,
     fauna: FaunaRules,
+    deadwood: DeadwoodRules,
     r#match: MatchRules,
 }
 
@@ -343,6 +358,7 @@ impl Balance {
             economy: file.economy,
             agents: file.agents,
             fauna: file.fauna,
+            deadwood: file.deadwood,
             r#match: file.r#match,
             flora_species: section(&doc, "flora")?,
             fauna_species: section(&doc, "fauna")?,
@@ -491,6 +507,11 @@ impl Balance {
     /// Every name an animal refers to exists, and the numbers are usable.
     fn validate_fauna(&self) -> Result<(), String> {
         let check = |ok: bool, what: String| if ok { Ok(()) } else { Err(what) };
+        let d = &self.deadwood;
+        check(
+            d.natural_death_s > 0.0 && d.rot_s > 0.0 && d.wood_share > 0.0 && d.wood_share <= 1.0,
+            "[deadwood] natural_death_s and rot_s > 0, wood_share in (0, 1]".into(),
+        )?;
         let flora = |x: &str| {
             self.flora_species
                 .iter()
@@ -537,7 +558,7 @@ impl Balance {
         }
         for (n, s) in &self.fauna_species {
             let eats_ok = match s.role.as_str() {
-                "decomposer" => s.eats.iter().all(|e| e == "dead"),
+                "decomposer" => s.eats.iter().all(|e| e == "dead" || e == "deadwood"),
                 "herbivore" => s.eats.iter().all(|e| flora(e)),
                 "predator" => s.eats.iter().all(|e| fauna(e)),
                 _ => false,

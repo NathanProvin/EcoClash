@@ -520,3 +520,7 @@
 
 ## 2026-10-01 · Food web by tier (D-126)
 - **Done:** new diets and insect habitats, effect texts, docs, two tests, "eaten by N" on tech-tree nodes; checked in the browser (oak: bark beetles, beaver, boar).
+
+## 2026-10-01 · Dead trees (D-127)
+- **Done:** sim (snag field, natural death, blocking, rot, woodpecker diet), export, dead-tree model, cell chip, tests.
+- **Fixed in the browser:** the branches collapsed to slivers (a scale across a leaning geometry), and the mean life was raised from 30 min to 3 h.

@@ -59,6 +59,11 @@ pub struct FloraParams {
     pub succession: bool,
     pub shade: bool,
     pub contested_cells: bool,
+    /// Dead wood (D-127), per flora tick (Q16): the chance a tree stand dies of old age, the
+    /// share of it left standing, and the share of standing dead wood that rots.
+    pub death: i64,
+    pub wood_share: i64,
+    pub rot: i64,
 }
 
 /// The prototype's `round_half_away`: `sign(x) * floor(|x| + 0.5)`, used for every load-time
@@ -139,6 +144,9 @@ impl FloraParams {
             succession: f.succession,
             shade: f.shade,
             contested_cells: f.contested_cells,
+            death: round(dt / b.deadwood.natural_death_s * one),
+            wood_share: round(b.deadwood.wood_share * one),
+            rot: round(dt / b.deadwood.rot_s * one),
         }
     }
 
@@ -189,6 +197,9 @@ impl FloraParams {
             h.i64s(row);
         }
         h.i64(self.alpha)
+            .i64(self.death)
+            .i64(self.wood_share)
+            .i64(self.rot)
             .i64(self.plant_g)
             .i64(self.soil_ramp)
             .i64(self.water0)
@@ -227,6 +238,9 @@ pub struct FloraState {
     /// (set when enemy grazers eat it bare; 0 = free).
     pub lock: Vec<i64>,
     pub lock_p: Vec<u8>,
+    /// Standing dead wood (D-127), biomass units: a dead tree, eaten by recyclers and rotting to
+    /// litter; while any stands, no tree grows in the cell.
+    pub snag: Vec<i64>,
     /// Flora ticks done.
     pub t: u64,
 }
@@ -251,6 +265,7 @@ impl FloraState {
             dead: vec![0; cells],
             lock: vec![0; cells],
             lock_p: vec![0; cells],
+            snag: vec![0; cells],
             t: 0,
         }
     }
@@ -335,6 +350,56 @@ impl Scratch {
 }
 
 impl Flora {
+    /// The trees of cell `k` die (D-127): `wood_share` of their biomass stands on as dead wood,
+    /// the rest falls as litter. A cell left with no plant turns neutral. Returns whether trees
+    /// were there.
+    pub fn kill_trees(&self, st: &mut FloraState, k: usize) -> bool {
+        let (p, n2) = (&self.p, st.n * st.n);
+        let mut wood = 0;
+        for &s in &p.strata[LEVELS - 1] {
+            wood += st.bio[s * n2 + k];
+            st.bio[s * n2 + k] = 0;
+            st.gauge[s * n2 + k] = 0;
+        }
+        if wood <= 0 {
+            return false;
+        }
+        let standing = div(wood * p.wood_share, ONE_I);
+        st.snag[k] += standing;
+        st.dead[k] += wood - standing;
+        if (0..p.species()).all(|s| st.bio[s * n2 + k] < 1) {
+            st.owner[k] = 0;
+            st.prog[0][k] = 0;
+            st.prog[1][k] = 0;
+        }
+        true
+    }
+
+    /// One flora tick of old age (D-127): every cell with trees dies with chance `death`.
+    pub fn natural_deaths(&self, st: &mut FloraState, rng: &mut crate::rng::Pcg32) {
+        let n2 = st.n * st.n;
+        for k in 0..n2 {
+            let trees = self.p.strata[LEVELS - 1]
+                .iter()
+                .any(|&s| st.bio[s * n2 + k] >= 1);
+            if trees && i64::from(rng.below(1 << 16)) < self.p.death {
+                self.kill_trees(st, k);
+            }
+        }
+    }
+
+    /// One flora tick of rot (D-127): standing dead wood loses `rot` of itself (at least 1) to
+    /// litter.
+    pub fn rot_deadwood(&self, st: &mut FloraState) {
+        for k in 0..st.snag.len() {
+            if st.snag[k] > 0 {
+                let lost = div(st.snag[k] * self.p.rot, ONE_I).max(1).min(st.snag[k]);
+                st.snag[k] -= lost;
+                st.dead[k] += lost;
+            }
+        }
+    }
+
     #[must_use]
     pub fn new(p: FloraParams) -> Flora {
         Flora {
@@ -350,6 +415,10 @@ impl Flora {
         // Rock and deep water: nothing takes root (D-084). Shallows only through the water
         // response below.
         if matches!(st.ground[k], crate::terrain::ROCK | crate::terrain::DEEP) {
+            return 0;
+        }
+        // A dead tree still standing: no tree takes root under it (D-127).
+        if st.snag[k] > 0 && usize::from(p.level[s]) == LEVELS {
             return 0;
         }
         let mut suit = p.aff[s][usize::from(st.soil_type[k])];
@@ -1188,6 +1257,43 @@ mod tests {
             held(&st)
         );
         assert_eq!(st.owner[bare], 1, "the grazed-bare cell is taken");
+    }
+
+    /// D-127: dead trees. Killed trees leave standing dead wood (the rest falls as litter) and
+    /// the cell turns neutral if nothing else grows there; no tree takes root while the wood
+    /// stands; it rots to litter, and trees can grow again.
+    #[test]
+    fn dead_trees_stand_block_trees_and_rot_away() {
+        let f = flora();
+        let (oak, grasses) = (f.p.index("oak").unwrap(), f.p.index("grasses").unwrap());
+        let n = 4;
+        let mut st = FloraState::new(&f.p, n);
+        st.soil.fill(U16);
+        let k = 5;
+        st.owner[k] = 1;
+        st.bio[oak * n * n + k] = 10_000;
+        assert!(f.suitability(&st, oak, k) > 0);
+        assert!(f.kill_trees(&mut st, k));
+        let standing = 10_000 * f.p.wood_share / ONE_I;
+        assert!((st.snag[k] - standing).abs() <= 1 && st.snag[k] + st.dead[k] == 10_000);
+        assert_eq!(
+            st.owner[k], 0,
+            "nothing else grew there: the cell turns neutral"
+        );
+        assert_eq!(f.suitability(&st, oak, k), 0, "no tree under a dead one");
+        assert!(
+            f.suitability(&st, grasses, k) > 0,
+            "herbs may grow around it"
+        );
+        assert!(!f.kill_trees(&mut st, k), "no trees left to kill");
+        let mut ticks = 0;
+        while st.snag[k] > 0 {
+            f.rot_deadwood(&mut st);
+            ticks += 1;
+            assert!(ticks < 100_000, "it rots away");
+        }
+        assert_eq!(st.dead[k], 10_000, "all of it ends as litter");
+        assert!(f.suitability(&st, oak, k) > 0, "trees may grow again");
     }
 
     #[test]

@@ -135,7 +135,8 @@ impl FieldHashes {
                 .i64(st.light[k])
                 .i64(st.prog[0][k])
                 .i64(st.prog[1][k])
-                .i64(st.dead[k]);
+                .i64(st.dead[k])
+                .i64(st.snag[k]);
         }
         for s in 0..st.bio.len() / cells {
             for &k in &ks {
@@ -147,7 +148,7 @@ impl FieldHashes {
 }
 
 /// Bumped whenever the set or order of hashed balance values changes.
-pub const BALANCE_HASH_VERSION: u64 = 14; // 2: economy; 3: fauna; 4: costs; 5: victory; 6: drops; 7: movement; 8: capacity; 9: pace; 10: terrain; 11: families; 12: map types; 13: steering; 14: ranked diets
+pub const BALANCE_HASH_VERSION: u64 = 15; // 2: economy; 3: fauna; 4: costs; 5: victory; 6: drops; 7: movement; 8: capacity; 9: pace; 10: terrain; 11: families; 12: map types; 13: steering; 14: ranked diets; 15: dead wood
 
 /// The balance hash (INSTRUCTIONS §4, §10): the values the simulation uses, **after** conversion
 /// to fixed-point, never the file bytes. Formatting, comments, CRLF / LF and changes below the
@@ -191,6 +192,9 @@ pub fn full_hash(st: &FloraState) -> u64 {
         .i64s(&st.prog[0])
         .i64s(&st.prog[1]);
     h.i64s(&st.dead).i64s(&st.bio).i64s(&st.gauge);
+    // Every cell layer the chunk hash covers: terrain, lockouts, dead wood (D-127).
+    h.bytes(&st.ground).bytes(&st.lock_p);
+    h.i64s(&st.elevation).i64s(&st.lock).i64s(&st.snag);
     h.finish()
 }
 

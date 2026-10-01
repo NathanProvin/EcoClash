@@ -43,7 +43,7 @@ import {
 import { makeGrass } from "./grass";
 import { CELL, rand, SLAB_DEPTH, STRATA, stratumOf } from "./layout";
 import { hexToRgb, plantColor, PLAYER, soilColor, WORLD, type PlayerId } from "./palette";
-import { LowPolyPlants, PlantView } from "./plants";
+import { DeadTrees, LowPolyPlants, PlantView } from "./plants";
 import { QUALITY, type Quality } from "./quality";
 
 export type Layer = "territory" | "L1" | "L2" | "L3" | "L4" | "animals";
@@ -124,6 +124,7 @@ export class Viewer {
   private blendS: number = BLEND_S.max;
   private grass: THREE.Mesh;
   private readonly plants: PlantView;
+  private readonly deadTrees: DeadTrees; // D-127
   private readonly animals: AnimalView;
   /** Plant species indices per level (1..3); colours per player and species (sRGB bytes, and
    *  linear for instances). */
@@ -281,6 +282,7 @@ export class Viewer {
       );
     this.plantLinear = { 1: linear(1), 2: linear(2) };
     this.plants = new PlantView(this.scene, n, new LowPolyPlants(), this.now, sun.position);
+    this.deadTrees = new DeadTrees(this.scene, n, this.now);
     this.animals = new AnimalView(this.scene, replay.meta, replay.maxAnimals());
 
     this.aura = makeAura();
@@ -660,6 +662,7 @@ export class Viewer {
     }
     this.blend.value = Math.min(1, (now - this.blendFrom) / this.blendS);
     this.plants.frame(now);
+    this.deadTrees.frame(now);
     const t0 = Math.floor(tick);
     this.shown = interpolate(this.replay.animals(t0), this.replay.animals(t0 + 1), tick - t0);
     const dropped = this.replay.droppedAt?.bind(this.replay);
@@ -775,6 +778,7 @@ export class Viewer {
     this.blendS = Math.min(BLEND_S.max, Math.max(BLEND_S.min, since));
     this.blendFrom = now;
     this.lastPaint = now;
+    this.deadTrees.update(fields.deadwood, n, now, (x, z) => this.field.at(x, z));
     this.plants.update(
       (c) => this.modelled.map((list) => present(list, c)),
       owner,

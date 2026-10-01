@@ -211,6 +211,7 @@ Flora follows the cell model of `data/gamerules.md` §2.1 and §3 (D-019): each 
 - **Spread:** claim progress into empty neighbours, continuous smothering of lower enemy levels by neighbour cover, frozen same-level frontiers (gamerules §3). There is no diffusion.
 - **Grazing:** herbivores consume B, which converts into their energy.
 - **Death (D-026):** litter turnover (`litter_fraction × growth_rate × B` per second), die-back (negative growth) and smothered biomass go to `dead_biomass`. Decomposers turn `dead_biomass` into soil development.
+- **Dead trees (D-127):** a cell's trees die of old age with chance `dt / [deadwood] natural_death_s` per flora tick (world RNG, after the flora step). `wood_share` of their biomass stands on as dead wood (`snag`, hashed), the rest falls as litter. No tree grows in a cell while dead wood stands. It rots to litter (`rot_s`) and recyclers eat it: the black woodpecker first (`eats = ["deadwood", "dead"]`).
 - Clamp to `[0, u16::MAX]`. All coefficients come from `balance.toml`; per-species stats and coefficients from `species.toml` (D-029).
 - Every rule reads the previous state and writes the next one (double buffering), so the result never depends on update order.
 

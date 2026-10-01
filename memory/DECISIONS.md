@@ -1380,3 +1380,15 @@ Template:
   - the unlock test (slugs with lichen only; caterpillars only after an undergrowth plant).
 
   The gradient test is in Rust, which loads the real data files; a client test would have needed a TOML parser.
+
+## D-127 · 2026-10-01 · Dead trees
+- **Status:** accepted (user: trees die of natural causes with a small chance and leave a dead dry tree; while it stands no tree grows there; recyclers, especially woodpeckers, clear it)
+- **Decision:**
+  - `FloraState.snag` holds the standing dead wood per cell; it is in the chunk hash and `full_hash`.
+  - `Flora::natural_deaths` runs after the flora step, on the world RNG. Each cell with trees dies with chance `dt / natural_death_s`, a 3 h mean life of ecology time, so about one death a minute in a 200-cell forest.
+  - `Flora::kill_trees` sends `wood_share` (0.3) of the trees' biomass to standing dead wood and the rest to litter; the cell turns neutral if nothing else grows there.
+  - Trees get zero suitability under dead wood. Dead wood rots to litter (`rot_s` 600).
+  - Recyclers eat it through ranked rot foods (litter or dead wood): the woodpecker eats dead wood first, fungi second.
+  - Kept out of `Flora::step` so the Python parity (D-034) holds, like the lockout.
+  - The client draws a weathered grey trunk with bare branches (`DeadTrees`, `plants.ts`) sized by the wood left, from a new `deadwoodFrame` sent with the field frames. The cell panel shows a dead-tree chip.
+- **Consequences:** balance hash version 15. Tests cover the stand, block and rot cycle, the woodpecker's preference (eating and seeking) and the hash. In a first browser run, a 30-minute mean life killed most of a young forest, so it is 3 h.

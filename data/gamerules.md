@@ -181,7 +181,7 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
 | **L3** Shrubs | Elder | Hawthorn | Hazel |
 | **L4** Trees | Oak | Chestnut | Beech |
 | **W** Aquatic flora | Algae & water lilies | Reeds | Willow |
-| **D** Detritivores | Earthworms | Fungi (mycelium) | Raven |
+| **D** Recyclers | Earthworms | Fungi (mycelium) | Black woodpecker |
 | **H1** Herbaceous eaters | Grasshoppers | Rabbit | European bison |
 | **H2** Intermediate eaters | Slugs & snails | Bank vole | Roe deer |
 | **H3** Shrub eaters | Caterpillars | Red squirrel | Red deer |
@@ -196,7 +196,8 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
 
 - **Diets:** Hx eat the plants of Lx (the beaver also willow; some browsers take the next stratum too). D eat dead biomass. HW eat aquatic plants. P1 eat insects, larvae and soil life; P2 small mammals, frogs and ducks; P3 deer, boar, bison, and smaller hunters; PW fish, larvae and frogs.
 - **Habitats:** grazers need their food plants on their owner's land; hunters need a plant family (woods for the lynx, water plants for the pike).
-- **Media (D-084):** fish and larvae swim; frog, beaver, otter, mallard and heron are amphibious; great tit, kestrel and raven fly; the rest walk.
+- **Media (D-084):** fish and larvae swim; frog, beaver, otter, mallard and heron are amphibious; great tit, kestrel and black woodpecker fly; the rest walk.
+- **Black woodpecker (D-092):** will speed up the decay of dead trees; the rule comes later, today it recycles litter like the others.
 - **Swarms (D-065):** earthworms, fungi, grasshoppers, slugs & snails, caterpillars, bark beetles and larvae are drawn as swarms, not units.
 - **Movement (author's direction, D-088):** insects keep a Brownian flutter; small herbivores are calm and slow and graze stop-and-go; large herbivores move slowly and steadily; hunters are fast when they hunt and calm when idle; birds drift lightly.
 
@@ -283,7 +284,7 @@ A species can be spawned only when **all** of the following hold:
      - Called on own land: no trigger. They land on the own habitat cell nearest the click, at base price, to build biomass. They graze own plants at a much reduced bite (`own_graze`), yield biomass passively, and breed. They do not go looking for enemy cells: they move, feed and breed where their food is best.
      - Clicked on enemy or neutral ground: they are **dropped** on the food of their diet nearest the click (within `drop_radius` cells), at ×1.5. Example: caterpillars dropped on an enemy oak or nettle patch.
    - **Predators:** dropped on the huntable enemy prey nearest the click, within `drop_radius` cells (`r_prey`).
-   - **Decomposers:** no trigger, habitat only.
+   - **Recyclers** (decomposers; the data keeps `role = "decomposer"`, D-092): no trigger, habitat only.
 - **[Proposed] UI.** Unavailable cards are greyed out, with the reason shown (e.g. "No enemy prey in your territory").
 - **[Proposed] Spawn location (non-predators).** Other fauna spawns on the own cell closest to the clicked point that satisfies its habitat. This replaces "fauna spawns from trees" in `INSTRUCTIONS.md` §2.4, so that early fauna is possible before trees exist.
 

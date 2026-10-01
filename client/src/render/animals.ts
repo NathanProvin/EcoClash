@@ -39,7 +39,7 @@ export interface AnimalForm {
 }
 
 export const ANIMAL_FORM: Record<string, AnimalForm> = {
-  raven: { body: "bird", length: 0.6, color: "#26262c" },
+  black_woodpecker: { body: "bird", length: 0.45, color: "#1c1b1f" },
   rabbits: { body: "rabbit", length: 0.4, color: "#8d7c68" },
   bison: { body: "ungulate", length: 2.8, color: "#4a3727" },
   bank_vole: { body: "rodent", length: 0.1, color: "#7a5b3e" },

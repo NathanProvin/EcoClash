@@ -1036,3 +1036,11 @@ Template:
 - **Consequences:**
   - Tick at 32² with 1,500 animals: 0.7 ms on average, worst 4.4 ms.
   - Flora parity, `cli:check`, native vs WASM and the relay test are green.
+
+## D-092 · 2026-10-01 · "Recyclers"; the black woodpecker replaces the raven
+- **Status:** accepted (user; the rename covers player-facing text, the woodpecker's gameplay comes later)
+- **Decision:**
+  - Family D is "Recyclers" in the build bar, the tooltips ("recycler") and gamerules. The data and code keep `role = "decomposer"`, so the sim, the hashes and the tests are untouched.
+  - The tier-3 recycler is the black woodpecker (flies, eats litter, needs trees), with the raven's placeholder stats and a lower speed. Its effect text announces "speeds up the decay of dead trees". The rule itself is to come (for example a faster litter recycling on tree cells).
+  - The demo replay was regenerated.
+- **Consequences:** all checks are green; seen in the browser (flyout, tooltip).

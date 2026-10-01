@@ -6,7 +6,7 @@
   // armed), buys it when it can be unlocked, or does nothing while locked. A click on a family
   // item pins its flyout (touch, keyboard); Esc closes it. With animals selected, a selection
   // strip sits above the bar. Replays show the same bar, read-only.
-  import { cardState, families, label, statLines } from "../game/species";
+  import { cardState, families, label, roleName, statLines } from "../game/species";
   import type { Source, Species } from "../replay/replay";
   import Icon from "./Icon.svelte";
   import SpeciesIcon from "./SpeciesIcon.svelte";
@@ -194,7 +194,7 @@
     {@const state = cardOf(s)}
     <div class="tip panel" style:left="{hover.x}px" style:top="{hover.y}px" role="tooltip">
       <strong>{label(s.name)}</strong>
-      <span class="sub">tier {s.tier} · {s.kind === "flora" ? "plant" : s.role}</span>
+      <span class="sub">tier {s.tier} · {s.kind === "flora" ? "plant" : roleName(s.role)}</span>
       {#each statLines(s, replay.meta.pace) as line (line)}<span>{line}</span>{/each}
       <em>{s.stats.effect}</em>
       {#if state === "available"}

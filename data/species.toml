@@ -357,13 +357,13 @@ sight = 4
 group = 10
 wobble = 0.2
 
-[fauna.raven]
+[fauna.black_woodpecker]
 growth = 90
 spawn_cost = 400
 unlock_cost = 900
 yield = 0.08
 cap = 30
-effect = "Scavenger bird: clears carcasses and litter from afar."
+effect = "Speeds up the decay of dead trees (gameplay to come)."
 family = "D"
 tier = 3
 role = "decomposer"
@@ -375,11 +375,11 @@ medium = "fly"
 body = 600
 bite = 90
 upkeep = 0.004
-speed = 4
+speed = 3
 sight = 12
 group = 1
 wobble = 0.15
-rest = 0.3
+rest = 0.4
 
 [fauna.grasshoppers]
 growth = 30

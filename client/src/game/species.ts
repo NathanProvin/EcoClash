@@ -15,6 +15,11 @@ export function glyph(s: Species): string {
   return { herbivore: "●", decomposer: "∙", predator: "▲" }[s.role] ?? "●";
 }
 
+/** A role as players read it: decomposers are "recyclers" (D-092; the data keeps `decomposer`). */
+export function roleName(role: string): string {
+  return role === "decomposer" ? "recycler" : role;
+}
+
 /** Short tech-tree position, e.g. "L2 · tier 1" or "P3 · tier 1". */
 export function position(s: Species): string {
   return `${s.family} · tier ${s.tier}`;
@@ -74,7 +79,7 @@ const FAMILY: Record<string, string> = {
   L3: "Shrubs",
   L4: "Trees",
   W: "Water plants",
-  D: "Decomposers",
+  D: "Recyclers",
   H1: "Grazers",
   H2: "Undergrowth eaters",
   H3: "Shrub eaters",

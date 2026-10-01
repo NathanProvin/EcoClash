@@ -424,3 +424,6 @@
 
 ## 2026-10-01 · Map side 32 (D-091)
 - **Done:** 32×32 map, generator checked, tests and docs follow; tick budget well within.
+
+## 2026-10-01 · Recyclers, black woodpecker (D-092)
+- **Done:** the player-facing rename, the woodpecker in place of the raven (gameplay to come).

@@ -14,6 +14,7 @@
 
 use std::collections::BTreeMap;
 
+use crate::balance::DIET_RANKS;
 use crate::balance::{Balance, Medium};
 use crate::commands::OrderKind;
 use crate::fixed::{ONE, div_round};
@@ -45,9 +46,14 @@ pub struct FaunaParams {
     pub role: Vec<Role>,
     /// Flora the player must own (bitmask over flora species).
     pub(crate) habitat: Vec<u32>,
-    /// Flora eaten (herbivores), fauna eaten (predators): bitmasks.
+    /// Flora eaten (herbivores), fauna eaten (predators): bitmasks, all ranks together.
     eats_flora: Vec<u32>,
     eats_fauna: Vec<u32>,
+    /// The same, per diet rank (D-123): primary, secondary, tertiary.
+    rank_flora: Vec<[u32; DIET_RANKS]>,
+    rank_fauna: Vec<[u32; DIET_RANKS]>,
+    /// Energy from a food of each rank, as a share of `transfer` (Q16).
+    diet_yield: [i64; DIET_RANKS],
     small: Vec<bool>,
     /// Energy capacity, in biomass units (full energy = body x ONE).
     pub body: Vec<i64>,
@@ -135,16 +141,29 @@ impl FaunaParams {
                 _ => Role::Predator,
             })
             .collect::<Vec<_>>();
-        let eats_fauna = sp
-            .iter()
-            .map(|s| {
-                names
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, n)| s.role == "predator" && s.eats.contains(n))
-                    .fold(0u32, |m, (i, _)| m | 1 << i)
-            })
-            .collect();
+        // Diets by rank (D-123): the n-th food listed is rank n; a food listed twice keeps its first
+        // rank.
+        let ranked = |role: &str, mask: &dyn Fn(&String) -> u32| -> Vec<[u32; DIET_RANKS]> {
+            sp.iter()
+                .map(|s| {
+                    let mut ranks = [0u32; DIET_RANKS];
+                    let mut seen = 0u32;
+                    if s.role == role {
+                        for (r, e) in s.eats.iter().take(DIET_RANKS).enumerate() {
+                            ranks[r] = mask(e) & !seen;
+                            seen |= ranks[r];
+                        }
+                    }
+                    ranks
+                })
+                .collect()
+        };
+        let rank_flora = ranked("herbivore", &|e| flora_mask(std::slice::from_ref(e)));
+        let rank_fauna = ranked("predator", &|e| {
+            names.iter().position(|n| n == e).map_or(0, |i| 1u32 << i)
+        });
+        let any = |r: &[u32; DIET_RANKS]| r.iter().fold(0, |m, x| m | x);
+        let eats_fauna = rank_fauna.iter().map(any).collect();
         let sight: Vec<i64> = sp.iter().map(|s| i64::from(s.sight)).collect();
         let flee = i64::from(fa.flee_radius);
         let r = sight.iter().copied().max().unwrap_or(0).max(flee);
@@ -158,17 +177,13 @@ impl FaunaParams {
         FaunaParams {
             role,
             habitat: sp.iter().map(|s| flora_mask(&s.habitat)).collect(),
-            eats_flora: sp
-                .iter()
-                .map(|s| {
-                    if s.role == "herbivore" {
-                        flora_mask(&s.eats)
-                    } else {
-                        0
-                    }
-                })
-                .collect(),
+            eats_flora: rank_flora.iter().map(any).collect(),
             eats_fauna,
+            rank_flora,
+            rank_fauna,
+            diet_yield: std::array::from_fn(|r| {
+                round(fa.diet_yield.get(r).copied().unwrap_or(1.0) * one)
+            }),
             small: sp.iter().map(|s| s.small).collect(),
             body: sp.iter().map(|s| i64::from(s.body)).collect(),
             bite: sp.iter().map(|s| round(s.bite * dt)).collect(),
@@ -220,6 +235,25 @@ impl FaunaParams {
         }
     }
 
+    /// The rank of plant `plant` in herbivore `s`'s diet (0: primary), if it eats it (D-123).
+    #[must_use]
+    pub fn plant_rank(&self, s: usize, plant: usize) -> Option<usize> {
+        let ranks = self.rank_flora.get(s)?;
+        (0..DIET_RANKS).find(|&r| ranks[r] >> plant & 1 == 1)
+    }
+
+    /// The rank of animal species `prey` in predator `s`'s diet (0: primary), if it eats it.
+    #[must_use]
+    pub fn prey_rank(&self, s: usize, prey: usize) -> Option<usize> {
+        let ranks = self.rank_fauna.get(s)?;
+        (0..DIET_RANKS).find(|&r| ranks[r] >> prey & 1 == 1)
+    }
+
+    /// Energy from `amount` of a food of `rank`: the transfer, scaled by the rank's yield.
+    fn fed(&self, amount: i64, rank: usize) -> i64 {
+        div_round(amount * self.transfer * self.diet_yield[rank], ONE_I)
+    }
+
     /// Whether herbivore species `s` eats plant species `plant`.
     #[must_use]
     pub fn eats_plant(&self, s: usize, plant: usize) -> bool {
@@ -262,6 +296,9 @@ impl FaunaParams {
         }
         h.i64s(&[
             self.transfer,
+            self.diet_yield[0],
+            self.diet_yield[1],
+            self.diet_yield[2],
             self.own_graze,
             self.soil_per_dead,
             self.lockout,
@@ -689,6 +726,7 @@ impl Fauna {
     fn graze(&mut self, st: &mut FloraState) {
         let (a, p, n, n2) = (&mut self.agents, &self.p, st.n, st.n * st.n);
         let mut orders: Vec<(usize, usize, i64)> = Vec::new(); // (agent, stock index, bite)
+        let mut rank_by = vec![0usize; a.len()]; // the diet rank of each grazer's food
         let mut home = vec![false; a.len()];
         for i in 0..a.len() {
             let s = usize::from(a.sp[i]);
@@ -696,22 +734,25 @@ impl Fauna {
             if p.role[s] != Role::Herbivore || st.owner[k] == 0 {
                 continue;
             }
-            let mut pick: Option<(usize, i64)> = None; // first species with the most biomass
+            // The best-ranked food in the cell (D-123), then the one with the most biomass, then
+            // the first.
+            let mut pick: Option<(usize, usize, i64)> = None; // (rank, species, biomass)
             for j in 0..32 {
-                if p.eats_flora[s] >> j & 1 == 1 {
+                if let Some(r) = p.plant_rank(s, j) {
                     let have = st.bio[j * n2 + k];
-                    if have >= 1 && pick.is_none_or(|(_, h)| have > h) {
-                        pick = Some((j, have));
+                    if have >= 1 && pick.is_none_or(|(pr, _, h)| r < pr || (r == pr && have > h)) {
+                        pick = Some((r, j, have));
                     }
                 }
             }
-            if let Some((j, _)) = pick {
+            if let Some((rank, j, _)) = pick {
                 let mut bite = p.bite[s];
                 if st.owner[k] == a.owner[i] {
                     bite = div_round(bite * p.own_graze, ONE_I);
                     home[i] = true;
                 }
                 orders.push((i, j * n2 + k, bite));
+                rank_by[i] = rank;
             }
         }
         let mut raided: Vec<usize> = Vec::new(); // cells bitten by enemy grazers
@@ -720,10 +761,11 @@ impl Fauna {
             if !home[i] {
                 raided.push(at % n2);
             }
+            let rank = rank_by[i];
             let fed = if home[i] && p.own_graze > 0 {
-                div_round(eaten * p.transfer * ONE_I, p.own_graze)
+                div_round(p.fed(eaten, rank) * ONE_I, p.own_graze)
             } else {
-                eaten * p.transfer
+                p.fed(eaten, rank)
             };
             a.energy[i] += fed;
             st.dead[at % n2] += eaten - div_round(eaten * p.transfer, ONE_I);
@@ -774,19 +816,25 @@ impl Fauna {
                 continue;
             }
             let k = a.cell(i, n);
-            let prey = (0..a.len()).find(|&j| {
-                alive[j]
+            // The best-ranked prey in reach (D-123), the first in index order among equals.
+            let mut prey: Option<(usize, usize)> = None; // (rank, agent)
+            for j in 0..a.len() {
+                if alive[j]
                     && !safe[j]
                     && a.owner[j] == 3 - a.owner[i]
-                    && p.eats_fauna[s] >> a.sp[j] & 1 == 1
                     && Window::within(a.cell(j, n), k, p.strike, n)
-            });
-            if let Some(j) = prey
+                    && let Some(r) = p.prey_rank(s, usize::from(a.sp[j]))
+                    && prey.is_none_or(|(pr, _)| r < pr)
+                {
+                    prey = Some((r, j));
+                }
+            }
+            if let Some((rank, j)) = prey
                 && i64::from(rng.below(1 << 16)) < p.catch
             {
                 alive[j] = false;
                 let body = p.body[usize::from(a.sp[j])];
-                a.energy[i] += body * p.transfer;
+                a.energy[i] += p.fed(body, rank);
                 st.dead[k] += body - div_round(body * p.transfer, ONE_I);
             }
         }
@@ -971,17 +1019,26 @@ impl Fauna {
                 if idx.is_empty() {
                     continue;
                 }
+                // Seek order (D-123): the primary food in sight first, then the secondary, then the
+                // tertiary.
                 let masks: Vec<Vec<bool>> = if p.role[s] == Role::Predator {
-                    let mut prey = vec![false; n2];
-                    for j in 0..len {
-                        if a.owner[j] == 3 - pl && !safe[j] && p.eats_fauna[s] >> a.sp[j] & 1 == 1 {
-                            prey[a.cell(j, n)] = true;
-                        }
-                    }
-                    for k in 0..n2 {
-                        prey[k] &= p.medium[s].stands(st.ground[k]);
-                    }
-                    vec![prey]
+                    (0..DIET_RANKS)
+                        .map(|r| {
+                            let mut prey = vec![false; n2];
+                            for j in 0..len {
+                                if a.owner[j] == 3 - pl
+                                    && !safe[j]
+                                    && p.rank_fauna[s][r] >> a.sp[j] & 1 == 1
+                                {
+                                    prey[a.cell(j, n)] = true;
+                                }
+                            }
+                            for k in 0..n2 {
+                                prey[k] &= p.medium[s].stands(st.ground[k]);
+                            }
+                            prey
+                        })
+                        .collect()
                 } else {
                     let mut crowd = vec![0i64; n2];
                     for &i in &mine {
@@ -1006,24 +1063,42 @@ impl Fauna {
                         enough[k] || stock(k) < 1 // crowded cells: wander off instead
                     });
                     let stand = |k: usize| p.medium[s].stands(st.ground[k]);
-                    let on = |pred: &dyn Fn(u8) -> bool| -> Vec<bool> {
-                        (0..n2)
-                            .map(|k| enough[k] && stand(k) && pred(st.owner[k]))
-                            .collect()
-                    };
                     if p.role[s] == Role::Herbivore {
-                        // [enemy food, food on any land]: an attack-move hunts the first, a free
-                        // herbivore the second, with no enemy-first preference (D-061).
-                        vec![on(&|o| o == 3 - pl), on(&|_| true)]
+                        // Per rank, [enemy food, food on any land]: an attack-move hunts the
+                        // first, a free herbivore the second, with no enemy-first preference
+                        // (D-061).
+                        let mut masks = Vec::new();
+                        for r in 0..DIET_RANKS {
+                            let food = |k: usize| {
+                                (0..32)
+                                    .filter(|&j| p.rank_flora[s][r] >> j & 1 == 1)
+                                    .map(|j| st.bio[j * n2 + k])
+                                    .max()
+                                    .unwrap_or(0)
+                                    >= p.bite[s] * crowd[k].max(1)
+                            };
+                            let on = |pred: &dyn Fn(u8) -> bool| -> Vec<bool> {
+                                (0..n2)
+                                    .map(|k| food(k) && stand(k) && pred(st.owner[k]))
+                                    .collect()
+                            };
+                            masks.push(on(&|o| o == 3 - pl));
+                            masks.push(on(&|_| true));
+                        }
+                        masks
                     } else {
-                        vec![on(&|o| o != 3 - pl)]
+                        vec![
+                            (0..n2)
+                                .map(|k| enough[k] && stand(k) && st.owner[k] != 3 - pl)
+                                .collect(),
+                        ]
                     }
                 };
                 for (mi, m) in masks.iter().enumerate() {
                     idx.retain(|&i| {
                         let herbivore = p.role[s] == Role::Herbivore;
-                        if herbivore && ((mi == 0) != (a.order[i] == ATTACK)) {
-                            return true; // see the masks: attack-move 0, free 1
+                        if herbivore && ((mi % 2 == 0) != (a.order[i] == ATTACK)) {
+                            return true; // see the masks: attack-move even, free odd
                         }
                         match self.nearest(m, n, a.cell(i, n), p.sight[s]) {
                             Some(k) => {
@@ -1869,6 +1944,56 @@ mod tests {
             top <= slow && top > slow / 2,
             "about the shallow speed ({top} vs {slow})"
         );
+    }
+
+    /// D-123: a grazer eats its primary food first, even where another food is more plentiful,
+    /// and a secondary food feeds it 75 % as well.
+    #[test]
+    fn grazers_prefer_their_primary_food_and_lower_ranks_feed_less() {
+        let (f, mut fa, mut st, _) = setup(4);
+        let rabbit = fa.p.index("rabbits").unwrap();
+        let [grass, flowers] = ["grasses", "wildflowers"].map(|n| f.p.index(n).unwrap());
+        assert_eq!(fa.p.plant_rank(rabbit, grass), Some(0));
+        assert_eq!(fa.p.plant_rank(rabbit, flowers), Some(1));
+        let n2 = 16;
+        let k = 5;
+        st.owner[k] = 2; // enemy land: full bites
+        let meal = |fa: &mut Fauna, st: &mut FloraState, grass_bio: i64| {
+            st.bio[grass * n2 + k] = grass_bio;
+            st.bio[flowers * n2 + k] = 9000;
+            fa.agents = Agents::default();
+            fa.agents.push(rabbit, 1, centre(1), centre(1), 0, 0);
+            fa.graze(st);
+            fa.agents.energy[0]
+        };
+        let primary = meal(&mut fa, &mut st, 3000);
+        assert!(
+            st.bio[flowers * n2 + k] == 9000,
+            "the wildflowers are left for later"
+        );
+        let secondary = meal(&mut fa, &mut st, 0);
+        assert!(
+            st.bio[flowers * n2 + k] < 9000,
+            "no grass: the secondary food"
+        );
+        assert!(
+            (secondary * 4 - primary * 3).abs() <= 4,
+            "75 %: {secondary} vs {primary}"
+        );
+    }
+
+    /// D-123: a hunter heads for its primary prey in sight, though a secondary prey is nearer.
+    #[test]
+    fn hunters_seek_their_primary_prey_first() {
+        let (f, mut fa, st, mut rng) = setup(12);
+        let [fox, rabbit, vole] = ["fox", "rabbits", "bank_vole"].map(|n| fa.p.index(n).unwrap());
+        assert_eq!(fa.p.prey_rank(fox, rabbit), Some(0));
+        assert_eq!(fa.p.prey_rank(fox, vole), Some(1));
+        fa.agents.push(fox, 1, centre(6), centre(6), ONE_I, 0);
+        fa.agents.push(vole, 2, centre(6), centre(7), ONE_I, 0); // next to it
+        fa.agents.push(rabbit, 2, centre(6), centre(9), ONE_I, 0); // three cells away
+        fa.decide(&f.p, &st, &mut rng);
+        assert_eq!(cell_of(fa.agents.tx[0]), 9, "the fox goes for the rabbit");
     }
 
     #[test]

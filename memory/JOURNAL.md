@@ -507,3 +507,7 @@
 ## 2026-10-01 · Playtest round on the tutorial (D-118…D-121)
 - **Done:** lichen-only start, with the bot, tests, relay script and docs updated (D-118); padlock and fill gauge on unlockable cards (D-119); tutorial reworked around grasses and rabbits, with a raid that needs a real order (D-120); planting seed scatter and ripple (D-121).
 - **Notes:** browser timing artefacts (a throttled render loop) hid the seed burst until it was stamped with the real clock; the attack-move works but stops at the first enemy food, by design.
+
+## 2026-10-01 · Food web (D-122, D-123)
+- **Done:** checked GitHub (up to date, CI green); proposed the ranked food web and the user approved it; "Feeds on" chips on species cards; ranked seek, graze and hunt with rank yields in `sim-core`, with tests.
+- **Next:** the tech tree rework (food-web view, counters).

@@ -171,6 +171,7 @@ contested_cells = true
 # Fauna agents (gamerules §5.2, §6; D-023, D-026). Species stats are in species.toml.
 [fauna]
 transfer = 0.1          # share of eaten biomass that becomes the eater's energy (10 % rule)
+diet_yield = [1.0, 0.75, 0.5]  # energy from a primary, secondary, tertiary food, as a share of the transfer (D-123)
 own_graze = 0.2         # bite on own flora, relative to enemy flora (gamerules §10)
 soil_per_dead = 0.5     # soil development (u16 units) per unit of dead biomass decomposed
 lockout_s = 30          # a cell grazed bare turns neutral; its former owner may not retake it for this long (D-098)

@@ -1332,3 +1332,12 @@ Template:
   - The species tooltip has a "Feeds on" row: each food is a chip (family pictogram, tier medal, name), primary first in bold. Species artwork is still placeholder, so pictograms and names carry the meaning.
   - Helpers `foodsOf` and `eatersOf` (`game/species.ts`) serve the tooltip and the tech tree.
 - **Consequences:** the ranks only order the list for now; the rule follows in D-123.
+
+## D-123 · 2026-10-01 · Food ranks: preference and yield
+- **Status:** accepted (user chose "preference + yield")
+- **Decision:**
+  - An animal seeks its primary food in sight first, then the secondary, then the tertiary; an attack-move looks on enemy land the same way.
+  - A grazer eats the best-ranked plant in its cell (then the most plentiful); a hunter takes the best-ranked prey in reach.
+  - A meal gives energy × `[fauna] diet_yield = [1.0, 0.75, 0.5]` of its rank.
+  - The loader allows at most three foods and requires non-increasing yields; balance hash version 14.
+- **Consequences:** tests cover a grazer leaving plentiful wildflowers for scarcer grass, the 75 % meal and a fox passing a nearby vole for a rabbit. Fixture regenerated; every check is green.

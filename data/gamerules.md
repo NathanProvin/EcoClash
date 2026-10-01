@@ -194,7 +194,8 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
 
 ### 4.3 Diets, habitats and media [Proposed defaults, D-087]
 
-- **Diets:** Hx eat the plants of Lx (the beaver also willow; some browsers take the next stratum too). D eat dead biomass. HW eat aquatic plants. P1 eat insects, larvae and soil life; P2 small mammals, frogs and ducks; P3 deer, boar, bison, and smaller hunters; PW fish, larvae and frogs.
+- **Diets (D-122, D-123):** each animal has a primary and a secondary food, and a tier 3 animal a tertiary one, listed in that order in `data/species.toml`. Grazer families feed on their own plant layer first (H1 meadow, H2 undergrowth, H3 shrubs, H4 canopy, HW water), then a neighbouring one; hunter families target an animal size (P1 insects, P2 small mammals, P3 large game, PW water life). Every plant and every animal is food for someone. Recyclers eat dead biomass.
+- **Food ranks (D-123):** an animal seeks its primary food in sight first, then the secondary, then the tertiary (an attack-move looks on enemy land the same way). A grazer eats the best-ranked plant in its cell, a hunter the best-ranked prey in reach. A meal gives energy × `[fauna] diet_yield` of its rank: 100 %, 75 %, 50 %.
 - **Habitats:** grazers need their food plants on their owner's land; hunters need a plant family (woods for the lynx, water plants for the pike).
 - **Media (D-084):** fish and larvae swim; frog, beaver, otter, mallard and heron are amphibious; great tit, kestrel and black woodpecker fly; the rest walk.
 - **Black woodpecker (D-092):** will speed up the decay of dead trees; the rule comes later, today it recycles litter like the others.

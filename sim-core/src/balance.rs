@@ -66,10 +66,16 @@ pub struct AgentRules {
     pub max_agents: u32,
 }
 
+/// Foods per diet: primary, secondary, tertiary (D-123).
+pub const DIET_RANKS: usize = 3;
+
 /// `[fauna]` global rules (gamerules §6; D-023, D-026).
 #[derive(Clone, Debug, Deserialize)]
 pub struct FaunaRules {
     pub transfer: f64,
+    /// Energy from a primary, secondary and tertiary food, as a share of the full transfer
+    /// (D-123).
+    pub diet_yield: Vec<f64>,
     pub own_graze: f64,
     pub soil_per_dead: f64,
     /// Seconds during which a player may not take back a cell that enemy grazers ate bare
@@ -517,6 +523,15 @@ impl Balance {
             "[fauna] food_reserve >= 0, catch_chance in [0, 1], wobble >= 0, wobble_keep in [0, 1), scatter in [0, 0.5), wander_radius >= 0, steer in (0, 1]"
                 .into(),
         )?;
+        let y = &self.fauna.diet_yield;
+        check(
+            y.len() == DIET_RANKS
+                && y.iter().all(|v| *v > 0.0 && *v <= 1.0)
+                && y.windows(2).all(|w| w[0] >= w[1]),
+            format!(
+                "[fauna] diet_yield: {DIET_RANKS} shares in (0, 1], primary first, not increasing"
+            ),
+        )?;
         for r in &self.fauna.refuge_flora {
             check(flora(r), format!("[fauna] refuge_flora: unknown plant {r}"))?;
         }
@@ -528,9 +543,10 @@ impl Balance {
                 _ => false,
             };
             check(
-                eats_ok,
+                eats_ok && s.eats.len() <= DIET_RANKS,
                 format!(
-                    "{n}: role must be decomposer, herbivore or predator, with a matching diet"
+                    "{n}: role must be decomposer, herbivore or predator, with a matching diet \
+                     of at most {DIET_RANKS} foods, primary first (D-123)"
                 ),
             )?;
             check(
@@ -597,6 +613,27 @@ mod tests {
         let bad = SPECIES.replacen("shade_cast = 0.85", "shade_cast = 1.5", 1);
         let err = Balance::from_toml(BALANCE, &bad).unwrap_err();
         assert!(err.contains("beech") && err.contains("shade_cast"), "{err}");
+        // D-123: at most three foods, primary first.
+        let long = SPECIES.replacen(
+            r#"eats = ["grasses", "wildflowers"]"#,
+            r#"eats = ["grasses", "wildflowers", "reeds", "lichen_and_moss"]"#,
+            1,
+        );
+        assert!(
+            Balance::from_toml(BALANCE, &long)
+                .unwrap_err()
+                .contains("at most 3")
+        );
+        let rising = BALANCE.replacen(
+            "diet_yield = [1.0, 0.75, 0.5]",
+            "diet_yield = [0.5, 1.0, 1.0]",
+            1,
+        );
+        assert!(
+            Balance::from_toml(&rising, SPECIES)
+                .unwrap_err()
+                .contains("diet_yield")
+        );
         let typo = SPECIES.replacen("k_max = 60000", "k_maxx = 60000", 1);
         assert!(
             Balance::from_toml(BALANCE, &typo)

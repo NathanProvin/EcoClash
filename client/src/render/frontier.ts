@@ -7,6 +7,10 @@
 /** Line width, as a band of blurred ownership above 0.5: no push .. full push (about 0.5 .. 2 m). */
 export const BAND = { min: 0.035, max: 0.16 } as const;
 const PASSES = 2;
+/** The blur dilutes a push that sits in the enemy cells: on a straight front, the line just inside
+ *  the attacker's land reads 5/16 of it. The push channels are scaled back by this (D-115), so a
+ *  full push draws the full width. */
+const PUSH_GAIN = 16 / 5;
 
 /** Fill `out` (n x n RGBA bytes): R = P1 ownership, G = P2 ownership, B = P1's push into P2
  *  cells, A = P2's push into P1 cells (`pressure`: the non-owner's push into each cell, 0..255),
@@ -38,7 +42,10 @@ export function frontierField(
   const ch = [p1, p2, push1, push2];
   for (let k = 0; k < cells; k++) {
     const t = ((n - 1 - Math.floor(k / n)) * n + (k % n)) * 4; // texture row 0 = grid row n-1
-    ch.forEach((c, j) => (out[t + j] = Math.round((c[k] ?? 0) * 255)));
+    ch.forEach((c, j) => {
+      const v = (c[k] ?? 0) * (j < 2 ? 1 : PUSH_GAIN);
+      out[t + j] = Math.round(Math.min(v, 1) * 255);
+    });
   }
 }
 

@@ -1256,3 +1256,8 @@ Template:
 ## D-114 · 2026-10-01 · Strategic icons use the family pictograms
 - **Status:** accepted (user: update the strategic icons to the new group icons)
 - **Decision:** each strategic icon is the build bar's family pictogram (`FamilyIcon`) ringed in the player colour, with a head-count badge carrying the tier medal (bronze, silver, gold), so species of one family stay apart. The medal classes moved to `app.css`, and `MEDAL` to `game/species.ts`, shared with the build bar. The tooltip names the species.
+
+## D-115 · 2026-10-01 · Front-line width follows the push again
+- **Status:** accepted (user: check that the curved line's push-dependent width is still meaningful)
+- **Cause:** since D-108 the push sits in the enemy cells and is blurred twice with the ownership. Where the line is drawn, just inside the attacker's land, a straight front read only 5/16 of it, so a full push widened the line to about 0.8 m instead of 2 m.
+- **Decision:** the push channels are scaled by 16/5 (capped at 1) after the blur. A full push along a front now reads about full width at the line, and fades away from it (test).

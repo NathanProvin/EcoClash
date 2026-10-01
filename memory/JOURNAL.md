@@ -493,3 +493,6 @@
 ## 2026-10-01 · Fronts advance (D-113)
 - **Done:** reproduced the stall in a Rust test, then fixed it: caps no longer block flips, or claims of land grazed bare from the enemy. Tree and shrub caps raised; prototype flip rule mirrored; fixture regenerated; all checks green.
 - **Note:** a first try that dropped caps from every claim made caps meaningless (the Python cap test caught it); narrowed to land taken from the enemy.
+
+## 2026-10-01 · Strategic icons, push width (D-114, D-115)
+- **Done:** family pictogram icons with tier medals, checked in the browser. Found that the blurred push reached the line at 5/16 strength; compensated, with a test. The browser window got stuck at 300×170 px, so the push width was not checked on screen.

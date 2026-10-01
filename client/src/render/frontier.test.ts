@@ -30,3 +30,16 @@ test("pushes land on the attacker's channel, near the front", () => {
   expect(at(out, n, 2, 2, 2)).toBeGreaterThan(0); // P1's push, felt on its side of the front
   expect(at(out, n, 2, 2, 3)).toBe(0); // P2 does not push
 });
+
+test("a full push along a front reaches the full line width where the line is drawn (D-115)", () => {
+  const n = 8;
+  const owner = new Uint8Array(n * n).map((_, k) => (k % n < 4 ? 1 : 2));
+  // P1 pushes at full strength into the whole first P2 column.
+  const pressure = new Uint8Array(n * n).map((_, k) => (k % n === 4 ? 255 : 0));
+  const out = new Uint8Array(n * n * 4);
+  frontierField(owner, n, out, pressure);
+  // The line lies between the centres of columns 3 (P1) and 4 (P2): the push there is about full.
+  const push = (at(out, n, 3, 3, 2) + at(out, n, 3, 4, 2)) / 2;
+  expect(push).toBeGreaterThan(0.85);
+  expect(at(out, n, 3, 1, 2)).toBeLessThan(0.1); // and fades away from the front
+});

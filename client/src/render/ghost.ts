@@ -8,6 +8,7 @@ import type { Role } from "../replay/replay";
 import { bodyGeometry, drawnLength, formOf as animalForm } from "./animals";
 import { LOW, PAD, SHRUB, STRATA, stratumOf, TREE, type Placement } from "./layout";
 import { plantColor, type PlayerId } from "./palette";
+import { drape } from "./terrain";
 import { LowPolyPlants, type PlantStyle } from "./plants";
 
 /** The armed species, as the cursor needs it. */
@@ -26,6 +27,8 @@ export interface GhostSpec {
 /** How see-through the ghost model is; a herb shows as a small tuft of this size (m). */
 const OPACITY = 0.6;
 const TUFT = 0.3;
+/** The footprint ring floats this far above the ground. */
+const RING_LIFT = 0.08;
 
 export class Ghost {
   private readonly group = new THREE.Group();
@@ -34,12 +37,16 @@ export class Ghost {
   private readonly style: PlantStyle = new LowPolyPlants();
   private size = 1; // the model's largest dimension (m)
 
-  constructor(scene: THREE.Scene) {
+  /** `height`: the ground (or water surface) under a world point, for the ring (D-097). */
+  constructor(
+    scene: THREE.Scene,
+    private readonly height: (x: number, z: number) => number = () => 0,
+  ) {
     this.ring = new THREE.Mesh(
-      new THREE.RingGeometry(0.94, 1, 64).rotateX(-Math.PI / 2),
+      new THREE.RingGeometry(0.94, 1, 96).rotateX(-Math.PI / 2),
       new THREE.MeshBasicNodeMaterial({ transparent: true, opacity: 0.85, depthWrite: false }),
     );
-    this.ring.position.y = 0.05;
+    this.ring.frustumCulled = false; // its vertices move with the ground
     this.ring.renderOrder = 12;
     this.group.add(this.ring, this.model);
     this.group.visible = false;
@@ -110,7 +117,8 @@ export class Ghost {
     this.group.visible = at !== null && this.model.children.length > 0;
     if (!at) return;
     this.group.position.copy(at);
-    this.ring.scale.setScalar(radius);
+    this.ring.scale.set(radius, 1, radius);
+    drape(this.ring, this.height, RING_LIFT);
     this.model.scale.setScalar(Math.max(1, least / this.size));
     (this.ring.material as THREE.MeshBasicNodeMaterial).color.set(color);
   }

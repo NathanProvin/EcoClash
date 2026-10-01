@@ -1089,3 +1089,11 @@ Template:
   - Tests: symmetry and reproducibility, clear homes and full reachability over 24 seeds, every layout over 40 seeds (rivers reach the edges, lakes the centre) with cliffs, valley paths keep to the valley floor, water and moisture invariants.
   - The water-plants test picks a river map.
   - Tick budget unchanged.
+
+## D-097 · 2026-10-01 · Rings follow the relief
+- **Status:** accepted (user: the selection and drop rings should follow the terrain, not clip into it)
+- **Decision:** `terrain.ts` `drape(mesh, height, lift)` sets every vertex of a flat mesh `lift` m above the ground (or the water surface) under it. It works through the mesh's world matrix, so it holds after moves, Y turns and scaling.
+  - Draped: the drop-cursor ring (96 segments), the three fog layers of the selection aura (24×24 each, every frame since they turn and breathe), and alert pings (every frame as they spread).
+  - These meshes are not frustum-culled, since their vertices move.
+  - Animal rings stay flat (small, instanced).
+- **Consequences:** a unit test checks that a turned, scaled, moved mesh sits on a sloped ground. Seen in the browser on a ridge.

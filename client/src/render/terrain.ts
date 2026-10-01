@@ -196,3 +196,24 @@ export function stoneGeometry(variant: number): THREE.BufferGeometry {
   g.computeVertexNormals();
   return g;
 }
+
+/** Lay a flat mesh (geometry in its XZ plane, turned only about Y) over the ground: each vertex
+ *  sits `lift` metres above `height` under it, so rings and marks follow the relief instead of
+ *  cutting into it (D-097). Call after moving, turning or scaling the mesh. */
+export function drape(
+  mesh: THREE.Mesh,
+  height: (x: number, z: number) => number,
+  lift: number,
+): void {
+  mesh.updateWorldMatrix(true, false);
+  const pos = mesh.geometry.attributes.position as THREE.BufferAttribute;
+  const m = mesh.matrixWorld.elements;
+  const [y0, sy] = [m[13] ?? 0, m[5] || 1]; // world height of the mesh origin, its Y scale
+  for (let i = 0; i < pos.count; i++) {
+    const [x, z] = [pos.getX(i), pos.getZ(i)];
+    const wx = (m[0] ?? 1) * x + (m[8] ?? 0) * z + (m[12] ?? 0);
+    const wz = (m[2] ?? 0) * x + (m[10] ?? 1) * z + (m[14] ?? 0);
+    pos.setY(i, (height(wx, wz) + lift - y0) / sy);
+  }
+  pos.needsUpdate = true;
+}

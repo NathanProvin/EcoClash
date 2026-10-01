@@ -34,6 +34,7 @@ import { paintFrontier, TEXELS } from "./frontier";
 import {
   groundGeometry,
   Heightfield,
+  drape,
   rockPlacements,
   slabGeometry,
   stoneGeometry,
@@ -52,6 +53,8 @@ export { CELL };
 const TERRITORY_TINT = 0.15;
 /** A ping (alerts, D-077): rings spread from 1 to `spread` cells over `waveS`, `waves` times. */
 const PING = { spread: 4, waveS: 1, waves: 3 } as const;
+/** Pings float this far above the ground or water (m). */
+const PING_LIFT = 0.3;
 /** The drop cursor's model is at least this share of the camera distance across (readable
  *  from afar; true size up close). */
 const GHOST_SIZE = 0.02;
@@ -261,7 +264,7 @@ export class Viewer {
 
     this.aura = makeAura();
     this.scene.add(this.aura);
-    this.ghost = new Ghost(this.scene);
+    this.ghost = new Ghost(this.scene, this.surface);
     this.applyLight();
   }
 
@@ -382,6 +385,10 @@ export class Viewer {
     this.aura.visible = cell !== null;
     if (cell) this.aura.position.copy(this.centre(cell));
   }
+
+  /** The ground or, over water, the water surface at a world point (m): where rings lie (D-097). */
+  private readonly surface = (x: number, z: number): number =>
+    Math.max(this.field.at(x, z), this.field.water ?? -Infinity);
 
   /** A cell's centre on the ground (world metres, D-085). */
   centre(cell: { row: number; col: number }): THREE.Vector3 {
@@ -510,8 +517,9 @@ export class Viewer {
       material,
     );
     const at = this.centre(cell);
-    mesh.position.copy(at).setY(Math.max(at.y, this.field.water ?? -Infinity) + 0.3);
+    mesh.position.copy(at).setY(Math.max(at.y, this.field.water ?? -Infinity));
     mesh.renderOrder = 11;
+    mesh.frustumCulled = false; // draped every frame
     this.scene.add(mesh);
     this.pings.push({ mesh, start: this.lastTime });
   }
@@ -599,7 +607,7 @@ export class Viewer {
     const { n } = this.replay.meta;
     const eye = this.camera.position;
     this.animals.update(this.shown, this.selected, tick, n, ms, dropped, h, this.field.water, eye);
-    animateAura(this.aura, now);
+    animateAura(this.aura, now, this.surface);
     this.animatePings(now);
     if (this.flight) {
       const f = this.flight;
@@ -723,7 +731,9 @@ export class Viewer {
         return false;
       }
       const k = age % 1; // this wave's progress
-      mesh.scale.setScalar(CELL * (1 + (PING.spread - 1) * k));
+      const r = CELL * (1 + (PING.spread - 1) * k);
+      mesh.scale.set(r, 1, r);
+      drape(mesh, this.surface, PING_LIFT);
       (mesh.material as THREE.MeshBasicNodeMaterial).opacity = 1 - k;
       return true;
     });
@@ -766,16 +776,16 @@ function makeAura(): THREE.Group {
   const map = new THREE.CanvasTexture(canvas);
   map.colorSpace = THREE.SRGBColorSpace;
   const group = new THREE.Group();
-  [0.08, 0.9, 1.8].forEach((height, i) => {
+  AURA_LIFT.forEach((_, i) => {
     const material = new THREE.MeshBasicNodeMaterial({ map, transparent: true, depthWrite: false });
     material.opacity = [0.9, 0.55, 0.3][i] ?? 0.3;
     const layer = new THREE.Mesh(
-      new THREE.PlaneGeometry(CELL * (2.6 + i * 0.25), CELL * (2.6 + i * 0.25)).rotateX(
+      new THREE.PlaneGeometry(CELL * (2.6 + i * 0.25), CELL * (2.6 + i * 0.25), 24, 24).rotateX(
         -Math.PI / 2,
       ),
       material,
     );
-    layer.position.y = height;
+    layer.frustumCulled = false; // draped over the relief every frame
     layer.renderOrder = 10;
     group.add(layer);
   });
@@ -783,11 +793,19 @@ function makeAura(): THREE.Group {
   return group;
 }
 
-function animateAura(aura: THREE.Group, seconds: number): void {
+function animateAura(
+  aura: THREE.Group,
+  seconds: number,
+  height: (x: number, z: number) => number,
+): void {
   if (!aura.visible) return;
   aura.children.forEach((layer, i) => {
     layer.rotation.y = seconds * (i % 2 ? -0.35 : 0.25);
     const breathe = 1 + Math.sin(seconds * 1.6 + i) * 0.06;
     layer.scale.set(breathe, 1, breathe);
+    drape(layer as THREE.Mesh, height, AURA_LIFT[i] ?? 0); // over the relief (D-097)
   });
 }
+
+/** The aura's three fog layers float this far above the ground (m). */
+const AURA_LIFT = [0.15, 0.9, 1.8] as const;

@@ -440,3 +440,6 @@
 
 ## 2026-10-01 · Varied maps (D-096)
 - **Done:** new generator (valleys, terraces, cliffs, four water layouts along the topography); tests; seen in the browser. Next: rings on the relief.
+
+## 2026-10-01 · Rings on the relief (D-097)
+- **Done:** `drape` for the cursor ring, the selection aura and pings; test; checked in the browser. Next: grazed-bare lockout.

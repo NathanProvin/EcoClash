@@ -1,16 +1,25 @@
-//! Map generation (D-083): relief, a river, ponds, rock outcrops and moisture, from the match seed.
+//! Map generation (D-083, D-096): relief with valleys and cliffs, water laid out along the
+//! topography, rock and moisture, from the match seed.
 //!
 //! Integer only, on its own PCG32 stream (the world's random sequence is untouched), so every
 //! peer builds the same map. Every map has 180-degree rotational symmetry (cell `k` and cell
-//! `n² - 1 - k` match), so both homes see the same land. The river runs along the anti-diagonal,
-//! between the two homes: the natural front line. Its cells are shallows that animals and, slowly,
-//! plants can cross; deep pools, deep pond centres and rock outcrops block (the rules live in
-//! `flora.rs` and `fauna.rs`). Moisture, into the flora `water` field, is highest in the water
-//! and falls with the distance to it and with height: valleys and banks wet, hills dry.
+//! `n² - 1 - k` match): both players see the same land, wherever they spawn.
+//! - Relief: value-noise octaves, minus winding valleys (where a coarse noise crosses its middle),
+//!   then terraced: plateaus joined by steep steps, the cliffs.
+//! - Water, one layout per seed: a river crossing the map, a central lake fed by two streams,
+//!   scattered ponds, or dry highlands with one pair of ponds. Rivers take the cheapest way
+//!   through low ground (Dijkstra on height), so they run along the valleys; ponds sit in basins.
+//!   Water cells are shallows that animals and, slowly, plants can cross; deep pools block.
+//! - Rock: bands on the steep steps, broken by gaps (cliffs with passes), and outcrops on the
+//!   high ground. The two home clearings stay dry and rock-free, and every walkable cell stays
+//!   reachable on foot. The rules for each ground class live in `flora.rs` and `fauna.rs`.
+//! - Moisture, into the flora `water` field: highest in the water, falling with the distance to it
+//!   and with height: valleys and banks wet, hills dry.
 
 #![allow(clippy::needless_range_loop)] // grids indexed by cell, with their mirrors
 
-use std::collections::VecDeque;
+use std::cmp::Reverse;
+use std::collections::{BinaryHeap, VecDeque};
 
 use crate::balance::Balance;
 use crate::fixed::{ONE, div_round};
@@ -23,19 +32,30 @@ pub const SHALLOW: u8 = 1;
 pub const DEEP: u8 = 2;
 pub const ROCK: u8 = 3;
 
+/// Water layouts (D-096), one drawn per map.
+pub const RIVER: u8 = 0;
+pub const LAKE: u8 = 1;
+pub const PONDS: u8 = 2;
+pub const HIGHLANDS: u8 = 3;
+const LAYOUTS: u32 = 4;
+
 const ONE_I: i64 = ONE as i64;
+const HALF: i64 = ONE_I / 2;
 const U16: i64 = 65_535;
 /// The terrain's own PCG32 stream.
 const STREAM: u64 = 0x7e22_a1d0;
-/// River path steps per cell, and deep pools at least this many steps apart.
-const STEPS_PER_CELL: i64 = 2;
-const DEEP_GAP: i64 = 8;
-/// The river's sideways swing: lattice spacing (steps) and a ramp from the centre (steps), so
-/// the two mirrored halves meet at the centre.
-const MEANDER_STEPS: i64 = 6;
-const MEANDER_RAMP: i64 = 8;
-/// Lattice spacing (cells) of the noise that breaks rock outcrops into clusters.
+/// Deep pools on a river at least this many path cells apart.
+const DEEP_GAP: usize = 4;
+/// Lattice spacing (cells) of the noise that breaks rock into clusters and cliffs into bands.
 const ROCK_CELLS: i64 = 3;
+/// Path cost of a step (Dijkstra), on top of the height of the cell entered; much dearer near a
+/// home, so water keeps clear of the clearings.
+const STEP_COST: i64 = 2_000;
+const HOME_COST: i64 = 4 * U16;
+/// Path cost added per cell closer than `RIM` to the map edge, so water crosses the map instead
+/// of running along its rim.
+const RIM_COST: i64 = U16;
+const RIM: usize = 4;
 
 #[must_use]
 pub fn is_water(g: u8) -> bool {
@@ -48,11 +68,18 @@ pub struct TerrainParams {
     pub generate: bool,
     cells: [i64; 3],
     weights: [i64; 3],
+    valley_cells: i64,
+    valley_width: i64,
+    valley_depth: i64,
+    terraces: i64,
+    steep: i64,
+    cliff_drop: i64,
+    cliff_gaps: i64,
     width: i64,
-    meander: i64,
     deep: i64,
     ponds: u32,
     pond_radius: u32,
+    lake_radius: u32,
     rock: i64,
     home_clear: i64,
     water_level: i64,
@@ -74,11 +101,18 @@ impl TerrainParams {
             generate: t.generate,
             cells: t.noise_cells.map(i64::from),
             weights: t.noise_weights.map(|w| r(w * one)),
+            valley_cells: i64::from(t.valley_cells),
+            valley_width: r(t.valley_width * one),
+            valley_depth: r(t.valley_depth * one),
+            terraces: i64::from(t.terraces),
+            steep: r(t.cliff_steepness * one),
+            cliff_drop: r(t.cliff_drop * u16f),
+            cliff_gaps: r(t.cliff_gaps * one),
             width: r(t.river_width * one),
-            meander: r(t.river_meander * one),
             deep: r(t.deep_share * one),
             ponds: t.ponds,
             pond_radius: t.pond_radius,
+            lake_radius: t.lake_radius,
             rock: r(t.rock_share * one),
             home_clear: i64::from(t.home_clear),
             water_level: r(t.water_level * u16f),
@@ -95,11 +129,18 @@ impl TerrainParams {
             .i64s(&self.cells)
             .i64s(&self.weights)
             .i64s(&[
+                self.valley_cells,
+                self.valley_width,
+                self.valley_depth,
+                self.terraces,
+                self.steep,
+                self.cliff_drop,
+                self.cliff_gaps,
                 self.width,
-                self.meander,
                 self.deep,
                 i64::from(self.ponds),
                 i64::from(self.pond_radius),
+                i64::from(self.lake_radius),
                 self.rock,
                 self.home_clear,
                 self.water_level,
@@ -112,15 +153,16 @@ impl TerrainParams {
 }
 
 /// A generated map, cell by cell (row-major): elevation 0..=65535, ground class, moisture in the
-/// flora's u16 `water` units.
+/// flora's u16 `water` units; and the water layout drawn for it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Map {
     pub elevation: Vec<i64>,
     pub ground: Vec<u8>,
     pub water: Vec<i64>,
+    pub layout: u8,
 }
 
-/// The two homes of an `n x n` map: (n / 4, n / 4) and its mirror, as in the openings.
+/// The two home clearings of an `n x n` map: (n / 4, n / 4) and its mirror.
 #[must_use]
 pub fn homes(n: usize) -> [usize; 2] {
     let b = n / 4;
@@ -135,7 +177,8 @@ pub fn generate(p: &TerrainParams, n: usize, seed: u64) -> Map {
     let mirror = |k: usize| cells - 1 - k;
     let mut rng = Pcg32::new(seed, STREAM);
 
-    // Relief: weighted octaves of value noise, stretched to 0..=U16, made symmetric.
+    // Relief: weighted octaves of value noise, minus the valleys, stretched to 0..=U16, made
+    // symmetric, then terraced.
     let total: i64 = p.weights.iter().sum::<i64>().max(1);
     let mut elevation = vec![0i64; cells];
     for (&s, &w) in p.cells.iter().zip(&p.weights) {
@@ -147,6 +190,14 @@ pub fn generate(p: &TerrainParams, n: usize, seed: u64) -> Map {
     for e in &mut elevation {
         *e = div_round(*e, total);
     }
+    let fold = noise(n, p.valley_cells, &mut rng);
+    for k in 0..cells {
+        let d = (fold[k] - HALF).abs();
+        if d < p.valley_width {
+            let v = ONE_I - div_round(d * ONE_I, p.valley_width.max(1)); // 1 on the valley line
+            elevation[k] -= div_round(div_round(v * v, ONE_I) * p.valley_depth, ONE_I);
+        }
+    }
     let (lo, hi) = (min(&elevation), max(&elevation));
     for e in &mut elevation {
         *e = div_round((*e - lo) * U16, (hi - lo).max(1));
@@ -155,23 +206,67 @@ pub fn generate(p: &TerrainParams, n: usize, seed: u64) -> Map {
         let v = (elevation[k] + elevation[mirror(k)]) / 2;
         (elevation[k], elevation[mirror(k)]) = (v, v);
     }
+    if p.terraces > 1 {
+        // Three parts terrace, one part the raw relief: plateaus keep some roll, so water still
+        // finds a winding way across them.
+        for e in &mut elevation {
+            *e = (3 * terrace(*e, p.terraces, p.steep) + *e) / 4;
+        }
+    }
 
+    // Water, along the topography.
+    let home = homes(n);
+    let near_home = |k: usize| {
+        home.iter()
+            .any(|&h| dist2(k, h, n) <= (p.home_clear + 2).pow(2))
+    };
+    let layout = u8::try_from(rng.below(LAYOUTS)).unwrap_or(RIVER);
     let mut ground = vec![LAND; cells];
-    river(p, n, &mut rng, &mut ground);
-    ponds(p, n, &mut rng, &elevation, &mut ground);
+    match layout {
+        RIVER => {
+            let s = source(n, &elevation, &near_home, &mut rng);
+            let path = valley_path(n, &elevation, &near_home, s, |k| k == mirror(s));
+            lay(p, n, &path, p.width, &mut rng, &mut ground);
+            ponds(p, n, 1, &mut rng, &elevation, &mut ground);
+        }
+        LAKE => {
+            let r = i64::from(p.lake_radius);
+            let r = r - i64::from(rng.below(2)).min(r - 1); // radius - 1 or radius
+            let c = i64::try_from(n - 1).unwrap_or(0); // the centre, doubled
+            for k in 0..cells {
+                let (y, x) = (
+                    i64::try_from(k / n).unwrap_or(0),
+                    i64::try_from(k % n).unwrap_or(0),
+                );
+                let d2 = (2 * y - c).pow(2) + (2 * x - c).pow(2); // 4 x squared distance
+                if d2 <= 4 * r * r {
+                    ground[k] = if d2 <= 4 * (r - 1) * (r - 1) {
+                        DEEP
+                    } else {
+                        SHALLOW
+                    };
+                }
+            }
+            let s = source(n, &elevation, &near_home, &mut rng);
+            let lake = ground.clone();
+            let path = valley_path(n, &elevation, &near_home, s, |k| is_water(lake[k]));
+            lay(p, n, &path, ONE_I, &mut rng, &mut ground);
+        }
+        PONDS => ponds(p, n, p.ponds, &mut rng, &elevation, &mut ground),
+        _ => ponds(p, n, 1, &mut rng, &elevation, &mut ground),
+    }
     for k in 0..cells {
         let g = ground[k].max(ground[mirror(k)]); // DEEP > SHALLOW > LAND
         (ground[k], ground[mirror(k)]) = (g, g);
     }
 
     // Homes: dry, flatter, rock-free.
-    let home = homes(n);
     let clear = |k: usize| {
         home.iter()
             .any(|&h| dist2(k, h, n) <= p.home_clear * p.home_clear)
     };
     let disc: Vec<usize> = (0..cells)
-        .filter(|&k| clear(k) && dist2(k, home[0], n) <= p.home_clear * p.home_clear)
+        .filter(|&k| dist2(k, home[0], n) <= p.home_clear * p.home_clear)
         .collect();
     let mean = disc.iter().map(|&k| elevation[k]).sum::<i64>()
         / i64::try_from(disc.len().max(1)).unwrap_or(1);
@@ -191,12 +286,26 @@ pub fn generate(p: &TerrainParams, n: usize, seed: u64) -> Map {
         };
     }
 
-    // Rock outcrops: the land scoring highest on height plus a fine, symmetric noise, so they
-    // break into several clusters on the high ground (outside the homes).
+    // Rock: cliffs on the steep steps (broken by a fine, symmetric noise into bands with
+    // passes), then outcrops on the land scoring highest on height plus that noise.
     let mut grain = noise(n, ROCK_CELLS, &mut rng);
     for k in 0..cells {
         let v = (grain[k] + grain[mirror(k)]) / 2;
         (grain[k], grain[mirror(k)]) = (v, v);
+    }
+    let drop = |k: usize| {
+        neighbours(k, n)
+            .map(|m| elevation[k] - elevation[m])
+            .max()
+            .unwrap_or(0)
+    };
+    let cliffs: Vec<usize> = (0..cells)
+        .filter(|&k| {
+            ground[k] == LAND && !clear(k) && drop(k) >= p.cliff_drop && grain[k] >= p.cliff_gaps
+        })
+        .collect();
+    for k in cliffs {
+        ground[k] = ROCK;
     }
     let score = |k: usize| elevation[k] + div_round(grain[k] * U16, ONE_I);
     let mut high: Vec<i64> = (0..cells)
@@ -233,6 +342,178 @@ pub fn generate(p: &TerrainParams, n: usize, seed: u64) -> Map {
         elevation,
         ground,
         water,
+        layout,
+    }
+}
+
+/// Terraces: `levels` plateaus; within each band the height steepens around its middle by
+/// `steep` (Q16), so plateaus meet at steep steps.
+fn terrace(e: i64, levels: i64, steep: i64) -> i64 {
+    let band = (U16 / levels).max(1);
+    let i = (e / band).min(levels - 1);
+    let t = div_round((e - i * band) * ONE_I, band);
+    let t = (div_round((t - HALF) * steep, ONE_I) + HALF).clamp(0, ONE_I);
+    (i * band + div_round(t * band, ONE_I)).min(U16)
+}
+
+/// Where a river or stream starts: a border cell in the first half of the map (the caller
+/// mirrors), in the middle of its side and away from the homes, drawn among the higher half of
+/// them: water comes down from the hills.
+fn source(
+    n: usize,
+    elevation: &[i64],
+    near_home: &dyn Fn(usize) -> bool,
+    rng: &mut Pcg32,
+) -> usize {
+    let cells = n * n;
+    let mut edge: Vec<usize> = (0..cells)
+        .filter(|&k| k < cells - 1 - k)
+        .filter(|&k| {
+            // On an edge, in the middle half of its side: away from the corners.
+            let (y, x) = (k / n, k % n);
+            let mid = |v: usize| v >= n / 4 && v < n - n / 4;
+            ((y == 0 || y == n - 1) && mid(x)) || ((x == 0 || x == n - 1) && mid(y))
+        })
+        .filter(|&k| !near_home(k))
+        .collect();
+    edge.sort_by_key(|&k| (Reverse(elevation[k]), k));
+    let top = edge.len().div_ceil(2).max(1);
+    let pick = usize::try_from(rng.below(u32::try_from(top).unwrap_or(1))).unwrap_or(0);
+    edge.get(pick).copied().unwrap_or(0)
+}
+
+/// The cheapest 4-neighbour path from `from` to the first cell where `goal(k)`, each step
+/// costing the height of the cell entered (plus a step cost, and much more near a home): the way
+/// water would run, along the valleys. Ties break on the lower cell index.
+fn valley_path(
+    n: usize,
+    elevation: &[i64],
+    near_home: &dyn Fn(usize) -> bool,
+    from: usize,
+    goal: impl Fn(usize) -> bool,
+) -> Vec<usize> {
+    let cells = n * n;
+    let mut cost = vec![i64::MAX; cells];
+    let mut back = vec![usize::MAX; cells];
+    let mut heap = BinaryHeap::from([Reverse((0i64, from))]);
+    cost[from] = 0;
+    while let Some(Reverse((c, k))) = heap.pop() {
+        if c > cost[k] {
+            continue;
+        }
+        if goal(k) {
+            let mut path = vec![k];
+            let mut at = k;
+            while back[at] != usize::MAX {
+                at = back[at];
+                path.push(at);
+            }
+            return path;
+        }
+        for m in neighbours(k, n) {
+            let edge = (m / n).min(m % n).min(n - 1 - m / n).min(n - 1 - m % n);
+            let step = STEP_COST
+                + elevation[m]
+                + if near_home(m) { HOME_COST } else { 0 }
+                + i64::try_from(RIM.saturating_sub(edge)).unwrap_or(0) * RIM_COST;
+            if c + step < cost[m] {
+                cost[m] = c + step;
+                back[m] = k;
+                heap.push(Reverse((c + step, m)));
+            }
+        }
+    }
+    vec![from]
+}
+
+/// Lay water along a path: cells within half of `width` (Q16 cells) of a path cell become
+/// shallows; a wide river gets the odd deep pool at its centre.
+fn lay(
+    p: &TerrainParams,
+    n: usize,
+    path: &[usize],
+    width: i64,
+    rng: &mut Pcg32,
+    ground: &mut [u8],
+) {
+    let half = width / 2;
+    let r = half / ONE_I;
+    let (ni, mut last_deep) = (i64::try_from(n).unwrap_or(0), None::<usize>);
+    for (step, &k) in path.iter().enumerate() {
+        let (cy, cx) = (
+            i64::try_from(k / n).unwrap_or(0),
+            i64::try_from(k % n).unwrap_or(0),
+        );
+        for gy in (cy - r).max(0)..=(cy + r).min(ni - 1) {
+            for gx in (cx - r).max(0)..=(cx + r).min(ni - 1) {
+                let d2 = ((gy - cy).pow(2) + (gx - cx).pow(2)) * ONE_I * ONE_I;
+                if d2 <= half * half {
+                    let q = usize::try_from(gy * ni + gx).unwrap_or(0);
+                    ground[q] = ground[q].max(SHALLOW);
+                }
+            }
+        }
+        let apart = last_deep.is_none_or(|d| step - d >= DEEP_GAP);
+        if width >= 2 * ONE_I && apart && i64::from(rng.below(1 << 16)) < p.deep {
+            ground[k] = DEEP;
+            last_deep = Some(step);
+        }
+    }
+}
+
+/// Up to `count` ponds in the first half of the map (the caller mirrors them): in the lowest
+/// basins away from other water and the homes, radius 1..=pond_radius, a deep centre from
+/// radius 2.
+fn ponds(
+    p: &TerrainParams,
+    n: usize,
+    count: u32,
+    rng: &mut Pcg32,
+    elevation: &[i64],
+    ground: &mut [u8],
+) {
+    let cells = n * n;
+    let to_water = bfs(n, |k| is_water(ground[k]));
+    let reach = i64::from(p.pond_radius);
+    let home = homes(n);
+    let mut spots: Vec<usize> = (0..cells)
+        .filter(|&k| k < cells - 1 - k)
+        .filter(|&k| to_water[k] >= reach + 3)
+        .filter(|&k| {
+            let edge = (k / n).min(k % n).min(n - 1 - k / n).min(n - 1 - k % n);
+            i64::try_from(edge).unwrap_or(0) > reach // inland: not cut by the map edge
+        })
+        .filter(|&k| {
+            home.iter()
+                .all(|&h| dist2(k, h, n) > (p.home_clear + reach + 2).pow(2))
+        })
+        .collect();
+    spots.sort_by_key(|&k| (elevation[k], k));
+    let mut placed: Vec<usize> = Vec::new();
+    for k in spots {
+        if placed.len() >= usize::try_from(count).unwrap_or(0) {
+            break;
+        }
+        let apart = |q: usize| {
+            dist2(k, q, n) > (2 * reach + 3).pow(2)
+                && dist2(k, cells - 1 - q, n) > (2 * reach + 3).pow(2)
+        };
+        if !placed.iter().all(|&q| apart(q)) || dist2(k, cells - 1 - k, n) <= (2 * reach + 3).pow(2)
+        {
+            continue;
+        }
+        let r = 1 + i64::from(rng.below(p.pond_radius.max(1)));
+        for q in 0..cells {
+            let d2 = dist2(q, k, n);
+            if d2 <= r * r {
+                ground[q] = ground[q].max(if r >= 2 && d2 <= (r - 1) * (r - 1) {
+                    DEEP
+                } else {
+                    SHALLOW
+                });
+            }
+        }
+        placed.push(k);
     }
 }
 
@@ -262,99 +543,6 @@ fn noise(n: usize, s: i64, rng: &mut Pcg32) -> Vec<i64> {
             lerp(top, bottom, fy)
         })
         .collect()
-}
-
-/// Half the river: from the centre toward the top-right corner, meandering; the caller mirrors
-/// it. Cells within half the width of the path become shallows, with the odd deep pool.
-fn river(p: &TerrainParams, n: usize, rng: &mut Pcg32, ground: &mut [u8]) {
-    let ni = i64::try_from(n).unwrap_or(0);
-    let centre = (ni - 1) * ONE_I / 2;
-    let diag = 46_341; // ONE / sqrt(2)
-    let steps = ni * STEPS_PER_CELL; // well past the corner
-    let knots: Vec<i64> = (0..steps / MEANDER_STEPS + 2)
-        .map(|_| i64::from(rng.below(2 * (1 << 16) + 1)) - ONE_I)
-        .collect();
-    let half = p.width / 2;
-    let mut last_deep = -DEEP_GAP;
-    for t in 0..steps {
-        let (i, f) = (
-            usize::try_from(t / MEANDER_STEPS).unwrap_or(0),
-            t % MEANDER_STEPS * ONE_I / MEANDER_STEPS,
-        );
-        let (a, b) = (knots[i], knots[(i + 1).min(knots.len() - 1)]);
-        let wave = a + div_round((b - a) * f, ONE_I);
-        let ramp = (t * ONE_I / MEANDER_RAMP).min(ONE_I);
-        let side = div_round(div_round(p.meander * wave, ONE_I) * ramp, ONE_I);
-        let along = t * ONE_I / STEPS_PER_CELL;
-        // Toward the top-right corner (-y, +x), swung along the perpendicular (+y, +x).
-        let y = centre + div_round((side - along) * diag, ONE_I);
-        let x = centre + div_round((side + along) * diag, ONE_I);
-        if y < -ONE_I || x >= (ni + 1) * ONE_I {
-            break;
-        }
-        let r = half / ONE_I + 1;
-        let (cy, cx) = (y / ONE_I, x / ONE_I);
-        for gy in (cy - r).max(0)..=(cy + r).min(ni - 1) {
-            for gx in (cx - r).max(0)..=(cx + r).min(ni - 1) {
-                let (dy, dx) = (gy * ONE_I - y, gx * ONE_I - x);
-                if dy * dy + dx * dx <= half * half {
-                    let k = usize::try_from(gy * ni + gx).unwrap_or(0);
-                    ground[k] = ground[k].max(SHALLOW);
-                }
-            }
-        }
-        let deep = p.width >= 2 * ONE_I
-            && t - last_deep >= DEEP_GAP
-            && i64::from(rng.below(1 << 16)) < p.deep;
-        if deep && (0..ni).contains(&(y / ONE_I)) && (0..ni).contains(&(x / ONE_I)) {
-            ground[usize::try_from((y / ONE_I) * ni + x / ONE_I).unwrap_or(0)] = DEEP;
-            last_deep = t;
-        }
-    }
-}
-
-/// Ponds in the first half of the map (the caller mirrors them): at the lowest land away from the
-/// river and the homes, radius 1..=pond_radius, a deep centre from radius 2.
-fn ponds(p: &TerrainParams, n: usize, rng: &mut Pcg32, elevation: &[i64], ground: &mut [u8]) {
-    let cells = n * n;
-    let to_river = bfs(n, |k| is_water(ground[k]));
-    let reach = i64::from(p.pond_radius);
-    let home = homes(n);
-    let mut spots: Vec<usize> = (0..cells)
-        .filter(|&k| k < cells - 1 - k)
-        .filter(|&k| to_river[k] >= reach + 3)
-        .filter(|&k| {
-            home.iter()
-                .all(|&h| dist2(k, h, n) > (p.home_clear + reach + 2).pow(2))
-        })
-        .collect();
-    spots.sort_by_key(|&k| (elevation[k], k));
-    let mut placed: Vec<usize> = Vec::new();
-    for k in spots {
-        if placed.len() >= usize::try_from(p.ponds).unwrap_or(0) {
-            break;
-        }
-        let apart = |q: usize| {
-            dist2(k, q, n) > (2 * reach + 3).pow(2)
-                && dist2(k, cells - 1 - q, n) > (2 * reach + 3).pow(2)
-        };
-        if !placed.iter().all(|&q| apart(q)) || dist2(k, cells - 1 - k, n) <= (2 * reach + 3).pow(2)
-        {
-            continue;
-        }
-        let r = 1 + i64::from(rng.below(p.pond_radius.max(1)));
-        for q in 0..cells {
-            let d2 = dist2(q, k, n);
-            if d2 <= r * r {
-                ground[q] = ground[q].max(if r >= 2 && d2 <= (r - 1) * (r - 1) {
-                    DEEP
-                } else {
-                    SHALLOW
-                });
-            }
-        }
-        placed.push(k);
-    }
 }
 
 /// Every land or shallow cell must be reachable on foot from the first home: if the second home is
@@ -462,50 +650,99 @@ mod tests {
         TerrainParams::from_balance(&b)
     }
 
+    const N: usize = 32;
+
     #[test]
     fn maps_are_symmetric_and_reproducible() {
         let p = params();
-        for seed in 1..6 {
-            let m = generate(&p, 43, seed);
-            let cells = 43 * 43;
+        for seed in 1..9 {
+            let m = generate(&p, N, seed);
+            let cells = N * N;
             for k in 0..cells {
                 assert_eq!(m.ground[k], m.ground[cells - 1 - k], "seed {seed} cell {k}");
                 assert_eq!(m.elevation[k], m.elevation[cells - 1 - k]);
                 assert_eq!(m.water[k], m.water[cells - 1 - k]);
             }
-            assert_eq!(m, generate(&p, 43, seed), "same seed, same map");
+            assert_eq!(m, generate(&p, N, seed), "same seed, same map");
         }
         assert_ne!(
-            generate(&p, 43, 1),
-            generate(&p, 43, 2),
+            generate(&p, N, 1),
+            generate(&p, N, 2),
             "another seed, another map"
         );
     }
 
     #[test]
-    fn homes_are_clear_and_the_river_separates_them() {
+    fn homes_are_clear_and_every_walkable_cell_is_reachable() {
         let p = params();
-        for seed in 1..6 {
-            let m = generate(&p, 43, seed);
-            let home = homes(43);
-            for k in 0..43 * 43 {
-                if dist2(k, home[0], 43) <= p.home_clear * p.home_clear {
+        for seed in 1..25 {
+            let m = generate(&p, N, seed);
+            let home = homes(N);
+            for k in 0..N * N {
+                if dist2(k, home[0], N) <= p.home_clear * p.home_clear {
                     assert_eq!(m.ground[k], LAND, "seed {seed}: home cell {k}");
                 }
             }
-            let dry = flood(43, &m.ground, home[0], |g| g == LAND);
-            assert!(
-                !dry[home[1]],
-                "seed {seed}: the river lies between the homes"
-            );
-            let wet = flood(43, &m.ground, home[0], |g| g == LAND || g == SHALLOW);
-            assert!(wet[home[1]], "seed {seed}: but it can be crossed");
-            for k in 0..43 * 43 {
+            let wet = flood(N, &m.ground, home[0], |g| g == LAND || g == SHALLOW);
+            for k in 0..N * N {
                 if m.ground[k] == LAND || m.ground[k] == SHALLOW {
                     assert!(wet[k], "seed {seed}: cell {k} reachable on foot");
                 }
             }
         }
+    }
+
+    /// D-096: maps differ in their water layout; rivers reach the map edges, lakes sit at the
+    /// centre, and cliffs (rock on a steep step) appear.
+    #[test]
+    fn layouts_vary_and_shape_the_water() {
+        let p = params();
+        let (mut seen, mut cliffs) = ([0; 4], 0);
+        for seed in 1..41 {
+            let m = generate(&p, N, seed);
+            seen[usize::from(m.layout)] += 1;
+            let water = |k: usize| is_water(m.ground[k]);
+            let edge = (0..N * N).filter(|&k| {
+                let (y, x) = (k / N, k % N);
+                y == 0 || x == 0 || y == N - 1 || x == N - 1
+            });
+            match m.layout {
+                RIVER => assert!(edge.filter(|&k| water(k)).count() >= 2, "seed {seed}"),
+                LAKE => assert!(water((N / 2) * N + N / 2), "seed {seed}: a central lake"),
+                _ => assert!((0..N * N).any(water), "seed {seed}: ponds"),
+            }
+            cliffs += (0..N * N)
+                .filter(|&k| m.ground[k] == ROCK)
+                .filter(|&k| {
+                    neighbours(k, N).any(|q| m.elevation[k] - m.elevation[q] >= p.cliff_drop)
+                })
+                .count();
+        }
+        assert!(
+            seen.iter().all(|&c| c > 0),
+            "every layout appears: {seen:?}"
+        );
+        assert!(cliffs > 0, "cliffs");
+    }
+
+    /// Rivers take the low ground: across a valley, the path keeps to its floor.
+    #[test]
+    fn valley_paths_follow_the_low_ground() {
+        let n: usize = 20;
+        let elevation: Vec<i64> = (0..n * n)
+            .map(|k| i64::try_from((k % n).abs_diff(12)).unwrap() * 3000)
+            .collect();
+        let path = valley_path(n, &elevation, &|_| false, 3, |k| k == (n - 1) * n + 17);
+        // Away from the rim (dearer, D-096), the path keeps to the floor of the valley.
+        let inside: Vec<usize> = path
+            .iter()
+            .copied()
+            .filter(|&k| (6..14).contains(&(k / n)))
+            .collect();
+        assert!(
+            !inside.is_empty() && inside.iter().all(|&k| k % n == 12),
+            "{inside:?}"
+        );
     }
 
     /// Prints a map: `~` shallows, `#` deep, `^` rock, `H` homes, digits land height.
@@ -514,10 +751,10 @@ mod tests {
     #[ignore = "preview, not a check"]
     fn map_preview() {
         let (p, n) = (params(), 32);
-        for seed in [1, 7] {
+        for seed in 1..=6 {
             let m = generate(&p, n, seed);
             let home = homes(n);
-            println!("seed {seed}");
+            println!("seed {seed}, layout {}", m.layout);
             for y in 0..n {
                 let row: String = (0..n)
                     .map(|x| {
@@ -541,27 +778,29 @@ mod tests {
     #[test]
     fn water_rocks_and_moisture_are_in_place() {
         let p = params();
-        let m = generate(&p, 43, 3);
-        let count = |g: u8| m.ground.iter().filter(|&&x| x == g).count();
-        assert!(count(SHALLOW) > 40, "a river and ponds: {}", count(SHALLOW));
-        assert!(
-            count(ROCK) > 20 && count(ROCK) < 200,
-            "outcrops: {}",
-            count(ROCK)
-        );
-        for k in 0..43 * 43 {
-            if is_water(m.ground[k]) {
-                assert_eq!(m.water[k], U16);
-                assert_eq!(m.elevation[k], p.water_level, "water beds share one level");
-            } else {
-                assert!(
-                    m.water[k] >= p.dry && m.water[k] <= p.wet,
-                    "land moisture in range"
-                );
-                assert!(
-                    m.elevation[k] > p.water_level,
-                    "land stands above the water"
-                );
+        for seed in 1..11 {
+            let m = generate(&p, N, seed);
+            let count = |g: u8| m.ground.iter().filter(|&&x| x == g).count();
+            assert!(count(SHALLOW) > 0, "seed {seed}: some water");
+            assert!(
+                count(ROCK) > 5 && count(ROCK) < N * N / 4,
+                "seed {seed}: rock {}",
+                count(ROCK)
+            );
+            for k in 0..N * N {
+                if is_water(m.ground[k]) {
+                    assert_eq!(m.water[k], U16);
+                    assert_eq!(m.elevation[k], p.water_level, "water beds share one level");
+                } else {
+                    assert!(
+                        m.water[k] >= p.dry && m.water[k] <= p.wet,
+                        "land moisture in range"
+                    );
+                    assert!(
+                        m.elevation[k] > p.water_level,
+                        "land stands above the water"
+                    );
+                }
             }
         }
     }

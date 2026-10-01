@@ -66,8 +66,8 @@ Aquatic plants (family W) sit in the stratum of their height: they want the wate
 **V1:** one basic soil (loam); soil type and light modifiers equal 1.0.
 
 **Terrain (author's decision, D-083, D-084):** every match has a generated map, the same for both players (180° symmetry):
-- **Relief:** hills and valleys. It shapes moisture: valleys and banks are wet, hills dry. There is no movement penalty.
-- **Water:** a river runs between the two homes (the natural front line), and a few ponds lie in the low ground.
+- **Relief (D-096):** hills, plateaus and winding valleys, with cliffs (rock bands broken by passes) on the steep steps. It shapes moisture: valleys and banks are wet, hills dry. There is no movement penalty.
+- **Water (D-096):** each map draws one layout: a river crossing the map, a central lake fed by two streams, scattered ponds, or dry highlands with a pair of ponds. Rivers follow the low ground.
   - **Shallows:** animals wade across (walkers at half speed). Land plants seep across slowly, through their water response (f_water).
   - **Deep pools** in the river and **deep pond centres:** no land plant grows there, and walkers cannot enter.
 - **Rock outcrops** on the high ground: nothing grows there, and walkers cannot enter.

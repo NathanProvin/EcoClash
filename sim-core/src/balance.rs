@@ -106,11 +106,23 @@ pub struct Terrain {
     pub generate: bool,
     pub noise_cells: [u32; 3],
     pub noise_weights: [f64; 3],
+    /// Valleys (D-096): lattice spacing of the fold noise (cells), half width of a valley as a
+    /// share of the noise range, and its depth as a share of the relief.
+    pub valley_cells: u32,
+    pub valley_width: f64,
+    pub valley_depth: f64,
+    /// Plateaus (0 or 1: none), how steep the steps between them are, and the drop to a
+    /// neighbour (share of the relief) that makes a cell a cliff, unless the rock noise is below
+    /// `cliff_gaps` there (a pass).
+    pub terraces: u32,
+    pub cliff_steepness: f64,
+    pub cliff_drop: f64,
+    pub cliff_gaps: f64,
     pub river_width: f64,
-    pub river_meander: f64,
     pub deep_share: f64,
     pub ponds: u32,
     pub pond_radius: u32,
+    pub lake_radius: u32,
     pub rock_share: f64,
     pub home_clear: u32,
     pub water_level: f64,
@@ -327,7 +339,13 @@ impl Balance {
                 && t.noise_weights.iter().all(|&w| w >= 0.0)
                 && t.noise_weights.iter().sum::<f64>() > 0.0
                 && t.river_width >= 1.0
-                && t.river_meander >= 0.0
+                && t.valley_cells > 0
+                && share(t.valley_width)
+                && share(t.valley_depth)
+                && t.cliff_steepness >= 1.0
+                && share(t.cliff_drop)
+                && share(t.cliff_gaps)
+                && t.lake_radius >= 1
                 && share(t.deep_share)
                 && share(t.rock_share)
                 && share(t.water_level)

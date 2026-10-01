@@ -23,7 +23,7 @@ export interface TerrainFrame {
 
 /** Box-blur passes over the cell heights (render only): banks and shorelines come out rounded
  *  instead of following the cell grid. */
-const SMOOTH = 2;
+const SMOOTH = 1; // one pass: cliffs stay steep (D-096)
 
 /** Heights of an `n x n` map (m): per cell centre, bilinear in between. */
 export class Heightfield {
@@ -50,10 +50,12 @@ export class Heightfield {
       }
       const raw = this.cell.slice();
       for (let pass = 0; pass < SMOOTH; pass++) blur(this.cell, n); // rounded banks and shores
-      // Beds never rise with the blur, so narrow rivers keep their water.
+      // Beds never rise with the blur, so narrow rivers keep their water; rock keeps its height,
+      // so cliffs stay sharp.
       for (let k = 0; k < n * n; k++) {
         const g = terrain.ground[k];
-        if (g === GROUND.shallow || g === GROUND.deep)
+        if (g === GROUND.rock) this.cell[k] = Math.max(this.cell[k] ?? 0, raw[k] ?? 0);
+        else if (g === GROUND.shallow || g === GROUND.deep)
           this.cell[k] = Math.min(this.cell[k] ?? 0, raw[k] ?? 0);
       }
     }

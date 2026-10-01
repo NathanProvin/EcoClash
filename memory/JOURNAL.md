@@ -437,3 +437,6 @@
 
 ## 2026-10-01 · Open start (D-095)
 - **Done:** no opening patches, spawn banner, bot founding play and test. Next: varied maps.
+
+## 2026-10-01 · Varied maps (D-096)
+- **Done:** new generator (valleys, terraces, cliffs, four water layouts along the topography); tests; seen in the browser. Next: rings on the relief.

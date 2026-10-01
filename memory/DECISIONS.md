@@ -1068,3 +1068,24 @@ Template:
   - New test: a bot founds its colony on an empty map.
   - The relay test and the bot tests keep their own scripted openings (`setup_plant`).
   - Checked in the browser.
+
+## D-096 · 2026-10-01 · Varied maps: valleys, cliffs, water along the topography
+- **Status:** accepted (user: too many maps shared the same MOBA-like structure, one river and two ponds; wants rivers that follow the topography, more relief, small valleys, cliffs with rocks)
+- **Decision:** `terrain.rs` is rewritten; it stays integer-only, 180° symmetric, every walkable cell reachable.
+  - **Relief:** value-noise octaves minus winding valleys (where a coarse noise crosses its middle), then terraced. Three parts terrace to one part raw relief: plateaus with some roll, joined by steep steps.
+  - **Water:** one layout per seed:
+    - a river crossing the map;
+    - a central lake fed by two streams;
+    - scattered ponds (up to 3 pairs);
+    - dry highlands with one pair.
+
+    Rivers start in the middle of a map side, on the higher half, and take the cheapest way to their goal (Dijkstra on height). They are kept off the rim and away from the homes, so they run along the valleys. A river and its mirror can braid, run in parallel, or merge.
+  - **Ponds** sit in inland basins.
+  - **Rock:** cliffs (a drop to a neighbour ≥ `cliff_drop`, broken into bands with passes by a fine noise) plus a few outcrops on the high ground.
+  - **Render:** relief 16 m (was 8); rock keeps its height through the shore blur, a single pass now, so cliffs stay sharp.
+  - New `[terrain]` keys: `valley_*`, `terraces`, `cliff_*`, `lake_radius`. Removed: `river_meander`.
+  - The home clearings stay: they anchor reachability and the bot's spawn.
+- **Consequences:**
+  - Tests: symmetry and reproducibility, clear homes and full reachability over 24 seeds, every layout over 40 seeds (rivers reach the edges, lakes the centre) with cliffs, valley paths keep to the valley floor, water and moisture invariants.
+  - The water-plants test picks a river map.
+  - Tick budget unchanged.

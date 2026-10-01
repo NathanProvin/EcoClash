@@ -729,7 +729,11 @@ mod tests {
         let b = balance();
         let n = 43;
         let mut w = World::new(&b, 1, n);
-        w.generate_terrain(&TerrainParams::from_balance(&b), 1);
+        let tp = TerrainParams::from_balance(&b);
+        let seed = (1..)
+            .find(|&s| terrain::generate(&tp, n, s).layout == terrain::RIVER)
+            .unwrap(); // a map with a river (D-096)
+        w.generate_terrain(&tp, seed);
         w.economy.sandbox = true;
         let shallows = |k: usize| {
             [k.wrapping_sub(1), k + 1, k.wrapping_sub(n), k + n]

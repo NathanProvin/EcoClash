@@ -1341,3 +1341,15 @@ Template:
   - A meal gives energy × `[fauna] diet_yield = [1.0, 0.75, 0.5]` of its rank.
   - The loader allows at most three foods and requires non-increasing yields; balance hash version 14.
 - **Consequences:** tests cover a grazer leaving plentiful wildflowers for scarcer grass, the 75 % meal and a fox passing a nearby vole for a rabbit. Fixture regenerated; every check is green.
+
+## D-124 · 2026-10-01 · The tech tree becomes a food web
+- **Status:** accepted (user: rework the tech tree in depth into a logical, harmonious view of the links between species, interactive, to see in game which species counters which)
+- **Decision:**
+  - The full-screen tree (T) lays the families out in three rows, bottom-up: plants, grazers, hunters.
+  - Each grazer family stands over the plant layer it eats (H1 over Herbs … HW over Water plants), and hunters over their prey. The recyclers stand beside the grazers, over a "dead biomass" node.
+  - Every feeding link is drawn faintly. Hovering or clicking a species lights its foods (gold) and its eaters (red), with thickness by diet rank, and dims the rest.
+  - Links join the facing sides of nodes; within one column they arc through the gutter, so none runs behind a sibling node.
+  - Species the enemy fields now carry an orange dot, and yours that eat any of them a crosshair. "Counters" lights only those relations.
+  - The side panel shows the focused species: stats, feeds on, eaten or hunted by (clickable chips), habitat, what unlocking needs, and the Unlock button.
+  - The layout and relations are pure and tested (`game/foodweb.ts`).
+- **Consequences:** the old levels × tiers grid is gone.

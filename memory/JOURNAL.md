@@ -511,3 +511,6 @@
 ## 2026-10-01 · Food web (D-122, D-123)
 - **Done:** checked GitHub (up to date, CI green); proposed the ranked food web and the user approved it; "Feeds on" chips on species cards; ranked seek, graze and hunt with rank yields in `sim-core`, with tests.
 - **Next:** the tech tree rework (food-web view, counters).
+
+## 2026-10-01 · Tech tree as a food web (D-124)
+- **Done:** food-web layout, side-anchored links, focus and counters modes, side panel; checked in the browser. Fixed in review: links hidden behind sibling nodes, column overflow, wrapped family headers, "Eaten by" for plants.

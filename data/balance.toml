@@ -13,8 +13,8 @@ chunk_size = 32          # §5.3 chunk sleeping, hashing
 
 [match]
 players = 2
-victory_territory = 0.60 # §2.3, Q-013
-time_limit_s = 1200      # §2.3: 20 min, Q-013
+victory_territory = 0.90 # §2.3, Q-013, D-094
+time_limit_s = 3600      # §2.3: 60 min, Q-013, D-094
 territory_decay = false  # [Proposed] switch (gamerules §11.3): threshold decays linearly ...
 territory_start = 0.75   # ... from this at t = 0 ...
 territory_end = 0.55     # ... to this at the time limit

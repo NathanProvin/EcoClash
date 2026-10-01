@@ -63,8 +63,8 @@ def test_income_is_the_sum_of_species_yields():
 
 def test_victory_rules():
     ec = economy()
-    terr, even = {1: 0.61, 2: 0.2}, {1: 5.0, 2: 5.0}
-    assert ec.winner(10, terr, even) == (1, "territory")  # fixed 60 %
+    terr, even = {1: 0.91, 2: 0.05}, {1: 5.0, 2: 5.0}
+    assert ec.winner(10, terr, even) == (1, "territory")  # fixed 90 % (D-094)
     assert ec.winner(10, {1: 0.5, 2: 0.4}, even) is None  # not yet decided
     limit = ec.time_limit
     assert ec.winner(limit, {1: 0.5, 2: 0.4}, {1: 1.0, 2: 2.0}) == (2, "biomass")

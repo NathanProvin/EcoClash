@@ -1051,3 +1051,8 @@ Template:
   - gradient from radius 64 to 120 of 128 (was 36 to 128);
   - puffs at radius 86–110 and size 6–13;
   - the three stacked layers grow by 0.25 cell instead of 0.5.
+
+## D-094 · 2026-10-01 · Victory: 90 % of the map, or the most standing biomass at 60 minutes
+- **Status:** accepted (user: "60min timer and 90% map coverage")
+- **Decision:** `[match] victory_territory = 0.90`, `time_limit_s = 3600`. The client reads both from the sim, so the HUD, the near-victory toasts and the end screen follow. The decaying-threshold switch stays off. Q-013 keeps them tunable.
+- **Consequences:** the Python victory test now uses 91 %. All checks are green.

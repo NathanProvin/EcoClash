@@ -356,7 +356,7 @@ A species can be spawned only when **all** of the following hold:
 
 ## 11. Game phases, endgame and anti-stalemate
 
-### 11.1 Phases (V1, 20-minute match)
+### 11.1 Phases (V1; written for 20 minutes, the match now lasts up to 60, D-094)
 
 | Phase | Time (indicative) | Dominant layer | What matters |
 |---|---|---|---|
@@ -379,7 +379,7 @@ The mechanics below make sure **no position is permanently locked**, and that **
    - *Bark beetle outbreak:* targeted area; the trees there are weakened and lose biomass over time.
    - *Storm:* windthrow along a corridor, opening a line of gaps through a forest.
    - *Forest fire* **[Post-V1]**: ignites a target area. Each tick, fire spreads to neighbouring cells with a chance (seeded RNG) that grows with the cell's biomass. Burnt strata become dead biomass and the soil gains nutrients. Fire dies out on bare or low-biomass cells, so meadow strips act as firebreaks. It opens irregular gaps through a forest.
-4. **Decaying territory threshold.** The territorial victory threshold starts high (e.g. 75 %) and decreases linearly to ~55 % at the time limit. This rewards late aggression. If validated, it supersedes the fixed 60 % in `INSTRUCTIONS.md` §2.3.
+4. **Decaying territory threshold.** The territorial victory threshold starts high (e.g. 75 %) and decreases linearly to ~55 % at the time limit. This rewards late aggression. If validated, it supersedes the fixed threshold (90 %, D-094) in `INSTRUCTIONS.md` §2.3.
 5. **Guaranteed end.** At the time limit, the highest standing biomass (living flora + fauna) wins; if tied, the higher territory share wins; if still tied, the match is a draw.
 
 ### 11.4 Comeback levers for the trailing player

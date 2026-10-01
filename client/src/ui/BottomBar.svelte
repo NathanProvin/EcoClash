@@ -145,10 +145,8 @@
         >
           <FamilyIcon family={g.key} size={40} />
           {#if total}<span class="count num">{total}</span>{/if}
-          {#if g.species.some((s) => cardOf(s) === "available")}
-            <span class="unlock" title="A species can be unlocked"
-              ><Icon name="unlock" size={11} /></span
-            >
+          {#if g.species.every((s) => cardOf(s) === "locked")}
+            <span class="lock"><Icon name="lock" size={12} /></span>
           {/if}
         </button>
 
@@ -175,9 +173,7 @@
                       >
                         <SpeciesIcon {s} size={38} />
                         {#if count(s)}<span class="count num">{count(s)}</span>{/if}
-                        {#if state === "available"}
-                          <span class="unlock"><Icon name="unlock" size={11} /></span>
-                        {:else if state === "locked"}
+                        {#if state === "locked"}
                           <span class="lock"><Icon name="lock" size={12} /></span>
                         {/if}
                       </button>
@@ -364,18 +360,6 @@
     font-weight: 700;
     color: white;
     background: var(--player);
-  }
-  .unlock {
-    position: absolute;
-    right: 1px;
-    top: 1px;
-    display: grid;
-    place-items: center;
-    width: 15px;
-    height: 15px;
-    border-radius: 50%;
-    color: #1d160a;
-    background: var(--gold);
   }
   .selection {
     display: flex;

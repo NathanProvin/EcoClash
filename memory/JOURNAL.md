@@ -471,3 +471,6 @@
 
 ## 2026-10-01 · Tier medals and quick-stat tooltips (D-106)
 - **Done:** tier rings and medal dots, overlaid padlocks, compact tooltips with quick stats; test; seen in the browser. All points of the request are in (D-104…D-106).
+
+## 2026-10-01 · Padlocks (D-107)
+- **Done:** closed padlock only, on locked tiles and fully locked families.

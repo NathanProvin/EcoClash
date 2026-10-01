@@ -1215,3 +1215,7 @@ Template:
       - animals: cost (×1.5 off your land in the hover text), biomass /s, breeding period, head cap.
     - One line for the unlock cost or the lock condition, then the species' short description.
   - New `Icon` glyphs: coin, spread, egg, cap.
+
+## D-107 · 2026-10-01 · One padlock: closed, on what is still locked
+- **Status:** accepted (user: open and closed padlocks were confusing)
+- **Decision:** the open-padlock badges are gone. The closed padlock sits on species tiles that are locked, and on a family item when all of its species are locked. Unlockable cards look normal; their tooltip gives the unlock cost.

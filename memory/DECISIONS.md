@@ -1132,3 +1132,7 @@ Template:
   - **Data:** `CellInfo` gains `ground`, `strata`, `push` and `lock`; `sim-wasm` adds `lockFrame()`, sent with the field frames.
   - **Fixed on the way:** bar sizes used "40 %" (invalid CSS), so the old panel's bars always looked full.
 - **Consequences:** client tests for the status and the lock and push plumbing; checked in the browser.
+
+## D-101 · 2026-10-01 · The bot waits before founding its colony
+- **Status:** accepted (user: the bot still started with land at once; "make him wait a few seconds")
+- **Decision:** with no land yet, the bot founds its colony only after 15 s (easy), 10 s (normal) or 6 s (hard). Until then it sends nothing. Tested: no spawn command during the wait.

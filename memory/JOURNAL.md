@@ -453,3 +453,6 @@
 ## 2026-10-01 · Compact cell panel (D-100)
 - **Done:** icon-led panel with health status, strata, soil, push, lockout, plant and animal icons; lock frame export; bar CSS bug fixed. All six requests of the day are in (D-095…D-100).
 - **Next:** the user's playtest; then M5a 8b (Tutorial) and 9 (deploy).
+
+## 2026-10-01 · Bot founding delay (D-101)
+- **Done:** level-dependent wait before the bot's first planting; test. Next: map types for real diversity, map size option.

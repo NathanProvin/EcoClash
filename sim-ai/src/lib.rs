@@ -30,6 +30,16 @@ impl Level {
         }
     }
 
+    /// Ticks before the bot founds its colony (D-101): a moment to look at the map, longer on
+    /// easier levels.
+    fn found_after(self) -> u64 {
+        match self {
+            Level::Easy => 150,
+            Level::Normal => 100,
+            Level::Hard => 60,
+        }
+    }
+
     /// Commands per decision at most.
     fn actions(self) -> usize {
         match self {
@@ -130,6 +140,9 @@ impl Bot {
             enemy: centroid(w, 3 - self.player).unwrap_or((n / 2, n / 2)),
         };
         if centroid(w, self.player).is_none() {
+            if w.tick < self.level.found_after() {
+                return Vec::new(); // looking the map over first (D-101)
+            }
             return self.found(&view).into_iter().collect(); // no land yet: found the colony
         }
         let plays: [Play; 8] = [
@@ -466,6 +479,16 @@ mod tests {
             w.step();
         }
         assert!(w.territory()[1] > 0, "the bot spawned and holds land");
+        let mut early = World::new(&b, 1, n);
+        early.generate_terrain(&sim_core::terrain::TerrainParams::from_balance(&b), 1);
+        let mut bot = Bot::new(2, Level::Hard, b.flora.plant_radius);
+        for _ in 0..Level::Hard.found_after() {
+            assert!(
+                bot.think(&early).is_empty(),
+                "no spawn in the first seconds (D-101)"
+            );
+            early.step();
+        }
         assert_eq!(w.territory()[0], 0, "the idle player has none");
     }
 

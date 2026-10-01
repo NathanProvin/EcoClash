@@ -462,3 +462,6 @@
 
 ## 2026-10-01 · Map size option (D-103)
 - **Done:** Small / Mid / Large in the match setup; tests; seen in the browser (Large lakeland). Next: the user's playtest, then M5a 8b and 9.
+
+## 2026-10-01 · Lichen pace fix (D-104)
+- **Done:** found the early-game gap (lichen stats, about 9x slower than grasses), buffed lichen to 78 % of grasses' pace, added a test. Next: build bar revamp.

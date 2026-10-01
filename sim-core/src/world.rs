@@ -723,6 +723,33 @@ mod tests {
         assert_eq!((snap.tick, snap.flora_tick), (ticks, 3));
     }
 
+    /// D-104: founding with lichen & moss keeps up with founding with grasses (about 75 % of the
+    /// land after two minutes): a slower pioneer, not a losing one. Flat map, mirrored spots.
+    #[test]
+    fn pioneers_found_at_a_comparable_pace() {
+        let b = balance();
+        let n = 32;
+        let mut w = World::new(&b, 1, n);
+        w.economy.sandbox = true;
+        w.submit(plant(0, 1, 0, "lichen_and_moss", 8, 8));
+        w.submit(plant(0, 2, 0, "grasses", 23, 23));
+        for _ in 0..1200 {
+            w.step();
+        }
+        let t = w.territory();
+        println!(
+            "after 2 min: lichen & moss {} cells, grasses {} cells",
+            t[0], t[1]
+        );
+        assert!(
+            t[0] * 10 >= t[1] * 7,
+            "lichen keeps up: {} vs {}",
+            t[0],
+            t[1]
+        );
+        assert!(t[0] < t[1], "but grasses stay the fastest pioneer");
+    }
+
     /// Water plants take the shallows, not dry land; fish land in water and stay there (D-087).
     #[test]
     fn water_plants_hold_the_shallows_and_fish_stay_in_the_water() {

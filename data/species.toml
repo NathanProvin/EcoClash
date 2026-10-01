@@ -29,17 +29,17 @@
 #   defaulting to [fauna]; rest = chance to stay put at an idle decision (stop-and-go).
 
 [flora.lichen_and_moss]
-growth = 0.28
+growth = 1.0
 spawn_cost = 20
 unlock_cost = 0
 yield = 0.06
 cap = 0.5
-effect = "Pioneer: establishes on bare soil and carpets shaded ground; fastest soil development."
+effect = "Pioneer: spreads a little slower than grasses, carpets shaded ground; fastest soil development."
 family = "L1"
 tier = 1
 level = 1
 pioneer = true
-biomass_rate = 0.04
+biomass_rate = 0.18
 k_max = 2500
 shade_cast = 0.0
 shade_tolerance = 0.9

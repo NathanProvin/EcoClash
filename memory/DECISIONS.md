@@ -1171,3 +1171,16 @@ Template:
 ## D-103 · 2026-10-01 · Map size in the match setup
 - **Status:** accepted (user: Small, Mid, Large in the start menu)
 - **Decision:** the match setup has a Map size choice: Small 24, Mid 32 (the balance grid) or Large 44 cells per side (`game/setup.ts` `MAP_SIZES`). It is remembered with the setup, `?map=` overrides it, and `?size=N` still wins for tools. Lockstep matches keep the balance grid, so both peers agree. The generator is tested at all three sizes.
+
+## D-104 · 2026-10-01 · Lichen & moss spread at about 3/4 of grasses
+- **Status:** accepted (user: the bot expanded far faster early on, "my moss and lichens barely expand"; option chosen: about 75 % of grasses)
+- **Decision:**
+  - **Root cause:** the stats, not a regression. Lichen & moss had `growth` 0.28 (grasses 1.2) and `biomass_rate` 0.04 (grasses 0.25). Claims on neighbouring cells scale with both, so a lichen front crawled.
+    - The free opening of D-058 (grasses + lichen for everyone) hid this.
+    - With the open start (D-095), a player founding with lichen faced a bot founding with grasses.
+    - Measured: 37 cells against 327 after 2 minutes.
+  - Now `growth` is 1.0 and `biomass_rate` 0.18, which gives 255 cells against 327 (78 %).
+  - Lichen & moss keep their niche: shade tolerance, the fastest soil development, low biomass and yield.
+- **Consequences:**
+  - New test `pioneers_found_at_a_comparable_pace` (flat map, mirrored spots, 2 min): lichen holds at least 70 % of grasses' land and still less.
+  - Fixture regenerated; parity and every check are green.

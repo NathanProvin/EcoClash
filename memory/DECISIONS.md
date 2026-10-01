@@ -1261,3 +1261,14 @@ Template:
 - **Status:** accepted (user: check that the curved line's push-dependent width is still meaningful)
 - **Cause:** since D-108 the push sits in the enemy cells and is blurred twice with the ownership. Where the line is drawn, just inside the attacker's land, a straight front read only 5/16 of it, so a full push widened the line to about 0.8 m instead of 2 m.
 - **Decision:** the push channels are scaled by 16/5 (capped at 1) after the blur. A full push along a front now reads about full width at the line, and fades away from it (test).
+
+## D-116 · 2026-10-01 · Polished animal models: per-species patterns and a gait
+- **Status:** accepted (user: improve the low-poly animal models to a new level of polish for the alpha)
+- **Decision:**
+  - Models live in `client/src/render/bodies.ts`, one per species. A body type gives the shape; the species palette (coat, belly, dark, accent, light, bill, eye) is baked into vertex colours. Examples: a fox's white chest and tail tip and dark stockings, a mallard's green head and white collar, a great tit's yellow breast and black cap, a badger's striped face, a roe deer's pale rump.
+  - New body types: squirrel, beaver, deer, stag (antlers), boar (snout disc, tusks), bison (hump, horns, beard). Every model has eyes; legs are tapered, with stockings, hooves or paws; birds have swept wings with dark primaries.
+  - A gait in the shader, after instancing. Each vertex carries its role (`gait`: leg sign for diagonal pairs and hip height, wing, tail wag), and each instance its `motion` (leg swing, flap, facing × size).
+    - Legs swing with the distance walked (one stride per 0.55 body lengths); the stride eases out when the animal stops, so legs never pedal on the spot.
+    - The body bobs by 3.5 % of its size; birds flap and fish wag their tails.
+  - `AnimalView` draws one instanced mesh per species with one shared material. The drop ghost uses the same coloured model.
+- **Consequences:** tests check the gait, coloured models, swinging legs and palette differences between species. Spot-checked in a gallery of all 23 models and on live rabbits and bison.

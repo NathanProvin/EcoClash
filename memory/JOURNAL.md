@@ -496,3 +496,6 @@
 
 ## 2026-10-01 · Strategic icons, push width (D-114, D-115)
 - **Done:** family pictogram icons with tier medals, checked in the browser. Found that the blurred push reached the line at 5/16 strength; compensated, with a test. The browser window got stuck at 300×170 px, so the push width was not checked on screen.
+
+## 2026-10-01 · Animal models (D-116)
+- **Done:** per-species palettes, six new body types, eyes and tapered legs, a shader gait (legs, bob, flap, wag); gallery review fixed plank wings, a sofa-like bear and dark boar and bison lumps.

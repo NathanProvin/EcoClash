@@ -1,78 +1,33 @@
-// Animal models (D-068): one low-poly shape per body type, merged from a few primitives, one unit
-// long along +x (head forward) and standing on y = 0; instances scale them to each species' size
-// and turn them to face where they go. Birds fly above the canopy; fish swim under the water
-// surface, and amphibious animals float on it (D-087). A ring on the ground, in the
-// owner's colour, marks every controllable animal (white when selected). Soil life and insects
-// stay faint dots (D-065). AnimalView draws them from each frame's animals: the seam where skinned
-// or vertex-animated models can replace these bodies later (D-072).
+// Animals on the map (D-068, D-116): one instanced mesh per species, its model and palette from
+// bodies.ts, scaled to the species' size and turned to face where it goes. Legs swing, bodies bob,
+// wings flap and tails wag with the distance walked (the gait shader below). Birds fly above the
+// canopy; fish swim under the water surface, and amphibious animals float on it (D-087). A ring on
+// the ground, in the owner's colour, marks every controllable animal (white when selected). Soil
+// life and insects stay faint dots (D-065). AnimalView is the seam where skinned or
+// vertex-animated models can replace these bodies later (D-072).
 
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import * as THREE from "three/webgpu";
-import { atan, color, mix, positionGeometry, sin, step } from "three/tsl";
+import {
+  abs,
+  atan,
+  attribute,
+  color,
+  length,
+  mix,
+  positionGeometry,
+  positionLocal,
+  sin,
+  step,
+  vec3,
+} from "three/tsl";
 import { isSwarm } from "../game/species";
-import type { Animal, ReplayMeta, Role } from "../replay/replay";
+import type { Animal, ReplayMeta } from "../replay/replay";
+import { animalGeometry, formOf, type AnimalForm } from "./bodies";
 import { writeMatrix } from "./growth";
 import { CELL } from "./layout";
 import { PLAYER, type PlayerId } from "./palette";
 
-export const BODIES = [
-  "rodent",
-  "hedgehog",
-  "rabbit",
-  "canid",
-  "cat",
-  "bird",
-  "ungulate",
-  "bear",
-  "mustelid",
-  "fish",
-  "duck",
-  "frog",
-  "wader",
-] as const;
-export type Body = (typeof BODIES)[number];
-
-/** Body type, real length (m, nose to tail base) and natural colour of a species. */
-export interface AnimalForm {
-  body: Body;
-  length: number;
-  color: string;
-}
-
-export const ANIMAL_FORM: Record<string, AnimalForm> = {
-  black_woodpecker: { body: "bird", length: 0.45, color: "#1c1b1f" },
-  rabbits: { body: "rabbit", length: 0.4, color: "#8d7c68" },
-  bison: { body: "ungulate", length: 2.8, color: "#4a3727" },
-  bank_vole: { body: "rodent", length: 0.1, color: "#7a5b3e" },
-  roe_deer: { body: "ungulate", length: 1.1, color: "#9a6a3e" },
-  red_squirrel: { body: "rodent", length: 0.22, color: "#b0552a" },
-  red_deer: { body: "ungulate", length: 1.9, color: "#7d5534" },
-  beaver: { body: "rodent", length: 0.8, color: "#5b4030" },
-  wild_boar: { body: "ungulate", length: 1.3, color: "#4b4038" },
-  roach: { body: "fish", length: 0.25, color: "#9aa3a8" },
-  mallard: { body: "duck", length: 0.55, color: "#6b7a4a" },
-  great_tit: { body: "bird", length: 0.14, color: "#d6c14a" },
-  frog: { body: "frog", length: 0.08, color: "#6f8f3c" },
-  badger: { body: "mustelid", length: 0.75, color: "#6d6a66" },
-  kestrel: { body: "bird", length: 0.33, color: "#a0633a" },
-  pine_marten: { body: "mustelid", length: 0.5, color: "#5e3b22" },
-  fox: { body: "canid", length: 0.7, color: "#c2612b" },
-  lynx: { body: "cat", length: 1.0, color: "#b48b5c" },
-  wolf: { body: "canid", length: 1.2, color: "#7d7a73" },
-  brown_bear: { body: "bear", length: 2.0, color: "#5a3d25" },
-  pike: { body: "fish", length: 0.8, color: "#5e6b3e" },
-  heron: { body: "wader", length: 0.9, color: "#9aa0a6" },
-  otter: { body: "mustelid", length: 0.7, color: "#4d3a2c" },
-};
-
-export function formOf(name: string, role: Role): AnimalForm {
-  return (
-    ANIMAL_FORM[name] ??
-    (role === "predator"
-      ? { body: "canid", length: 0.6, color: "#8a6a4a" }
-      : { body: "rodent", length: 0.2, color: "#7a5b3e" })
-  );
-}
+export { ANIMAL_FORM, BODIES, bodyGeometry, formOf, type AnimalForm, type Body } from "./bodies";
 
 /** Models are drawn this many times their real size, so a vole still shows next to a 3 m crown;
  *  large animals are scaled up less (`drawnLength`), so a bison does not dwarf the trees. */
@@ -92,110 +47,43 @@ export function ringRadius(form: AnimalForm): number {
   return Math.max(RING.min, RING.k * drawnLength(form));
 }
 
-/** The model of a body type: unit length along +x, feet (or, for birds, the body centre) at 0. */
-export function bodyGeometry(body: Body): THREE.BufferGeometry {
-  const blob = (sx: number, sy: number, sz: number, x: number, y: number, z = 0) =>
-    new THREE.IcosahedronGeometry(0.5, 1).scale(sx, sy, sz).translate(x, y, z);
-  const ear = (x: number, y: number, z: number, r: number, h: number) =>
-    new THREE.ConeGeometry(r, h, 4).translate(x, y, z);
-  const legs = (h: number, dx: number, dz: number) =>
-    [-dx, dx].flatMap((x) =>
-      [-dz, dz].map((z) => new THREE.BoxGeometry(0.06, h, 0.06).translate(x, h / 2, z)),
-    );
-  const parts: THREE.BufferGeometry[] = (() => {
-    switch (body) {
-      case "rodent": // round body, small head, tucked feet
-        return [blob(0.8, 0.45, 0.5, -0.05, 0.22), blob(0.36, 0.32, 0.32, 0.38, 0.22)];
-      case "hedgehog": // a spiny dome and a pointed snout
-        return [
-          blob(0.9, 0.55, 0.75, -0.05, 0.27),
-          new THREE.ConeGeometry(0.1, 0.3, 4).rotateZ(-Math.PI / 2).translate(0.5, 0.14, 0),
-        ];
-      case "rabbit": // haunches, head, two long ears
-        return [
-          blob(0.8, 0.55, 0.5, -0.08, 0.28),
-          blob(0.34, 0.32, 0.3, 0.34, 0.48),
-          ear(0.32, 0.8, 0.06, 0.045, 0.34),
-          ear(0.32, 0.8, -0.06, 0.045, 0.34),
-        ];
-      case "canid": // long body on legs, pointed ears, a long brush of a tail
-        return [
-          blob(0.7, 0.3, 0.26, 0, 0.5),
-          blob(0.3, 0.22, 0.22, 0.42, 0.62),
-          new THREE.ConeGeometry(0.07, 0.2, 4).rotateZ(-Math.PI / 2).translate(0.62, 0.58, 0),
-          ear(0.42, 0.78, 0.06, 0.04, 0.12),
-          ear(0.42, 0.78, -0.06, 0.04, 0.12),
-          blob(0.4, 0.14, 0.14, -0.5, 0.45),
-          ...legs(0.38, 0.24, 0.08),
-        ];
-      case "cat": // heavier body, round head, tufted ears, short tail
-        return [
-          blob(0.72, 0.34, 0.3, 0, 0.52),
-          blob(0.3, 0.26, 0.26, 0.42, 0.66),
-          ear(0.4, 0.84, 0.07, 0.04, 0.14),
-          ear(0.4, 0.84, -0.07, 0.04, 0.14),
-          blob(0.2, 0.1, 0.1, -0.44, 0.55),
-          ...legs(0.4, 0.24, 0.1),
-        ];
-      case "bird": // body, head, spread wings, tail
-        return [
-          blob(0.75, 0.32, 0.32, 0, 0),
-          blob(0.3, 0.28, 0.28, 0.38, 0.06),
-          new THREE.BoxGeometry(0.34, 0.03, 1.7).translate(-0.02, 0.04, 0),
-          new THREE.BoxGeometry(0.3, 0.02, 0.2).translate(-0.45, 0, 0),
-        ];
-      case "ungulate": // deep body on long legs, raised neck and head, small ears
-        return [
-          blob(0.72, 0.34, 0.28, -0.02, 0.62),
-          blob(0.16, 0.32, 0.14, 0.32, 0.8).rotateZ(-0.5),
-          blob(0.24, 0.14, 0.13, 0.44, 0.94),
-          ear(0.38, 1.04, 0.05, 0.03, 0.08),
-          ear(0.38, 1.04, -0.05, 0.03, 0.08),
-          ...legs(0.5, 0.26, 0.08),
-        ];
-      case "bear": // massive round body, short legs, round head, small ears
-        return [
-          blob(0.8, 0.5, 0.48, -0.04, 0.46),
-          blob(0.32, 0.3, 0.3, 0.42, 0.6),
-          blob(0.1, 0.08, 0.08, 0.4, 0.78, 0.09),
-          blob(0.1, 0.08, 0.08, 0.4, 0.78, -0.09),
-          ...legs(0.24, 0.25, 0.14),
-        ];
-      case "mustelid": // long low body, short legs, small head, long tail
-        return [
-          blob(0.68, 0.22, 0.2, 0.05, 0.2),
-          blob(0.22, 0.16, 0.16, 0.45, 0.24),
-          blob(0.35, 0.08, 0.08, -0.45, 0.18),
-          ...legs(0.1, 0.22, 0.07),
-        ];
-      case "fish": // a streamlined body and a tail fin
-        return [
-          blob(0.8, 0.26, 0.16, 0.05, 0.13),
-          new THREE.ConeGeometry(0.14, 0.24, 3).rotateZ(Math.PI / 2).translate(-0.42, 0.13, 0),
-        ];
-      case "duck": // a boat-shaped body afloat, head on a short neck, a flat bill
-        return [
-          blob(0.8, 0.34, 0.46, -0.05, 0.17),
-          blob(0.26, 0.26, 0.24, 0.34, 0.43),
-          new THREE.BoxGeometry(0.16, 0.04, 0.1).translate(0.52, 0.41, 0),
-        ];
-      case "frog": // a squat body and folded hind legs
-        return [
-          blob(0.7, 0.4, 0.6, 0.05, 0.2),
-          blob(0.35, 0.22, 0.3, -0.25, 0.1, 0.25),
-          blob(0.35, 0.22, 0.3, -0.25, 0.1, -0.25),
-        ];
-      case "wader": // a slim body high on long legs, a long neck and bill
-        return [
-          blob(0.55, 0.26, 0.24, -0.05, 0.95),
-          blob(0.1, 0.4, 0.1, 0.22, 1.2).rotateZ(-0.3),
-          blob(0.18, 0.12, 0.12, 0.32, 1.42),
-          new THREE.ConeGeometry(0.03, 0.3, 4).rotateZ(-Math.PI / 2).translate(0.54, 1.4, 0),
-          ...[-0.05, 0.05].map((z) => new THREE.BoxGeometry(0.03, 0.8, 0.03).translate(0, 0.4, z)),
-        ];
-    }
-  })();
-  return mergeGeometries(parts.map((g) => (g.index ? g.toNonIndexed() : g)));
+/** Gait (D-116): legs swing by `leg` x their depth under the hip, one stride every `stride` body
+ *  lengths walked; the body bobs by `bob` of its size; wings flap `flap` times per second, tails
+ *  wag `wag` (share of the size). `walk` (m/s per metre of drawn size) is a full stride. */
+export const GAIT = { leg: 0.55, stride: 0.55, bob: 0.035, flap: 9, wag: 0.12, walk: 0.6 } as const;
+
+/** One step of an animal's gait: its phase advanced by `dist` metres walked (or by time for
+ *  fliers and swimmers) and its stride amplitude eased toward its speed (0..1). */
+export function stepGait(
+  g: { p: number; amp: number },
+  dist: number,
+  dt: number,
+  size: number,
+  flies: boolean,
+): { p: number; amp: number } {
+  if (flies) return { p: g.p + dt * GAIT.flap, amp: 1 };
+  const speed = dt > 0 ? dist / dt / Math.max(size, 0.05) : 0;
+  const target = Math.min(speed / GAIT.walk, 1);
+  const amp = g.amp + (target - g.amp) * Math.min(dt * 6, 1);
+  return { p: g.p + (dist / (GAIT.stride * Math.max(size, 0.05))) * Math.PI, amp };
+}
+
+/** The shared body material: vertex colours (the species palette) and the gait offsets, in world
+ *  space after instancing (per instance `motion`: leg swing, flap, facing x size). */
+function gaitMaterial(): THREE.MeshStandardNodeMaterial {
+  const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.85, flatShading: true });
+  m.vertexColors = true;
+  const gait = attribute("gait", "vec4"); // leg sign, hip, wing, wag
+  const motion = attribute("motion", "vec4"); // leg swing, flap, forward x size (x, z)
+  const fwd = vec3(motion.z, 0, motion.w);
+  const side = vec3(motion.w.negate(), 0, motion.z);
+  const size = length(fwd);
+  const local = positionGeometry;
+  const leg = fwd.mul(gait.x.mul(motion.x).mul(gait.y.sub(local.y)).mul(GAIT.leg));
+  const wing = vec3(0, gait.z.mul(motion.y).mul(abs(local.z)).mul(size).mul(0.6), 0);
+  const wag = side.mul(gait.w.mul(motion.y).mul(GAIT.wag));
+  m.positionNode = positionLocal.add(leg).add(wing).add(wag);
+  return m;
 }
 
 /** Swarm dots (soil life, insects; D-065): radius (m), height (m, in the herbs) and opacity. */
@@ -246,11 +134,12 @@ export interface Drawn {
   z: number;
 }
 
-/** The animals of a match: one instanced mesh per body type, their rings, the swarm dots. */
+/** The animals of a match: one instanced mesh per species, their rings, the swarm dots. */
 export class AnimalView {
   /** Where each animal was drawn this frame (swarms excluded: not selectable). */
   drawn: Drawn[] = [];
-  private readonly bodies: Record<Body, THREE.InstancedMesh>;
+  private readonly bodies: (THREE.InstancedMesh | undefined)[];
+  private readonly motions: (THREE.InstancedBufferAttribute | undefined)[];
   private readonly rings: THREE.InstancedMesh;
   private readonly swarm: THREE.InstancedMesh;
   private readonly canopies: THREE.InstancedMesh;
@@ -260,7 +149,6 @@ export class AnimalView {
   private readonly shadowColor = new THREE.Color(FALL.shadow);
   private readonly dustColor = new THREE.Color(FALL.dustColor);
   private readonly forms: AnimalForm[];
-  private readonly colors: THREE.Color[];
   private readonly swarmOf: boolean[];
   private readonly predatorOf: boolean[];
   private readonly ringColor: Record<PlayerId, { animal: THREE.Color; predator: THREE.Color }> = {
@@ -271,8 +159,8 @@ export class AnimalView {
     1: new THREE.Color(PLAYER[1].animal),
     2: new THREE.Color(PLAYER[2].animal),
   };
-  /** Last drawn position and heading per animal id, to face the way it goes. */
-  private heading = new Map<number, { x: number; z: number; a: number }>();
+  /** Last drawn position, heading and gait per animal id. */
+  private heading = new Map<number, { x: number; z: number; a: number; p: number; amp: number }>();
   /** When the last frame was drawn (ms), for the turn rate. */
   private lastNow = 0;
   private readonly mediumOf: string[];
@@ -283,20 +171,21 @@ export class AnimalView {
     this.predatorOf = fauna.role.map((r) => r === "predator");
     this.forms = fauna.names.map((name, i) => formOf(name, fauna.role[i] ?? "herbivore"));
     this.mediumOf = meta.species.filter((s) => s.kind === "fauna").map((s) => s.medium ?? "walk");
-    this.colors = this.forms.map((f) => new THREE.Color(f.color));
-    const lit = (g: THREE.BufferGeometry) =>
-      instanced(
-        scene,
-        g,
-        capacity,
-        new THREE.MeshStandardNodeMaterial({ roughness: 0.9, flatShading: true }),
-      );
-    const bodies = {} as Record<Body, THREE.InstancedMesh>;
-    for (const b of BODIES) {
-      bodies[b] = lit(bodyGeometry(b));
-      bodies[b].castShadow = true; // D-086
-    }
-    this.bodies = bodies;
+    const material = gaitMaterial();
+    const n = Math.max(capacity, 1);
+    this.motions = this.forms.map((_, i) =>
+      this.swarmOf[i] ? undefined : new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4),
+    );
+    this.bodies = this.forms.map((form, i) => {
+      const motion = this.motions[i];
+      if (!motion) return undefined;
+      motion.setUsage(THREE.DynamicDrawUsage);
+      const g = animalGeometry(form);
+      g.setAttribute("motion", motion);
+      const mesh = instanced(scene, g, capacity, material);
+      mesh.castShadow = true; // D-086
+      return mesh;
+    });
     const faint = (opacity: number) =>
       new THREE.MeshBasicNodeMaterial({ transparent: true, opacity, depthWrite: false });
     const ring = new THREE.RingGeometry(1 - RING.width, 1, 28).rotateX(-Math.PI / 2);
@@ -331,7 +220,8 @@ export class AnimalView {
 
   setVisible(on: boolean): void {
     const all = [this.rings, this.swarm, this.canopies, this.shadows, this.dusts];
-    for (const m of [...Object.values(this.bodies), ...all]) {
+    for (const m of [...this.bodies, ...all]) {
+      if (!m) continue;
       m.visible = on;
     }
   }
@@ -349,9 +239,9 @@ export class AnimalView {
     water: number | null = null,
     camera?: THREE.Vector3,
   ): void {
-    const counts = Object.fromEntries(BODIES.map((b) => [b, 0])) as Record<Body, number>;
+    const counts = this.bodies.map(() => 0);
     let [swarms, rings, canopies, shadows, dusts] = [0, 0, 0, 0, 0];
-    const heading = new Map<number, { x: number; z: number; a: number }>();
+    const heading = new Map<number, { x: number; z: number; a: number; p: number; amp: number }>();
     const dt = Math.min(Math.max((now - this.lastNow) / 1000, 0), 0.1);
     this.lastNow = now;
     this.drawn = [];
@@ -384,19 +274,28 @@ export class AnimalView {
         );
         continue; // not selectable (D-065)
       }
-      // Face the way it goes, turning progressively; keep the heading while it barely moves.
-      const last = this.heading.get(a.id);
-      let angle = last?.a ?? unit(a.id, 3) * Math.PI * 2;
-      if (last && dt > 0) {
-        const [dx, dz] = [x - last.x, z - last.z];
-        if (Math.hypot(dx, dz) > TURN.min * dt) {
-          angle = turnToward(angle, Math.atan2(-dz, dx), TURN.rate * dt);
-        }
-      }
-      heading.set(a.id, { x, z, a: angle });
       const form = this.forms[a.species];
       const body = form?.body ?? "rodent";
       const size = form ? drawnLength(form) : 0.5;
+      // Face the way it goes, turning progressively; keep the heading while it barely moves.
+      const last = this.heading.get(a.id);
+      let angle = last?.a ?? unit(a.id, 3) * Math.PI * 2;
+      let walked = 0;
+      if (last && dt > 0) {
+        const [dx, dz] = [x - last.x, z - last.z];
+        walked = Math.hypot(dx, dz);
+        if (walked > TURN.min * dt) {
+          angle = turnToward(angle, Math.atan2(-dz, dx), TURN.rate * dt);
+        }
+      }
+      const g = stepGait(
+        last ?? { p: unit(a.id, 5) * 6, amp: 0 },
+        fall > 0 ? 0 : walked,
+        dt,
+        size,
+        body === "bird" || body === "fish",
+      );
+      heading.set(a.id, { x, z, a: angle, ...g });
       // Where it stands: fish just under the water surface, floaters on it (D-087).
       const bed = height(x, z);
       const medium = this.mediumOf[a.species];
@@ -407,11 +306,23 @@ export class AnimalView {
           : medium === "amphibious" && body !== "wader"
             ? Math.max(bed, surface)
             : bed;
-      const y =
-        ground + (body === "bird" ? FLIGHT_Y + BOB * Math.sin(tick * 0.8 + a.id) : 0) + fall;
-      const color = this.colors[a.species] ?? HIGHLIGHT;
+      const swing = Math.sin(g.p) * g.amp;
+      const bob = body === "bird" ? FLIGHT_Y + BOB * Math.sin(tick * 0.8 + a.id) : 0;
+      const y = ground + bob + Math.abs(swing) * GAIT.bob * size + fall;
       const sway = left > 0 ? FALL.sway * left * Math.sin(age * 5 + a.id) : 0;
-      put(this.bodies[body], counts[body]++, x, y, z, size, size, angle + sway, color);
+      const mesh = this.bodies[a.species];
+      const motion = this.motions[a.species];
+      const i = counts[a.species] ?? 0;
+      if (mesh && motion) {
+        put(mesh, i, x, y, z, size, size, angle + sway, HIGHLIGHT);
+        const turned = angle + sway;
+        const flap = body === "bird" && fall > 0 ? 0 : Math.sin(g.p);
+        (motion.array as Float32Array).set(
+          [swing, flap, Math.cos(turned) * size, -Math.sin(turned) * size],
+          i * 4,
+        );
+        counts[a.species] = i + 1;
+      }
       // The canopy, readable at any zoom; the shadow spot under it; the dust ring on landing.
       if (left > 0) {
         const far = camera ? Math.hypot(camera.x - x, camera.y - y, camera.z - z) : 0;
@@ -433,7 +344,17 @@ export class AnimalView {
       this.drawn.push({ id: a.id, owner: a.owner, x, y: y + size * 0.3, z });
     }
     this.heading = heading;
-    for (const b of BODIES) finish(this.bodies[b], counts[b]);
+    this.bodies.forEach((mesh, s) => {
+      if (!mesh) return;
+      const count = counts[s] ?? 0;
+      finish(mesh, count);
+      const motion = this.motions[s];
+      if (motion) {
+        motion.clearUpdateRanges();
+        motion.addUpdateRange(0, Math.max(1, count) * 4);
+        motion.needsUpdate = true;
+      }
+    });
     finish(this.rings, rings);
     finish(this.swarm, swarms);
     finish(this.canopies, canopies);

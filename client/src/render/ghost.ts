@@ -5,7 +5,8 @@
 
 import * as THREE from "three/webgpu";
 import type { Role } from "../replay/replay";
-import { bodyGeometry, drawnLength, formOf as animalForm } from "./animals";
+import { drawnLength, formOf as animalForm } from "./animals";
+import { animalGeometry } from "./bodies";
 import { LOW, PAD, SHRUB, STRATA, stratumOf, TREE, type Placement } from "./layout";
 import { plantColor, type PlayerId } from "./palette";
 import { drape } from "./terrain";
@@ -69,7 +70,9 @@ export class Ghost {
       });
     if (spec.kind === "fauna") {
       const form = animalForm(spec.name, spec.role);
-      const body = new THREE.Mesh(bodyGeometry(form.body), material(new THREE.Color(form.color)));
+      const coat = material(new THREE.Color("#ffffff"));
+      coat.vertexColors = true; // the species palette (D-116)
+      const body = new THREE.Mesh(animalGeometry(form), coat);
       body.scale.setScalar(drawnLength(form));
       this.model.add(body);
       this.measure();

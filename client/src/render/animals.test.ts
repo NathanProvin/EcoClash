@@ -9,8 +9,11 @@ import {
   formOf,
   RING,
   ringRadius,
+  GAIT,
+  stepGait,
   turnToward,
 } from "./animals";
+import { animalGeometry } from "./bodies";
 
 describe("bodyGeometry", () => {
   it("builds every body about one unit long, standing on the ground, head toward +x", () => {
@@ -90,5 +93,37 @@ describe("turnToward (D-111)", () => {
     expect(turnToward(0, 0.05, 0.1)).toBeCloseTo(0.05);
     // From just under +pi to just over -pi is a small left turn, not a full spin.
     expect(turnToward(3.1, -3.1, 0.5)).toBeCloseTo(3.1 + (2 * Math.PI - 6.2));
+  });
+});
+
+describe("gait (D-116)", () => {
+  it("strides with the distance walked and settles when standing", () => {
+    let g = { p: 0, amp: 0 };
+    for (let i = 0; i < 30; i++) g = stepGait(g, 0.02, 1 / 60, 1, false); // 1.2 m/s
+    expect(g.amp).toBeGreaterThan(0.9);
+    const p = g.p;
+    expect(p).toBeCloseTo(((30 * 0.02) / (GAIT.stride * 1)) * Math.PI, 5);
+    for (let i = 0; i < 60; i++) g = stepGait(g, 0, 1 / 60, 1, false);
+    expect(g.amp).toBeLessThan(0.01); // legs come to rest
+    expect(g.p).toBe(p); // and do not keep pedalling
+    expect(stepGait({ p: 0, amp: 0 }, 0, 0.1, 1, true).p).toBeGreaterThan(0); // wings flap
+  });
+
+  it("gives every species a coloured model whose legs swing in diagonal pairs", () => {
+    for (const [name, form] of Object.entries(ANIMAL_FORM)) {
+      const g = animalGeometry(form);
+      expect(g.getAttribute("color"), name).toBeDefined();
+      const gait = g.getAttribute("gait");
+      const signs = new Set<number>();
+      for (let i = 0; i < gait.count; i++) signs.add(gait.getX(i));
+      const legged = !["bird", "fish", "duck", "frog"].includes(form.body);
+      if (legged) expect([...signs].sort(), name).toEqual([-1, 0, 1]);
+    }
+    // Species of one body type still look apart: a fox is not a grey wolf.
+    const tint = (n: string) => {
+      const c = animalGeometry(ANIMAL_FORM[n] ?? formOf(n, "predator")).getAttribute("color");
+      return [c.getX(0), c.getY(0), c.getZ(0)];
+    };
+    expect(tint("fox")).not.toEqual(tint("wolf"));
   });
 });

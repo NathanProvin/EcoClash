@@ -418,3 +418,6 @@
 ## 2026-09-30 · World overhaul 5: a visible drop (D-089)
 - **Done:** a high, staggered fall under a canopy readable at any zoom, a ground shadow and a landing dust ring; the NaN pose bug fixed. The world overhaul (1–5) is complete.
 - **Next:** M5a 8b, the Tutorial entry in the main menu; then 9, the static deploy (needs the user's accounts; ask before publishing).
+
+## 2026-10-01 · Quality switch crash, High performance (D-090)
+- **Done:** the crash root cause (a disposed shadow map still in use) is fixed; the post pipeline is kept; fewer shadow casters, shadows redrawn every 2nd frame, a lighter High.

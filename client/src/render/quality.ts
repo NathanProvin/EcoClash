@@ -10,7 +10,7 @@ export const QUALITY: Record<
 > = {
   low: { grass: 6, pixelRatio: 1, shadow: 0, post: false }, // tufts per cell; device pixel cap
   medium: { grass: 12, pixelRatio: 1.5, shadow: 1024, post: false },
-  high: { grass: 24, pixelRatio: 2, shadow: 2048, post: true },
+  high: { grass: 18, pixelRatio: 1.5, shadow: 2048, post: true }, // D-090: lighter than 24 / 2
 };
 const KEY = "ecoclash.quality";
 

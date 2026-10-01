@@ -217,7 +217,10 @@ export class PlantView {
       });
       material.emissiveNode = rim;
       const g = new GrowingMesh<number>(s.geometry, capacity, material, now, SWAY);
-      g.mesh.castShadow = true;
+      // Only shrubs and trees cast: clumps, reeds and pads are many and small (D-090).
+      const shrub = STRATA.indexOf("shrub");
+      const tree = STRATA.indexOf("tree");
+      g.mesh.castShadow = (s.perModel[shrub] ?? 0) > 0 || (s.perModel[tree] ?? 0) > 0;
       g.mesh.receiveShadow = true;
       scene.add(g.mesh);
       return g;

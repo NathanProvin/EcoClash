@@ -1015,3 +1015,17 @@ Template:
 - **Consequences:**
   - Fixed a bug on the way: a settled animal's sway was `0 × sin(∞)` = NaN, which hid its body. The test now demands a finite pose.
   - Checked in the browser from the full-map view and from close up.
+
+## D-090 · 2026-10-01 · Quality switch crash fix, a lighter High preset
+- **Status:** accepted (user: High at 30 fps early, 23 fps late; changing quality crashed the game)
+- **Decision:**
+  - **Crash, root cause:** a change of shadow size disposed `sun.shadow.map`. In three r186 the shadow node keeps that render target, and the materials sample its depth texture. Destroying a texture still in use led to a white canvas or device loss.
+    - Now only `mapSize` is set; three resizes the map itself.
+    - The post pipeline is built once and switched on or off.
+    - Checked: 17 switches in a row across all presets, no console error.
+  - **High preset, lighter:**
+    - shadows are cast only by shrubs, trees, rocks and animal bodies (not clumps, reeds, pads or grass);
+    - the shadow map is redrawn every 2nd frame (`autoUpdate` off, `needsUpdate` on alternate frames);
+    - grass is 18 tufts per cell (was 24), the resolution cap 1.5 (was 2).
+  - The 25 % smaller map (D-091) cuts the cell count by 45 %.
+- **Consequences:** the late-game fps on High is the user's to check on the reference laptop.

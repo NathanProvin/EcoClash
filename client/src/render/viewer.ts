@@ -61,6 +61,9 @@ const BLEND_S = { min: 0.2, max: 2 } as const;
 /** Ground tints (D-086): wet within `wet` m above the water, dry on the top `dry` share of the
  *  relief, bare rock on slopes past `rock` (1 - normal.y). */
 const TINT = { wet: 1.5, dry: [0.55, 0.9], rock: [0.03, 0.1] } as const;
+/** The sun's shadow map is redrawn every this many frames: shadows lag one frame behind the wind,
+ *  invisibly, for half the shadow-pass cost (D-090). */
+const SHADOW_EVERY = 2;
 /** High preset post-processing: a light bloom on highlights, and a tilt-shift blur that keeps a
  *  band around the camera's target sharp (`range`: share of the camera distance). */
 const POST = { bloom: 0.12, bloomRadius: 0.4, bloomThreshold: 0.85, range: 0.45, bokeh: 1.5 };
@@ -89,8 +92,12 @@ export class Viewer {
   private readonly frontierTex: THREE.DataTexture;
   private readonly showFrontier = uniform(1);
   private readonly sun: THREE.DirectionalLight;
-  /** High preset: the post-processing pipeline, and the camera's distance to its target. */
+  /** High preset: the post-processing pipeline (built once, on first use; D-090), whether it is
+   *  on, and the camera's distance to its target. */
   private post: THREE.RenderPipeline | null = null;
+  private postOn = false;
+  /** Frames drawn: the sun's shadow map is redrawn every SHADOW_EVERY frames (D-090). */
+  private frames = 0;
   private readonly focus = uniform(1);
   /** The map's heights (D-085), the ground mesh (picking), the height texture (shaders). */
   private readonly field: Heightfield;
@@ -155,6 +162,7 @@ export class Viewer {
     sun.shadow.bias = -0.0005;
     sun.shadow.normalBias = 0.05;
     sun.shadow.camera.updateProjectionMatrix();
+    sun.shadow.autoUpdate = false; // redrawn every SHADOW_EVERY frames, see render()
     this.sun = sun;
     this.scene.add(sun);
 
@@ -298,18 +306,16 @@ export class Viewer {
     this.camera.updateProjectionMatrix();
   }
 
-  /** The preset's light: the sun's shadow map (0: none) and the post-processing pipeline. */
+  /** The preset's light: the sun's shadow map (0: none) and the post-processing pipeline. The
+   *  shadow map is resized by three itself from `mapSize`; disposing it here destroyed a texture
+   *  the materials still sample (white canvas, device lost; D-090). */
   private applyLight(): void {
     const { shadow, post } = QUALITY[this.quality];
     this.sun.castShadow = shadow > 0;
-    if (shadow > 0 && this.sun.shadow.mapSize.x !== shadow) {
-      this.sun.shadow.mapSize.set(shadow, shadow);
-      this.sun.shadow.map?.dispose();
-      this.sun.shadow.map = null;
-    }
-    this.post?.dispose();
-    this.post = null;
-    this.post = post ? this.makePost() : null;
+    if (shadow > 0) this.sun.shadow.mapSize.set(shadow, shadow);
+    this.sun.shadow.needsUpdate = true;
+    this.postOn = post;
+    if (post) this.post ??= this.makePost();
   }
 
   private makePost(): THREE.RenderPipeline {
@@ -606,7 +612,8 @@ export class Viewer {
       if (f.t >= 1) this.flight = undefined;
     }
     this.controls.update();
-    if (this.post) {
+    this.sun.shadow.needsUpdate = this.frames++ % SHADOW_EVERY === 0;
+    if (this.post && this.postOn) {
       this.focus.value = this.camera.position.distanceTo(this.controls.target);
       this.post.render();
     } else {

@@ -264,6 +264,7 @@ All dead organisms, plants and animals, feed `Dead biomass`.
 
 - Animals attack by **feeding on cells**, and **only where species matching their diet are present**. For example, caterpillars can only feed on cells holding shrubs or trees.
 - A feeding herbivore reduces the biomass of the matching enemy stratum in its cell. When a stratum reaches zero it disappears, which can lower the cell's dominant level (§3.1) or empty the cell.
+- **Grazed bare (author's decision, D-098):** a cell whose plants are all eaten by the enemy's grazers turns neutral, and its former owner may not take it back for `lockout_s` (30 s): the raider's plants can move in behind its grazers, so fronts move.
 - **[Proposed] Seed eaters** (voles, when feeding on hazel or trees) do not reduce standing biomass. Instead, they reduce the enemy tree or shrub's **spread rate** around them.
 
 ### 6.2 Feeding on agents (predators)

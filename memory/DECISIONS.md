@@ -1097,3 +1097,16 @@ Template:
   - These meshes are not frustum-culled, since their vertices move.
   - Animal rings stay flat (small, instanced).
 - **Consequences:** a unit test checks that a turned, scaled, moved mesh sits on a sloped ground. Seen in the browser on a ridge.
+
+## D-098 · 2026-10-01 · A cell grazed bare turns neutral, barred to its former owner for 30 s
+- **Status:** accepted (user: favour front-line progression; lockout 30 s)
+- **Decision:**
+  - When enemy grazers eat the last plant biomass of a cell (every species below 1), grazing makes it neutral at once: gauges and claim progress are reset.
+  - `FloraState` gets `lock` (flora ticks left) and `lock_p` (the barred player), both in the chunk hash.
+  - While locked, the barred player gets no claim progress on the cell (both flora steps) and cannot plant there. The other player can do both at once.
+  - The lock runs down one per flora tick. `[fauna] lockout_s = 30` (real seconds) is in the balance hash.
+  - Python parity is untouched: the lock only comes from grazing, and the flora fixture has no animals.
+- **Consequences:**
+  - New test: grazed bare, neutral, barred owner, raider may plant, countdown.
+  - All checks are green; native vs WASM still match.
+  - The lock shows in the new cell panel (D-100).

@@ -443,3 +443,6 @@
 
 ## 2026-10-01 · Rings on the relief (D-097)
 - **Done:** `drape` for the cursor ring, the selection aura and pings; test; checked in the browser. Next: grazed-bare lockout.
+
+## 2026-10-01 · Grazed-bare lockout (D-098)
+- **Done:** neutral release on enemy grazing, 30 s bar to the former owner (claims and planting), hashed; test. Next: solid P2 frontier.

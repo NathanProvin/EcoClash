@@ -68,6 +68,8 @@ pub struct FaunaParams {
     transfer: i64,
     own_graze: i64,
     soil_per_dead: i64,
+    /// Flora ticks a cell grazed bare stays barred to its former owner (D-098).
+    lockout: i64,
     /// A drop lands within this many cells of the click (D-061).
     drop_radius: i64,
     flee: i64,
@@ -182,6 +184,7 @@ impl FaunaParams {
             transfer: round(fa.transfer * one),
             own_graze: round(fa.own_graze * one),
             soil_per_dead: round(fa.soil_per_dead * one),
+            lockout: round(fa.lockout_s * hz / f64::from(b.sim.flora_every_ticks)),
             drop_radius: i64::from(fa.drop_radius),
             flee,
             refuge: flora_mask(&fa.refuge_flora),
@@ -255,6 +258,7 @@ impl FaunaParams {
             self.transfer,
             self.own_graze,
             self.soil_per_dead,
+            self.lockout,
             self.drop_radius,
             self.flee,
             i64::from(self.refuge),
@@ -676,8 +680,12 @@ impl Fauna {
                 orders.push((i, j * n2 + k, bite));
             }
         }
+        let mut raided: Vec<usize> = Vec::new(); // cells bitten by enemy grazers
         for (i, at, eaten) in share(&orders, |at| st.bio[at]) {
             st.bio[at] -= eaten;
+            if !home[i] {
+                raided.push(at % n2);
+            }
             let fed = if home[i] && p.own_graze > 0 {
                 div_round(eaten * p.transfer * ONE_I, p.own_graze)
             } else {
@@ -685,6 +693,24 @@ impl Fauna {
             };
             a.energy[i] += fed;
             st.dead[at % n2] += eaten - div_round(eaten * p.transfer, ONE_I);
+        }
+        // Eaten bare by the enemy (D-098): the cell turns neutral, and its former owner may not
+        // take it back for a while, so the raider's plants can move in behind the front.
+        raided.sort_unstable();
+        raided.dedup();
+        let species = st.bio.len() / n2;
+        for k in raided {
+            if st.owner[k] != 0 && (0..species).all(|s| st.bio[s * n2 + k] < 1) {
+                st.lock[k] = p.lockout;
+                st.lock_p[k] = st.owner[k];
+                st.owner[k] = 0;
+                st.prog[0][k] = 0;
+                st.prog[1][k] = 0;
+                for s in 0..species {
+                    st.bio[s * n2 + k] = 0;
+                    st.gauge[s * n2 + k] = 0;
+                }
+            }
         }
     }
 
@@ -1220,6 +1246,40 @@ mod tests {
         let fauna = Fauna::new(FaunaParams::from_balance(&b));
         let st = FloraState::new(&flora.p, n);
         (flora, fauna, st, Pcg32::new(1, 2))
+    }
+
+    /// D-098: a cell eaten bare by enemy grazers turns neutral; its former owner may not take it
+    /// back until the lockout runs out, while the raider may.
+    #[test]
+    fn grazing_a_cell_bare_frees_it_and_bars_its_former_owner() {
+        let (mut f, mut fa, mut st, _) = setup(6);
+        let (grass, n2, k) = (f.p.index("grasses").unwrap(), 36, 2 * 6 + 2);
+        st.owner[k] = 2;
+        st.bio[grass * n2 + k] = 3; // a last tuft
+        st.gauge[grass * n2 + k] = ONE_I / 2;
+        let rabbits = fa.p.index("rabbits").unwrap();
+        fa.agents.push(rabbits, 1, centre(2), centre(2), ONE_I, 0);
+        fa.graze(&mut st);
+        assert_eq!(st.owner[k], 0, "neutral again");
+        assert_eq!(st.lock_p[k], 2);
+        assert_eq!(st.lock[k], fa.p.lockout);
+        assert!(fa.p.lockout > 0);
+        f.step(&mut st);
+        assert_eq!(
+            st.lock[k],
+            fa.p.lockout - 1,
+            "the lockout runs down each flora tick"
+        );
+        assert_eq!(
+            f.plant(&mut st, 2, grass, &[k]),
+            0,
+            "the former owner is barred"
+        );
+        assert_eq!(
+            f.plant(&mut st, 1, grass, &[k]),
+            1,
+            "the raider may take it"
+        );
     }
 
     /// Own the left half (P1) and right half (P2) of the map, covered by `plant` at full biomass.

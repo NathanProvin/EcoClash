@@ -127,7 +127,8 @@ impl FieldHashes {
             .collect();
         let mut h = Hasher::new();
         for &k in &ks {
-            h.bytes(&[st.owner[k], st.soil_type[k], st.ground[k]])
+            h.bytes(&[st.owner[k], st.soil_type[k], st.ground[k], st.lock_p[k]])
+                .i64(st.lock[k])
                 .i64(st.elevation[k])
                 .i64(st.soil[k])
                 .i64(st.water[k])

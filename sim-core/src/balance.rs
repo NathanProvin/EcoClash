@@ -72,6 +72,9 @@ pub struct FaunaRules {
     pub transfer: f64,
     pub own_graze: f64,
     pub soil_per_dead: f64,
+    /// Seconds during which a player may not take back a cell that enemy grazers ate bare
+    /// (D-098).
+    pub lockout_s: f64,
     /// A drop lands within this many cells of the click (D-061).
     pub drop_radius: u32,
     pub flee_radius: u32,
@@ -453,6 +456,7 @@ impl Balance {
         )?;
         check(
             fa.food_reserve >= 0.0
+                && fa.lockout_s >= 0.0
                 && (0.0..=1.0).contains(&fa.catch_chance)
                 && fa.wobble >= 0.0
                 && (0.0..1.0).contains(&fa.wobble_keep)

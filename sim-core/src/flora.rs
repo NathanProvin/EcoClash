@@ -223,6 +223,10 @@ pub struct FloraState {
     pub prog: [Vec<i64>; 2],
     /// Dead biomass (litter), eaten by decomposers.
     pub dead: Vec<i64>,
+    /// Lockout (D-098): flora ticks left during which player `lock_p` may not take the cell back
+    /// (set when enemy grazers eat it bare; 0 = free).
+    pub lock: Vec<i64>,
+    pub lock_p: Vec<u8>,
     /// Flora ticks done.
     pub t: u64,
 }
@@ -245,8 +249,17 @@ impl FloraState {
             elevation: vec![0; cells],
             prog: [vec![0; cells], vec![0; cells]],
             dead: vec![0; cells],
+            lock: vec![0; cells],
+            lock_p: vec![0; cells],
             t: 0,
         }
+    }
+}
+
+/// One flora tick off every lockout (D-098).
+fn count_down(lock: &mut [i64]) {
+    for l in lock {
+        *l = (*l - 1).max(0);
     }
 }
 
@@ -424,7 +437,8 @@ impl Flora {
         let mut room = p.cap_cells(s, n2) - i64::try_from(held).unwrap_or(i64::MAX);
         let mut planted = 0;
         for &k in cells {
-            let free = st.owner[k] == 0 || st.owner[k] == player;
+            let barred = st.lock[k] > 0 && st.lock_p[k] == player; // D-098
+            let free = (st.owner[k] == 0 && !barred) || st.owner[k] == player;
             if !free || self.suitability(st, s, k) <= 0 {
                 continue;
             }
@@ -658,7 +672,8 @@ impl Flora {
 
             // 8. Empty cell: claim progress; the first player to complete takes it.
             if owner[k] == 0 {
-                let cand = |pi: usize, s: usize| seeds[pi][s] && !full[pi][s];
+                let barred = |pi: usize| st.lock[k] > 0 && st.lock_p[k] == PLAYERS[pi]; // D-098
+                let cand = |pi: usize, s: usize| seeds[pi][s] && !full[pi][s] && !barred(pi);
                 let (mut done, mut lvl) = ([false; 2], [0u8; 2]);
                 for pi in 0..2 {
                     let push = species()
@@ -707,6 +722,7 @@ impl Flora {
         std::mem::swap(&mut st.owner, &mut sc.owner);
         std::mem::swap(&mut st.soil, &mut sc.soil);
         std::mem::swap(&mut st.prog, &mut sc.prog);
+        count_down(&mut st.lock);
         st.t += 1;
     }
 
@@ -904,7 +920,9 @@ impl Flora {
         }
 
         // 8. Empty cells: claim progress builds up; the first player to complete takes the cell.
-        let cand = |pi: usize, s: usize, k: usize| seeds[pi][at(s, k)] && !full[pi][s];
+        let barred = |pi: usize, k: usize| st.lock[k] > 0 && st.lock_p[k] == PLAYERS[pi];
+        let cand =
+            |pi: usize, s: usize, k: usize| seeds[pi][at(s, k)] && !full[pi][s] && !barred(pi, k);
         let mut done = [vec![false; cells], vec![false; cells]];
         let mut lvl = [vec![0u8; cells], vec![0u8; cells]];
         for pi in 0..2 {
@@ -975,6 +993,7 @@ impl Flora {
         st.gauge = new_g;
         st.soil = soil;
         st.prog = prog;
+        count_down(&mut st.lock);
         st.t += 1;
     }
 }

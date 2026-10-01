@@ -84,6 +84,7 @@ contested_cells = true
 transfer = 0.1          # share of eaten biomass that becomes the eater's energy (10 % rule)
 own_graze = 0.2         # bite on own flora, relative to enemy flora (gamerules §10)
 soil_per_dead = 0.5     # soil development (u16 units) per unit of dead biomass decomposed
+lockout_s = 30          # a cell grazed bare turns neutral; its former owner may not retake it for this long (D-098)
 herbivore_range = 10    # prototype only (tools/prototype): sim-core drops herbivores near the click
 drop_radius = 4         # a drop (herbivores off own land, predators) lands within this many cells of the click (D-061)
 flee_radius = 3         # prey flee enemy hunters closer than this

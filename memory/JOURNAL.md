@@ -489,3 +489,7 @@
 
 ## 2026-10-01 · Camera after zoom to plant (D-112)
 - **Done:** eye relative to the target; distance-dependent tilt limit. Checked in the browser with wheel events: 0.89 rad close up, back to 0.66 by about 80 m.
+
+## 2026-10-01 · Fronts advance (D-113)
+- **Done:** reproduced the stall in a Rust test, then fixed it: caps no longer block flips, or claims of land grazed bare from the enemy. Tree and shrub caps raised; prototype flip rule mirrored; fixture regenerated; all checks green.
+- **Note:** a first try that dropped caps from every claim made caps meaningless (the Python cap test caught it); narrowed to land taken from the enemy.

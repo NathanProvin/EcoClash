@@ -657,23 +657,22 @@ impl Flora {
                     }
                 };
 
-            // 7. A smothered enemy cell flips to the attacker's higher-level species.
+            // 7. A smothered enemy cell flips to the attacker's higher-level species. Caps do not
+            //    hold conquest back (D-113): they limit planting and expansion into free land.
             for (pi, pl) in PLAYERS.into_iter().enumerate() {
                 if owner[k] == 3 - pl && new_owner == 0 && attack[pi] > 0 {
-                    arrive(
-                        pi,
-                        &|s| can(s) && seeds[pi][s] && !full[pi][s],
-                        &mut sc.gauge,
-                        &mut sc.bio,
-                    );
+                    arrive(pi, &|s| can(s) && seeds[pi][s], &mut sc.gauge, &mut sc.bio);
                     new_owner = pl;
                 }
             }
 
-            // 8. Empty cell: claim progress; the first player to complete takes it.
+            // 8. Empty cell: claim progress; the first player to complete takes it. Land grazed
+            //    bare from the enemy is conquest: caps do not hold it back (D-113).
             if owner[k] == 0 {
                 let barred = |pi: usize| st.lock[k] > 0 && st.lock_p[k] == PLAYERS[pi]; // D-098
-                let cand = |pi: usize, s: usize| seeds[pi][s] && !full[pi][s] && !barred(pi);
+                let won = |pi: usize| st.lock_p[k] == 3 - PLAYERS[pi];
+                let cand =
+                    |pi: usize, s: usize| seeds[pi][s] && (!full[pi][s] || won(pi)) && !barred(pi);
                 let (mut done, mut lvl) = ([false; 2], [0u8; 2]);
                 for pi in 0..2 {
                     let push = species()
@@ -910,19 +909,23 @@ impl Flora {
             }
         }; // fmt: skip
 
-        // 7. Smothered enemy cells flip to the attacker's higher-level species.
+        // 7. Smothered enemy cells flip to the attacker's higher-level species; caps do not hold
+        //    conquest back (D-113).
         for (pi, &pl) in PLAYERS.iter().enumerate() {
             let won: Vec<bool> = (0..cells)
                 .map(|k| owner[k] == 3 - pl && new_owner[k] == 0 && attack[pi][k] > 0)
                 .collect();
-            let cand = |s: usize, k: usize| can(s, k) && seeds[pi][at(s, k)] && !full[pi][s];
+            let cand = |s: usize, k: usize| can(s, k) && seeds[pi][at(s, k)];
             arrive(&won, pi, &cand, &mut new_bio, &mut new_g, &mut new_owner);
         }
 
         // 8. Empty cells: claim progress builds up; the first player to complete takes the cell.
+        //    Caps hold back expansion, not land grazed bare from the enemy (D-113).
         let barred = |pi: usize, k: usize| st.lock[k] > 0 && st.lock_p[k] == PLAYERS[pi];
-        let cand =
-            |pi: usize, s: usize, k: usize| seeds[pi][at(s, k)] && !full[pi][s] && !barred(pi, k);
+        let won = |pi: usize, k: usize| st.lock_p[k] == 3 - PLAYERS[pi];
+        let cand = |pi: usize, s: usize, k: usize| {
+            seeds[pi][at(s, k)] && (!full[pi][s] || won(pi, k)) && !barred(pi, k)
+        };
         let mut done = [vec![false; cells], vec![false; cells]];
         let mut lvl = [vec![0u8; cells], vec![0u8; cells]];
         for pi in 0..2 {
@@ -1141,6 +1144,52 @@ mod tests {
 
     /// The displayed push (D-076) is the step's attack: positive exactly on the cells a higher
     /// enemy level smothers, zero behind the front and on same-level fronts.
+    /// D-113: a forest edge at its species caps still conquers enemy grass (flips) and takes
+    /// grazed-bare land once its lockout is over (claims); caps only limit planting and spread on
+    /// own land.
+    #[test]
+    fn capped_forest_fronts_advance_on_grass() {
+        let mut f = flora();
+        let [oak, hawthorn, grasses] =
+            ["oak", "hawthorn", "grasses"].map(|n| f.p.index(n).unwrap());
+        let n = 12;
+        // P1 holds half the map under oak and hawthorn, at both caps; P2 the other half in grass.
+        f.p.cap[oak] = ONE_I / 2;
+        f.p.cap[hawthorn] = ONE_I / 2;
+        let mut st = FloraState::new(&f.p, n);
+        st.soil.fill(U16);
+        for k in 0..n * n {
+            let mine = k % n < n / 2;
+            st.owner[k] = if mine { 1 } else { 2 };
+            for s in if mine {
+                vec![oak, hawthorn]
+            } else {
+                vec![grasses]
+            } {
+                st.bio[s * n * n + k] = f.p.kmax[s];
+                st.gauge[s * n * n + k] = ONE_I;
+            }
+        }
+        // One enemy cell next to the forest was grazed bare: neutral, P2's lockout running out.
+        let bare = 3 * n + n / 2;
+        st.owner[bare] = 0;
+        st.bio[grasses * n * n + bare] = 0;
+        (st.lock[bare], st.lock_p[bare]) = (1, 2);
+        let mut reference = st.clone();
+        let held = |st: &FloraState| st.owner.iter().filter(|&&o| o == 1).count();
+        for _ in 0..120 {
+            f.step(&mut st);
+            f.step_reference(&mut reference);
+        }
+        assert_eq!(st, reference, "the fast step matches the reference");
+        assert!(
+            held(&st) >= n * n / 2 + 2 * n,
+            "the forest advances: {} cells",
+            held(&st)
+        );
+        assert_eq!(st.owner[bare], 1, "the grazed-bare cell is taken");
+    }
+
     #[test]
     fn push_shows_where_higher_enemy_levels_smother() {
         let mut f = flora();

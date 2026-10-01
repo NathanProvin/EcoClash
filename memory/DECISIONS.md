@@ -1241,3 +1241,14 @@ Template:
 - **Status:** accepted (user: after "zoom to plant level", zooming out left the camera stuck low)
 - **Cause:** the zoom put the eye at an absolute 2.6 m, under the target on raised ground, so the tilt clamped at its lowest (1.2 rad); wheel zoom keeps the angle.
 - **Decision:** the eye goes 2.6 m above the target. The lowest tilt eases with distance from 1.2 rad (within 8 m) to the reset view's 0.66 rad (from 0.6 × the map size; `TILT`), so wheeling out lifts the camera back to the overview.
+
+## D-113 · 2026-10-01 · Caps don't hold conquest back; higher tree and shrub caps
+- **Status:** accepted (user chose both fixes: "Apply both options 1 and 2")
+- **Cause:** a late-game forest edge never overcame enemy grass. Flips (step 7) and claims (step 8) required the arriving species to be under its cell cap (D-045). The front-line trees and shrubs were at their caps (10–15 % of the map), and the herbs under them were shaded out, so no P1 species could enter. Cells grazed bare turned neutral, and P1 could not claim them after the lockout either, so the enemy took them back. A test reproduced it: a capped oak and hawthorn half held exactly 72 of 144 cells for good.
+- **Decision:**
+  - Flipping a smothered enemy cell ignores caps.
+  - Claiming a free cell ignores caps when it was grazed bare from the enemy (`lock_p` is the enemy).
+  - Caps still limit planting, own-cell spread and expansion into free land.
+  - Caps raised: oak, chestnut, beech and willow 0.1 → 0.3; elder, hawthorn and hazel 0.15 → 0.35.
+  - The prototype mirrors the flip rule (D-034); it has no lockout, so the claim exemption is `sim-core` only.
+- **Consequences:** the same test now advances about one column every 70 flora ticks and takes the grazed cell. Fixture regenerated; parity, native vs WASM and `cli:check` exact.

@@ -261,8 +261,10 @@ class Flora:
             attack[p] = sum(np.where(can, n, 0).max(0) for n in near)
             mine = established & (owner == p)
             seeds[p] = np.logical_or.reduce([nb(mine, dy, dx) for dy, dx in DIRS]) & (suit > 0)
-        # Species at their cell cap (D-029) cannot enter new cells this tick. The check uses the
-        # previous state, so simultaneous arrivals may overshoot by one tick's worth.
+        # Species at their cell cap (D-029) cannot enter free cells this tick; flips of enemy
+        # cells ignore caps (D-113; so do claims of land grazed bare from the enemy in sim-core,
+        # which has the lockout). The check uses the previous state, so simultaneous arrivals may
+        # overshoot by one tick's worth.
         caps = self.cap_cells(owner.size)
         full = {p: X(((bio > 0) & (owner == p)).sum((1, 2)) >= caps) for p in PLAYERS}
 
@@ -303,7 +305,7 @@ class Flora:
         # 7. Smothered enemy cells flip to the attacker's higher-level species.
         for p in PLAYERS:
             won = (owner == 3 - p) & (new_owner == 0) & (attack[p] > 0)
-            arrive(won, p, can & seeds[p] & ~full[p])
+            arrive(won, p, can & seeds[p])
 
         # 8. Empty cells: claim progress builds up; the first player to complete takes the cell.
         empty = owner == 0

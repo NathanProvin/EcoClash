@@ -203,7 +203,7 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
 
 ### 4.4 Costs [Proposed]
 
-- Every species has its own stat sheet in `data/species.toml` (D-029): **growth** (plants: colonization gauge speed; animals: seconds between births), **spawn cost**, **unlock cost**, **yield** (points per second per covered cell or per animal; stat-sheet seconds are ecology seconds, which run at `pace` per real second, D-069), **population cap** (plants: a share of the map's cells per player, D-045; animals: a head count per player) and a **special effect**.
+- Every species has its own stat sheet in `data/species.toml` (D-029): **growth** (plants: colonization gauge speed; animals: seconds between births), **spawn cost**, **unlock cost**, **yield** (points per second per covered cell or per animal; stat-sheet seconds are ecology seconds, which run at `pace` per real second, D-069), **population cap** (plants: a share of the map's cells per player, D-045, which limits planting and expansion into free land, not conquest: flipping enemy cells or retaking land grazed bare from the enemy, D-113; animals: a head count per player) and a **special effect**.
 - Unlocking is per species: it needs one unlocked species on the previous tier of its family and, for an animal, one of its habitat plants. Species with unlock cost 0 are available at start.
 - The initial unlock costs follow the placeholder rule `base(level) × 1.5^(tier−1)`; spawn costs scale with level and body size.
 - Higher tiers are not strictly better. They trade off speed vs. efficiency, or shade tolerance vs. growth rate.

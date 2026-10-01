@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** post-playtest round D-107…D-113 done. Next: M5a 8b (Tutorial menu entry), then 9 (static deploy; needs the user's accounts).
+- **Now:** 2026-10-01: D-114…D-117 done (strategic icons, push width, animal models, tutorial). Next: M5a 9, static deploy (needs the user's accounts; ask before publishing).
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-10-01
@@ -98,7 +98,7 @@ Goal: a build strangers can play against the bot and understand at a glance. One
   - Options: quality, keybinds.
   - "Play again" on the end screen.
 - [x] **8a. First-match tips** (D-082): contextual, once each, through the notification stack; switch in Options.
-- [ ] **8b. Tutorial:** a separate "Tutorial" entry in the main menu (user, 2026-09-30), next to Play: a short scripted match with objectives (plant, unlock, call, drop, win). Split from 8.
+- [x] **8b. Tutorial** (D-117): a "Tutorial" entry next to Play: the easy bot on a small meadows map (seed 2), six objectives in order (found, spread to 5 %, unlock, call, raid, hold 55 %), progress dots, a "Tutorial complete" panel.
 - [ ] **9. Static deploy** (Cloudflare Pages or itch.io), build-version badge, feedback link.
 
 ## World overhaul (before M5a 8b and 9; user, 2026-09-30)

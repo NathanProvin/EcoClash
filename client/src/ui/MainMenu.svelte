@@ -23,6 +23,7 @@
     tips,
     onTips,
     onStart,
+    onTutorial,
   }: {
     setup: MatchSetup;
     quality: Quality;
@@ -32,6 +33,7 @@
     tips: boolean;
     onTips: (on: boolean) => void;
     onStart: () => void;
+    onTutorial: () => void;
   } = $props();
 
   let view: "home" | "play" | "options" = $state("home");
@@ -70,6 +72,9 @@
       <p class="tagline">Grow a food web. Outgrow your rival.</p>
       <nav aria-label="Main menu">
         <button class="primary" onclick={() => (view = "play")}>Play</button>
+        <button onclick={onTutorial} title="A short guided match against the easy bot">
+          Tutorial
+        </button>
         <button disabled title="A catalog of every species: coming soon">
           Species <small>soon</small>
         </button>

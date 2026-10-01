@@ -1272,3 +1272,19 @@ Template:
     - The body bobs by 3.5 % of its size; birds flap and fish wag their tails.
   - `AnimalView` draws one instanced mesh per species with one shared material. The drop ghost uses the same coloured model.
 - **Consequences:** tests check the gait, coloured models, swinging legs and palette differences between species. Spot-checked in a gallery of all 23 models and on live rabbits and bison.
+
+## D-117 · 2026-10-01 · Tutorial: a guided match with objectives (M5a 8b)
+- **Status:** accepted (user, 2026-09-30: a separate "Tutorial" entry next to Play)
+- **Decision:**
+  - The menu's Tutorial button starts a fixed match (`TUTORIAL_SETUP`): the easy bot, a small meadows map (seed 2: gentle relief, two ponds), no sandbox.
+  - Six objectives complete in order (`game/tutorial.ts`, pure and tested):
+    1. Found a colony.
+    2. Spread to 5 % of the map.
+    3. Unlock a species.
+    4. Call an animal on your land.
+    5. Have animals on enemy land: a raid or a ×1.5 drop.
+    6. Hold 55 % of the map.
+  - The last goal is above half the map, so it takes pushing into the bot's land: in a test run, grass alone reached 43 %.
+  - A panel at the top left shows the current objective and progress dots, and a toast marks each one done. At the end, "Tutorial complete" offers the main menu; the match goes on.
+  - First-match tips are paused during the tutorial, and the "choose your spawn" banner gives way to the first objective. Play again on the end screen replays the tutorial.
+- **Consequences:** played through in the browser, from founding to the completion panel. The completion check used a temporary low goal. Grazers wander into enemy grass by themselves, so objective 5 can complete without an order; the text still teaches the order and the drop.

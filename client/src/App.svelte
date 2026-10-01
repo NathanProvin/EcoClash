@@ -10,6 +10,7 @@
   import { strategicGroups } from "./game/groups";
   import { loadSetup, MAP_SIZES, saveSetup, withUrl } from "./game/setup";
   import { ALL_TIPS, loadSeen, saveSeen, TIPS, TipWatch } from "./game/tips";
+  import { advance, OBJECTIVES, TUTORIAL_SETUP } from "./game/tutorial";
   import { loadReplay, type Role, type Source, type Species } from "./replay/replay";
   import { Live, type Outcome } from "./worker/live";
   import {
@@ -22,7 +23,7 @@
     type Severity,
     type Toast,
   } from "./game/alerts";
-  import { cardState, isSwarm, label, unlockedNow } from "./game/species";
+  import { cardState, isSwarm, label, unlockedAt, unlockedNow } from "./game/species";
   import { WORLD } from "./render/palette";
   import { Viewer, type CameraKeys, type Layer } from "./render/viewer";
   import { loadQuality, saveQuality, type Quality } from "./render/quality";
@@ -32,6 +33,7 @@
   import EndScreen from "./ui/EndScreen.svelte";
   import TechTree from "./ui/TechTree.svelte";
   import Timeline from "./ui/Timeline.svelte";
+  import Objectives from "./ui/Objectives.svelte";
   import StrategicIcons from "./ui/StrategicIcons.svelte";
   import Toasts from "./ui/Toasts.svelte";
   import TopBar from "./ui/TopBar.svelte";
@@ -86,6 +88,8 @@
   let tipsOn = $state(loadSeen().size < TIPS.length); // Options switch (D-082)
   let raided = false; // a raid alert was raised this match (for the tips)
   let homeless = $state(false); // no land yet: the first planting is the spawn (D-095)
+  let tutorial = $state(false); // the match is the tutorial (M5a 8b)
+  let tutorialStep = $state(0);
   let lastScan = 0;
   let seenNotice = 0; // `at` of the last order notice turned into a toast
   let available: Set<string> | null = null; // species you could buy (and afford) at the last scan
@@ -206,6 +210,24 @@
       const s = fauna[i];
       return s ? unlocked.has(s.name) : false;
     }).length;
+    if (tutorial) {
+      const n = l.meta.n;
+      const mine = v.visibleAnimals().filter((a) => a.owner === me);
+      const onEnemy = mine.filter(
+        (a) => fields.owner[Math.floor(a.y) * n + Math.floor(a.x)] === 3 - me,
+      ).length;
+      const step = advance(tutorialStep, {
+        owned: share[me - 1] ?? 0,
+        unlocked: unlocked.size - unlockedAt(l.meta, me, 0).size,
+        animals: mine.length,
+        onEnemy,
+      });
+      if (step !== tutorialStep) {
+        tutorialStep = step;
+        toast(step < OBJECTIVES.length ? "Objective done" : "Tutorial complete", "info");
+      }
+      return; // no first-match tips during the tutorial: the objectives guide
+    }
     const tip = tips.scan({
       t: tick * l.meta.dt,
       canUnlock: can.size > 0,
@@ -357,7 +379,8 @@
         const q = new URLSearchParams(location.search);
         const relay = q.get("relay") ?? undefined; // ?relay=ws://host:port: lockstep (D-062)
         joining = !!relay;
-        const s = withUrl(setup, location.search); // the menu's setup; URL parameters win
+        // The menu's setup (URL parameters win), or the tutorial's fixed match.
+        const s = tutorial ? TUTORIAL_SETUP : withUrl(setup, location.search);
         // ?size=N wins (tools); a lockstep match uses the balance grid, the same for both peers.
         const size = relay ? 0 : Number(q.get("size") ?? MAP_SIZES[s.map]);
         live = await Live.start(s.seed, size, s.sandbox, s.bot, relay);
@@ -536,9 +559,11 @@
     }
   }
 
-  /** From the main menu: start a live match. */
-  async function launch() {
-    saveSetup(setup);
+  /** From the main menu: start a live match (`asTutorial`: the tutorial's). */
+  async function launch(asTutorial = false) {
+    tutorial = asTutorial;
+    tutorialStep = 0;
+    if (!asTutorial) saveSetup(setup);
     inMenu = false;
     chosen = LIVE;
     await open(LIVE);
@@ -666,7 +691,9 @@
     <div class="p{live ? me : player}" style:display="contents">
       <StrategicIcons {icons} onSelect={(ids) => select(ids)} />
     </div>
-    {#if live && homeless && !outcome}
+    {#if live && tutorial && !outcome}
+      <Objectives step={tutorialStep} onMenu={toMenu} />
+    {:else if live && homeless && !outcome}
       <p class="found panel">
         <strong>Choose your spawn.</strong> Pick a plant in the bar and click anywhere on land.
       </p>
@@ -703,7 +730,7 @@
       series={replay.meta.series}
       dt={replay.meta.dt}
       onMenu={toMenu}
-      onAgain={launch}
+      onAgain={() => launch(tutorial)}
       onWatch={() => (endDismissed = true)}
     />
   {/if}
@@ -731,7 +758,8 @@
         tipsOn = on;
         saveSeen(on ? new Set() : ALL_TIPS()); // on: every tip again; off: none
       }}
-      onStart={launch}
+      onStart={() => launch()}
+      onTutorial={() => launch(true)}
     />
   {/if}
 </main>

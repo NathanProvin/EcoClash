@@ -499,3 +499,7 @@
 
 ## 2026-10-01 · Animal models (D-116)
 - **Done:** per-species palettes, six new body types, eyes and tapered legs, a shader gait (legs, bob, flap, wag); gallery review fixed plank wings, a sofa-like bear and dark boar and bison lumps.
+
+## 2026-10-01 · Tutorial (D-117, M5a 8b)
+- **Done:** Tutorial entry, objectives logic and tests, panel, App wiring. Browser run-through caught swarm animals not counting (fixed) and a too-easy final goal (30 % → 55 %).
+- **Next:** M5a 9, static deploy (needs the user's Cloudflare or itch.io account; ask before publishing).

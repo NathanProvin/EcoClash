@@ -67,6 +67,10 @@ const TINT = { wet: 1.5, dry: [0.55, 0.9], rock: [0.03, 0.1] } as const;
 /** The sun's shadow map is redrawn every this many frames: shadows lag one frame behind the wind,
  *  invisibly, for half the shadow-pass cost (D-090). */
 const SHADOW_EVERY = 2;
+
+/** Camera tilt limit (D-112): the lowest view (polar angle, rad) is `low` up to `near` metres
+ *  from the target and `high` from `far` x the map size, eased in between. */
+const TILT = { low: 1.2, high: 0.66, near: 8, far: 0.6 } as const; // high: the reset view's angle
 /** High preset post-processing: a light bloom on highlights, and a tilt-shift blur that keeps a
  *  band around the camera's target sharp (`range`: share of the camera distance). */
 const POST = { bloom: 0.12, bloomRadius: 0.4, bloomThreshold: 0.85, range: 0.45, bokeh: 1.5 };
@@ -566,7 +570,10 @@ export class Viewer {
     const dir = new THREE.Vector3().subVectors(this.camera.position, this.controls.target);
     dir.y = 0;
     dir.normalize();
-    const eye = target.clone().addScaledVector(dir, 3.2).setY(2.6);
+    const eye = target
+      .clone()
+      .addScaledVector(dir, 3.2)
+      .setY(target.y + 2.6);
     this.flight = {
       from: [this.camera.position.clone(), this.controls.target.clone()],
       to: [eye, target],
@@ -633,6 +640,11 @@ export class Viewer {
       this.controls.target.lerpVectors(t0, t1, e);
       if (f.t >= 1) this.flight = undefined;
     }
+    // The lowest tilt rises with distance (D-112): close up, a low view under the canopy; zooming
+    // out lifts the camera back toward the overview angle.
+    const dist = this.camera.position.distanceTo(this.controls.target);
+    const far = THREE.MathUtils.smoothstep(dist, TILT.near, this.replay.meta.n * CELL * TILT.far);
+    this.controls.maxPolarAngle = THREE.MathUtils.lerp(TILT.low, TILT.high, far);
     this.controls.update();
     this.sun.shadow.needsUpdate = this.frames++ % SHADOW_EVERY === 0;
     if (this.post && this.postOn) {

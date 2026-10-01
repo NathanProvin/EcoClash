@@ -1236,3 +1236,8 @@ Template:
 ## D-110 · 2026-10-01 · A nature backdrop and striped parachutes
 - **Status:** accepted (user: the white background should be a calm, blurred mix of greens, cyans and earthy browns; parachutes white with red stripes)
 - **Decision:** the scene background is a 256² canvas of blurred blobs (moss, sage, teal, earth; `WORLD.backdrop`), drawn once; the haze beyond the slab fades to its mid tone. Parachute canopies have 8 gores, alternately white and red (`#c8423a`), from the angle around the dome axis in the material.
+
+## D-112 · 2026-10-01 · Zooming out lifts the camera back
+- **Status:** accepted (user: after "zoom to plant level", zooming out left the camera stuck low)
+- **Cause:** the zoom put the eye at an absolute 2.6 m, under the target on raised ground, so the tilt clamped at its lowest (1.2 rad); wheel zoom keeps the angle.
+- **Decision:** the eye goes 2.6 m above the target. The lowest tilt eases with distance from 1.2 rad (within 8 m) to the reset view's 0.66 rad (from 0.6 × the map size; `TILT`), so wheeling out lifts the camera back to the overview.

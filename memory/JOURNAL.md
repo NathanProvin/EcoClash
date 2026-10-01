@@ -486,3 +486,6 @@
 
 ## 2026-10-01 · Fluid animals (D-111)
 - **Done:** sim inertia (critically damped steering), forward-biased strolls, rate-limited heading in the renderer; tests on both sides; all checks green. The in-browser motion check was not possible: the tab's render loop is throttled while scripts run, so the motion was measured in the sim test instead.
+
+## 2026-10-01 · Camera after zoom to plant (D-112)
+- **Done:** eye relative to the target; distance-dependent tilt limit. Checked in the browser with wheel events: 0.89 rad close up, back to 0.66 by about 80 m.

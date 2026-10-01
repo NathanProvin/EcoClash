@@ -8,7 +8,7 @@ function alpha(out: Uint8Array, side: number, x: number, y: number): number {
   return out[((side - 1 - y) * side + x) * 4 + 3] ?? 0;
 }
 
-test("P1 frontier is solid, P2 frontier is dashed, interiors and map edges stay clear", () => {
+test("both frontiers are solid lines (D-099), interiors and map edges stay clear", () => {
   // 4 columns: P1 P1 P2 P2, on 4 rows
   const n = 4;
   const owner = new Uint8Array(n * n).map((_, k) => (k % n < 2 ? 1 : 2));
@@ -21,8 +21,7 @@ test("P1 frontier is solid, P2 frontier is dashed, interiors and map edges stay 
   const p1 = Array.from({ length: side }, (_, y) => alpha(out, side, p1Line, y));
   const p2 = Array.from({ length: side }, (_, y) => alpha(out, side, p2Line, y));
   expect(p1.every((a) => a === 255)).toBe(true);
-  expect(p2.filter((a) => a === 255).length).toBe(side / 2);
-  expect(p2.some((a) => a === 0)).toBe(true);
+  expect(p2.every((a) => a === 255)).toBe(true);
 
   // map edges and cell interiors: nothing
   for (let y = 0; y < side; y++) {

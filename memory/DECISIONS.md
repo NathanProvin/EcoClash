@@ -1110,3 +1110,7 @@ Template:
   - New test: grazed bare, neutral, barred owner, raider may plant, countdown.
   - All checks are green; native vs WASM still match.
   - The lock shows in the new cell panel (D-100).
+
+## D-099 · 2026-10-01 · Solid frontier for both players
+- **Status:** accepted (user: "replace the P2 dash line with continuous")
+- **Decision:** P2's frontier is a solid line like P1's, with the same push-driven width (D-076). This drops the pattern cue of D-040: on the map, the two players now differ by colour only (Okabe–Ito blue and orange, chosen to stay distinct under colour blindness). The end-screen charts keep P2 dashed.

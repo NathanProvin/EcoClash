@@ -1,6 +1,6 @@
 // Placeholder diorama over a Source (INSTRUCTIONS §6: the renderer only reads snapshots). The
-// viewer holds the scene, camera and ground (tinted by territory, with frontier lines, P1 solid,
-// P2 dashed: frontier.ts, D-040), raised to the generated relief with water and rocks
+// viewer holds the scene, camera and ground (tinted by territory, with solid frontier lines:
+// frontier.ts, D-040, D-099), raised to the generated relief with water and rocks
 // (terrain.ts, D-085); herbs are grass blades (grass.ts), shrubs and trees come from
 // PlantView (plants.ts: species forms, natural colours, growth, D-067, D-072), animals from
 // AnimalView (animals.ts, D-065, D-068). Light (D-086): a low warm sun with soft shadows, the

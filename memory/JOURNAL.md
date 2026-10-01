@@ -446,3 +446,6 @@
 
 ## 2026-10-01 · Grazed-bare lockout (D-098)
 - **Done:** neutral release on enemy grazing, 30 s bar to the former owner (claims and planting), hashed; test. Next: solid P2 frontier.
+
+## 2026-10-01 · Solid P2 frontier (D-099)
+- **Done:** no more dashes on the map; test updated. Next: the compact cell panel.

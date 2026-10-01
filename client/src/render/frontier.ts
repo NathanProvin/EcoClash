@@ -1,11 +1,10 @@
-// Territory frontier lines (D-040): each player's border is drawn just inside its own cells, P1
-// solid and P2 dashed, so the two sides differ without relying on colour. Where a player pushes
+// Territory frontier lines (D-040, D-099): each player's border is drawn just inside its own
+// cells, a solid line in the player's colour (P2's dashes were dropped, D-099). Where a player pushes
 // into the enemy cell across the edge, its line widens with that push (D-076), so the fronts
 // being won show at a glance. Painted into an RGBA overlay of TEXELS x TEXELS per cell, rows
 // flipped like the ground texture (viewer.ts).
 
 export const TEXELS = 8; // per cell side: a texel is CELL / 8 = 0.5 m
-const DASH = 4; // P2 dashes: DASH texels (2 m) on, DASH off
 export const WIDTH = { min: 1, max: 4 } as const; // line width in texels: 0.5 m .. 2 m
 
 /** Line width (texels) for a push of 0..255 into the cell across the edge. */
@@ -24,8 +23,7 @@ export function paintFrontier(
 ): void {
   out.fill(0);
   const side = n * TEXELS;
-  const put = (x: number, y: number, p: 1 | 2, along: number) => {
-    if (p === 2 && Math.floor(along / DASH) % 2) return;
+  const put = (x: number, y: number, p: 1 | 2) => {
     const t = ((side - 1 - y) * side + x) * 4;
     const rgb = color[p];
     out[t] = rgb[0] ?? 0;
@@ -56,10 +54,10 @@ export function paintFrontier(
       const [wu, wd, wl, wr] = [w(r - 1, c), w(r + 1, c), w(r, c - 1), w(r, c + 1)];
       for (let i = 0; i < TEXELS; i++) {
         for (let d = 0; d < WIDTH.max; d++) {
-          if (up && d < wu) put(x0 + i, y0 + d, p, x0 + i);
-          if (down && d < wd) put(x0 + i, y0 + TEXELS - 1 - d, p, x0 + i);
-          if (left && d < wl) put(x0 + d, y0 + i, p, y0 + i);
-          if (right && d < wr) put(x0 + TEXELS - 1 - d, y0 + i, p, y0 + i);
+          if (up && d < wu) put(x0 + i, y0 + d, p);
+          if (down && d < wd) put(x0 + i, y0 + TEXELS - 1 - d, p);
+          if (left && d < wl) put(x0 + d, y0 + i, p);
+          if (right && d < wr) put(x0 + TEXELS - 1 - d, y0 + i, p);
         }
       }
     }

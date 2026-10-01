@@ -483,3 +483,6 @@
 
 ## 2026-10-01 · Backdrop and parachutes (D-110)
 - **Done:** blurred nature backdrop (seen in the browser); striped canopy material (compiles cleanly; the 2.5 s fall was too quick to screenshot).
+
+## 2026-10-01 · Fluid animals (D-111)
+- **Done:** sim inertia (critically damped steering), forward-biased strolls, rate-limited heading in the renderer; tests on both sides; all checks green. The in-browser motion check was not possible: the tab's render loop is throttled while scripts run, so the motion was measured in the sim test instead.

@@ -227,6 +227,16 @@ const FALL = {
   dustColor: "#cdbb98",
 } as const;
 
+/** Fluid turning (D-111): an animal faces where it goes, turning at most `rate` rad/s, and only
+ *  while it moves faster than `min` m/s, so a shuffle on the spot never spins it. */
+export const TURN = { rate: 2.5, min: 0.15 } as const;
+
+/** `from` turned toward `to` by at most `max` radians, the short way round. */
+export function turnToward(from: number, to: number, max: number): number {
+  const d = Math.atan2(Math.sin(to - from), Math.cos(to - from));
+  return from + Math.max(-max, Math.min(max, d));
+}
+
 /** Where an animal was drawn (world metres), for picking. */
 export interface Drawn {
   id: number;
@@ -263,6 +273,8 @@ export class AnimalView {
   };
   /** Last drawn position and heading per animal id, to face the way it goes. */
   private heading = new Map<number, { x: number; z: number; a: number }>();
+  /** When the last frame was drawn (ms), for the turn rate. */
+  private lastNow = 0;
   private readonly mediumOf: string[];
 
   constructor(scene: THREE.Scene, meta: ReplayMeta, capacity: number) {
@@ -340,6 +352,8 @@ export class AnimalView {
     const counts = Object.fromEntries(BODIES.map((b) => [b, 0])) as Record<Body, number>;
     let [swarms, rings, canopies, shadows, dusts] = [0, 0, 0, 0, 0];
     const heading = new Map<number, { x: number; z: number; a: number }>();
+    const dt = Math.min(Math.max((now - this.lastNow) / 1000, 0), 0.1);
+    this.lastNow = now;
     this.drawn = [];
     for (const a of animals) {
       const owner: PlayerId = a.owner === 2 ? 2 : 1;
@@ -370,11 +384,15 @@ export class AnimalView {
         );
         continue; // not selectable (D-065)
       }
-      // Face the way it goes; keep the last heading while it stands still.
+      // Face the way it goes, turning progressively; keep the heading while it barely moves.
       const last = this.heading.get(a.id);
-      const [dx, dz] = last ? [x - last.x, z - last.z] : [0, 0];
-      const turn = Math.hypot(dx, dz) > 1e-3 ? Math.atan2(-dz, dx) : undefined;
-      const angle = turn ?? last?.a ?? unit(a.id, 3) * Math.PI * 2;
+      let angle = last?.a ?? unit(a.id, 3) * Math.PI * 2;
+      if (last && dt > 0) {
+        const [dx, dz] = [x - last.x, z - last.z];
+        if (Math.hypot(dx, dz) > TURN.min * dt) {
+          angle = turnToward(angle, Math.atan2(-dz, dx), TURN.rate * dt);
+        }
+      }
       heading.set(a.id, { x, z, a: angle });
       const form = this.forms[a.species];
       const body = form?.body ?? "rodent";

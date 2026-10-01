@@ -97,6 +97,8 @@ pub struct FaunaRules {
     pub wobble_keep: f64,
     pub scatter: f64,
     pub wander_radius: f64,
+    /// Fluid motion (D-111): share of the gap to the wanted velocity closed per tick.
+    pub steer: f64,
 }
 
 /// `[terrain]`: the flat-map constants, the soil types (gamerules §2.3), and the map generator
@@ -509,8 +511,10 @@ impl Balance {
                 && fa.wobble >= 0.0
                 && (0.0..1.0).contains(&fa.wobble_keep)
                 && (0.0..0.5).contains(&fa.scatter)
-                && fa.wander_radius >= 0.0,
-            "[fauna] food_reserve >= 0, catch_chance in [0, 1], wobble >= 0, wobble_keep in [0, 1), scatter in [0, 0.5), wander_radius >= 0"
+                && fa.wander_radius >= 0.0
+                && fa.steer > 0.0
+                && fa.steer <= 1.0,
+            "[fauna] food_reserve >= 0, catch_chance in [0, 1], wobble >= 0, wobble_keep in [0, 1), scatter in [0, 0.5), wander_radius >= 0, steer in (0, 1]"
                 .into(),
         )?;
         for r in &self.fauna.refuge_flora {

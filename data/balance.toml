@@ -192,7 +192,8 @@ catch_chance = 0.5      # chance that a hunting predator with prey in reach make
 wobble = 0.35           # random kick to an animal's drift each tick, as a share of its speed
 wobble_keep = 0.8       # share of the drift kept from one tick to the next (0 = white noise)
 scatter = 0.4           # food and order targets: random offset from the cell centre (cells, < 0.5)
-wander_radius = 1.5     # an idle animal strolls to a random point this far away at most (cells)
+wander_radius = 1.5     # an idle animal strolls to a random point this far away at most (cells), ahead of where it goes
+steer = 0.15            # fluid motion (D-111): share of the gap to the wanted velocity closed per tick (turns and starts take about 0.6 s)
 
 # Economy (gamerules §4, §7; D-027, D-029). Costs and yields are per species (species.toml).
 [economy]

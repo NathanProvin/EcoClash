@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three/webgpu";
 import type { ReplayMeta } from "../replay/replay";
-import { ANIMAL_FORM, AnimalView, BODIES, bodyGeometry, formOf, RING, ringRadius } from "./animals";
+import {
+  ANIMAL_FORM,
+  AnimalView,
+  BODIES,
+  bodyGeometry,
+  formOf,
+  RING,
+  ringRadius,
+  turnToward,
+} from "./animals";
 
 describe("bodyGeometry", () => {
   it("builds every body about one unit long, standing on the ground, head toward +x", () => {
@@ -71,5 +80,15 @@ describe("AnimalView parachute drops (D-080)", () => {
     view.update(vole, new Set(), 0, 4, 9000, () => undefined); // no longer a recent drop
     const m = body()?.instanceMatrix.array as Float32Array;
     expect([...m.subarray(0, 16)].every(Number.isFinite)).toBe(true); // no NaN pose
+  });
+});
+
+describe("turnToward (D-111)", () => {
+  it("turns by at most the step, the short way round", () => {
+    expect(turnToward(0, 1, 0.1)).toBeCloseTo(0.1);
+    expect(turnToward(0, -1, 0.1)).toBeCloseTo(-0.1);
+    expect(turnToward(0, 0.05, 0.1)).toBeCloseTo(0.05);
+    // From just under +pi to just over -pi is a small left turn, not a full spin.
+    expect(turnToward(3.1, -3.1, 0.5)).toBeCloseTo(3.1 + (2 * Math.PI - 6.2));
   });
 });

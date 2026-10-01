@@ -90,6 +90,10 @@ pub struct FaunaParams {
     rest: Vec<i64>,
     scatter: i64,
     wander: i64,
+    /// Fluid motion (D-111): velocity gap closed per tick (Q16), and the pull toward the target
+    /// per cell of distance (Q16), `steer / 4` so the approach is critically damped: no overshoot.
+    steer: i64,
+    pull: i64,
     /// Terrain (D-084): where each species can stand; speed share in shallows for walkers (Q16);
     /// cells a path search may explore.
     pub medium: Vec<Medium>,
@@ -204,6 +208,8 @@ impl FaunaParams {
             rest: sp.iter().map(|s| round(s.rest * one)).collect(),
             scatter: round(fa.scatter * one),
             wander: round(fa.wander_radius * one),
+            steer: round(fa.steer * one),
+            pull: round(fa.steer / 4.0 * one),
             medium: sp.iter().map(|s| s.medium).collect(),
             shallow_speed: round(fa.shallow_speed * one),
             path_cells: usize::try_from(fa.path_cells).unwrap_or(1),
@@ -269,6 +275,8 @@ impl FaunaParams {
             self.catch,
             self.scatter,
             self.wander,
+            self.steer,
+            self.pull,
             self.shallow_speed,
             i64::try_from(self.path_cells).unwrap_or(0),
             self.player_cap,
@@ -301,6 +309,10 @@ pub struct Agents {
     /// Brownian drift added to the walk each tick (Q16 cells per tick; D-065).
     pub wy: Vec<i64>,
     pub wx: Vec<i64>,
+    /// Velocity (Q16 cells per tick; D-111): it eases toward the wanted one, so animals turn,
+    /// start and stop progressively.
+    pub vy: Vec<i64>,
+    pub vx: Vec<i64>,
     /// Where it heads now on its way to the target, around obstacles (Q16 cells; D-084);
     /// `ROUTE` when a new route is due.
     pub py: Vec<i64>,
@@ -349,6 +361,8 @@ impl Agents {
         self.gx.push(x);
         self.wy.push(0);
         self.wx.push(0);
+        self.vy.push(0);
+        self.vx.push(0);
         self.py.push(y);
         self.px.push(x);
     }
@@ -372,6 +386,8 @@ impl Agents {
         filter(&mut self.gx, keep);
         filter(&mut self.wy, keep);
         filter(&mut self.wx, keep);
+        filter(&mut self.vy, keep);
+        filter(&mut self.vx, keep);
         filter(&mut self.py, keep);
         filter(&mut self.px, keep);
     }
@@ -395,11 +411,22 @@ impl Agents {
             &self.gx,
             &self.wy,
             &self.wx,
+            &self.vy,
+            &self.vx,
             &self.py,
             &self.px,
         ] {
             h.i64s(v);
         }
+    }
+}
+
+/// `v` moved toward `w` by the share `steer` (Q16) of the gap; a gap too small to move rounds to
+/// `w` itself, so a velocity never lingers at a few units (D-111).
+fn ease(v: i64, w: i64, steer: i64) -> i64 {
+    match div_round((w - v) * steer, ONE_I) {
+        0 => w,
+        d => v + d,
     }
 }
 
@@ -520,8 +547,9 @@ impl Fauna {
         taken
     }
 
-    /// Every tick, on an `n x n` map: each animal steers straight toward its target at its speed
-    /// (any direction, not per axis), plus its Brownian drift: a random kick each tick, of which
+    /// Every tick, on an `n x n` map: each animal steers toward its target (any direction, not per
+    /// axis). Its velocity eases toward the wanted one, its speed capped, slowing as it nears the
+    /// target (critically damped, D-111). On top comes its Brownian drift: a random kick each tick, of which
     /// `wobble_keep` carries over (a discrete Ornstein-Uhlenbeck walk), so paths curve and idle
     /// animals shuffle (D-065). Positions stay on the map.
     pub fn walk(&mut self, st: &FloraState, rng: &mut Pcg32) {
@@ -554,11 +582,15 @@ impl Fauna {
             }
             let (dy, dx) = (a.py[i] - a.y[i], a.px[i] - a.x[i]);
             let len = i64::try_from((dy * dy + dx * dx).unsigned_abs().isqrt()).unwrap_or(i64::MAX);
-            let (sy, sx) = if len <= v {
-                (dy, dx)
+            let want = v.min(div_round(len * p.pull, ONE_I));
+            let (wy, wx) = if len == 0 {
+                (0, 0)
             } else {
-                (div_round(dy * v, len), div_round(dx * v, len))
+                (div_round(dy * want, len), div_round(dx * want, len))
             };
+            a.vy[i] = ease(a.vy[i], wy, p.steer);
+            a.vx[i] = ease(a.vx[i], wx, p.steer);
+            let (sy, sx) = (a.vy[i], a.vx[i]);
             let (kick, keep) = (div_round(v * p.wobble[s], ONE_I), p.wobble_keep[s]);
             a.wy[i] = div_round(a.wy[i] * keep, ONE_I) + spread(rng, kick);
             a.wx[i] = div_round(a.wx[i] * keep, ONE_I) + spread(rng, kick);
@@ -575,6 +607,8 @@ impl Fauna {
                 let (y, x) = ((a.y[i] + sy).clamp(0, edge), (a.x[i] + sx).clamp(0, edge));
                 if open(y, x) {
                     (a.y[i], a.x[i]) = (y, x);
+                } else {
+                    (a.vy[i], a.vx[i]) = (0, 0); // blocked: it stops, then sets off again
                 }
             }
         }
@@ -1008,8 +1042,9 @@ impl Fauna {
         }
 
         // 3. Attack-moves with nothing in sight head on; everyone else strolls to a random point
-        //    within `wander` cells (D-065), or rests where it is, by its species' `rest` chance
-        //    (stop-and-go grazing, D-088).
+        //    within `wander` cells (D-065), centred one flora period ahead along its velocity so
+        //    strolls meander on instead of turning back (D-111), or rests where it is, by its
+        //    species' `rest` chance (stop-and-go grazing, D-088).
         let a = &mut self.agents;
         for i in 0..len {
             if target[i].is_none() && a.order[i] == ATTACK {
@@ -1020,10 +1055,10 @@ impl Fauna {
                 target[i] = Some((a.y[i], a.x[i]));
             }
             let (ty, tx) = target[i].unwrap_or_else(|| {
-                let w = self.p.wander;
+                let (w, e) = (self.p.wander, self.p.every);
                 (
-                    limit(a.y[i] + spread(rng, w)),
-                    limit(a.x[i] + spread(rng, w)),
+                    limit(a.y[i] + a.vy[i] * e + spread(rng, w)),
+                    limit(a.x[i] + a.vx[i] * e + spread(rng, w)),
                 )
             });
             // A target it cannot stand on (a flight into a pond, a stroll onto rock): stay.
@@ -1292,31 +1327,85 @@ mod tests {
         }
     }
 
+    /// Fluid motion (D-111): an animal sets off and turns progressively, keeps a straight line
+    /// at any angle, never beats its speed, never turns back on itself, and settles on its target
+    /// without overshooting.
     #[test]
-    fn walking_steers_straight_at_the_species_speed() {
+    fn walking_eases_straight_to_the_target_without_overshoot() {
         let (_, mut fa, st, mut rng) = setup(8);
         fa.p.wobble.fill(0); // no drift: the pure steering
         fa.agents.push(0, 1, centre(1), centre(1), ONE_I, 0);
         (fa.agents.ty[0], fa.agents.tx[0]) = (centre(5), centre(4)); // a 3-4-5 triangle
         let v = fa.p.speed[0];
+        let dist = |a: &Agents| {
+            let (dy, dx) = (centre(5) - a.y[0], centre(4) - a.x[0]);
+            (dy * dy + dx * dx).isqrt()
+        };
         fa.walk(&st, &mut rng);
         let (dy, dx) = (fa.agents.y[0] - centre(1), fa.agents.x[0] - centre(1));
-        assert!(
-            (dy - v * 4 / 5).abs() <= 1 && (dx - v * 3 / 5).abs() <= 1,
-            "any angle, speed v"
-        );
+        assert!(dy > 0 && dy < v, "a soft start, not full speed at once");
+        assert!((dy * 3 - dx * 4).abs() <= 4, "along the straight line");
+        let (mut last, mut gap) = ((dy, dx), dist(&fa.agents));
         for _ in 0..1000 {
+            let (y, x) = (fa.agents.y[0], fa.agents.x[0]);
             fa.walk(&st, &mut rng);
+            let step = (fa.agents.y[0] - y, fa.agents.x[0] - x);
+            assert!(
+                step.0 * step.0 + step.1 * step.1 <= v * v + 2 * v,
+                "never beats its speed"
+            );
+            assert!(step.0 * last.0 + step.1 * last.1 >= 0, "never turns back");
+            let now = dist(&fa.agents);
+            assert!(
+                now <= gap.max(ONE_I / 1024),
+                "no overshoot (beyond rounding): {gap} -> {now}"
+            );
+            (last, gap) = (step, now);
         }
-        assert_eq!(
-            (fa.agents.y[0], fa.agents.x[0]),
-            (centre(5), centre(4)),
-            "arrives"
-        );
+        assert!(gap <= ONE_I / 256, "settles on the target ({gap})");
     }
 
     /// Movement per species (D-088): a rabbit drifts far less than a grasshopper, and rests at
     /// idle decisions, so over a while it covers much less ground.
+    /// Fluid motion (D-111): a strolling deer or rabbit turns a little per tick and changes speed
+    /// gradually; it never spins on the spot or lurches to full speed.
+    #[test]
+    fn strolling_mammals_turn_and_speed_up_gradually() {
+        for name in ["rabbits", "roe_deer", "bison"] {
+            let (f, mut fa, st, mut rng) = setup(16);
+            let s = fa.p.index(name).unwrap();
+            fa.agents.push(s, 1, centre(8), centre(8), ONE_I, 0);
+            let v = fa.p.speed[s] as f64;
+            let (mut last, mut turn, mut accel, mut moving) = ((0.0f64, 0.0f64), 0.0f64, 0.0f64, 0);
+            for t in 0..2000 {
+                if t % 8 == 0 {
+                    fa.decide(&f.p, &st, &mut rng);
+                    fa.agents.energy.fill(fa.p.body[s] * ONE_I); // never hungry
+                }
+                let (y, x) = (fa.agents.y[0], fa.agents.x[0]);
+                fa.walk(&st, &mut rng);
+                let step = ((fa.agents.y[0] - y) as f64, (fa.agents.x[0] - x) as f64);
+                let (a, b) = (step.0.hypot(step.1), last.0.hypot(last.1));
+                accel = accel.max((a - b).abs() / v);
+                if a > 0.3 * v && b > 0.3 * v {
+                    moving += 1;
+                    let c = (step.0 * last.0 + step.1 * last.1) / (a * b);
+                    turn = turn.max(c.clamp(-1.0, 1.0).acos());
+                }
+                last = step;
+            }
+            assert!(moving > 100, "{name} strolls ({moving} ticks)");
+            assert!(
+                turn < 0.6,
+                "{name} turns gradually ({turn:.2} rad in a tick)"
+            );
+            assert!(
+                accel < 0.3,
+                "{name} speeds up gradually ({accel:.2} of its speed)"
+            );
+        }
+    }
+
     #[test]
     fn calm_species_drift_less_and_rest_between_strolls() {
         let (f, mut fa, st, mut rng) = setup(12);
@@ -1769,9 +1858,17 @@ mod tests {
         fa.p.wobble.fill(0);
         fa.agents.push(rabbits, 1, centre(1), centre(1), ONE_I, 0);
         (fa.agents.ty[0], fa.agents.tx[0], fa.agents.py[0]) = (centre(1), centre(6), ROUTE);
-        fa.walk(&st, &mut rng);
         let slow = div_round(fa.p.speed[rabbits] * fa.p.shallow_speed, ONE_I);
-        assert_eq!(fa.agents.x[0] - centre(1), slow);
+        let mut top = 0;
+        for _ in 0..30 {
+            let x = fa.agents.x[0];
+            fa.walk(&st, &mut rng);
+            top = top.max(fa.agents.x[0] - x);
+        }
+        assert!(
+            top <= slow && top > slow / 2,
+            "about the shallow speed ({top} vs {slow})"
+        );
     }
 
     #[test]

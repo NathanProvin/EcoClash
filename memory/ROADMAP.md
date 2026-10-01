@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** the post-playtest round (D-107…D-113): padlocks, front line and forest look done; next background and parachutes, fluid animals, camera, fronts advancing. Then M5a 8b and 9.
+- **Now:** the post-playtest round (D-107…D-113): padlocks, front line, forest, backdrop, parachutes and fluid animals done; next camera, then fronts advancing. Then M5a 8b and 9.
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-10-01

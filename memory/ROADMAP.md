@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-01: D-114…D-117 done (strategic icons, push width, animal models, tutorial). Next: M5a 9, static deploy (needs the user's accounts; ask before publishing).
+- **Now:** 2026-10-01: D-114…D-121 done (icons, push width, animal models, tutorial, lichen-only start, unlock gauge, planting feedback). Next: the user's playtest, then M5a 9, static deploy (needs the user's account; ask before publishing).
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-10-01

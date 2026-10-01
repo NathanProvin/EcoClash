@@ -1232,3 +1232,7 @@ Template:
 ## D-109 · 2026-10-01 · Bigger, sparser trees and shrubs
 - **Status:** accepted (user: the grown forest should look better; models +33 %, density −33 %)
 - **Decision:** shrub and tree models are 33 % bigger (trunk radius ×1.2). A cell holds at most 2 shrubs (was 3) and 1 tree, 2 on a third of the cells (`treesIn`, average 4/3; was 2). Flying animals fly at 7.5 m (was 5.5) to clear the taller canopy. Render only: the sim is unchanged.
+
+## D-110 · 2026-10-01 · A nature backdrop and striped parachutes
+- **Status:** accepted (user: the white background should be a calm, blurred mix of greens, cyans and earthy browns; parachutes white with red stripes)
+- **Decision:** the scene background is a 256² canvas of blurred blobs (moss, sage, teal, earth; `WORLD.backdrop`), drawn once; the haze beyond the slab fades to its mid tone. Parachute canopies have 8 gores, alternately white and red (`#c8423a`), from the angle around the dome axis in the material.

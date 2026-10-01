@@ -480,3 +480,6 @@
 
 ## 2026-10-01 · Bigger, sparser forest (D-109)
 - **Done:** layout sizes and counts, tests; a grown oak and hawthorn forest checked in the browser.
+
+## 2026-10-01 · Backdrop and parachutes (D-110)
+- **Done:** blurred nature backdrop (seen in the browser); striped canopy material (compiles cleanly; the 2.5 s fall was too quick to screenshot).

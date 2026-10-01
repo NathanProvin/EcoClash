@@ -154,7 +154,7 @@ export class Viewer {
       ? "WebGPU"
       : "WebGL2";
 
-    this.scene.background = new THREE.Color(WORLD.sky);
+    this.scene.background = backdrop();
     this.scene.fog = new THREE.Fog(WORLD.horizon, size * 2.2, size * 5); // haze beyond the slab
     this.scene.add(new THREE.HemisphereLight(WORLD.sky, WORLD.groundLight, 1.3));
     const sun = new THREE.DirectionalLight(WORLD.sun, 2.6); // one low key light (§7.1)
@@ -764,6 +764,33 @@ export class Viewer {
 
 function cellCenter(cell: { row: number; col: number }, n: number): THREE.Vector3 {
   return new THREE.Vector3((cell.col - n / 2 + 0.5) * CELL, 0, (cell.row - n / 2 + 0.5) * CELL);
+}
+
+/** The backdrop (D-110): a calm, blurred mix of nature tones, drawn once on a small canvas. Blob
+ *  places come from `rand`, so it is the same in every match. */
+function backdrop(): THREE.CanvasTexture {
+  const S = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = S;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    ctx.fillStyle = WORLD.backdropBase;
+    ctx.fillRect(0, 0, S, S);
+    ctx.filter = "blur(28px)";
+    WORLD.backdrop.forEach((tone, i) => {
+      for (let k = 0; k < 3; k++) {
+        const j = i * 3 + k;
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = tone;
+        ctx.beginPath();
+        ctx.arc(rand(j, 9001) * S, rand(j, 9002) * S, S * (0.12 + 0.18 * rand(j, 9003)), 0, 7);
+        ctx.fill();
+      }
+    });
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }
 
 /** A foggy, smoky light-grey ring: three soft layers stacked through the plant height, each a

@@ -28,8 +28,12 @@ export const WORLD = {
   earthTop: "#3f3024", // diorama slab sides: topsoil band (D-054)
   earthSub: "#6d5840", // subsoil
   earthStone: "#8b8479", // bedrock at the bottom
-  sky: "#dfe8ec",
-  horizon: "#c9d3cf",
+  sky: "#dfe8ec", // hemisphere light from above
+  /** The backdrop behind the diorama (D-110): soft blurred blobs of moss, sage, teal and earth
+   *  over a misty base; the haze beyond the slab fades into `horizon`, its mid tone. */
+  backdrop: ["#5f7d55", "#8aa37a", "#5f9a96", "#86a9a3", "#8a7457", "#6e6a4c"],
+  backdropBase: "#7f9283",
+  horizon: "#7f9283",
   sun: "#ffe7c4", // warm, low (D-086)
   groundLight: "#6b5f4c",
 } as const;

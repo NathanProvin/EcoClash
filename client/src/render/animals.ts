@@ -8,6 +8,7 @@
 
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import * as THREE from "three/webgpu";
+import { atan, color, mix, positionGeometry, sin, step } from "three/tsl";
 import { isSwarm } from "../game/species";
 import type { Animal, ReplayMeta, Role } from "../replay/replay";
 import { writeMatrix } from "./growth";
@@ -208,7 +209,7 @@ const SWIM_DEPTH = 0.15;
 const SPREAD = 0.3;
 const HIGHLIGHT = new THREE.Color("#ffffff");
 /** Parachute drops (D-080, D-089): a dropped animal falls from `height` metres over `s` seconds
- *  under a leaf canopy, swaying by up to `sway` radians; the animals of one card leave up to
+ *  under a striped canopy, swaying by up to `sway` radians; the animals of one card leave up to
  *  `stagger` seconds apart. The canopy is at least `screen` x the camera distance across, so a
  *  vole's drop reads from afar. A shadow spot on the ground shrinks onto the landing point, and a
  *  dust ring spreads for `dust` seconds on landing. */
@@ -219,7 +220,9 @@ const FALL = {
   stagger: 0.5,
   screen: 0.03,
   dust: 0.7,
-  canopy: "#86a94f",
+  canopy: "#ffffff",
+  stripe: "#c8423a",
+  gores: 8,
   shadow: "#1d1a14",
   dustColor: "#cdbb98",
 } as const;
@@ -301,6 +304,12 @@ export class AnimalView {
         roughness: 0.8,
         flatShading: true,
         side: THREE.DoubleSide,
+        // White and red gores, by the angle around the dome's axis (D-110).
+        colorNode: mix(
+          color(FALL.canopy),
+          color(FALL.stripe),
+          step(0, sin(atan(positionGeometry.z, positionGeometry.x).mul(FALL.gores / 2))),
+        ),
       }),
     );
     const disc = new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2);

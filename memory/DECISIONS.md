@@ -1114,3 +1114,21 @@ Template:
 ## D-099 · 2026-10-01 · Solid frontier for both players
 - **Status:** accepted (user: "replace the P2 dash line with continuous")
 - **Decision:** P2's frontier is a solid line like P1's, with the same push-driven width (D-076). This drops the pattern cue of D-040: on the map, the two players now differ by colour only (Okabe–Ito blue and orange, chosen to stay distinct under colour blindness). The end-screen charts keep P2 dashed.
+
+## D-100 · 2026-10-01 · A compact cell panel, read at a glance
+- **Status:** accepted (user: quick access to cell health and animal population without reading)
+- **Decision:** `CellPanel.svelte` is rebuilt (214 px wide), with icons and bars; names and figures are in tooltips.
+  - **Header:** owner dot, ground icon (land, water, rock), a health heart, a lockout badge (barred player's colour, seconds left; D-098), and zoom / close.
+  - The health heart (`game/cell.ts`, tested):
+    - grey when nobody holds the cell;
+    - green when nothing threatens it;
+    - gold when it is pushed or barred;
+    - red when pushed hard (≥ 50 %) or when the other side's animals are on it.
+  - **Body:**
+    - four columns for the cover of each height stratum;
+    - soil and enemy-push bars;
+    - the plants as species icons with a cover bar;
+    - the animals as species icons with a count badge and an owner ring.
+  - **Data:** `CellInfo` gains `ground`, `strata`, `push` and `lock`; `sim-wasm` adds `lockFrame()`, sent with the field frames.
+  - **Fixed on the way:** bar sizes used "40 %" (invalid CSS), so the old panel's bars always looked full.
+- **Consequences:** client tests for the status and the lock and push plumbing; checked in the browser.

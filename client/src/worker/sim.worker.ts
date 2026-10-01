@@ -36,12 +36,14 @@ function sendFields(s: Sim) {
   floraTick = s.floraTick;
   const frame = s.fieldFrame().buffer as ArrayBuffer; // a fresh copy out of WASM memory
   const pressure = s.pressureFrame().buffer as ArrayBuffer;
+  const lock = s.lockFrame().buffer as ArrayBuffer; // D-098
   const bank = [s.bank(1), s.bank(2)];
   const income = [s.income(1), s.income(2)];
   const standing = [s.standing(1), s.standing(2)];
-  post({ type: "fields", tick: s.tick, frame, pressure, bank, income, standing }, [
+  post({ type: "fields", tick: s.tick, frame, pressure, lock, bank, income, standing }, [
     frame,
     pressure,
+    lock,
   ]);
 }
 

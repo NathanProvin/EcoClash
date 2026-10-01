@@ -449,3 +449,7 @@
 
 ## 2026-10-01 · Solid P2 frontier (D-099)
 - **Done:** no more dashes on the map; test updated. Next: the compact cell panel.
+
+## 2026-10-01 · Compact cell panel (D-100)
+- **Done:** icon-led panel with health status, strata, soil, push, lockout, plant and animal icons; lock frame export; bar CSS bug fixed. All six requests of the day are in (D-095…D-100).
+- **Next:** the user's playtest; then M5a 8b (Tutorial) and 9 (deploy).

@@ -18,6 +18,7 @@ pub struct Sim {
     balance_hash: u64,
     species: String,
     tick_hz: u32,
+    flora_every: u32,
     pace: f64,
     plant_radius: u32,
     drop_radius: u32,
@@ -44,6 +45,7 @@ impl Sim {
             balance_hash: balance_hash(&b),
             species: species_table(&b),
             tick_hz: b.sim.tick_hz,
+            flora_every: b.sim.flora_every_ticks,
             pace: b.sim.pace,
             plant_radius: b.flora.plant_radius,
             drop_radius: b.fauna.drop_radius,
@@ -290,6 +292,24 @@ impl Sim {
     #[wasm_bindgen(js_name = fieldFrame)]
     pub fn field_frame(&self) -> Vec<u8> {
         self.world.snapshot().field_frame()
+    }
+
+    /// Lockouts (D-098), two bytes per cell: the player barred from taking it back (0: none) and
+    /// the seconds left (rounded up, at most 255), for the cell panel.
+    #[wasm_bindgen(js_name = lockFrame)]
+    pub fn lock_frame(&self) -> Vec<u8> {
+        let st = &self.world.state;
+        let per = u64::from(self.flora_every);
+        let hz = u64::from(self.tick_hz.max(1));
+        st.lock
+            .iter()
+            .zip(&st.lock_p)
+            .flat_map(|(&ticks, &p)| {
+                let s = u64::try_from(ticks.max(0)).unwrap_or(0) * per;
+                let left = u8::try_from(s.div_ceil(hz)).unwrap_or(u8::MAX);
+                if left > 0 { [p, left] } else { [0, 0] }
+            })
+            .collect()
     }
 
     /// How hard the non-owner pushes into each cell, 0..=255, for the frontier lines (D-076).

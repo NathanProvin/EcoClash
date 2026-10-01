@@ -63,6 +63,10 @@ describe("Replay", () => {
       col: 0,
       owner: 1,
       soil: 1,
+      ground: 0,
+      strata: [0, 0, 0, 0],
+      push: 0,
+      lock: null,
       plants: [],
       animals: [{ name: "rabbits", owner: 1, count: 1 }],
     });

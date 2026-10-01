@@ -673,6 +673,7 @@
     {#if cellInfo && cell}
       <CellPanel
         info={cellInfo}
+        species={replay?.meta.species ?? []}
         onZoom={() => cell && viewer?.zoomToCell(cell)}
         onClose={() => inspect(null)}
       />

@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** world overhaul done (D-083…D-089); fixes and tuning of 2026-10-01 done (D-090…D-094: quality crash, lighter High, 32² map, Recyclers and black woodpecker, thinner ring, 90 % / 60 min). Next: the user's fps check on High, then M5a 8b (Tutorial) and 9 (deploy; ask before publishing).
+- **Now:** world overhaul and the 2026-10-01 rounds done (D-090…D-100: quality crash, lighter High, 32² map, Recyclers, open start, varied maps, draped rings, grazed-bare lockout, solid frontier, compact cell panel). Next: the user's playtest, then M5a 8b (Tutorial) and 9 (deploy; ask before publishing).
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-10-01

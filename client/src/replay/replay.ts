@@ -41,6 +41,7 @@ export interface Fields {
   species: Uint8Array[]; // cover 0..255 per plant species (species-table order)
   cover: Uint8Array[]; // cover 0..255 per height stratum L1..L4 (sum of its species, capped)
   pressure?: Uint8Array; // live only: how hard the non-owner pushes into each cell, 0..255 (D-076)
+  lock?: Uint8Array; // live only: per cell, the barred player and seconds left (D-098)
 }
 
 /** What stands on one cell at one tick (the cell panel). */
@@ -49,6 +50,14 @@ export interface CellInfo {
   col: number;
   owner: number;
   soil: number; // 0..1
+  /** Ground class (terrain.ts GROUND; land when unknown). */
+  ground: number;
+  /** Cover of each height stratum, herbs to trees, 0..1. */
+  strata: number[];
+  /** How hard the other player pushes into the cell, 0..1 (live only). */
+  push: number;
+  /** The player barred from taking the cell back, and for how long (D-098; live only). */
+  lock: { player: number; s: number } | null;
   plants: { name: string; level: number; cover: number }[]; // cover 0..1
   animals: { name: string; owner: number; count: number }[];
 }
@@ -206,7 +215,7 @@ export function decodeFields(
 
 /** Plants (cover per species) and animals (count per species and owner) on one cell. */
 export function cellAt(
-  src: Pick<Source, "meta" | "fields" | "animals">,
+  src: Pick<Source, "meta" | "fields" | "animals" | "terrain">,
   tick: number,
   row: number,
   col: number,
@@ -229,6 +238,10 @@ export function cellAt(
     col,
     owner: f.owner[k] ?? 0,
     soil: (f.soil[k] ?? 0) / 255,
+    ground: src.terrain?.ground[k] ?? 0,
+    strata: f.cover.map((c) => (c[k] ?? 0) / 255),
+    push: (f.pressure?.[k] ?? 0) / 255,
+    lock: f.lock?.[2 * k] ? { player: f.lock[2 * k] ?? 0, s: f.lock[2 * k + 1] ?? 0 } : null,
     plants,
     animals: Object.values(herd),
   };

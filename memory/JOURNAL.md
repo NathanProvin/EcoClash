@@ -503,3 +503,7 @@
 ## 2026-10-01 · Tutorial (D-117, M5a 8b)
 - **Done:** Tutorial entry, objectives logic and tests, panel, App wiring. Browser run-through caught swarm animals not counting (fixed) and a too-easy final goal (30 % → 55 %).
 - **Next:** M5a 9, static deploy (needs the user's Cloudflare or itch.io account; ask before publishing).
+
+## 2026-10-01 · Playtest round on the tutorial (D-118…D-121)
+- **Done:** lichen-only start, with the bot, tests, relay script and docs updated (D-118); padlock and fill gauge on unlockable cards (D-119); tutorial reworked around grasses and rabbits, with a raid that needs a real order (D-120); planting seed scatter and ripple (D-121).
+- **Notes:** browser timing artefacts (a throttled render loop) hid the seed burst until it was stamped with the real clock; the attack-move works but stops at the first enemy food, by design.

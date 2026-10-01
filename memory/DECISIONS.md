@@ -1311,3 +1311,13 @@ Template:
 
   Objectives 4 and 5 count only animals that can take orders. Objective 5 also needs a move or attack order onto enemy land: in the test run, grazing rabbits had drifted over the front and completed it on their own. The goal reads "55 %" (it showed a float tail).
 - **Consequences:** played through in the browser: box selection picked the nine rabbits, and A + click sent them to graze the enemy's front cells.
+
+## D-121 · 2026-10-01 · Planting feedback: a seed scatter and a ripple
+- **Status:** accepted (user asked for a planting animation and a proposal; this one was built)
+- **Decision:**
+  - On a planting click, 12 seeds in the plant's colour (with the owner tint) pop up from the click and arc out over the planting radius in 0.6 s, staggered. They lie for 0.5 s, then shrink away (`render/seeds.ts`, one instanced mesh, flat colour).
+  - Seeds are at least 0.6 % of the camera distance across, so a burst reads from the overview.
+  - As they land, a ring in the plant's colour ripples once from 1/5 of the planting radius to its edge: the alert ping, which now takes a radius, a wave count and a delay.
+  - The plants' own GPU grow-in follows when the cells sprout.
+  - The feedback shows on every click, whatever the sim decides; a refused order still leaves its notice.
+- **Consequences:** tests cover the flight and the fade. Checked in the browser at the overview and close up, with the timing slowed for the screenshots.

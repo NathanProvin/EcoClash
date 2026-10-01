@@ -30,6 +30,7 @@ import {
 import { interpolate, type Animal, type Fields, type Source } from "../replay/replay";
 import { AnimalView } from "./animals";
 import { Ghost, type GhostSpec } from "./ghost";
+import { SeedBurst, SEEDS } from "./seeds";
 import { BAND, frontierField } from "./frontier";
 import {
   groundGeometry,
@@ -134,7 +135,8 @@ export class Viewer {
   private readonly aura: THREE.Group; // smoky ring over the selected cell
   private readonly raycaster = new THREE.Raycaster();
   private flight: { from: THREE.Vector3[]; to: THREE.Vector3[]; t: number } | undefined;
-  private pings: { mesh: THREE.Mesh; start: number }[] = [];
+  private pings: { mesh: THREE.Mesh; start: number; r0: number; r1: number; waves: number }[] = [];
+  private seeds: SeedBurst;
   private readonly ghost: Ghost;
   private ghostSpec: GhostSpec | null = null;
   private owner: Uint8Array = new Uint8Array(0); // the last field frame's owners
@@ -159,6 +161,7 @@ export class Viewer {
       : "WebGL2";
 
     this.scene.background = backdrop();
+    this.seeds = new SeedBurst(this.scene);
     this.scene.fog = new THREE.Fog(WORLD.horizon, size * 2.2, size * 5); // haze beyond the slab
     this.scene.add(new THREE.HemisphereLight(WORLD.sky, WORLD.groundLight, 1.3));
     const sun = new THREE.DirectionalLight(WORLD.sun, 2.6); // one low key light (§7.1)
@@ -524,7 +527,13 @@ export class Viewer {
   }
 
   /** Ping a cell: rings of `hex` spread and fade there for a few seconds (D-077). */
-  ping(cell: { row: number; col: number }, hex: string): void {
+  /** An expanding ring at a cell: by default `PING.waves` alert waves from one cell to
+   *  `PING.spread` cells; a ripple to `radius` metres, `waves` times, after `delay` seconds. */
+  ping(
+    cell: { row: number; col: number },
+    hex: string,
+    o: { radius?: number; waves?: number; delay?: number } = {},
+  ): void {
     const material = new THREE.MeshBasicNodeMaterial({
       color: new THREE.Color(hex),
       transparent: true,
@@ -539,7 +548,38 @@ export class Viewer {
     mesh.renderOrder = 11;
     mesh.frustumCulled = false; // draped every frame
     this.scene.add(mesh);
-    this.pings.push({ mesh, start: this.lastTime });
+    mesh.visible = !o.delay;
+    const r1 = o.radius ?? CELL * PING.spread;
+    this.pings.push({
+      mesh,
+      start: performance.now() / 1000 + (o.delay ?? 0), // the frame loop's clock
+      r0: o.radius ? r1 * 0.2 : CELL,
+      r1,
+      waves: o.waves ?? PING.waves,
+    });
+  }
+
+  /** Planting feedback (D-121): seeds arc out from the clicked cell onto the planting area
+   *  (`radius` cells), then a ripple in the plant's colour spreads to its edge. */
+  plantFeedback(
+    cell: { row: number; col: number },
+    radius: number,
+    rgb: [number, number, number],
+  ): void {
+    const color = new THREE.Color().setRGB(
+      rgb[0] / 255,
+      rgb[1] / 255,
+      rgb[2] / 255,
+      THREE.SRGBColorSpace,
+    );
+    const at = this.centre(cell);
+    const r = (radius + 0.5) * CELL;
+    this.seeds.add(at.x, at.z, r, color, performance.now() / 1000, this.surface);
+    this.ping(cell, `#${color.getHexString(THREE.SRGBColorSpace)}`, {
+      radius: r,
+      waves: 1,
+      delay: SEEDS.s * 0.8,
+    });
   }
 
   /** Fly the camera over a cell, keeping the current height and angle. */
@@ -630,6 +670,7 @@ export class Viewer {
     this.animals.update(this.shown, this.selected, tick, n, ms, dropped, h, this.field.water, eye);
     animateAura(this.aura, now, this.surface);
     this.animatePings(now);
+    this.seeds.update(now, this.camera.position.distanceTo(this.controls.target));
     if (this.flight) {
       const f = this.flight;
       f.t = Math.min(f.t + dt / 0.8, 1);
@@ -751,16 +792,18 @@ export class Viewer {
   }
 
   private animatePings(now: number): void {
-    this.pings = this.pings.filter(({ mesh, start }) => {
+    this.pings = this.pings.filter(({ mesh, start, r0, r1, waves }) => {
       const age = (now - start) / PING.waveS;
-      if (age >= PING.waves) {
+      mesh.visible = age >= 0;
+      if (age < 0) return true; // not started yet
+      if (age >= waves) {
         this.scene.remove(mesh);
         mesh.geometry.dispose();
         (mesh.material as THREE.Material).dispose();
         return false;
       }
       const k = age % 1; // this wave's progress
-      const r = CELL * (1 + (PING.spread - 1) * k);
+      const r = r0 + (r1 - r0) * k;
       mesh.scale.set(r, 1, r);
       drape(mesh, this.surface, PING_LIFT);
       (mesh.material as THREE.MeshBasicNodeMaterial).opacity = 1 - k;

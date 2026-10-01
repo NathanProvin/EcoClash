@@ -24,7 +24,7 @@
     type Toast,
   } from "./game/alerts";
   import { cardState, isSwarm, label, unlockedNow } from "./game/species";
-  import { WORLD } from "./render/palette";
+  import { plantColor, WORLD } from "./render/palette";
   import { Viewer, type CameraKeys, type Layer } from "./render/viewer";
   import { loadQuality, saveQuality, type Quality } from "./render/quality";
   import BottomBar from "./ui/BottomBar.svelte";
@@ -494,8 +494,11 @@
     const at = click && planting && live ? viewer.pickCell(box.x0, box.y0) : null;
     if (at && planting && live) {
       // Shift keeps the order armed, like RTS build orders.
-      if (armedKind === "flora") live.plant(me, planting, at.row, at.col);
-      else live.spawn(me, planting, at.row, at.col);
+      if (armedKind === "flora") {
+        live.plant(me, planting, at.row, at.col);
+        const s = live.meta.species.find((x) => x.name === planting);
+        viewer.plantFeedback(at, live.plantRadius, plantColor(planting, s?.level ?? 1, me));
+      } else live.spawn(me, planting, at.row, at.col);
       if (!e.shiftKey) planting = null;
     } else if (click) {
       inspect(viewer.pickCell(box.x0, box.y0)); // click: inspect the cell under the cursor

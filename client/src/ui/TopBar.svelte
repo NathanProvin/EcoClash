@@ -5,7 +5,9 @@
   import type { Source } from "../replay/replay";
   import type { Layer } from "../render/viewer";
   import type { Quality } from "../render/quality";
+  import type { WeatherKind, WeatherNow } from "../game/weather";
   import Icon from "./Icon.svelte";
+  import WeatherBadge from "./WeatherBadge.svelte";
 
   let {
     replay,
@@ -22,6 +24,7 @@
     replays,
     chosen = $bindable(),
     onChoose,
+    weather,
   }: {
     replay: Source;
     tick: number;
@@ -37,6 +40,8 @@
     replays: string[];
     chosen: string;
     onChoose: (name: string) => void;
+    /** Live matches: the weather now and its kinds (D-132), shown in the icon row. */
+    weather?: { now: WeatherNow; kinds: WeatherKind[] } | undefined;
   } = $props();
 
   let menu = $state(false);
@@ -57,13 +62,14 @@
 
 <header class="bar">
   <div class="resources panel p{player}">
-    <div class="res" title="Land: your share of the map (the gauge: you vs the other player)">
+    <!-- Tug of war (D-134): P1 from the left, P2 from the right, free land between, 50 % marked. -->
+    <span class="tug" title="Land: P1 (left) vs P2 (right)" aria-hidden="true">
+      <span class="t1" style:width="{(land[0] ?? 0) * 100}%"></span>
+      <span class="t2" style:width="{(land[1] ?? 0) * 100}%"></span>
+    </span>
+    <div class="res" title="Land: your share of the map">
       <Icon name="land" />
       <span class="value num">{((land[player - 1] ?? 0) * 100).toFixed(0)}%</span>
-      <span class="tug" aria-hidden="true">
-        <span class="t1" style:width="{(land[0] ?? 0) * 100}%"></span>
-        <span class="t2" style:width="{(land[1] ?? 0) * 100}%"></span>
-      </span>
     </div>
     <div class="res" title="Species alive">
       <Icon name="species" />
@@ -77,6 +83,7 @@
   </div>
 
   <div class="actions">
+    {#if weather}<WeatherBadge now={weather.now} kinds={weather.kinds} />{/if}
     <button class="icon" onclick={onTech} title="Tech tree (T)" aria-label="Tech tree">
       <Icon name="tree" />
     </button>
@@ -155,9 +162,10 @@
     pointer-events: auto;
   }
   .resources {
+    position: relative;
     display: flex;
     gap: 4px;
-    padding: 6px 14px;
+    padding: 12px 14px 6px;
     border-radius: 999px;
   }
   .res {
@@ -178,12 +186,23 @@
     font-size: 0.85em;
   }
   .tug {
-    position: relative;
-    width: 56px;
+    position: absolute;
+    left: 22px;
+    right: 22px;
+    top: 4px;
     height: 5px;
     border-radius: 3px;
     background: var(--well);
     overflow: hidden;
+  }
+  .tug::after {
+    content: "";
+    position: absolute;
+    left: calc(50% - 1px);
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--ink-soft);
   }
   .tug span {
     position: absolute;

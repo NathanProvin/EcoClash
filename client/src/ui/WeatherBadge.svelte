@@ -1,6 +1,7 @@
 <script lang="ts">
-  // Weather badge (D-132), top left under the clock: the sky now, or the weather announced (a
+  // Weather badge (D-132): the sky now, or the weather announced (a
   // pulsing ring and the seconds before it hits), or the weather at work and the time it has left.
+  // A round button of the top-right icon row (D-134).
   // Hover: a tooltip in the build bar's style (D-133) with what it changes.
   import { label } from "../game/species";
   import { change, WEATHER_LOOK, type WeatherKind, type WeatherNow } from "../game/weather";
@@ -27,7 +28,7 @@
 </script>
 
 <div
-  class="badge panel {now.phase} {now.kind ?? 'clear'}"
+  class="wx {now.phase} {now.kind ?? 'clear'}"
   role="status"
   aria-label={now.phase === "clear"
     ? "Clear sky"
@@ -37,58 +38,51 @@
 >
   <span class="icon"><Icon name={look?.icon ?? "sun"} size={20} /></span>
   {#if now.phase !== "clear"}
-    <span class="what">{label(now.kind ?? "")}</span>
-    <span class="num left">{now.phase === "alert" ? "in " : ""}{clock(now.seconds)}</span>
+    <span class="left num">{now.phase === "alert" ? "in " : ""}{clock(now.seconds)}</span>
+  {/if}
+  {#if hover}
+    <div class="tip panel" role="tooltip">
+      <span class="head">
+        <strong>{now.phase === "clear" ? "Clear sky" : label(now.kind ?? "")}</strong>
+        <span class="sub"
+          >{now.phase === "alert"
+            ? `weather alert · in ${clock(now.seconds)}`
+            : now.phase === "active"
+              ? `${clock(now.seconds)} left`
+              : "no weather event"}</span
+        >
+      </span>
+      {#if stats.length}
+        <span class="stats">
+          {#each stats as s (s.icon)}
+            <span class="stat"
+              ><Icon name={s.icon} size={13} />{s.v}<span class="sub">{s.what}</span></span
+            >
+          {/each}
+        </span>
+      {/if}
+      <em
+        >{kind?.effect ??
+          "Normal growth and movement. A weather alert comes before each event."}</em
+      >
+    </div>
   {/if}
 </div>
-{#if hover}
-  <div class="tip panel" role="tooltip">
-    <span class="head">
-      <strong>{now.phase === "clear" ? "Clear sky" : label(now.kind ?? "")}</strong>
-      <span class="sub"
-        >{now.phase === "alert"
-          ? `weather alert · in ${clock(now.seconds)}`
-          : now.phase === "active"
-            ? `${clock(now.seconds)} left`
-            : "no weather event"}</span
-      >
-    </span>
-    {#if stats.length}
-      <span class="stats">
-        {#each stats as s (s.icon)}
-          <span class="stat"
-            ><Icon name={s.icon} size={13} />{s.v}<span class="sub">{s.what}</span></span
-          >
-        {/each}
-      </span>
-    {/if}
-    <em>{kind?.effect ?? "Normal growth and movement. A weather alert comes before each event."}</em
-    >
-  </div>
-{/if}
 
 <style>
-  .badge {
-    position: absolute;
-    left: 14px;
-    top: 58px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 4px 12px 4px 4px;
-    border-radius: 999px;
-    font-size: 0.82em;
-  }
-  .badge.clear {
-    padding-right: 4px;
+  /* A round button of the top-right icon row (TopBar .icon), the countdown in a pill under it. */
+  .wx {
+    position: relative;
   }
   .icon {
     display: grid;
     place-items: center;
-    width: 30px;
-    height: 30px;
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--line);
     border-radius: 50%;
-    background: var(--well);
+    background: var(--panel);
+    backdrop-filter: var(--blur);
     color: var(--gold);
   }
   .rain .icon,
@@ -101,11 +95,17 @@
   .alert .icon {
     animation: pulse 1.2s ease-in-out infinite;
   }
-  .what {
-    font-weight: 700;
-  }
   .left {
+    position: absolute;
+    top: 42px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--panel);
     color: var(--ink-soft);
+    font-size: 0.7em;
+    white-space: nowrap;
   }
   .alert .left {
     color: var(--bad);
@@ -118,8 +118,8 @@
   /* The species tooltip's look (BottomBar), opening below the badge. */
   .tip {
     position: absolute;
-    left: 14px;
-    top: 104px;
+    right: 0;
+    top: 62px;
     z-index: 5;
     display: flex;
     flex-direction: column;

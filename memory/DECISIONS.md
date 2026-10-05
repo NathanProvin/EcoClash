@@ -1510,3 +1510,9 @@ Template:
 - **Consequences:**
   - The browser cycle Medium → High → Medium → Low → High → Medium ran with no validation error, and the map still pans and zooms.
   - A full live switch would need a new viewer (renderer and scene), not worth it now.
+
+## D-134 · 2026-10-05 · Top bar: centred land tug-of-war, weather in the icon row
+- **Status:** accepted (user)
+- **Decision:**
+  - The land gauge is a bar across the top of the resource pill: P1 fills from the left, P2 from the right, free land in between, with a mark at 50 %.
+  - The weather badge (D-132) is a round button at the start of the top-right icon row. Its countdown sits in a pill under it, and its tooltip opens below it.

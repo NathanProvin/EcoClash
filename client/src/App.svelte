@@ -37,7 +37,6 @@
   import Objectives from "./ui/Objectives.svelte";
   import StrategicIcons from "./ui/StrategicIcons.svelte";
   import Toasts from "./ui/Toasts.svelte";
-  import WeatherBadge from "./ui/WeatherBadge.svelte";
   import { CLEAR, weatherToasts, type WeatherNow } from "./game/weather";
   import TopBar from "./ui/TopBar.svelte";
 
@@ -708,6 +707,7 @@
       {replays}
       bind:chosen
       onChoose={open}
+      weather={live ? { now: weather, kinds: live.weatherKinds } : undefined}
     />
     <Timeline
       {replay}
@@ -766,7 +766,6 @@
         <strong>Choose your spawn.</strong> Pick a plant in the bar and click anywhere on land.
       </p>
     {/if}
-    {#if live}<WeatherBadge now={weather} kinds={live.weatherKinds} />{/if}
     <Toasts {toasts} {arrows} onGo={(t) => t.cell && viewer?.lookAt(t.cell)} />
     {#if cellInfo && cell}
       <CellPanel

@@ -1716,3 +1716,8 @@ Template:
 ## D-146 · 2026-10-05 · Enemy strategic icons
 - **Status:** accepted (user playtest: "see where the threat is")
 - **Decision:** the strategic icons (I) also show the enemy's groups. They have a dashed ring in the enemy's colour (`--enemy`), are not clickable, and have a tooltip such as "Enemy rabbits ×12". The same grouping applies (`strategicGroups` per owner); one toggle shows both sides.
+
+## D-147 · 2026-10-05 · Territory victory at 80 %
+- **Status:** accepted (user playtest: 90 % is too restrictive)
+- **Decision:** `victory_territory` and `territory_start` 0.90 → 0.80. The decay to 60 % between 20 and 40 min stays.
+- **Bench** (normal vs hard, 16 seeds): median end 25:12 (was 30:28). The stronger bots of D-148 are measured against it.

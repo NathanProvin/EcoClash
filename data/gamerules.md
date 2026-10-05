@@ -403,7 +403,7 @@ The mechanics below make sure **no position is permanently locked**, and that **
    - *Processionary caterpillars:* targeted area; the trees there are weakened and lose biomass over time.
    - *Storm:* windthrow along a corridor, opening a line of gaps through a forest.
    - *Forest fire* **[Post-V1]**: ignites a target area. Each tick, fire spreads to neighbouring cells with a chance (seeded RNG) that grows with the cell's biomass. Burnt strata become dead biomass and the soil gains nutrients. Fire dies out on bare or low-biomass cells, so meadow strips act as firebreaks. It opens irregular gaps through a forest.
-4. **Decaying territory threshold (adopted, D-143).** The territorial victory threshold holds 90 % until 20 min, then decreases linearly to 60 % at 40 min. This rewards whoever leads and ends matches in about 30 min.
+4. **Decaying territory threshold (adopted, D-143).** The territorial victory threshold holds 80 % until 20 min (D-147), then decreases linearly to 60 % at 40 min. This rewards whoever leads and ends matches in about 30 min.
 5. **Guaranteed end.** At the time limit, the highest standing biomass (living flora + fauna) wins; if tied, the higher territory share wins; if still tied, the match is a draw.
 
 ### 11.4 Comeback levers for the trailing player

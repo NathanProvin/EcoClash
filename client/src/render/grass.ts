@@ -98,18 +98,23 @@ interface TuftShape {
   hue: number[];
 }
 
-/** A lichen or moss patch: a flat hexagon with a raised centre, `r` metres across. */
-function lichenTuft(r: number, hue: number): TuftShape {
+/** Rim points of a lichen or moss patch (D-151). */
+const LICHEN_SIDES = 9;
+
+/** A lichen or moss patch: a flat, slightly domed round blob `r` metres across, its rim
+ *  jittered (from `rnd`) so patches are not regular polygons. */
+function lichenTuft(r: number, hue: number, rnd: (k: number) => number): TuftShape {
   const position = [0, LICHEN.dome, 0];
   const normal = [0, 1, 0];
-  for (let i = 0; i < 6; i++) {
-    const a = (i * Math.PI) / 3;
-    position.push(Math.cos(a) * r, 0, Math.sin(a) * r);
+  for (let i = 0; i < LICHEN_SIDES; i++) {
+    const a = (i * 2 * Math.PI) / LICHEN_SIDES;
+    const k = r * (0.78 + 0.32 * rnd(i + 1));
+    position.push(Math.cos(a) * k, 0, Math.sin(a) * k);
     normal.push(0, 1, 0);
   }
   const index: number[] = [];
-  for (let i = 0; i < 6; i++) index.push(0, 1 + ((i + 1) % 6), 1 + i); // counter-clockwise from above
-  return { position, normal, index, hue: Array(7).fill(hue) as number[] };
+  for (let i = 0; i < LICHEN_SIDES; i++) index.push(0, 1 + ((i + 1) % LICHEN_SIDES), 1 + i);
+  return { position, normal, index, hue: Array(LICHEN_SIDES + 1).fill(hue) as number[] };
 }
 
 /** Wildflowers: `FLOWER.heads` round heads (octahedra) on thin stems, around the root. */
@@ -278,7 +283,7 @@ export function makeGrass(
     6100,
     LICHEN.patch,
     LICHENS.length,
-    (rnd, hue) => lichenTuft(lichenRadius(rnd), hue),
+    (rnd, hue) => lichenTuft(lichenRadius(rnd), hue, rnd),
   );
   const lichen = new THREE.MeshStandardNodeMaterial({ roughness: 1 });
   const hue = attribute("hue", "float");

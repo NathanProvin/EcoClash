@@ -38,6 +38,8 @@ import { BAND, frontierField } from "./frontier";
 import {
   groundGeometry,
   Heightfield,
+  NOISE,
+  noiseTexture,
   drape,
   rockPlacements,
   slabGeometry,
@@ -137,6 +139,8 @@ export class Viewer {
   private overlay: OverlayId | null = null;
   private lastFields: Fields | null = null;
   private readonly heights: THREE.DataTexture;
+  /** Baked tileable noise for the ground and water shaders (D-151). */
+  private readonly noiseTex = noiseTexture();
   /** Seconds, for growth and blends (set once per frame). */
   private readonly now = uniform(0);
   // L1 as grass blades (grass.ts): RGB = the cell's herb colour, A = L1 cover, one texel per
@@ -230,11 +234,12 @@ export class Viewer {
     this.groundTex.magFilter = THREE.LinearFilter;
     this.groundTex.colorSpace = THREE.SRGBColorSpace;
     const groundMat = new THREE.MeshStandardNodeMaterial({ roughness: 1 });
-    const patches = mx_noise_float(positionWorld.xz.mul(0.16)); // broad damp / dry patches
+    // Baked noise (D-151): one texture fetch per scale instead of a Perlin noise per pixel.
+    const patches = this.noise(0.16, "r"); // broad damp / dry patches
     const grain = float(1)
       .add(patches.mul(0.1))
-      .add(mx_noise_float(positionWorld.xz.mul(0.8)).mul(0.08))
-      .add(mx_noise_float(positionWorld.xz.mul(4.2)).mul(0.07)); // grit
+      .add(this.noise(0.8, "g").mul(0.08))
+      .add(this.noise(4.2, "b").mul(0.07)); // grit
     const earth = texture(this.groundTex, uv()).rgb;
     const humus = earth.mul(vec3(0.74, 0.68, 0.62)); // darker, warmer patches
     const mottle = smoothstep(0.05, 0.8, patches).mul(0.6);
@@ -497,6 +502,18 @@ export class Viewer {
     return at.setY(this.field.at(at.x, at.z));
   }
 
+  /** Baked noise (D-151) at `frequency` lattice cells per metre, one channel, centred on 0
+   *  (about -1..1 like `mx_noise_float`), optionally drifting by `shift` (texture units). */
+  private noise(
+    frequency: number,
+    channel: "r" | "g" | "b",
+    shift?: THREE.Node<"float">,
+  ): THREE.Node<"float"> {
+    const uvw = positionWorld.xz.mul(frequency / NOISE.period);
+    const at = shift ? uvw.add(shift) : uvw;
+    return texture(this.noiseTex, at)[channel].mul(2).sub(1);
+  }
+
   /** The soil tinted by the terrain (D-086): darker and greener near water, paler on the high
    *  ground, bare rock colour on steep slopes. */
   private terrainTint(soil: THREE.Node<"vec3">, grain: THREE.Node<"float">): THREE.Node<"vec3"> {
@@ -530,9 +547,7 @@ export class Viewer {
     const at = positionWorld.xz.add(size / 2).div(size); // world x/z -> height texel
     const bed = texture(this.heights, at).r;
     const depth = float(level).sub(bed);
-    const shimmer = float(1).add(
-      mx_noise_float(vec3(positionWorld.xz.mul(0.35), time.mul(0.25))).mul(0.06),
-    );
+    const shimmer = float(1).add(this.noise(0.35, "r", time.mul(0.04)).mul(0.06));
     material.colorNode = mix(
       color(WORLD.shallows),
       color(WORLD.deepWater),

@@ -222,3 +222,38 @@ export function drape(
   }
   pos.needsUpdate = true;
 }
+
+/** Lattice cells across the baked noise texture, and its size in texels (D-151). */
+export const NOISE = { period: 16, size: 256 } as const;
+
+/** Tileable smooth value noise, baked once (D-151): three independent channels (R, G, B) of
+ *  NOISE.period lattice cells across, so a shader samples it at `xz * frequency / period`
+ *  (repeat wrapping) for the price of one texture fetch instead of a procedural Perlin noise
+ *  per pixel. Values 0..1, mean about 0.5. */
+export function noiseTexture(): THREE.DataTexture {
+  const { period, size } = NOISE;
+  const data = new Uint8Array(size * size * 4);
+  const ease = (t: number) => t * t * (3 - 2 * t);
+  for (let ch = 0; ch < 3; ch++) {
+    const corner = (i: number, j: number) =>
+      rand(((i + period) % period) * 977 + ((j + period) % period), 8800 + ch);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const [fx, fy] = [(x / size) * period, (y / size) * period];
+        const [i, j] = [Math.floor(fx), Math.floor(fy)];
+        const [tx, ty] = [ease(fx - i), ease(fy - j)];
+        const top = corner(i, j) * (1 - tx) + corner(i + 1, j) * tx;
+        const bottom = corner(i, j + 1) * (1 - tx) + corner(i + 1, j + 1) * tx;
+        data[(y * size + x) * 4 + ch] = Math.round((top * (1 - ty) + bottom * ty) * 255);
+      }
+    }
+  }
+  for (let k = 3; k < data.length; k += 4) data[k] = 255;
+  const t = new THREE.DataTexture(data, size, size);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  t.needsUpdate = true;
+  return t;
+}

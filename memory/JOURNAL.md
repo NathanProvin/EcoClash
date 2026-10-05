@@ -630,3 +630,18 @@
   Checked in the browser: lichen colours, ferns, trees, GPU rain during a flood.
 - **Lesson:** WebGPU timestamp queries (`trackTimestamp` + `resolveTimestampsAsync("render")`) give GPU time per pass. The ground shader, not the models, was the main GPU cost.
 - **Next:** the user's fps check on High and Medium (late game, rain); merge or drop the branch; then the deploy.
+
+## 2026-10-05 (5) · Plant repaint hitch (D-153), trampling and dead trees (D-152)
+- **D-152** (on `main`, merged into `models-v2`):
+  - grazers trample: enemy plants lose 4× the bite, the grazer is fed 1×;
+  - trees die of old age 3× as often.
+
+  Normal mirror: 8 unfinished matches of 30 at 60 min (were 12), median end 25 min.
+- **D-153** (branch):
+  - repaint only the cells whose plants changed: about 12 % per field frame;
+  - spread the repaint at 3 ms a frame;
+  - separable frontier blur.
+
+  Checked in the browser: plants render and the queue drains.
+- **Lesson:** the profiling tab runs JavaScript about 4× slower than a foreground tab (10 M additions in 45 ms). Compare before and after in the same tab, never against numbers from another one.
+- **Next:** the user's fps check on the branch; merge or drop; then the deploy.

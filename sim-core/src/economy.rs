@@ -39,6 +39,8 @@ pub struct Economy {
     pub unlocked: [Vec<bool>; 2],
     /// Everything unlocked and free (tools and checks; part of the state hash).
     pub sandbox: bool,
+    /// The tutorial match (D-141): it alone accepts `Grant` commands. Hashed, like the sandbox.
+    pub tutorial: bool,
     /// Per species (plants, then animals), Q16 points.
     unlock_cost: Vec<i64>,
     spawn_cost: Vec<i64>,
@@ -69,6 +71,7 @@ impl Economy {
         Economy {
             unlocked: [free.clone(), free],
             sandbox: false,
+            tutorial: false,
             spawn_cost: costs(&|_, s| s),
             unlock_cost,
             surcharge: round(b.economy.drop_surcharge * one),
@@ -137,7 +140,9 @@ impl Economy {
 
     /// The state that changes during a match, for the tick hash.
     pub fn hash_state(&self, h: &mut Hasher) {
-        h.i64s(&self.bank).u64(u64::from(self.sandbox));
+        h.i64s(&self.bank)
+            .u64(u64::from(self.sandbox))
+            .u64(u64::from(self.tutorial));
         for list in &self.unlocked {
             let bytes: Vec<u8> = list.iter().map(|&u| u8::from(u)).collect();
             h.bytes(&bytes);

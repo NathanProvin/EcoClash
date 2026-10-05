@@ -1,7 +1,8 @@
 // Tutorial (M5a 8b, D-139): a short match on a gentle map against the easy bot, guided by
 // objectives that complete in order. Each step names the control it uses, and a pointer rings
-// that control on screen. It teaches the main loops (spread, layers, unlocks, animals, raids)
-// and keeps some surprises: hunters, recyclers, weather and catastrophes are left to discover.
+// that control on screen. It teaches the main loops (spread, layers, unlocks, animals, breeding,
+// raids and drops) and the predator-prey answer to a raid (D-141); it keeps some surprises:
+// bigger hunters, recyclers, weather and catastrophes are left to discover.
 // Pure: the HUD feeds it what the player has done so far.
 
 import type { MatchSetup } from "./setup";
@@ -30,6 +31,14 @@ export interface TutorialState {
   plants: ReadonlySet<string>;
   /** The player's animals selected now. */
   selected: number;
+  /** Predator-prey loop (D-141): the player's animals born on the map (not called), dropped onto
+   *  enemy land a moment ago, and the animal species it fields. */
+  born: number;
+  airdropped: number;
+  fauna: ReadonlySet<string>;
+  /** Enemy grasshoppers on the map, and whether every raid wave has been sent. */
+  swarm: number;
+  raidOver: boolean;
 }
 
 /** UI elements a step can point at: `data-tour` keys, the first one on screen wins. */
@@ -51,6 +60,14 @@ export interface Objective {
 export const TUTORIAL_GOAL = 0.55;
 /** The land to reach while learning to spread. */
 export const SPREAD_GOAL = 0.04;
+/** Births to wait for while the herd grows at home. */
+export const HERD_BIRTHS = 2;
+/** The step during which the bot raids with grasshopper swarms (the App drives that raid). */
+export const DEFEND_TITLE = "Defend your meadows";
+/** The scripted raid (D-141): a swarm of grasshoppers dropped by the bot onto the player's grass
+ *  every `everyMs`, at most `waves` times; each wave first grants the bot `grant` biomass so it
+ *  always comes (the easy bot spends its bank as it goes). */
+export const RAID = { waves: 6, everyMs: 20_000, grant: 2500 } as const;
 
 const acked = (s: TutorialState, i: number) => s.acked.has(i);
 
@@ -119,14 +136,36 @@ export const OBJECTIVES: Objective[] = [
     done: (s) => s.selected > 0,
   },
   {
+    title: "Grow your herd",
+    text: "Animals breed on your land when they are well fed. Keep your rabbits at home on your grass for a while and watch the herd grow.",
+    tip: "A strong herd at home is the raid you send later.",
+    done: (s) => s.born >= HERD_BIRTHS,
+  },
+  {
     title: "Raid the enemy",
-    text: "With rabbits selected, press A, then click enemy land: they march there and graze it bare, and bare land is free to take.",
+    text: "Select your herd, press A, then click enemy land: they march there and graze it bare, and bare land is free to take.",
     done: (s) => s.onEnemy > 0,
   },
   {
+    title: "Airdrop a raid",
+    text: "You can also drop animals straight into enemy land: pick Rabbits in Grazers and click enemy grass. They land on its food at once, but cost ×1.5.",
+    tip: "The ring under the cursor turns warm when the drop costs more.",
+    point: ["family-H1"],
+    done: (s) => s.airdropped > 0,
+  },
+  {
+    title: DEFEND_TITLE,
+    text: "The enemy is dropping grasshopper swarms on your meadows! Great tits eat them: unlock Elder in Shrubs and plant it (tits nest in shrubs), then unlock Great tit in Insect eaters and drop it onto the swarm.",
+    tip: "Every grazer has a hunter: the tech tree shows who eats whom.",
+    point: ["family-L3", "family-P1"],
+    // Fallback: a bot left without grass cannot raid; then the unlock is enough.
+    done: (s) =>
+      s.fauna.has("great_tit") || (s.unlocked.has("great_tit") && s.raidOver && s.swarm === 0),
+  },
+  {
     title: "Take the land",
-    text: `Grow until you hold ${Math.round(TUTORIAL_GOAL * 100)} % of the map: spread, stack your layers, raid the front.`,
-    tip: "Not everything in this valley eats plants…",
+    text: `Grow until you hold ${Math.round(TUTORIAL_GOAL * 100)} % of the map: spread, stack your layers, raid the front, and hunt the enemy's raiders.`,
+    tip: "Bigger hunters wait higher up the tree…",
     point: ["land"],
     done: (s) => s.owned >= TUTORIAL_GOAL,
   },

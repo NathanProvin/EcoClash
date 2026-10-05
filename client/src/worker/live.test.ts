@@ -131,6 +131,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
   expect(live.result).toBeNull();
   expect(live.droppedAt(1)).toBeDefined(); // ids 1 and 2 were dropped: they parachute in
   expect(live.droppedAt(3)).toBeUndefined();
+  expect([live.wasCalled(2), live.wasCalled(3)]).toEqual([true, false]); // 3 was born (D-141)
   expect(live.meta.series["standing_p1"]?.[live.seriesIndex()]).toBe(5000);
   expect(live.meta.series["t_s"]?.[live.seriesIndex()]).toBeCloseTo(0.8);
   expect([...live.unlocked(1)]).toEqual(["grasses", "rabbits"]);

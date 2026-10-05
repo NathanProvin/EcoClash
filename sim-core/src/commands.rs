@@ -36,6 +36,9 @@ pub enum Payload {
     /// Play a catastrophe card (D-129) centred on a cell; `kind` is its name in
     /// `[catastrophes.*]`.
     Catastrophe { kind: String, row: u32, col: u32 },
+    /// Tutorial only (D-141): add `amount` biomass to the player's bank, so the scripted raid of
+    /// the tutorial always happens. Refused in any match not set up as a tutorial.
+    Grant { amount: u32 },
 }
 
 /// What an order asks (gamerules §9.2).

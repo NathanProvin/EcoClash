@@ -132,12 +132,14 @@ async function begin(
   sandbox: boolean,
   bot: string,
   relay: string | undefined,
+  tutorial: boolean,
 ) {
   await init({ module_or_path: wasmUrl });
   const room = relay ? await join(relay) : undefined;
   if (room) [seed, sandbox, bot] = [room.seed, false, "none"]; // both peers: the relay's seed
   const s = new Sim(balance, species, BigInt(seed), size);
   s.setSandbox(sandbox);
+  s.setTutorial(tutorial && !room); // never in a lockstep match (D-141)
   s.generateTerrain(); // this match's map, from its seed (D-083)
   if (bot !== "none") s.addBot(2, bot); // the scripted opponent plays P2 (D-060)
   // No starting land (D-095): each player's first planting, anywhere, is their spawn.
@@ -172,7 +174,7 @@ async function begin(
 onmessage = (e: MessageEvent<ToWorker>) => {
   const m = e.data;
   if (m.type === "start") {
-    begin(m.seed, m.size, m.sandbox, m.bot, m.relay).catch((err: unknown) =>
+    begin(m.seed, m.size, m.sandbox, m.bot, m.relay, m.tutorial ?? false).catch((err: unknown) =>
       post({ type: "error", message: String(err) }),
     );
   } else if (m.type === "pause") {

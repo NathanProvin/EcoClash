@@ -11,8 +11,8 @@
   import { loadSetup, MAP_SIZES, saveSetup, withUrl } from "./game/setup";
   import { ALL_TIPS, loadSeen, saveSeen, TIPS, TipWatch } from "./game/tips";
   import { CATASTROPHE_LOOK } from "./game/catastrophes";
-  import { advance, OBJECTIVES, TUTORIAL_SETUP } from "./game/tutorial";
-  import { loadReplay, type Role, type Source, type Species } from "./replay/replay";
+  import { advance, DEFEND_TITLE, OBJECTIVES, RAID, TUTORIAL_SETUP } from "./game/tutorial";
+  import { loadReplay, type Fields, type Role, type Source, type Species } from "./replay/replay";
   import { Live, type Outcome } from "./worker/live";
   import {
     FrontWatch,
@@ -107,6 +107,9 @@
   /** Tutorial (D-139): explanation steps the player clicked Next on; the tech tree opened. */
   let acked = new SvelteSet<number>();
   let techSeen = false;
+  /** The tutorial's scripted grasshopper raid (D-141): waves sent, and when the next one comes. */
+  let raidWaves = 0;
+  let raidNext = 0;
   $effect(() => {
     if (techOpen) techSeen = true;
   });
@@ -285,6 +288,18 @@
         (top, level, i) => ((cells[i] ?? 0) > 0 ? Math.max(top, level) : top),
         0,
       );
+      // Predator-prey loop (D-141): births (animals no spawn order brought), drops that landed on
+      // enemy land a moment ago, and the animal species the player fields.
+      const born = mine.filter((a) => !l.wasCalled(a.id)).length;
+      const airdropped = mine.filter(
+        (a) =>
+          l.droppedAt(a.id) !== undefined &&
+          fields.owner[Math.floor(a.y) * n + Math.floor(a.x)] === 3 - me,
+      ).length;
+      const held = new Set(
+        v.visibleAnimals().flatMap((a) => (a.owner === me ? [fauna[a.species]?.name ?? ""] : [])),
+      );
+      if (OBJECTIVES[tutorialStep]?.title === DEFEND_TITLE) raid(l, fields, now);
       const step = advance(tutorialStep, {
         owned: share[me - 1] ?? 0,
         unlocked,
@@ -296,6 +311,13 @@
         layer,
         plants: new Set(l.meta.flora.names.filter((_, i) => (cells[i] ?? 0) > 0)),
         selected: selection.size,
+        born,
+        airdropped,
+        fauna: held,
+        swarm: v
+          .visibleAnimals()
+          .filter((a) => a.owner === 3 - me && fauna[a.species]?.name === "grasshoppers").length,
+        raidOver: raidWaves >= RAID.waves,
       });
       if (step !== tutorialStep) {
         tutorialStep = step;
@@ -311,6 +333,34 @@
       raided,
     });
     if (tip) toast(tip, "tip");
+  }
+
+  /** The tutorial's scripted raid (D-141): the bot drops a grasshopper swarm onto the player's
+   *  grass nearest its own land, a wave every RAID.everyMs. The bot's commands go through the same
+   *  queue as anyone's; the grant keeps them affordable (refused outside the tutorial). */
+  function raid(l: Live, fields: Fields, now: number) {
+    if (raidWaves >= RAID.waves || now < raidNext) return;
+    const n = l.meta.n;
+    const grass = fields.species[l.meta.flora.names.indexOf("grasses")];
+    const enemy: number[] = [];
+    fields.owner.forEach((o, k) => o === 3 - me && enemy.push(k));
+    let best = -1;
+    let bestD = Infinity;
+    fields.owner.forEach((o, k) => {
+      if (o !== me || !grass?.[k]) return;
+      const [r, c] = [Math.floor(k / n), k % n];
+      for (const e of enemy) {
+        const d = (Math.floor(e / n) - r) ** 2 + ((e % n) - c) ** 2;
+        if (d < bestD) [best, bestD] = [k, d];
+      }
+    });
+    if (best < 0) return; // no grass of yours to raid yet
+    const bot = (3 - me) as 1 | 2;
+    raidNext = now + RAID.everyMs;
+    raidWaves++;
+    l.grant(bot, RAID.grant);
+    if (!l.unlocked(bot).has("grasshoppers")) l.unlock(bot, "grasshoppers");
+    l.spawn(bot, "grasshoppers", Math.floor(best / n), best % n);
   }
 
   /** Arrows at the screen edge toward pings out of view. */
@@ -475,7 +525,7 @@
         const s = tutorial ? TUTORIAL_SETUP : withUrl(setup, location.search);
         // ?size=N wins (tools); a lockstep match uses the balance grid, the same for both peers.
         const size = relay ? 0 : Number(q.get("size") ?? MAP_SIZES[s.map]);
-        live = await Live.start(s.seed, size, s.sandbox, s.bot, relay);
+        live = await Live.start(s.seed, size, s.sandbox, s.bot, relay, tutorial);
         joining = false;
         player = live.me; // view your own side
         replay = live;
@@ -670,6 +720,8 @@
     tutorialStep = 0;
     acked = new SvelteSet();
     techSeen = false;
+    raidWaves = 0;
+    raidNext = 0;
     raidOrdered = false;
     if (!asTutorial) saveSetup(setup);
     inMenu = false;

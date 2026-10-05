@@ -314,6 +314,13 @@ impl World {
                     self.notices.push((c.player, format!("{species}: {why}")));
                 }
             }
+            Payload::Grant { amount } => {
+                if !self.economy.tutorial || !valid_player {
+                    self.rejected += 1;
+                    return;
+                }
+                self.economy.bank[usize::from(c.player) - 1] += i64::from(*amount) * i64::from(ONE);
+            }
             Payload::Order {
                 ids,
                 kind,
@@ -385,7 +392,9 @@ impl World {
                 tick,
             })
         };
-        if t[usize::from(top - 1)] * i64::from(ONE) >= threshold * n2 {
+        // The tutorial (D-141) never ends on territory: its objectives end it, and the bot must stay
+        // alive to raid the player.
+        if !self.economy.tutorial && t[usize::from(top - 1)] * i64::from(ONE) >= threshold * n2 {
             return outcome(top, Reason::Territory);
         }
         if tick < v.limit {
@@ -435,6 +444,12 @@ impl World {
     /// first tick; it is part of the state hash, so peers must agree on it.
     pub fn set_sandbox(&mut self, on: bool) {
         self.economy.sandbox = on;
+    }
+
+    /// The tutorial match (D-141): it accepts `Grant` commands. Set it before the first tick; it is
+    /// part of the state hash.
+    pub fn set_tutorial(&mut self, on: bool) {
+        self.economy.tutorial = on;
     }
 
     /// Why recent orders did nothing, oldest first; the list is emptied.
@@ -1011,6 +1026,48 @@ mod tests {
                 "fish stay in water"
             );
         }
+    }
+
+    /// D-141: a grant adds to the bank in the tutorial only; any other match refuses it.
+    #[test]
+    fn grants_only_in_the_tutorial() {
+        let grant = |tick| Command {
+            tick,
+            player: 2,
+            seq: 0,
+            payload: Payload::Grant { amount: 500 },
+        };
+        let mut w = World::new(&balance(), 1, 8);
+        let bank = w.economy.bank[1];
+        w.submit(grant(0));
+        w.step();
+        assert_eq!(
+            (w.economy.bank[1], w.rejected),
+            (bank, 1),
+            "refused outside the tutorial"
+        );
+        let mut w = World::new(&balance(), 1, 8);
+        w.set_tutorial(true);
+        w.submit(grant(0));
+        w.step();
+        assert!(w.economy.bank[1] >= bank + 500 * i64::from(ONE), "granted");
+    }
+
+    /// D-141: the tutorial never ends on territory, even with the whole map held.
+    #[test]
+    fn the_tutorial_never_ends_on_territory() {
+        let mut w = World::new(&balance(), 1, 20);
+        w.set_tutorial(true);
+        w.set_sandbox(true);
+        let cells: Vec<usize> = (0..400).collect();
+        let g = w.flora.p.index("grasses").unwrap();
+        w.flora.p.cap[g] = i64::from(ONE);
+        w.flora.plant(&mut w.state, 1, g, &cells);
+        for _ in 0..3 * u64::from(balance().sim.flora_every_ticks) {
+            w.step();
+        }
+        assert_eq!(w.territory()[0], 400);
+        assert!(w.result.is_none());
     }
 
     /// D-135: the overlays read shade under a canopy (none in the open) and full moisture on

@@ -78,6 +78,12 @@ impl Sim {
     }
 
     /// A sandbox match: every species unlocked and free (D-058). Call it before the first step.
+    /// The tutorial match (D-141): it accepts grant commands. Before the first step.
+    #[wasm_bindgen(js_name = setTutorial)]
+    pub fn set_tutorial(&mut self, on: bool) {
+        self.world.set_tutorial(on);
+    }
+
     #[wasm_bindgen(js_name = setSandbox)]
     pub fn set_sandbox(&mut self, on: bool) {
         self.world.set_sandbox(on);

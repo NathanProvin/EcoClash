@@ -1602,3 +1602,17 @@ Template:
   - The species table comes from `sim-wasm` on the main thread, loaded on demand, so it reads the same data files as a match.
   - Esc or Close returns to the menu.
 - **Consequences:** the legend still names the in-match marks (enemy, counters), which never show on this page. Left as is (user: no need to work much on it).
+
+## D-141 · 2026-10-05 · Tutorial: breeding, airdrops, and a raid answered by a hunter
+- **Status:** accepted (user: teach breeding then the attack, the ×1.5 airdrop, and a bot raid with grasshoppers answered by great tits)
+- **Decision:**
+  - New tutorial steps: grow your herd (2 births), raid (A + click), airdrop a raid (×1.5), defend your meadows.
+  - During the defend step, the client sends the bot's commands: grasshoppers dropped on the player's grass every 20 s, 6 waves, each with a grant.
+  - `Payload::Grant` is accepted only in a tutorial match (`World::set_tutorial`, hashed, never with a relay). The tutorial never ends on territory.
+  - Great tits now also eat grasshoppers.
+  - `Live.wasCalled` tells called animals from born ones.
+  - The defend step also completes if the bot cannot raid: Great tit unlocked, waves spent, no swarm on the map.
+- **Consequences:**
+  - Rust tests: a grant only in the tutorial; no territory win there.
+  - TS tests: the step order and the defend fallback.
+  - The browser run reached the raid step. The airdrop and defend steps were not checked in the browser yet.

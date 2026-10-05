@@ -26,6 +26,7 @@ export type ToWorker =
       sandbox: boolean;
       bot: string;
       relay?: string; // a lockstep relay's URL (D-062)
+      tutorial?: boolean; // the tutorial match: it accepts grant commands (D-141)
     }
   | { type: "pause"; paused: boolean }
   | { type: "speed"; speed: number }
@@ -206,6 +207,7 @@ export class Live implements Source {
     sandbox = false,
     bot = "none",
     relay?: string,
+    tutorial = false,
   ): Promise<Live> {
     const worker = new Worker(new URL("./sim.worker.ts", import.meta.url), { type: "module" });
     return new Promise((resolve, reject) => {
@@ -214,7 +216,15 @@ export class Live implements Source {
         else if (e.data.type === "error") reject(new Error(e.data.message));
       };
       worker.onerror = (e) => reject(new Error(`sim worker: ${e.message}`));
-      worker.postMessage({ type: "start", seed, size, sandbox, bot, relay } satisfies ToWorker);
+      worker.postMessage({
+        type: "start",
+        seed,
+        size,
+        sandbox,
+        bot,
+        relay,
+        tutorial,
+      } satisfies ToWorker);
     });
   }
 
@@ -239,6 +249,11 @@ export class Live implements Source {
    *  while it cools down or when the bank is short. */
   catastrophe(player: 1 | 2, kind: string, row: number, col: number): void {
     this.send({ type: "command", player, payload: { type: "catastrophe", kind, row, col } });
+  }
+
+  /** Tutorial only (D-141): add biomass to a player's bank; the sim refuses it elsewhere. */
+  grant(player: 1 | 2, amount: number): void {
+    this.send({ type: "command", player, payload: { type: "grant", amount } });
   }
 
   /** Catastrophes cast since the last call (both players'), for the animations. */
@@ -327,12 +342,23 @@ export class Live implements Source {
   /** When each recently dropped animal landed on the map (ms, performance.now), by id (D-080). */
   private readonly dropped = new Map<number, number>();
 
+  /** Every animal brought by a spawn order this match: the others were born (D-141). */
+  private readonly called = new Set<number>();
+
   private noteDrops(pairs: readonly number[], at: number): void {
     for (let i = 0; i + 1 < pairs.length; i += 2) {
       const [first, count] = [pairs[i] ?? 0, pairs[i + 1] ?? 0];
-      for (let id = first; id < first + count; id++) this.dropped.set(id, at);
+      for (let id = first; id < first + count; id++) {
+        this.dropped.set(id, at);
+        this.called.add(id);
+      }
     }
     for (const [id, t] of this.dropped) if (at - t > DROP_MEMORY_MS) this.dropped.delete(id);
+  }
+
+  /** Whether animal `id` came from a spawn order (else it was born on the map). */
+  wasCalled(id: number): boolean {
+    return this.called.has(id);
   }
 
   /** When animal `id` was dropped (ms, performance.now), if it was dropped a moment ago. */

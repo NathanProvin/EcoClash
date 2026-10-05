@@ -53,7 +53,13 @@ export interface Part {
 /** How plant models look: the meshes it draws with, and the parts of one model. */
 export interface PlantStyle {
   /** Geometry, roughness and the most instances one model uses, per model stratum (STRATA). */
-  meshes: { geometry: THREE.BufferGeometry; roughness: number; perModel: number[] }[];
+  meshes: {
+    geometry: THREE.BufferGeometry;
+    roughness: number;
+    perModel: number[];
+    /** Draw both faces (thin leaves built one-sided, D-151). */
+    side?: "double";
+  }[];
   /** The parts of model `m` (world centre x, z) of model stratum `stratum` for species `name`. */
   parts(stratum: Stratum, m: Placement, x: number, z: number, name: string): Part[];
 }
@@ -76,8 +82,8 @@ const TREE_LIMBS = 3;
 const BEECH_BARK = "#8d8a82";
 /** Undergrowth shapes (D-150): fronds per fern (length and height x the clump radius); nettle
  *  stems (height x the radius); bramble canes (length x the radius) and their colour. */
-const FERN = { fronds: 6, length: 1.15, height: 0.9 } as const;
-const NETTLE_STEMS = { least: 5, most: 7, height: 2.1 } as const;
+const FERN = { fronds: 5, length: 1.2, height: 0.9 } as const;
+const NETTLE_STEMS = { least: 4, most: 6, height: 2.1 } as const;
 const BRAMBLE = { canes: 4, length: 1.5, color: "#6e3b4a" } as const;
 
 /** Blob sizes beyond the first one, relative to the main blob, and their spread. */
@@ -121,8 +127,18 @@ export class LowPolyPlants implements PlantStyle {
     { geometry: lumpGeometry(1), roughness: 0.8, perModel: [0, 0, TREE_LUMPS, 0] },
     { geometry: limbGeometry(), roughness: 0.95, perModel: [0, 0, TREE_LIMBS, 0] },
     // Undergrowth by species (D-150): fern fronds, nettle stems, bramble canes.
-    { geometry: frondGeometry(), roughness: 0.85, perModel: [FERN.fronds, 0, 0, 0] },
-    { geometry: nettleGeometry(), roughness: 0.9, perModel: [NETTLE_STEMS.most, 0, 0, 0] },
+    {
+      geometry: frondGeometry(),
+      roughness: 0.85,
+      perModel: [FERN.fronds, 0, 0, 0],
+      side: "double",
+    },
+    {
+      geometry: nettleGeometry(),
+      roughness: 0.9,
+      perModel: [NETTLE_STEMS.most, 0, 0, 0],
+      side: "double",
+    },
     { geometry: caneGeometry(), roughness: 0.8, perModel: [BRAMBLE.canes, 0, 0, 0] },
   ] satisfies PlantStyle["meshes"];
   private readonly head = new THREE.Color(CATTAIL_HEAD);
@@ -431,6 +447,7 @@ export class PlantView {
       const material = new THREE.MeshStandardNodeMaterial({
         roughness: s.roughness,
         flatShading: true,
+        side: s.side === "double" ? THREE.DoubleSide : THREE.FrontSide,
       });
       material.emissiveNode = rim;
       const g = new GrowingMesh<number>(s.geometry, capacity, material, now, SWAY);

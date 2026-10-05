@@ -28,12 +28,12 @@ export function limbGeometry(): THREE.BufferGeometry {
   return new THREE.CylinderGeometry(0.035, 0.07, 1, 5).translate(0, 0.5, 0).rotateZ(-0.75);
 }
 
-/** Flat quads (x0, z0) to (x1, z1) laid along a frond, both faces, as triangles. */
+/** Flat quads, one face each: their meshes draw both sides (`side: "double"`, D-151). */
 function quads(corners: [number, number, number][][]): THREE.BufferGeometry {
   const v: number[] = [];
   for (const [a, b, c, d] of corners) {
     if (!a || !b || !c || !d) continue;
-    for (const t of [a, b, c, a, c, d, a, c, b, a, d, c]) v.push(...(t as number[]));
+    for (const t of [a, b, c, a, c, d]) v.push(...(t as number[]));
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(v, 3));
@@ -42,7 +42,7 @@ function quads(corners: [number, number, number][][]): THREE.BufferGeometry {
 }
 
 /** Fern frond leaflets (pairs) and how high the frond arches (unit length). */
-export const FROND = { steps: 6, rise: 0.45, width: 0.22 } as const;
+export const FROND = { steps: 5, rise: 0.45, width: 0.24 } as const;
 
 /** A fern frond: a strip arching out along +x and down, edged with square leaflets that shrink
  *  toward the tip, a blocky, pixel-like outline (the user's "Minecraft fern"). */
@@ -68,7 +68,7 @@ export function frondGeometry(): THREE.BufferGeometry {
 }
 
 /** Nettle leaf pairs up a stem: heights (of 1), leaf length and width. */
-const NETTLE = { leaves: [0.38, 0.6, 0.8], length: 0.17, width: 0.07, stem: 0.018 } as const;
+const NETTLE = { leaves: [0.45, 0.75], length: 0.19, width: 0.08, stem: 0.018 } as const;
 
 /** A nettle stem one unit tall, straight up, with pairs of pointed leaves, each pair turned a
  *  quarter from the one below. */
@@ -95,7 +95,7 @@ export function nettleGeometry(): THREE.BufferGeometry {
       ]);
     }
   });
-  const stem = new THREE.CylinderGeometry(NETTLE.stem * 0.6, NETTLE.stem, 1, 4)
+  const stem = new THREE.CylinderGeometry(NETTLE.stem * 0.6, NETTLE.stem, 1, 3, 1, true)
     .translate(0, 0.5, 0)
     .toNonIndexed();
   stem.deleteAttribute("uv");

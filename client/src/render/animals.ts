@@ -179,7 +179,6 @@ export class AnimalView {
     this.bodies = this.forms.map((form, i) => {
       const motion = this.motions[i];
       if (!motion) return undefined;
-      motion.setUsage(THREE.DynamicDrawUsage);
       const g = animalGeometry(form);
       g.setAttribute("motion", motion);
       const mesh = instanced(scene, g, capacity, material);
@@ -371,9 +370,8 @@ function instanced(
 ): THREE.InstancedMesh {
   const n = Math.max(count, 1);
   const mesh = new THREE.InstancedMesh(geometry, material, n);
-  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  // Static usage (D-149): uploaded when marked, once a frame, not on every render pass.
   mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3);
-  mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
   mesh.frustumCulled = false;
   mesh.count = 0;
   scene.add(mesh);

@@ -181,6 +181,8 @@ onmessage = (e: MessageEvent<ToWorker>) => {
     paused = m.paused;
   } else if (m.type === "speed") {
     speed = m.speed;
+  } else if (m.type === "bot") {
+    if (!net) sim?.addBot(m.player, m.level);
   } else if (net) {
     net.queue(m.payload); // relayed: goes out in this player's next turn
   } else if (sim) {

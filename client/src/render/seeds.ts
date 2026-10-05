@@ -57,7 +57,6 @@ export class SeedBurst {
       new THREE.MeshBasicNodeMaterial(), // flat colour: tiny lit facets read as dark specks
       SEEDS.capacity,
     );
-    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.instanceColor = new THREE.InstancedBufferAttribute(
       new Float32Array(SEEDS.capacity * 3),
       3,

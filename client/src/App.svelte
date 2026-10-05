@@ -60,7 +60,10 @@
   const LIVE = "live match";
   let viewer: Viewer | undefined;
   let error = $state("");
+  // The HUD's tick: whole ticks only, so the bars re-render at the sim's 10 Hz, not every frame
+  // (D-149). The renderer reads the fractional `frameTick`, which animals glide on.
   let tick = $state(0);
+  let frameTick = 0;
   let playing = $state(true);
   let speed = $state(4);
   let player: 1 | 2 = $state(1); // the viewed player
@@ -449,8 +452,9 @@
   function frame(now: number) {
     const r = replay;
     const seconds = Math.min((now - last) / 1000, 0.1);
+    if (Math.floor(frameTick) !== tick) frameTick = tick; // a seek on the timeline, or a reset
     if (live) {
-      tick = live.renderTick(now); // between the last two animal frames: animals glide
+      frameTick = live.renderTick(now); // between the last two animal frames: animals glide
       simMs = live.simMs;
       if (live.error) error = live.error;
       if (live.netProblem) error = live.netProblem;
@@ -482,8 +486,8 @@
       if (live) {
         // the worker keeps time
       } else if (playing) {
-        tick = Math.min(tick + (seconds / r.meta.dt) * speed, r.meta.ticks - 1);
-        if (tick >= r.meta.ticks - 1) playing = false;
+        frameTick = Math.min(frameTick + (seconds / r.meta.dt) * speed, r.meta.ticks - 1);
+        if (frameTick >= r.meta.ticks - 1) playing = false;
       }
       if (!techOpen) viewer.moveCamera(keys, seconds);
       if (live) {
@@ -496,7 +500,8 @@
           if (e.player !== me) toast(`Enemy ${label(c.name).toLowerCase()}!`, "alert", at, 2);
         }
       }
-      viewer.render(tick);
+      if (Math.floor(frameTick) !== tick) tick = Math.floor(frameTick);
+      viewer.render(frameTick);
     }
     perfFrames++;
     perfWorst = Math.max(perfWorst, now - last);

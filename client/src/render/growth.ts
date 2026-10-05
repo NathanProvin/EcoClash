@@ -12,7 +12,7 @@ import {
   clamp,
   cos,
   dot,
-  instancedDynamicBufferAttribute,
+  instancedBufferAttribute,
   mix,
   mx_noise_float,
   positionLocal,
@@ -94,9 +94,11 @@ export class GrowingMesh<K> {
   private readonly at = new Map<K, number>(); // key -> instance index
   private readonly keys: K[] = []; // instance index -> key
   private readonly dying = new Map<K, number>(); // key -> time it can be freed
-  private readonly root: THREE.InstancedBufferAttribute; // x, 0, z
-  private readonly grow: THREE.InstancedBufferAttribute; // start, from, to
-  private readonly fall: THREE.InstancedBufferAttribute; // fall start, direction (D-128)
+  // Static buffers, uploaded only when `update` marks them (D-149): three re-uploads every
+  // DynamicDrawUsage buffer in full on every render pass, which cost ~23 ms a frame late game.
+  private readonly root: THREE.InstancedInterleavedBuffer; // x, 0, z
+  private readonly grow: THREE.InstancedInterleavedBuffer; // start, from, to
+  private readonly fall: THREE.InstancedInterleavedBuffer; // fall start, direction (D-128)
   private readonly width: Float32Array; // the pose's `w`, to resize from the current size
   private readonly m = new Float32Array(16);
   private dirty = false;
@@ -112,27 +114,22 @@ export class GrowingMesh<K> {
   ) {
     const n = Math.max(capacity, 1);
     this.mesh = new THREE.InstancedMesh(geometry, material, n);
-    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3);
-    this.mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
     this.mesh.frustumCulled = false;
     this.mesh.count = 0;
-    this.root = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3);
-    this.grow = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3);
-    this.fall = new THREE.InstancedBufferAttribute(new Float32Array(n * 2).fill(STANDING), 2);
+    this.root = new THREE.InstancedInterleavedBuffer(new Float32Array(n * 3), 3);
+    this.grow = new THREE.InstancedInterleavedBuffer(new Float32Array(n * 3), 3);
+    this.fall = new THREE.InstancedInterleavedBuffer(new Float32Array(n * 2).fill(STANDING), 2);
     this.width = new Float32Array(n);
-    for (const a of [this.root, this.grow, this.fall]) a.setUsage(THREE.DynamicDrawUsage);
     // positionLocal is already instanced here (NodeMaterial.setupPosition): scale around root.
     // The attribute helper is typed Node<string>: name its vec3 type for the arithmetic below.
-    const attr = (a: THREE.InstancedBufferAttribute) =>
-      instancedDynamicBufferAttribute(a, "vec3") as unknown as ReturnType<typeof vec3>;
+    const attr = (a: THREE.InstancedInterleavedBuffer) =>
+      instancedBufferAttribute(a, "vec3") as unknown as ReturnType<typeof vec3>;
     const [root, g] = [attr(this.root), attr(this.grow)];
     const k = smoothstep(0, 1, clamp(now.sub(g.x).div(GROW_S), 0, 1));
     const sized = positionLocal.sub(root).mul(mix(g.y, g.z, k));
     // A felled tree (D-128) tilts about its root toward `dir`, accelerating (see `fallen`).
-    const f = instancedDynamicBufferAttribute(this.fall, "vec2") as unknown as ReturnType<
-      typeof vec2
-    >;
+    const f = instancedBufferAttribute(this.fall, "vec2") as unknown as ReturnType<typeof vec2>;
     const kf = clamp(now.sub(f.x).div(FALL_S), 0, 1);
     const theta = kf.mul(kf).mul(Math.PI / 2);
     const dir = vec2(cos(f.y), sin(f.y));
@@ -252,7 +249,7 @@ export class GrowingMesh<K> {
     if (i === undefined) return;
     const last = this.keys.length - 1;
     if (i !== last) {
-      const move = (a: THREE.BufferAttribute | null | undefined, size: number) => {
+      const move = (a: { array: ArrayLike<number> } | null | undefined, size: number) => {
         const v = a?.array as Float32Array | undefined;
         v?.copyWithin(i * size, last * size, last * size + size);
       };

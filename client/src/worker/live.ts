@@ -30,6 +30,7 @@ export type ToWorker =
     }
   | { type: "pause"; paused: boolean }
   | { type: "speed"; speed: number }
+  | { type: "bot"; player: 1 | 2; level: string } // hand a player to a bot (dev: profiling, D-149)
   | { type: "command"; player: 1 | 2; payload: object };
 
 export type ToMain =

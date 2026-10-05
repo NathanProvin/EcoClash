@@ -1755,3 +1755,24 @@ Template:
     Units at 10 min 14 (was 7); land 37 % at 5 min.
   - Hard beats normal in 46 of 52 decided matches (88 %), and normal beats easy in 18 of 20. Hard at 1.75 or 1.85 income gave only about 58 %, so the step is steep around 2.0.
 - New bench markers: first raid, land at 5 and 10 min.
+
+## D-149 · 2026-10-05 · Performance: static instance buffers, a 10 Hz HUD tick
+- **Status:** accepted (user playtest: about 30 fps on Medium, mid to late game)
+- **Diagnosis** (Large map, hard vs hard at 22 min, Medium, Chromium, WebGPU; 20 000 plant and animal instances; about 1.2 M triangles):
+  - `viewer.render` took 27.7 ms of CPU (p90 44 ms), which caps the game near 30 fps.
+  - Our own frame work took about 3.5 ms; `renderer.render` took 26 ms, of which `backend.updateAttribute` took 23 ms.
+  - Cause: three.js r186 (`renderers/common/Attributes.js`) re-uploads every `DynamicDrawUsage` attribute in full on every render pass, changed or not. Every plant, animal and seed instance buffer was dynamic, so it uploaded twice a frame (main and shadow pass).
+- **Fix:**
+  - Instance buffers use static usage; three uploads them when their version changes, and only the marked ranges.
+  - `GrowingMesh`'s custom attributes (root, grow, fall) are our own `InstancedInterleavedBuffer`s, fed to the static TSL `instancedBufferAttribute`, so `needsUpdate` reaches the GPU copy.
+- **Result:** same state, CPU render 3.4 ms median (5.0 p90); uploads 0.13 ms a frame. The GPU side is not measured here (the test tab is in the background); the user confirms on the reference laptop.
+- **Also:**
+  - The HUD's `tick` is now a whole tick, updated at the sim's 10 Hz, while the renderer reads a fractional `frameTick`. TopBar, BottomBar and TechTree no longer re-render every frame.
+  - New dev message `{ type: "bot", player, level }` hands a player to a bot (profiling a late game: `ecoLive.send` with speed 8).
+- **Next strategies if the GPU is the limit** (not built):
+  - shadow refresh every 4th frame on Medium, trees and rocks only;
+  - plant LOD or impostors for far trees;
+  - a lower resolution cap on Medium (1.25);
+  - GPU culling per chunk;
+  - moving `paintFields` into the worker;
+  - chunk-level dirty updates for plants.

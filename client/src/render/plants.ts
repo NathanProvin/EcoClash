@@ -33,6 +33,7 @@ import {
   type Stratum,
 } from "./layout";
 import { WORLD } from "./palette";
+import { caneGeometry, frondGeometry, limbGeometry, lumpGeometry, nettleGeometry } from "./shapes";
 
 /** One instanced part of a model: which of the style's meshes, where, how big, which colour. */
 export interface Part {
@@ -64,6 +65,17 @@ const REED = { stems: 5, height: 4.5, radius: 0.05 } as const;
 const CATTAIL = { stems: 7, height: 3.2, radius: 0.035, head: 0.32, headR: 0.07 } as const;
 const CATTAIL_HEAD = "#6b4a2e";
 
+/** Tree crowns (D-150): lumps and limbs per tree at most. */
+const TREE_LUMPS = 6;
+const TREE_LIMBS = 3;
+/** Beech: a smooth grey trunk. */
+const BEECH_BARK = "#8d8a82";
+/** Undergrowth shapes (D-150): fronds per fern (length and height x the clump radius); nettle
+ *  stems (height x the radius); bramble canes (length x the radius) and their colour. */
+const FERN = { fronds: 7, length: 1.15, height: 0.9 } as const;
+const NETTLE_STEMS = { least: 6, most: 9, height: 2.1 } as const;
+const BRAMBLE = { canes: 5, length: 1.5, color: "#6e3b4a" } as const;
+
 /** Blob sizes beyond the first one, relative to the main blob, and their spread. */
 const BLOB = { size: 0.62, spread: 0.5 } as const;
 
@@ -72,9 +84,9 @@ export class LowPolyPlants implements PlantStyle {
   private readonly bark = new THREE.Color(WORLD.trunk);
   readonly meshes = [
     { geometry: new THREE.IcosahedronGeometry(1, 1), roughness: 0.85, perModel: [0, 3, 0, 0] },
-    { geometry: new THREE.IcosahedronGeometry(1, 1), roughness: 0.8, perModel: [0, 0, 3, 0] },
+    { geometry: lumpGeometry(0), roughness: 0.8, perModel: [0, 0, TREE_LUMPS, 0] },
     {
-      geometry: new THREE.CylinderGeometry(0.65, 1, 1, 6).translate(0, 0.5, 0),
+      geometry: new THREE.CylinderGeometry(0.65, 1, 1, 8).translate(0, 0.5, 0),
       roughness: 0.95,
       perModel: [0, 0, 1, 0],
     },
@@ -101,8 +113,17 @@ export class LowPolyPlants implements PlantStyle {
       roughness: 0.95,
       perModel: [0, CATTAIL.stems, 0, 0],
     },
+    // Trees by species (D-150): a second crown lump shape, and limbs.
+    { geometry: lumpGeometry(1), roughness: 0.8, perModel: [0, 0, TREE_LUMPS, 0] },
+    { geometry: limbGeometry(), roughness: 0.95, perModel: [0, 0, TREE_LIMBS, 0] },
+    // Undergrowth by species (D-150): fern fronds, nettle stems, bramble canes.
+    { geometry: frondGeometry(), roughness: 0.85, perModel: [FERN.fronds, 0, 0, 0] },
+    { geometry: nettleGeometry(), roughness: 0.9, perModel: [NETTLE_STEMS.most, 0, 0, 0] },
+    { geometry: caneGeometry(), roughness: 0.8, perModel: [BRAMBLE.canes, 0, 0, 0] },
   ] satisfies PlantStyle["meshes"];
   private readonly head = new THREE.Color(CATTAIL_HEAD);
+  private readonly beechBark = new THREE.Color(BEECH_BARK);
+  private readonly cane = new THREE.Color(BRAMBLE.color);
 
   parts(stratum: Stratum, m: Placement, x: number, z: number, name: string): Part[] {
     const form = formOf(name);
@@ -124,6 +145,50 @@ export class LowPolyPlants implements PlantStyle {
         const [sx, sz] = [x + Math.cos(a) * d, z + Math.sin(a) * d];
         const shade = 0.85 + 0.25 * rand(i + 3, salt);
         out.push({ mesh: 4, x: sx, y: 0, z: sz, w: REED.radius, h, angle: a, shade });
+      }
+      return out;
+    }
+    if (stratum === "low" && name === "ferns") {
+      for (let i = 0; i < FERN.fronds; i++) {
+        const a = m.angle + (i * Math.PI * 2) / FERN.fronds + 0.4 * (rand(i, salt) - 0.5);
+        const len = r * FERN.length * (0.75 + 0.35 * rand(i + 5, salt));
+        const shade = i % 2 ? 0.8 : 1.05; // two greens alternating
+        out.push({ mesh: 10, x, y: 0, z, w: len, h: len * FERN.height, angle: a, shade });
+      }
+      return out;
+    }
+    if (stratum === "low" && name === "nettle") {
+      const extra = NETTLE_STEMS.most - NETTLE_STEMS.least + 1;
+      const stems = NETTLE_STEMS.least + Math.floor(m.seed * extra);
+      for (let i = 0; i < stems; i++) {
+        const a = (i * 2.4 + m.angle) % (Math.PI * 2); // golden-angle spiral: a tight brush
+        const d = r * 0.45 * Math.sqrt((i + 0.5) / stems);
+        const h = r * NETTLE_STEMS.height * (0.75 + 0.3 * rand(i, salt));
+        const [sx, sz] = [x + Math.cos(a) * d, z + Math.sin(a) * d];
+        const shade = 0.8 + 0.25 * rand(i + 3, salt);
+        out.push({ mesh: 11, x: sx, y: 0, z: sz, w: h, h, angle: a * 3, shade });
+      }
+      return out;
+    }
+    if (stratum === "low" && name === "bramble") {
+      const [w, h] = [r * form.w * 0.8, r * form.h * 0.8];
+      out.push({ mesh: 3, x, y: h * 0.4, z, w, h, angle: m.angle, shade: 0.7 + 0.15 * m.seed });
+      for (let i = 0; i < BRAMBLE.canes; i++) {
+        const a = m.angle + (i * Math.PI * 2) / BRAMBLE.canes + 0.5 * (rand(i, salt) - 0.5);
+        const len = r * BRAMBLE.length * (0.7 + 0.4 * rand(i + 5, salt));
+        // From near the mound centre, arching out over it.
+        const [cx, cz] = [x - Math.cos(a) * r * 0.3, z - Math.sin(a) * r * 0.3];
+        out.push({
+          mesh: 12,
+          x: cx,
+          y: 0,
+          z: cz,
+          w: len,
+          h: len,
+          angle: a,
+          shade: 1,
+          color: this.cane,
+        });
       }
       return out;
     }
@@ -165,6 +230,7 @@ export class LowPolyPlants implements PlantStyle {
       }
       return out;
     }
+    if (name === "oak" || name === "chestnut" || name === "beech") return this.tree(name, m, x, z);
     const grown = (r - TREE.min) / (TREE.max - TREE.min);
     const trunk = TREE.trunkMin + (TREE.trunkMax - TREE.trunkMin) * (0.6 * grown + 0.4 * m.seed);
     const [cw, ch] = [r * form.w, r * form.h];
@@ -200,19 +266,124 @@ export class LowPolyPlants implements PlantStyle {
     }
     return out;
   }
+
+  /** A tree of a species with a silhouette (D-150): trunk, limbs and a lumpy crown, varied by
+   *  the model's slot seed (lean, limb count, lump layout and sizes). */
+  private tree(name: keyof typeof SILHOUETTE, m: Placement, x: number, z: number): Part[] {
+    const sil = SILHOUETTE[name];
+    const form = formOf(name);
+    const r = m.size;
+    const salt = Math.floor(m.seed * 1e6);
+    const grown = (r - TREE.min) / (TREE.max - TREE.min);
+    const full = TREE.trunkMin + (TREE.trunkMax - TREE.trunkMin) * (0.6 * grown + 0.4 * m.seed);
+    const trunk = full * sil.trunk;
+    const [cw, ch] = [r * form.w, r * form.h];
+    const crownY = trunk + ch * 0.35;
+    const trunkR = TREE.trunkR * sil.girth * (0.7 + 0.5 * grown);
+    const bark = name === "beech" ? this.beechBark : this.bark;
+    // The crown leans a little off its trunk.
+    const lean = LEAN * rand(1, salt);
+    const [lx, lz] = [x + Math.cos(m.angle) * lean, z + Math.sin(m.angle) * lean];
+    const out: Part[] = [
+      { mesh: 2, x, y: 0, z, w: trunkR, h: crownY, angle: m.angle, shade: 1, color: bark },
+    ];
+    const limbs = Math.max(0, sil.limbs - (rand(2, salt) < 0.4 ? 1 : 0));
+    for (let i = 0; i < limbs; i++) {
+      const a = m.angle + (i * Math.PI * 2) / Math.max(1, limbs) + 0.6 * rand(i + 3, salt);
+      const len = cw * (0.75 + 0.3 * rand(i + 6, salt));
+      const y = trunk * (0.7 + 0.15 * rand(i + 9, salt));
+      out.push({ mesh: 9, x, y, z, w: len, h: len, angle: a, shade: 1, color: bark });
+    }
+    const lump = (i: number, px: number, y: number, pz: number, size: number, shade: number) => {
+      const angle = m.angle + i * 1.3;
+      // Two lump shapes, alternating.
+      out.push({ mesh: i % 2 ? 8 : 1, x: px, y, z: pz, w: size, h: size * sil.flat, angle, shade });
+    };
+    const top = 0.92 + 0.16 * m.seed;
+    if (sil.stack) {
+      // A tall oval: lumps stacked up the axis, smaller toward the top, two lower at the sides.
+      const levels = sil.lumps - 2;
+      for (let i = 0; i < levels; i++) {
+        const t = i / Math.max(1, levels - 1);
+        const size = cw * sil.lump * (1.15 - 0.45 * t) * (0.9 + 0.2 * rand(i + 12, salt));
+        lump(i, lx, crownY - ch * 0.3 + t * ch * 0.95, lz, size, top - 0.06 * (1 - t));
+      }
+      [-1, 1].forEach((side, k) => {
+        const a = m.angle + side * (Math.PI / 2 + 0.4 * rand(k + 20, salt));
+        const d = cw * sil.ring;
+        const [px, pz] = [lx + Math.cos(a) * d, lz + Math.sin(a) * d];
+        lump(levels + k, px, crownY - ch * 0.2, pz, cw * sil.lump * 0.85, 0.82);
+      });
+      return out;
+    }
+    // A spreading crown: a central lump over a ring of lumps at varied heights and sizes.
+    lump(0, lx, crownY + ch * 0.15, lz, cw * sil.lump * 1.25, top);
+    const ring = sil.lumps - 1;
+    for (let i = 0; i < ring; i++) {
+      const a = m.angle + (i * Math.PI * 2) / ring + 0.5 * (rand(i + 30, salt) - 0.5);
+      const d = cw * sil.ring * (0.85 + 0.3 * rand(i + 40, salt));
+      const y = crownY + ch * (sil.rise + 0.25 * (rand(i + 50, salt) - 0.5));
+      const size = cw * sil.lump * (0.85 + 0.3 * rand(i + 60, salt));
+      const shade = 0.8 + 0.14 * rand(i + 70, salt); // the ring sits lower, in the shade
+      lump(i + 1, lx + Math.cos(a) * d, y, lz + Math.sin(a) * d, size, shade);
+    }
+    return out;
+  }
 }
+
+/** Tree silhouettes (D-150), per species: trunk height and girth (x the generic tree); crown
+ *  lumps: count, ring radius and lump size (x the crown width), lump height (x its width), ring
+ *  height (x the crown height); limbs; a stacked oval crown (beech) or a spreading one. */
+const SILHOUETTE = {
+  oak: {
+    trunk: 0.72,
+    girth: 1.35,
+    lumps: 6,
+    ring: 0.78,
+    lump: 0.56,
+    flat: 0.72,
+    rise: -0.1,
+    limbs: 3,
+    stack: false,
+  },
+  chestnut: {
+    trunk: 0.85,
+    girth: 1.45,
+    lumps: 5,
+    ring: 0.5,
+    lump: 0.62,
+    flat: 0.95,
+    rise: -0.15,
+    limbs: 2,
+    stack: false,
+  },
+  beech: {
+    trunk: 1.12,
+    girth: 0.8,
+    lumps: 5,
+    ring: 0.32,
+    lump: 0.5,
+    flat: 1.0,
+    rise: 0,
+    limbs: 0,
+    stack: true,
+  },
+} as const;
+/** How far a crown may lean off its trunk (m). */
+const LEAN = 0.3;
 
 /** Wind push at a model's top, metres per metre above its root (D-086). */
 const SWAY = 0.02;
 /** Fake translucency (D-086): a warm rim on edges, brighter when looking toward the sun. */
 const RIM = { power: 2.5, base: 0.06, backlit: 0.3 } as const;
 
-/** Parts per model at most: keys hold up to this many parts per slot. */
-const PARTS = 6;
+/** Parts per model at most: keys hold up to this many parts per slot (trees: trunk, limbs and
+ *  crown lumps, D-150). */
+const PARTS = 12;
 /** Slots per stratum at most, in keys. */
 const KEY_SLOTS = 8;
 /** Mesh indices per key (the key's last factor). */
-const KEY_MESHES = 8;
+const KEY_MESHES = 16;
 
 /** The species of one cell per model stratum (STRATA order), with their cover. */
 export type CellCover = { species: number; cover: number }[][];

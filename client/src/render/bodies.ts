@@ -205,12 +205,26 @@ interface Part {
   wag?: boolean;
 }
 
+/** Animals this long (m) or more get the fine model (D-150): smooth, about 4x the triangles.
+ *  Small ones are many and tiny on screen, and keep the coarse one. */
+export const FINE_LENGTH = 0.4;
+
+/** Whether the part builders below make fine geometry (set per model by `animalGeometry`). */
+let fine = false;
+/** Radial segments of cones and cylinders, coarse and fine. */
+const seg = (coarse: number) => (fine ? Math.max(8, coarse * 2) : coarse);
+/** A unit-diameter ball: a faceted icosahedron, or a smooth sphere on fine models. */
+const ball = () =>
+  fine ? new THREE.SphereGeometry(0.5, 16, 11) : new THREE.IcosahedronGeometry(0.5, 1);
+
 /** The model of species `form`: merged parts with `color` and `gait` (leg, hip, wing, wag). */
 export function animalGeometry(
-  form: Pick<AnimalForm, "body" | "color" | "tones">,
+  form: Pick<AnimalForm, "body" | "color" | "tones"> & { length?: number },
 ): THREE.BufferGeometry {
   const palette = paletteOf(form);
-  const parts = bodyParts(form.body);
+  fine = (form.length ?? 0) >= FINE_LENGTH;
+  const parts = [...bodyParts(form.body), ...(fine ? fineParts(form.body) : [])];
+  fine = false;
   const geos = parts.map((p) => {
     const g = p.g.index ? p.g.toNonIndexed() : p.g;
     const n = g.getAttribute("position").count;
@@ -241,7 +255,7 @@ const blob = (
   [x, y, z = 0]: [number, number, number?],
   rz = 0,
 ): Part => ({
-  g: new THREE.IcosahedronGeometry(0.5, 1).scale(sx, sy, sz).rotateZ(rz).translate(x, y, z),
+  g: ball().scale(sx, sy, sz).rotateZ(rz).translate(x, y, z),
   tone,
 });
 /** A cone pointing along +x (`dir` = 1) or -x, centred at (x, y, z). */
@@ -252,7 +266,9 @@ const snout = (
   [x, y, z = 0]: [number, number, number?],
   dir = 1,
 ): Part => ({
-  g: new THREE.ConeGeometry(r, h, 5).rotateZ((-dir * Math.PI) / 2).translate(x, y, z),
+  g: new THREE.ConeGeometry(r, h, seg(5), fine ? 2 : 1)
+    .rotateZ((-dir * Math.PI) / 2)
+    .translate(x, y, z),
   tone,
 });
 const ears = (
@@ -265,7 +281,7 @@ const ears = (
   tilt = 0.25,
 ): Part[] =>
   [-1, 1].map((s) => ({
-    g: new THREE.ConeGeometry(r, h, 4).rotateX(s * tilt).translate(x, y, s * dz),
+    g: new THREE.ConeGeometry(r, h, seg(4), fine ? 2 : 1).rotateX(s * tilt).translate(x, y, s * dz),
     tone,
   }));
 const eyes = (x: number, y: number, dz: number, r = 0.035): Part[] =>
@@ -273,7 +289,7 @@ const eyes = (x: number, y: number, dz: number, r = 0.035): Part[] =>
 /** A flat, rounded feather surface (wing or tail) `l` long and `w` wide, swept back by `sweep`
  *  radians, centred at (x, 0.04, z). */
 const feather = (l: number, w: number, sweep: number, x: number, z: number) =>
-  new THREE.IcosahedronGeometry(0.5, 1).scale(l, 0.045, w).rotateY(sweep).translate(x, 0.04, z);
+  ball().scale(l, 0.045, w).rotateY(sweep).translate(x, 0.04, z);
 /** Four legs: front pair at +dx, hind pair at -dx; diagonal pairs swing together. An upper leg in
  *  the coat, a thinner lower leg (stocking, hoof or paw) in `foot`. */
 const legs = (dx: number, hip: number, dz: number, r: number, foot: Tone = "dark"): Part[] =>
@@ -284,13 +300,21 @@ const legs = (dx: number, hip: number, dz: number, r: number, foot: Tone = "dark
     [-dx, -dz, 1],
   ].flatMap(([x = 0, z = 0, sign = 0]) => [
     {
-      g: new THREE.CylinderGeometry(r, r * 0.75, hip * 0.55, 5).translate(x, hip * 0.725, z),
+      g: new THREE.CylinderGeometry(r, r * 0.75, hip * 0.55, seg(5), fine ? 2 : 1).translate(
+        x,
+        hip * 0.725,
+        z,
+      ),
       tone: "coat" as Tone,
       leg: sign,
       hip,
     },
     {
-      g: new THREE.CylinderGeometry(r * 0.7, r * 0.62, hip * 0.5, 5).translate(x, hip * 0.25, z),
+      g: new THREE.CylinderGeometry(r * 0.7, r * 0.62, hip * 0.5, seg(5), fine ? 2 : 1).translate(
+        x,
+        hip * 0.25,
+        z,
+      ),
       tone: foot,
       leg: sign,
       hip,
@@ -305,6 +329,52 @@ const tail = (
   ...blob(tone, s, at, rz),
   wag: true,
 });
+
+/** Extra parts on fine models (D-150), where the finer surface shows: necks joining head and
+ *  chest, a fuller muzzle, hooves, a shaggier hump and mane. */
+function fineParts(body: Body): Part[] {
+  switch (body) {
+    case "canid":
+      return [
+        blob("coat", [0.2, 0.26, 0.17], [0.3, 0.62], -0.6),
+        blob("belly", [0.12, 0.16, 0.12], [0.33, 0.55], -0.5),
+      ];
+    case "cat":
+      return [blob("coat", [0.2, 0.22, 0.22], [0.26, 0.64], -0.5)];
+    case "deer":
+    case "stag":
+      return [blob("coat", [0.12, 0.08, 0.1], [0.5, 0.99]), ...hooves(0.25, 0.56, 0.08, 0.026)];
+    case "boar":
+      return [blob("accent", [0.5, 0.16, 0.14], [-0.04, 0.66]), ...hooves(0.24, 0.3, 0.1, 0.04)];
+    case "bison":
+      return [
+        blob("accent", [0.4, 0.4, 0.38], [0.22, 0.4]),
+        blob("dark", [0.12, 0.16, 0.16], [0.44, 0.24]),
+        ...hooves(0.24, 0.42, 0.11, 0.045),
+      ];
+    case "bear":
+      return [
+        blob("coat", [0.3, 0.26, 0.4], [0.18, 0.62]),
+        blob("coat", [0.2, 0.2, 0.2], [0.36, 0.6]),
+      ];
+    default:
+      return [];
+  }
+}
+
+/** Dark hooves at the foot of four legs placed like `legs(dx, hip, dz, r)`: they swing with them. */
+const hooves = (dx: number, hip: number, dz: number, r: number): Part[] =>
+  [
+    [dx, dz, 1],
+    [dx, -dz, -1],
+    [-dx, dz, -1],
+    [-dx, -dz, 1],
+  ].map(([x = 0, z = 0, sign = 0]) => ({
+    g: new THREE.CylinderGeometry(r * 0.9, r, 0.05, seg(5)).translate(x, 0.025, z),
+    tone: "dark" as Tone,
+    leg: sign,
+    hip,
+  }));
 
 function bodyParts(body: Body): Part[] {
   switch (body) {
@@ -354,7 +424,7 @@ function bodyParts(body: Body): Part[] {
         blob("coat", [0.8, 0.52, 0.72], [-0.07, 0.26]),
         ...[-0.3, -0.12, 0.06].flatMap((x) =>
           [-0.22, 0, 0.22].map((z): Part => ({
-            g: new THREE.ConeGeometry(0.06, 0.16, 4)
+            g: new THREE.ConeGeometry(0.06, 0.16, seg(4))
               .rotateZ(0.5)
               .rotateX(-z * 1.6)
               .translate(x, 0.48 - Math.abs(z) * 0.4, z),
@@ -446,20 +516,20 @@ function bodyParts(body: Body): Part[] {
         blob("dark", [0.17, 0.3, 0.16], [0.26, 0.82], -0.45),
         ...[-1, 1].flatMap((s): Part[] => [
           {
-            g: new THREE.CylinderGeometry(0.012, 0.02, 0.36, 4)
+            g: new THREE.CylinderGeometry(0.012, 0.02, 0.36, seg(4))
               .rotateZ(0.4)
               .rotateX(-s * 0.35)
               .translate(0.36, 1.25, s * 0.1),
             tone: "accent",
           },
           {
-            g: new THREE.CylinderGeometry(0.007, 0.012, 0.14, 4)
+            g: new THREE.CylinderGeometry(0.007, 0.012, 0.14, seg(4))
               .rotateZ(-0.7)
               .translate(0.42, 1.2, s * 0.1),
             tone: "accent",
           },
           {
-            g: new THREE.CylinderGeometry(0.007, 0.012, 0.14, 4)
+            g: new THREE.CylinderGeometry(0.007, 0.012, 0.14, seg(4))
               .rotateZ(-0.5)
               .rotateX(-s * 0.4)
               .translate(0.35, 1.38, s * 0.16),
@@ -473,19 +543,21 @@ function bodyParts(body: Body): Part[] {
         blob("accent", [0.42, 0.46, 0.36], [0.14, 0.5]),
         blob("coat", [0.32, 0.26, 0.24], [0.38, 0.4]),
         {
-          g: new THREE.CylinderGeometry(0.07, 0.09, 0.16, 6)
+          g: new THREE.CylinderGeometry(0.07, 0.09, 0.16, seg(6))
             .rotateZ(-Math.PI / 2)
             .translate(0.58, 0.36, 0),
           tone: "coat",
         },
         {
-          g: new THREE.CylinderGeometry(0.072, 0.072, 0.02, 6)
+          g: new THREE.CylinderGeometry(0.072, 0.072, 0.02, seg(6))
             .rotateZ(-Math.PI / 2)
             .translate(0.67, 0.36, 0),
           tone: "dark",
         },
         ...[-1, 1].map((s): Part => ({
-          g: new THREE.ConeGeometry(0.015, 0.09, 4).rotateZ(-0.6).translate(0.6, 0.4, s * 0.07),
+          g: new THREE.ConeGeometry(0.015, 0.09, seg(4))
+            .rotateZ(-0.6)
+            .translate(0.6, 0.4, s * 0.07),
           tone: "light",
         })),
         ...ears("dark", 0.045, 0.1, 0.32, 0.58, 0.08),
@@ -501,7 +573,7 @@ function bodyParts(body: Body): Part[] {
         blob("dark", [0.14, 0.2, 0.14], [0.44, 0.3]),
         blob("eye", [0.06, 0.05, 0.08], [0.53, 0.4]),
         ...[-1, 1].map((s): Part => ({
-          g: new THREE.ConeGeometry(0.025, 0.13, 5)
+          g: new THREE.ConeGeometry(0.025, 0.13, seg(5))
             .rotateX(-s * 1.1)
             .translate(0.4, 0.58, s * 0.17),
           tone: "light",
@@ -543,9 +615,11 @@ function bodyParts(body: Body): Part[] {
         blob("coat", [0.74, 0.26, 0.15], [0.05, 0.13]),
         blob("dark", [0.6, 0.1, 0.1], [0.04, 0.22]),
         blob("belly", [0.56, 0.12, 0.12], [0.06, 0.07]),
-        { g: new THREE.ConeGeometry(0.07, 0.14, 3).translate(-0.02, 0.29, 0), tone: "accent" },
+        { g: new THREE.ConeGeometry(0.07, 0.14, seg(3)).translate(-0.02, 0.29, 0), tone: "accent" },
         {
-          g: new THREE.ConeGeometry(0.13, 0.22, 3).rotateZ(Math.PI / 2).translate(-0.42, 0.13, 0),
+          g: new THREE.ConeGeometry(0.13, 0.22, seg(3))
+            .rotateZ(Math.PI / 2)
+            .translate(-0.42, 0.13, 0),
           tone: "accent",
           wag: true,
         },
@@ -559,7 +633,7 @@ function bodyParts(body: Body): Part[] {
         blob("dark", [0.5, 0.12, 0.08], [-0.08, 0.27, -0.19]),
         snout("dark", 0.08, 0.16, [-0.45, 0.24], -1),
         {
-          g: new THREE.CylinderGeometry(0.075, 0.08, 0.04, 8).translate(0.3, 0.36, 0),
+          g: new THREE.CylinderGeometry(0.075, 0.08, 0.04, seg(8)).translate(0.3, 0.36, 0),
           tone: "light",
         },
         blob("accent", [0.24, 0.24, 0.22], [0.34, 0.48]),
@@ -589,7 +663,7 @@ function bodyParts(body: Body): Part[] {
         snout("bill", 0.025, 0.3, [0.52, 1.42]),
         ...eyes(0.36, 1.46, 0.045, 0.018),
         ...[-1, 1].map((s): Part => ({
-          g: new THREE.CylinderGeometry(0.015, 0.012, 0.84, 4).translate(0, 0.42, s * 0.05),
+          g: new THREE.CylinderGeometry(0.015, 0.012, 0.84, seg(4)).translate(0, 0.42, s * 0.05),
           tone: "dark",
           leg: s,
           hip: 0.84,

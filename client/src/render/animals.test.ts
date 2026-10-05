@@ -13,7 +13,7 @@ import {
   stepGait,
   turnToward,
 } from "./animals";
-import { animalGeometry } from "./bodies";
+import { animalGeometry, FINE_LENGTH, type AnimalForm } from "./bodies";
 
 describe("bodyGeometry", () => {
   it("builds every body about one unit long, standing on the ground, head toward +x", () => {
@@ -125,5 +125,16 @@ describe("gait (D-116)", () => {
       return [c.getX(0), c.getY(0), c.getZ(0)];
     };
     expect(tint("fox")).not.toEqual(tint("wolf"));
+  });
+
+  it("gives animals from rabbit size up a finer model, about 4x the triangles (D-150)", () => {
+    const tris = (form: AnimalForm) => animalGeometry(form).getAttribute("position").count / 3;
+    for (const [name, form] of Object.entries(ANIMAL_FORM)) {
+      const coarse = tris({ ...form, length: 0 });
+      const ratio = tris(form) / coarse;
+      if (form.length >= FINE_LENGTH) expect(ratio, name).toBeGreaterThan(3);
+      else expect(ratio, name).toBe(1); // small animals keep the light model
+      expect(ratio, name).toBeLessThan(6);
+    }
   });
 });

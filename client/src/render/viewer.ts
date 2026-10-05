@@ -385,6 +385,7 @@ export class Viewer {
       this.blend,
       this.heights,
       mix,
+      Math.max(0, ...this.field.cell),
     );
     return grass;
   }

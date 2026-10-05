@@ -1857,3 +1857,11 @@ Template:
 
   Diets, habitats and bodies are unchanged. The bot unlocks the fox before the pine marten.
 - **Bench** (normal mirror, 30 seeds): the fox is now the most-called hunter (390 calls); median end 25:49.
+
+## D-155 · 2026-10-05 · Culled herb chunks, a lighter High, half the lichen (branch `models-v2`)
+- **Status:** proposed, on the branch (user: late game on a Large map at about 30 fps on High; wants 5–10 fps more)
+- **Measurement limit:** Chrome throttles the GPU of a background tab (about 200 ms per synced frame whatever the setting), so High's fps could not be measured in-session. The changes below are the ones that reliably cut GPU work on integrated graphics; the user confirms on the laptop.
+- **Decision:**
+  - **Herb chunks:** each herb mesh (grass, lichen, flowers) is split into 4 × 4 chunks (`HERB_CHUNKS`). Each has hand-set bounds (its square, the relief and the tallest herb), so three culls the chunks off screen. Before, the whole-map meshes were always drawn. Zoomed in, 9 of 48 chunks are drawn; the overview draws all.
+  - **High preset:** resolution cap 1.5 → 1.25 (about 30 % fewer pixels for every fragment shader and the post passes), herb tufts per cell 18 → 14. Bloom and depth of field already run at half resolution.
+  - **Lichen and moss:** half as many patches (`LICHEN.share` 0.5 → 0.25 of the grass tufts).

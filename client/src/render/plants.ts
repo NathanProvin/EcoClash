@@ -22,6 +22,7 @@ import { GrowingMesh, type Pose } from "./growth";
 import {
   CELL,
   cellSlots,
+  densityAt,
   formOf,
   MAX_MODELS,
   plantLayout,
@@ -57,8 +58,11 @@ export interface PlantStyle {
   parts(stratum: Stratum, m: Placement, x: number, z: number, name: string): Part[];
 }
 
-/** Reed beds: stems per clump, their height per metre of clump radius, stem radius (m). */
-const REED = { stems: 5, height: 4.5, radius: 0.05 } as const;
+/** Reed beds: stems per clump, their height per metre of clump radius, stem radius (m), and
+ *  the share of straw-yellow and brown stems among the green ones (D-151). */
+const REED = { stems: 10, height: 4.5, radius: 0.05, straw: 0.25, brown: 0.15 } as const;
+const REED_STRAW = "#c8b25a";
+const REED_BROWN = "#8a6a3e";
 
 /** Cattails (D-125): stems per stand, their height per metre of stand radius, stem radius, and
  *  the brown seed head (height and radius, m) near the top. */
@@ -123,6 +127,8 @@ export class LowPolyPlants implements PlantStyle {
   ] satisfies PlantStyle["meshes"];
   private readonly head = new THREE.Color(CATTAIL_HEAD);
   private readonly beechBark = new THREE.Color(BEECH_BARK);
+  private readonly reedStraw = new THREE.Color(REED_STRAW);
+  private readonly reedBrown = new THREE.Color(REED_BROWN);
   private readonly cane = new THREE.Color(BRAMBLE.color);
 
   parts(stratum: Stratum, m: Placement, x: number, z: number, name: string): Part[] {
@@ -144,7 +150,14 @@ export class LowPolyPlants implements PlantStyle {
         const h = r * REED.height * (0.7 + 0.3 * rand(i + 9, salt));
         const [sx, sz] = [x + Math.cos(a) * d, z + Math.sin(a) * d];
         const shade = 0.85 + 0.25 * rand(i + 3, salt);
-        out.push({ mesh: 4, x: sx, y: 0, z: sz, w: REED.radius, h, angle: a, shade });
+        const tone = rand(i + 17, salt);
+        const color =
+          tone < REED.brown
+            ? this.reedBrown
+            : tone < REED.brown + REED.straw
+              ? this.reedStraw
+              : undefined;
+        out.push({ mesh: 4, x: sx, y: 0, z: sz, w: REED.radius, h, angle: a, shade, color });
       }
       return out;
     }
@@ -469,7 +482,7 @@ export class PlantView {
         continue;
       }
       const slots = (this.slots[c] ??= cellSlots(c));
-      const models = plantLayout(c, present, this.prev[c], slots);
+      const models = plantLayout(c, present, this.prev[c], slots, densityAt(c, n));
       this.prev[c] = models.map((list) => list.map((m) => m.species));
       const x0 = ((c % n) - n / 2) * CELL;
       const z0 = (Math.floor(c / n) - n / 2) * CELL;

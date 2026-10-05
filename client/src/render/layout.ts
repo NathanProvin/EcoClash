@@ -18,12 +18,42 @@ export const SLAB_DEPTH = 12; // the diorama slab under the map, metres (D-054)
 /** Model strata, in slot order. */
 export const STRATA = ["low", "shrub", "tree", "pad"] as const;
 export type Stratum = (typeof STRATA)[number];
-/** Models per cell at full cover, per model stratum (index in STRATA): fewer, bigger shrubs and
- *  trees (D-109); trees are 1 per cell, 2 on a third of the cells (`treesIn`). */
-export const MAX_MODELS = [4, 2, 2, 4] as const;
-const TWO_TREES = 1 / 3;
+/** Models per cell at full cover, per model stratum (index in STRATA), on average: fewer, bigger
+ *  shrubs and trees (D-109); trees are 1 per cell, 2 on some cells (`treesIn`). Patches
+ *  (`DENSITY`, D-151) scale the undergrowth and shrubs per cell, up to MAX_MODELS. */
+export const BASE_MODELS = [4, 2, 2, 4] as const;
+export const MAX_MODELS = [5, 3, 2, 4] as const;
+/** Cells with two trees (D-151: 0.15, was 1/3): about 14 % fewer trees. */
+const TWO_TREES = 0.15;
 
-/** Trees a cell holds at full cover (D-109): 1, or 2 on about a third of the cells. */
+/** Patchy stands (D-151): per model stratum, the density multiplier's range over the patch
+ *  noise (null: no patches). Shrubs average 0.85 (15 % fewer, in clumps); undergrowth 1. */
+export const DENSITY = [[0.4, 1.6], [0.3, 1.4], null, null] as const;
+/** Cells per step of the patch noise lattice. */
+const PATCH = 3;
+
+/** Smooth value noise over the map (D-151), in 0..1: hashed lattice corners every PATCH cells,
+ *  blended with a smoothstep, so neighbouring cells get close values (dense clumps, sparse
+ *  edges). */
+export function patchiness(cell: number, n: number, salt: number): number {
+  const [fr, fc] = [Math.floor(cell / n) / PATCH, (cell % n) / PATCH];
+  const [r0, c0] = [Math.floor(fr), Math.floor(fc)];
+  const ease = (t: number) => t * t * (3 - 2 * t);
+  const [tr, tc] = [ease(fr - r0), ease(fc - c0)];
+  const corner = (r: number, c: number) => rand(r * 7919 + c, salt);
+  const top = corner(r0, c0) * (1 - tc) + corner(r0, c0 + 1) * tc;
+  const bottom = corner(r0 + 1, c0) * (1 - tc) + corner(r0 + 1, c0 + 1) * tc;
+  return top * (1 - tr) + bottom * tr;
+}
+
+/** The density multipliers of a cell, per model stratum (D-151). */
+export function densityAt(cell: number, n: number): number[] {
+  return DENSITY.map((range, s) =>
+    range ? range[0] + (range[1] - range[0]) * patchiness(cell, n, 4100 + 97 * s) : 1,
+  );
+}
+
+/** Trees a cell holds at full cover (D-109): 1, or 2 on some cells (TWO_TREES). */
 export const treesIn = (cell: number): number => (rand(cell, 3500) < TWO_TREES ? 2 : 1);
 
 /** The model stratum of a plant: undergrowth, shrub, tree by height level; aquatic herbs float as
@@ -190,6 +220,7 @@ export function plantLayout(
   strata: readonly (readonly { species: number; cover: number }[])[],
   prev: readonly (readonly number[])[] = [],
   slots: Slot[][] = cellSlots(cell),
+  density: readonly number[] = [],
 ): Placement[][] {
   return STRATA.map((_, s) => {
     const plants = strata[s] ?? [];
@@ -198,8 +229,9 @@ export function plantLayout(
       plants.reduce((t, p) => t + p.cover, 0),
     );
     const free = slots[s] ?? [];
-    const most = STRATA[s] === "tree" ? treesIn(cell) : (MAX_MODELS[s] ?? 0);
-    const want = v < 0.05 ? 0 : Math.max(1, Math.round(v * most));
+    const base = STRATA[s] === "tree" ? treesIn(cell) : (BASE_MODELS[s] ?? 0);
+    const most = STRATA[s] === "tree" ? base : (MAX_MODELS[s] ?? 0);
+    const want = v < 0.05 ? 0 : Math.max(1, Math.round(v * base * (density[s] ?? 1)));
     const count = Math.min(most, want, free.length);
     const { min: lo, max: hi } = SIZE[s] ?? LOW;
     return assign(count, plants, prev[s]).map((species, slot) => {

@@ -6,7 +6,10 @@ import {
   LOW,
   LOW_CLEAR,
   LOW_GAP,
+  BASE_MODELS,
+  densityAt,
   MAX_MODELS,
+  patchiness,
   plantLayout,
   rand,
   share,
@@ -39,10 +42,10 @@ describe("cellSlots", () => {
     let full = 0; // cells with a slot for every shrub (dart-throwing may fit one fewer)
     for (let cell = 0; cell < 4000; cell++) {
       const [low = [], shrubs = [], trees = [], pads = []] = cellSlots(cell);
-      expect(shrubs.length, `cell ${cell}`).toBeGreaterThanOrEqual(MAX_MODELS[1] - 1);
-      expect(low.length, `cell ${cell}`).toBeGreaterThanOrEqual(MAX_MODELS[0]);
+      expect(shrubs.length, `cell ${cell}`).toBeGreaterThanOrEqual(BASE_MODELS[1] - 1);
+      expect(low.length, `cell ${cell}`).toBeGreaterThanOrEqual(BASE_MODELS[0]);
       expect(pads).toBe(low); // pads float where clumps would stand
-      if (shrubs.length >= MAX_MODELS[1]) full++;
+      if (shrubs.length >= BASE_MODELS[1]) full++;
       for (const s of shrubs) {
         expect(inside(s, SHRUB.max)).toBe(true);
         for (const t of trees) expect(dist(s, t)).toBeGreaterThanOrEqual(TRUNK_CLEAR);
@@ -94,7 +97,7 @@ describe("plantLayout", () => {
     expect(plantLayout(7, []).flat()).toHaveLength(0);
     const full = (species: number) => [{ species, cover: 1 }];
     const counts = plantLayout(7, [full(1), full(4), full(9), full(12)]).map((m) => m.length);
-    expect(counts).toEqual([MAX_MODELS[0], MAX_MODELS[1], treesIn(7), MAX_MODELS[3]]);
+    expect(counts).toEqual([BASE_MODELS[0], BASE_MODELS[1], treesIn(7), BASE_MODELS[3]]);
     const half = [
       { species: 9, cover: 0.5 },
       { species: 10, cover: 0.5 },
@@ -106,10 +109,45 @@ describe("plantLayout", () => {
 });
 
 describe("treesIn", () => {
-  it("puts 1 tree per cell, 2 on about a third of the cells (D-109)", () => {
+  it("puts 1 tree per cell, 2 on about 15 % of the cells (D-109, D-151)", () => {
     let total = 0;
     for (let cell = 0; cell < 3000; cell++) total += treesIn(cell);
-    expect(total / 3000).toBeCloseTo(4 / 3, 1);
+    expect(total / 3000).toBeCloseTo(1.15, 1);
+  });
+});
+
+describe("patchiness (D-151)", () => {
+  const n = 32;
+  it("is smooth and spans its range", () => {
+    let [lo, hi] = [1, 0];
+    for (let c = 0; c < n * n; c++) {
+      const v = patchiness(c, n, 1);
+      [lo, hi] = [Math.min(lo, v), Math.max(hi, v)];
+      if (c % n < n - 1) expect(Math.abs(v - patchiness(c + 1, n, 1))).toBeLessThan(0.5);
+    }
+    expect(lo).toBeLessThan(0.2);
+    expect(hi).toBeGreaterThan(0.8);
+  });
+
+  it("thins shrubs by about 15 % on average, in patches, and keeps undergrowth even", () => {
+    let [shrub, low] = [0, 0];
+    for (let c = 0; c < n * n; c++) {
+      const d = densityAt(c, n);
+      shrub += d[1] ?? 1;
+      low += d[0] ?? 1;
+    }
+    expect(shrub / (n * n)).toBeCloseTo(0.85, 1);
+    expect(low / (n * n)).toBeCloseTo(1, 1);
+  });
+
+  it("scales a cell's models by its density, within MAX_MODELS", () => {
+    const full = (species: number) => [{ species, cover: 1 }];
+    const strata = [full(1), full(4)];
+    const counts = (d: number[]) => plantLayout(7, strata, [], undefined, d).map((m) => m.length);
+    expect(counts([0.3, 0.3])).toEqual([1, 1, 0, 0]);
+    const dense = counts([1.6, 1.4]);
+    expect(dense[0]).toBeLessThanOrEqual(MAX_MODELS[0]);
+    expect(dense[1]).toBeGreaterThan(BASE_MODELS[1]);
   });
 });
 

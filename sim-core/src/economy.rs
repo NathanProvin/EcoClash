@@ -301,8 +301,10 @@ mod tests {
             "the lynx needs a tree"
         );
         assert!(
-            e.check_unlock(1, fox).unwrap_err().contains("tier 2"),
-            "the fox comes after the pine marten"
+            e.check_unlock(1, idx("pine_marten"))
+                .unwrap_err()
+                .contains("tier 2"),
+            "the pine marten comes after the fox (D-154)"
         );
         e.bank[0] = 0;
         let hazel = idx("hazel");

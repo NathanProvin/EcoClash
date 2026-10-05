@@ -1787,3 +1787,12 @@ Template:
   - more decided matches: 8 unfinished, were 12;
   - median end 25:25 (was 25:32);
   - trees settle at about 19:00 (were 17:25).
+
+## D-154 · 2026-10-05 · The fox comes before the pine marten
+- **Status:** accepted (user: a quick rabbit counter)
+- **Decision:** the fox and the pine marten swap slots in the small-mammal eaters (P2).
+  - fox: tier 2, unlock 12 000, call 1 500, yield 0.25;
+  - pine marten: tier 3, 16 000, 3 000, 0.5.
+
+  Diets, habitats and bodies are unchanged. The bot unlocks the fox before the pine marten.
+- **Bench** (normal mirror, 30 seeds): the fox is now the most-called hunter (390 calls); median end 25:49.

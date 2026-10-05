@@ -188,7 +188,7 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
 | **H4** Tree eaters | Bark beetles | Eurasian beaver | Wild boar |
 | **HW** Aquatic grazers | Larvae (become dragonflies) | Roach (fish) | Mallard duck |
 | **P1** Insect eaters | Great tit | Common frog | Badger |
-| **P2** Small-mammal eaters | Kestrel | Pine marten | Red fox |
+| **P2** Small-mammal eaters | Kestrel | Red fox | Pine marten |
 | **P3** Large-mammal eaters | Eurasian lynx | Wolf | Brown bear |
 | **PW** Aquatic hunters | Pike | Grey heron | Eurasian otter |
 

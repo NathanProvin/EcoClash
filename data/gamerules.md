@@ -363,7 +363,7 @@ Late-game trump cards, at the far right of the build bar: available from the sta
 
 | Card | Area | Effect | Cost · cooldown |
 |---|---|---|---|
-| Bark beetle outbreak | radius 4 | Over 8 s, the tree stands die and stay as standing dead trees (§6, D-127) | 6000 · 5 min |
+| Processionary caterpillars (D-130) | radius 4 | Over 8 s, the tree stands die and stay as standing dead trees (§6, D-127) | 6000 · 5 min |
 | Violent storm | radius 9 (about a quarter of a mid map) | Over 6 s, some cells lose all their shrubs and trees, felled to litter | 9000 · 7 min |
 | Chemical spill | radius 1 | The cells go back to bare soil: no plants, litter, dead wood or soil development, owned by no one | 4000 · 4 min |
 
@@ -389,9 +389,9 @@ The mechanics below make sure **no position is permanently locked**, and that **
 ### 11.3 Anti-stalemate mechanics
 
 1. **Forest gap dynamics (senescence).** Each tree cell has an age. Past maturity, it has a growing chance per tick (seeded RNG) to fall, as windthrow or old age. The tree stratum becomes dead biomass, the cell's dominant level drops, and a **gap** opens. Gaps on the frontier are contestable: whoever recolonizes first takes the cell. Forests stay alive, as real forests do.
-2. **Monoculture vulnerability.** Pests (caterpillars, and the bark beetle outbreak card) deal extra damage in cells whose neighbourhood is dominated by a single species. Mixed stands get a resilience bonus. This punishes "walls of beech" and rewards diversity.
+2. **Monoculture vulnerability.** Pests (caterpillars, and the processionary caterpillars card) deal extra damage in cells whose neighbourhood is dominated by a single species. Mixed stands get a resilience bonus. This punishes "walls of beech" and rewards diversity.
 3. **Keystone disturbance cards (top of the tech tree).** They are expensive, have a long cooldown, and are **telegraphed**: the opponent sees a warning a few seconds before they hit.
-   - *Bark beetle outbreak:* targeted area; the trees there are weakened and lose biomass over time.
+   - *Processionary caterpillars:* targeted area; the trees there are weakened and lose biomass over time.
    - *Storm:* windthrow along a corridor, opening a line of gaps through a forest.
    - *Forest fire* **[Post-V1]**: ignites a target area. Each tick, fire spreads to neighbouring cells with a chance (seeded RNG) that grows with the cell's biomass. Burnt strata become dead biomass and the soil gains nutrients. Fire dies out on bare or low-biomass cells, so meadow strips act as firebreaks. It opens irregular gaps through a forest.
 4. **Decaying territory threshold.** The territorial victory threshold starts high (e.g. 75 %) and decreases linearly to ~55 % at the time limit. This rewards late aggression. If validated, it supersedes the fixed threshold (90 %, D-094) in `INSTRUCTIONS.md` §2.3.

@@ -538,12 +538,12 @@ mod tests {
         w.state.bio[oak * n2 + k]
     }
 
-    /// D-129: bark beetles kill every tree in their disc within the outbreak, both players',
+    /// D-129, D-130: processionary caterpillars kill every tree in their disc within the outbreak, both players',
     /// into standing dead wood; the cells outside keep theirs. The card then cools down.
     #[test]
-    fn bark_beetles_turn_a_wood_into_dead_trees() {
+    fn processionary_caterpillars_turn_a_wood_into_dead_trees() {
         let mut w = forest(16);
-        w.submit(cast(0, 1, 0, "bark_beetle_outbreak", 8, 8));
+        w.submit(cast(0, 1, 0, "processionary_caterpillars", 8, 8));
         let bank = w.economy.bank[0];
         for _ in 0..40 * every() {
             w.step();
@@ -562,8 +562,13 @@ mod tests {
             outside_dead < 10,
             "outside the disc, only old age: {outside_dead}"
         );
-        assert_eq!(w.take_effects(), vec![(1, 0, 8, 8)]);
-        w.submit(cast(w.tick, 1, 0, "bark_beetle_outbreak", 2, 2));
+        let card = w
+            .catastrophes
+            .p
+            .index("processionary_caterpillars")
+            .unwrap();
+        assert_eq!(w.take_effects(), vec![(1, card, 8, 8)]);
+        w.submit(cast(w.tick, 1, 0, "processionary_caterpillars", 2, 2));
         w.step();
         let notes = w.take_notices();
         assert!(

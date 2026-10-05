@@ -16,9 +16,9 @@ export interface Catastrophe {
 /** The card's pictogram (`Icon` names) and its tone in the animations. */
 export const CATASTROPHE_LOOK: Record<
   string,
-  { icon: "beetle" | "storm" | "drum"; color: string }
+  { icon: "caterpillar" | "storm" | "drum"; color: string }
 > = {
-  killtrees: { icon: "beetle", color: "#7a5230" },
+  killtrees: { icon: "caterpillar", color: "#7a5230" }, // processionary caterpillars (D-130)
   storm: { icon: "storm", color: "#8a949c" },
   spill: { icon: "drum", color: "#b5c42a" },
 };

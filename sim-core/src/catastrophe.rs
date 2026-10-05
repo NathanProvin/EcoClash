@@ -2,7 +2,7 @@
 //! is available from the start, costs biomass at each use and cools down before it can be played
 //! again (per player). A cast hits everything in its disc, both players' plants alike, on the
 //! flora ticks of its duration:
-//! - `kill_trees` (bark beetle outbreak): each tree stand dies with `chance`, standing as dead
+//! - `kill_trees` (processionary caterpillars): each tree stand dies with `chance`, standing as dead
 //!   wood (D-127);
 //! - `storm` (violent storm): each cell loses all its shrubs and trees to litter with `chance`;
 //! - `spill` (chemical spill): the cells go back to bare soil: no plants, litter, dead wood or

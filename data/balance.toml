@@ -179,14 +179,14 @@ rot_s = 600             # time for standing dead wood to rot away without recycl
 # everything in their disc, both players alike. act: kill_trees (trees die standing, D-127),
 # storm (shrubs and trees felled to litter), spill (back to bare soil); chance: per cell per
 # flora tick while it acts.
-[catastrophes.bark_beetle_outbreak]
+[catastrophes.processionary_caterpillars]
 act = "kill_trees"
 cost = 6000
 radius = 4
 cooldown_s = 300
 duration_s = 8
 chance = 0.35
-effect = "Bark beetles swarm the woods: the trees in the area die standing within seconds."
+effect = "Processionary caterpillars strip the woods: the trees in the area die standing within seconds."
 
 [catastrophes.storm]
 act = "storm"

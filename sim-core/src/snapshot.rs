@@ -78,7 +78,7 @@ pub fn pressure_frame(flora: &Flora, st: &FloraState, fauna: &Fauna) -> Vec<u8> 
         let k = a.cell(i, st.n);
         let grazer = fauna.p.role[usize::from(a.sp[i])] == Role::Herbivore;
         if grazer && st.owner[k] == 3 - a.owner[i] {
-            push[k] += GRAZER_PUSH;
+            push[k] += div_round(GRAZER_PUSH * fauna.p.damage, i64::from(ONE)); // D-152
         }
     }
     push.iter()

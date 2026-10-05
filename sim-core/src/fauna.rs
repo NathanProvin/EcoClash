@@ -75,6 +75,8 @@ pub struct FaunaParams {
     pub yld: Vec<i64>,
     transfer: i64,
     own_graze: i64,
+    /// Enemy plants lose this many times a bite (Q16, D-152).
+    pub damage: i64,
     soil_per_dead: i64,
     /// Flora ticks a cell grazed bare stays barred to its former owner (D-098).
     lockout: i64,
@@ -223,6 +225,7 @@ impl FaunaParams {
             yld: sp.iter().map(|s| round(s.yield_ * one)).collect(),
             transfer: round(fa.transfer * one),
             own_graze: round(fa.own_graze * one),
+            damage: round(fa.graze_damage * one),
             soil_per_dead: round(fa.soil_per_dead * one),
             lockout: round(fa.lockout_s * hz / f64::from(b.sim.flora_every_ticks)),
             drop_radius: i64::from(fa.drop_radius),
@@ -334,6 +337,7 @@ impl FaunaParams {
             self.diet_yield[1],
             self.diet_yield[2],
             self.own_graze,
+            self.damage,
             self.soil_per_dead,
             self.lockout,
             self.drop_radius,
@@ -804,6 +808,10 @@ impl Fauna {
             st.bio[at] -= eaten;
             if !home[i] {
                 raided.push(at % n2);
+                // Trampled and wasted (D-152): enemy plants lose more than the grazer eats.
+                let extra = div_round(eaten * (p.damage - ONE_I).max(0), ONE_I).min(st.bio[at]);
+                st.bio[at] -= extra;
+                st.dead[at % n2] += extra;
             }
             let rank = rank_by[i];
             let fed = if home[i] && p.own_graze > 0 {
@@ -1653,7 +1661,8 @@ mod tests {
         let before = st.bio[g * 64 + k];
         fa.act(&fl.p, &mut st, &mut rng);
         let eaten = before - st.bio[g * 64 + k];
-        assert_eq!(eaten, fa.p.bite[rabbits], "full bite on enemy flora");
+        let full = fa.p.bite[rabbits] * fa.p.damage / ONE_I; // trampled too (D-152)
+        assert_eq!(eaten, full, "full bite on enemy flora, times graze_damage");
         assert!(st.dead[k] > 0, "what is not assimilated becomes litter");
         assert!(
             st.dead[2 * 8 + 2] < 1000 && st.soil[2 * 8 + 2] > 0,
@@ -2066,6 +2075,30 @@ mod tests {
 
     /// D-123: a grazer eats its primary food first, even where another food is more plentiful,
     /// and a secondary food feeds it 75 % as well.
+    #[test]
+    fn enemy_plants_lose_graze_damage_times_the_bite_but_the_grazer_eats_one_bite() {
+        let (f, mut fa, mut st, _) = setup(4);
+        let rabbit = fa.p.index("rabbits").unwrap();
+        let grass = f.p.index("grasses").unwrap();
+        let (n2, k) = (16, 5);
+        let raid = |fa: &mut Fauna, st: &mut FloraState, owner: u8| {
+            st.owner[k] = owner;
+            st.bio[grass * n2 + k] = 30_000;
+            st.dead[k] = 0;
+            fa.agents = Agents::default();
+            fa.agents.push(rabbit, 1, centre(1), centre(1), 0, 0);
+            fa.graze(st);
+            (30_000 - st.bio[grass * n2 + k], fa.agents.energy[0])
+        };
+        let (lost, fed) = raid(&mut fa, &mut st, 2);
+        fa.p.damage = ONE_I; // no trampling
+        let (eaten, fed_plain) = raid(&mut fa, &mut st, 2);
+        assert_eq!(fed, fed_plain, "the grazer gains the same energy");
+        assert!(eaten > 0);
+        assert_eq!(lost, 4 * eaten, "graze_damage = 4 in balance.toml");
+        assert!(st.dead[k] > 0, "the eaten part goes to litter");
+    }
+
     #[test]
     fn grazers_prefer_their_primary_food_and_lower_ranks_feed_less() {
         let (f, mut fa, mut st, _) = setup(4);

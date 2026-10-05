@@ -1825,3 +1825,14 @@ Template:
   - Shadows are redrawn every 4th frame (was 2nd).
 - **Not measured:** High's post-processing (bloom and tilt-shift at 1.5× resolution). The timestamps only cover the final pass there.
 - **Left:** the field paint (`paintFields` with `PlantView.update`) takes about 34 ms once per field frame (1.25 Hz), a periodic hitch. Next levers: spread it over frames, or move it to the worker; post-processing at half resolution on High.
+
+## D-152 · 2026-10-05 · Trampling grazers and shorter-lived trees
+- **Status:** accepted (user: help break fronts in the late game)
+- **Decision:**
+  - `[fauna] graze_damage = 4.0`: on enemy land, plants lose 4× what a grazer eats; the extra goes to litter. The grazer's energy is unchanged (no faster breeding). The pressure lines count enemy grazers 4× too.
+  - `[deadwood] natural_death_s` 10 800 → 3 600 (trees die of old age 3× as often).
+  - Balance hash version 19.
+- **Bench** (normal mirror, 30 seeds, 60 min):
+  - more decided matches: 8 unfinished, were 12;
+  - median end 25:25 (was 25:32);
+  - trees settle at about 19:00 (were 17:25).

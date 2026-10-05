@@ -107,8 +107,8 @@ function blur(h: Float32Array, n: number): void {
   }
 }
 
-/** Ground mesh subdivisions per cell. */
-const SUBDIV = 3;
+/** Ground mesh subdivisions per cell (4 since D-150: about 1.8x the triangles of 3). */
+const SUBDIV = 4;
 
 /** The ground: a plane over the map, its vertices raised to the heightfield. UVs as before. */
 export function groundGeometry(field: Heightfield): THREE.BufferGeometry {
@@ -182,15 +182,20 @@ export function rockPlacements(
   return out;
 }
 
-/** A rough stone: an icosahedron with its vertices pushed in and out (deterministic). */
+/** A rough stone: a once-subdivided icosahedron (D-150) with its vertices pushed in and out
+ *  (deterministic), a broad lump plus a finer, craggy one. */
 export function stoneGeometry(variant: number): THREE.BufferGeometry {
-  const g = new THREE.IcosahedronGeometry(1, 0);
+  const g = new THREE.IcosahedronGeometry(1, 1);
   const pos = g.attributes.position as THREE.BufferAttribute;
   // Jitter by the vertex's rounded position, so shared corners move together.
   for (let i = 0; i < pos.count; i++) {
     const [x, y, z] = [pos.getX(i), pos.getY(i), pos.getZ(i)];
     const key = Math.round(x * 97) * 7919 + Math.round(y * 97) * 131 + Math.round(z * 97);
-    const f = 0.75 + 0.45 * rand(key, 8000 + variant);
+    const lump = rand(
+      Math.round(x * 2) * 31 + Math.round(y * 2) * 7 + Math.round(z * 2),
+      8100 + variant,
+    );
+    const f = 0.72 + 0.3 * lump + 0.16 * rand(key, 8000 + variant);
     pos.setXYZ(i, x * f, y * f, z * f);
   }
   g.computeVertexNormals();

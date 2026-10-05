@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { LOW, TREE, type Placement } from "./layout";
-import { LowPolyPlants } from "./plants";
+import { uniform } from "three/tsl";
+import * as THREE from "three/webgpu";
+import { LowPolyPlants, PlantView, type CellCover } from "./plants";
 
 const style = new LowPolyPlants();
 const at = (size: number, seed: number): Placement => ({
@@ -55,5 +57,31 @@ describe("LowPolyPlants (D-150)", () => {
     const key = (seed: number) =>
       JSON.stringify(style.parts("tree", at(TREE.max, seed), 0, 0, "oak").map((p) => p.x));
     expect(key(0.1)).not.toEqual(key(0.6));
+  });
+});
+
+describe("PlantView repainting (D-153)", () => {
+  const n = 4;
+  const owner = new Uint8Array(n * n).fill(1);
+  const ferns: CellCover = [[{ species: 0, cover: 1 }], [], [], []];
+  const colors = { 1: [new THREE.Color(0x336633)], 2: [new THREE.Color(0x336633)] };
+  const make = () => new PlantView(new THREE.Scene(), n, style, uniform(0));
+
+  it("paints changed cells over frames and skips cells whose signature holds", () => {
+    const view = make();
+    const update = (sig: (c: number) => number) =>
+      view.update(() => ferns, owner, ["ferns"], colors, undefined, null, undefined, sig);
+    update(() => 1);
+    expect(view.pending).toBe(n * n);
+    view.frame(0, Infinity);
+    expect(view.pending).toBe(0);
+    update(() => 1); // nothing changed
+    expect(view.pending).toBe(0);
+    update((c) => (c === 5 ? 2 : 1)); // one cell changed
+    expect(view.pending).toBe(1);
+    view.frame(1, 0); // no time left this frame: it waits
+    expect(view.pending).toBe(1);
+    view.frame(1, Infinity);
+    expect(view.pending).toBe(0);
   });
 });

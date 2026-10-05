@@ -22,7 +22,7 @@ export function frontierField(
   pressure?: Uint8Array,
 ): void {
   const cells = n * n;
-  let [p1, p2, push1, push2] = [0, 0, 0, 0].map(() => new Float32Array(cells)) as [
+  const [p1, p2, push1, push2] = [0, 0, 0, 0].map(() => new Float32Array(cells)) as [
     Float32Array,
     Float32Array,
     Float32Array,
@@ -36,31 +36,41 @@ export function frontierField(
     push1[k] = o === 2 ? push : 0; // P1 pushing into a P2 cell
     push2[k] = o === 1 ? push : 0;
   }
+  const tmp = new Float32Array(cells);
   for (let pass = 0; pass < PASSES; pass++) {
-    [p1, p2, push1, push2] = [blur(p1, n), blur(p2, n), blur(push1, n), blur(push2, n)];
+    for (const ch of [p1, p2, push1, push2]) blur(ch, n, tmp);
   }
-  const ch = [p1, p2, push1, push2];
+  const ch = [p1, p2, push1, push2] as const;
   for (let k = 0; k < cells; k++) {
     const t = ((n - 1 - Math.floor(k / n)) * n + (k % n)) * 4; // texture row 0 = grid row n-1
-    ch.forEach((c, j) => {
-      const v = (c[k] ?? 0) * (j < 2 ? 1 : PUSH_GAIN);
-      out[t + j] = Math.round(Math.min(v, 1) * 255);
-    });
+    for (let j = 0; j < 4; j++) {
+      const v = (ch[j] as Float32Array)[k] as number;
+      out[t + j] = Math.round(Math.min(j < 2 ? v : v * PUSH_GAIN, 1) * 255);
+    }
   }
 }
 
-/** One 3 x 3 binomial blur (1 2 1 / 2 4 2 / 1 2 1, over 16), edges clamped. */
-function blur(v: Float32Array, n: number): Float32Array {
-  const out = new Float32Array(v.length);
-  const at = (r: number, c: number) =>
-    v[Math.min(Math.max(r, 0), n - 1) * n + Math.min(Math.max(c, 0), n - 1)] ?? 0;
+/** One 3 x 3 binomial blur (1 2 1 / 2 4 2 / 1 2 1, over 16), edges clamped, in place: as two
+ *  [1 2 1] / 4 passes, along rows into `tmp`, then along columns back into `v` (D-153: the
+ *  closure-per-sample version took ~9 ms on a 44² map). */
+function blur(v: Float32Array, n: number, tmp: Float32Array): void {
   for (let r = 0; r < n; r++) {
+    const row = r * n;
     for (let c = 0; c < n; c++) {
-      let s = 4 * at(r, c);
-      s += 2 * (at(r - 1, c) + at(r + 1, c) + at(r, c - 1) + at(r, c + 1));
-      s += at(r - 1, c - 1) + at(r - 1, c + 1) + at(r + 1, c - 1) + at(r + 1, c + 1);
-      out[r * n + c] = s / 16;
+      const [l, m, rr] = [
+        v[row + (c > 0 ? c - 1 : 0)],
+        v[row + c],
+        v[row + (c < n - 1 ? c + 1 : n - 1)],
+      ];
+      tmp[row + c] = ((l as number) + 2 * (m as number) + (rr as number)) / 4;
     }
   }
-  return out;
+  for (let r = 0; r < n; r++) {
+    const [up, down] = [(r > 0 ? r - 1 : 0) * n, (r < n - 1 ? r + 1 : n - 1) * n];
+    for (let c = 0; c < n; c++) {
+      const sum =
+        (tmp[up + c] as number) + 2 * (tmp[r * n + c] as number) + (tmp[down + c] as number);
+      v[r * n + c] = sum / 4;
+    }
+  }
 }

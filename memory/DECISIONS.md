@@ -1836,3 +1836,15 @@ Template:
   - more decided matches: 8 unfinished, were 12;
   - median end 25:25 (was 25:32);
   - trees settle at about 19:00 (were 17:25).
+
+## D-153 · 2026-10-05 · No more plant-repaint hitch (branch `models-v2`)
+- **Status:** proposed, on the branch (user: research the periodic stutter)
+- **Diagnosis:**
+  - At each field frame (1.25 Hz), `PlantView.update` rebuilt every cell's plant models: layout, parts, about 25 000 `put` calls.
+  - Late game on a Large map that took about 113 ms in the profiling tab, which runs about 4× slower than a foreground tab (about 30 ms in a normal one): a dropped frame or two every 0.8 s.
+  - The frontier blur added about 9 ms (a closure per sample).
+- **Decision:**
+  - **Signature skip:** each cell has a signature (owner, dead wood, modelled covers in steps of 8/255); the layout reads covers rounded to the same steps. Only cells whose signature changed are repainted: about 200–250 of 1 936 per field frame late game (88 % skipped).
+  - **Spread over frames:** changed cells are queued and repainted in `PlantView.frame`, at most 3 ms a frame (`PAINT_BUDGET_MS`); about 8 ms of work spreads over 3 frames.
+  - **Frontier blur:** separable, in place (rows, then columns): same result, a fraction of the cost.
+- Test: `PlantView repainting` (queue, skip, budget).

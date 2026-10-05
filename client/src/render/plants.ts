@@ -414,6 +414,21 @@ const KEY_SLOTS = 8;
 /** Mesh indices per key (the key's last factor). */
 const KEY_MESHES = 16;
 
+/** Milliseconds of plant repainting per frame at most (D-153): a field frame's changed cells
+ *  spread over the next frames instead of one long hitch. */
+const PAINT_BUDGET_MS = 3;
+
+/** What PlantView paints cells from: see `update`. */
+interface PaintInput {
+  cover: (c: number) => CellCover | null;
+  owner: Uint8Array;
+  names: readonly string[];
+  colors: Record<1 | 2, THREE.Color[]>;
+  height: (x: number, z: number) => number;
+  water: number | null;
+  deadwood: Uint8Array | undefined;
+}
+
 /** The species of one cell per model stratum (STRATA order), with their cover. */
 export type CellCover = { species: number; cover: number }[][];
 
@@ -424,6 +439,13 @@ export class PlantView {
   private readonly prev: number[][][] = [];
   private readonly shown: number[][] = [];
   private readonly tmp = new THREE.Color();
+  /** The last field frame's inputs, the cells still to repaint from it (a queue with its read
+   *  position, and a flag per cell), and each cell's last painted signature (D-153). */
+  private input: PaintInput | null = null;
+  private queue: number[] = [];
+  private next = 0;
+  private readonly queued: Uint8Array;
+  private readonly sig: Float64Array;
   /** Meshes that trees are made of (trunks, crowns): they fall when felled (D-128). */
   private readonly treeMesh: boolean[];
 
@@ -435,6 +457,8 @@ export class PlantView {
     toSun = new THREE.Vector3(0, 1, 0),
   ) {
     const cells = n * n;
+    this.queued = new Uint8Array(cells);
+    this.sig = new Float64Array(cells).fill(NaN);
     const sun = uniform(toSun.clone().normalize());
     const facing = positionWorld.sub(cameraPosition).normalize().dot(sun); // 1: into the sun
     const edge = pow(saturate(dot(normalView, positionViewDirection)).oneMinus(), RIM.power);
@@ -471,69 +495,98 @@ export class PlantView {
       .flatMap((g) => (g ? [g.mesh] : []));
   }
 
-  /** A new field frame at time `t`: models of every owned cell, per model stratum the species
-   *  present with their cover; `colors[player][species]` are linear colours. Pads float on the
-   *  `water` surface (m) where the ground is below it. */
+  /** A new field frame: per model stratum the species present in each cell with their cover;
+   *  `colors[player][species]` are linear colours. Pads float on the `water` surface (m) where
+   *  the ground is below it. Cells are repainted over the next frames (D-153), and only those
+   *  whose `signature` (owner, dead wood, covers as the layout sees them) changed: a full map
+   *  at once took ~100 ms late game, a hitch at every field frame. */
   update(
     cover: (c: number) => CellCover | null,
     owner: Uint8Array,
     names: readonly string[],
     colors: Record<1 | 2, THREE.Color[]>,
-    t: number,
     height: (x: number, z: number) => number = () => 0,
     water: number | null = null,
     deadwood?: Uint8Array,
+    signature?: (c: number) => number,
   ): void {
-    const n = this.n;
-    for (let c = 0; c < n * n; c++) {
-      const o = owner[c] ?? 0;
-      const present = o === 1 || o === 2 ? cover(c) : null;
-      const before = this.shown[c] ?? [];
-      // Trees felled by grazers, a storm or a lost front fall over (D-128); trees that died
-      // standing (dead wood now on the cell, D-127) wither away under their dead trunk.
-      const fall = !(deadwood?.[c] ?? 0);
-      if (!present) {
-        this.dropAll(before, t, fall); // the cell was lost: its plants wither
-        this.shown[c] = [];
-        this.prev[c] = [];
-        continue;
-      }
-      const slots = (this.slots[c] ??= cellSlots(c));
-      const models = plantLayout(c, present, this.prev[c], slots, densityAt(c, n));
-      this.prev[c] = models.map((list) => list.map((m) => m.species));
-      const x0 = ((c % n) - n / 2) * CELL;
-      const z0 = (Math.floor(c / n) - n / 2) * CELL;
-      const now: number[] = [];
-      models.forEach((list, s) => {
-        const stratum = STRATA[s] ?? "low";
-        for (const m of list) {
-          const [x, z] = [x0 + m.x, z0 + m.z];
-          const ground = height(x, z);
-          const y0 = stratum === "pad" ? Math.max(ground, water ?? ground) : ground;
-          const base = colors[o as 1 | 2][m.species];
-          this.style.parts(stratum, m, x, z, names[m.species] ?? "").forEach((p, i) => {
-            const slot = (c * STRATA.length + s) * KEY_SLOTS + m.slot;
-            const key = (slot * PARTS + i) * KEY_MESHES + p.mesh;
-            const color = p.color ?? this.tmp.copy(base ?? this.tmp).multiplyScalar(p.shade);
-            const pose: Pose = { ...p, y: p.y + y0, color, rootX: x, rootY: y0, rootZ: z };
-            this.meshes[p.mesh]?.put(key, pose, t);
-            now.push(key);
-          });
-        }
-      });
-      const keep = new Set(now);
-      this.dropAll(
-        before.filter((k) => !keep.has(k)),
-        t,
-        fall,
-      );
-      this.shown[c] = now;
+    this.input = { cover, owner, names, colors, height, water, deadwood };
+    for (let c = 0; c < this.n * this.n; c++) {
+      const sig = signature ? signature(c) : NaN; // no signature: always repaint
+      if (sig === this.sig[c]) continue;
+      this.sig[c] = sig;
+      if (this.queued[c]) continue;
+      this.queued[c] = 1;
+      this.queue.push(c);
     }
   }
 
-  /** Every frame: free withered models, upload changes. */
-  frame(t: number): void {
+  /** Every frame: repaint queued cells for up to `budgetMs`, free withered models, upload
+   *  changes. */
+  frame(t: number, budgetMs = PAINT_BUDGET_MS): void {
+    const start = performance.now();
+    while (this.next < this.queue.length && performance.now() - start < budgetMs) {
+      const c = this.queue[this.next++] as number;
+      this.queued[c] = 0;
+      this.paintCell(c, t);
+    }
+    if (this.next >= this.queue.length) [this.queue, this.next] = [[], 0];
     for (const g of this.meshes) g.update(t);
+  }
+
+  /** Cells waiting to be repainted. */
+  get pending(): number {
+    return this.queue.length - this.next;
+  }
+
+  /** The models of cell `c` from the last field frame, at time `t`. */
+  private paintCell(c: number, t: number): void {
+    const input = this.input;
+    if (!input) return;
+    const { cover, owner, names, colors, height, water, deadwood } = input;
+    const n = this.n;
+    const o = owner[c] ?? 0;
+    const present = o === 1 || o === 2 ? cover(c) : null;
+    const before = this.shown[c] ?? [];
+    // Trees felled by grazers, a storm or a lost front fall over (D-128); trees that died
+    // standing (dead wood now on the cell, D-127) wither away under their dead trunk.
+    const fall = !(deadwood?.[c] ?? 0);
+    if (!present) {
+      this.dropAll(before, t, fall); // the cell was lost: its plants wither
+      this.shown[c] = [];
+      this.prev[c] = [];
+      return;
+    }
+    const slots = (this.slots[c] ??= cellSlots(c));
+    const models = plantLayout(c, present, this.prev[c], slots, densityAt(c, n));
+    this.prev[c] = models.map((list) => list.map((m) => m.species));
+    const x0 = ((c % n) - n / 2) * CELL;
+    const z0 = (Math.floor(c / n) - n / 2) * CELL;
+    const now: number[] = [];
+    models.forEach((list, s) => {
+      const stratum = STRATA[s] ?? "low";
+      for (const m of list) {
+        const [x, z] = [x0 + m.x, z0 + m.z];
+        const ground = height(x, z);
+        const y0 = stratum === "pad" ? Math.max(ground, water ?? ground) : ground;
+        const base = colors[o as 1 | 2][m.species];
+        this.style.parts(stratum, m, x, z, names[m.species] ?? "").forEach((p, i) => {
+          const slot = (c * STRATA.length + s) * KEY_SLOTS + m.slot;
+          const key = (slot * PARTS + i) * KEY_MESHES + p.mesh;
+          const color = p.color ?? this.tmp.copy(base ?? this.tmp).multiplyScalar(p.shade);
+          const pose: Pose = { ...p, y: p.y + y0, color, rootX: x, rootY: y0, rootZ: z };
+          this.meshes[p.mesh]?.put(key, pose, t);
+          now.push(key);
+        });
+      }
+    });
+    const keep = new Set(now);
+    this.dropAll(
+      before.filter((k) => !keep.has(k)),
+      t,
+      fall,
+    );
+    this.shown[c] = now;
   }
 
   /** Keys end with their mesh index (key % KEY_MESHES), see `update`; tree parts fall when

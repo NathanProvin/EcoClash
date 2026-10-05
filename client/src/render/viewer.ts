@@ -56,7 +56,7 @@ import {
   WORLD,
   type PlayerId,
 } from "./palette";
-import { DeadTrees, LowPolyPlants, PlantView } from "./plants";
+import { DeadTrees, LowPolyPlants, PlantView, type CellCover } from "./plants";
 import { QUALITY, type Quality } from "./quality";
 import { WeatherFx } from "./weather";
 
@@ -944,15 +944,33 @@ export class Viewer {
     this.lastPaint = now;
     this.deadTrees.update(fields.deadwood, n, now, (x, z) => this.field.at(x, z));
     this.weather.flood(fields.flood, n);
+    // Plant models (D-153): covers in steps of 8/255, so a cell whose covers only drift within
+    // a step keeps its models and is not repainted; the signature says which cells changed.
+    const step8 = (v: number) => ((v >> 3) * 8 + 4) / 255;
+    const modelled = (c: number): CellCover =>
+      this.modelled.map((list) =>
+        list.flatMap((i) => {
+          const v = species[i]?.[c] ?? 0;
+          return v ? [{ species: i, cover: step8(v) }] : [];
+        }),
+      );
+    const signature = (c: number) => {
+      let h = Math.imul(2166136261 ^ (owner[c] ?? 0), 16777619);
+      h = Math.imul(h ^ ((fields.deadwood?.[c] ?? 0) > 0 ? 1 : 0), 16777619);
+      for (const list of this.modelled) {
+        for (const i of list) h = Math.imul(h ^ ((species[i]?.[c] ?? 0) >> 3), 16777619);
+      }
+      return h;
+    };
     this.plants.update(
-      (c) => this.modelled.map((list) => present(list, c)),
+      modelled,
       owner,
       this.replay.meta.flora.names,
       this.plantLinear,
-      now,
       (x, z) => this.field.at(x, z),
       this.field.water,
       fields.deadwood,
+      signature,
     );
     this.floraTex.needsUpdate = true;
     this.floraPrev.needsUpdate = true;

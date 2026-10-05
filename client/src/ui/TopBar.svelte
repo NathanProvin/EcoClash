@@ -86,9 +86,9 @@
 {/snippet}
 
 <header class="bar">
-  <div class="resources panel p{player}">
+  <div class="resources panel p{player}" data-tour="resources">
     <!-- Tug of war (D-134): P1 from the left, P2 from the right, free land between, 50 % marked. -->
-    <span class="tug" title="Land: P1 (left) vs P2 (right)" aria-hidden="true">
+    <span class="tug" title="Land: P1 (left) vs P2 (right)" aria-hidden="true" data-tour="land">
       <span class="t1" style:width="{(land[0] ?? 0) * 100}%"></span>
       <span class="t2" style:width="{(land[1] ?? 0) * 100}%"></span>
     </span>
@@ -109,7 +109,13 @@
 
   <div class="actions">
     {#if weather}<WeatherBadge now={weather.now} kinds={weather.kinds} />{/if}
-    <button class="icon" onclick={onTech} title="Tech tree (T)" aria-label="Tech tree">
+    <button
+      class="icon"
+      onclick={onTech}
+      title="Tech tree (T)"
+      aria-label="Tech tree"
+      data-tour="tech"
+    >
       <Icon name="tree" />
     </button>
     <div class="menu">
@@ -119,6 +125,7 @@
         aria-expanded={menu}
         title="View and display"
         aria-label="View and display"
+        data-tour="display"
       >
         <Icon name="layers" />
       </button>
@@ -133,6 +140,7 @@
                 class:on={overlay === o.id}
                 disabled={off}
                 aria-pressed={overlay === o.id}
+                data-tour="overlay-{o.id}"
                 title={off ? "Live matches only" : `${o.label}: darker where ${o.high}`}
                 onclick={() => (overlay = overlay === o.id ? null : o.id)}
               >

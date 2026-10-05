@@ -167,6 +167,7 @@
           aria-expanded={open === g.name}
           aria-label={g.name}
           title={g.name}
+          data-tour="family-{g.key}"
           onclick={() => pin(g.name)}
         >
           <FamilyIcon family={g.key} size={40} />

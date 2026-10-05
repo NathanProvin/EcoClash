@@ -1,10 +1,14 @@
 <script lang="ts">
-  // Tutorial objectives (M5a 8b): the current one, with progress dots; at the end, a short
-  // well-done with the way out.
+  // Tutorial objectives (M5a 8b, D-139): the current one with its tip, a Next button on the
+  // explanation steps, progress dots; at the end, a short well-done with the way out.
   import { OBJECTIVES } from "../game/tutorial";
   import Icon from "./Icon.svelte";
 
-  let { step, onMenu }: { step: number; onMenu: () => void } = $props();
+  let {
+    step,
+    onMenu,
+    onNext,
+  }: { step: number; onMenu: () => void; onNext: (step: number) => void } = $props();
   const current = $derived(OBJECTIVES[step]);
 </script>
 
@@ -20,6 +24,8 @@
   {#if current}
     <strong>{current.title}</strong>
     <p>{current.text}</p>
+    {#if current.tip}<p class="tip">{current.tip}</p>{/if}
+    {#if current.ack}<button class="btn next" onclick={() => onNext(step)}>Next</button>{/if}
   {:else}
     <strong><Icon name="heart" size={14} /> Tutorial complete</strong>
     <p>
@@ -40,6 +46,14 @@
     gap: 4px;
     width: min(300px, calc(100vw - 36px));
     padding: 10px 14px 12px;
+  }
+  .tip {
+    font-size: 0.82em;
+    font-style: italic;
+    color: var(--ink-soft);
+  }
+  .next {
+    align-self: flex-end;
   }
   .head {
     display: flex;

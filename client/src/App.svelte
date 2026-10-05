@@ -37,6 +37,7 @@
   import Objectives from "./ui/Objectives.svelte";
   import StrategicIcons from "./ui/StrategicIcons.svelte";
   import Toasts from "./ui/Toasts.svelte";
+  import TourPointer from "./ui/TourPointer.svelte";
   import { CLEAR, weatherToasts, type WeatherNow } from "./game/weather";
   import type { OverlayId } from "./game/overlays";
   import TopBar from "./ui/TopBar.svelte";
@@ -102,6 +103,16 @@
   let castArmed: string | null = $state(null); // the catastrophe card armed (D-129)
   let tutorialStep = $state(0);
   let raidOrdered = false; // an order sent animals onto enemy land (tutorial)
+  /** Tutorial (D-139): explanation steps the player clicked Next on; the tech tree opened. */
+  let acked = new Set<number>();
+  let techSeen = false;
+  $effect(() => {
+    if (techOpen) techSeen = true;
+  });
+  function nextStep(step: number) {
+    acked.add(step);
+    if (tutorialStep === step) tutorialStep = step + 1;
+  }
   let lastScan = 0;
   let seenNotice = 0; // `at` of the last order notice turned into a toast
   let available: Set<string> | null = null; // species you could buy (and afford) at the last scan
@@ -251,11 +262,23 @@
       const onEnemy = mine.filter(
         (a) => fields.owner[Math.floor(a.y) * n + Math.floor(a.x)] === 3 - me,
       ).length;
+      // The highest plant layer held: plant counts come first, in flora-table order.
+      const cells = l.counts(tick, me);
+      const layer = l.meta.flora.level.reduce(
+        (top, level, i) => ((cells[i] ?? 0) > 0 ? Math.max(top, level) : top),
+        0,
+      );
       const step = advance(tutorialStep, {
         owned: share[me - 1] ?? 0,
         unlocked,
         animals: mine.length,
         onEnemy: raidOrdered ? onEnemy : 0, // grazers drifting over the front do not count
+        acked,
+        overlay,
+        techOpened: techSeen,
+        layer,
+        plants: new Set(l.meta.flora.names.filter((_, i) => (cells[i] ?? 0) > 0)),
+        selected: selection.size,
       });
       if (step !== tutorialStep) {
         tutorialStep = step;
@@ -627,6 +650,8 @@
   async function launch(asTutorial = false) {
     tutorial = asTutorial;
     tutorialStep = 0;
+    acked = new Set();
+    techSeen = false;
     raidOrdered = false;
     if (!asTutorial) saveSetup(setup);
     inMenu = false;
@@ -769,7 +794,8 @@
       <StrategicIcons {icons} onSelect={(ids) => select(ids)} />
     </div>
     {#if live && tutorial && !outcome}
-      <Objectives step={tutorialStep} onMenu={toMenu} />
+      <Objectives step={tutorialStep} onMenu={toMenu} onNext={nextStep} />
+      <TourPointer targets={OBJECTIVES[tutorialStep]?.point} />
     {:else if live && homeless && !outcome}
       <p class="found panel">
         <strong>Choose your spawn.</strong> Pick a plant in the bar and click anywhere on land.

@@ -1567,3 +1567,30 @@ Template:
 - **Consequences:**
   - Balance hash changes (match rule).
   - Not reproduced in the browser: a 1-minute match and a headless 60-minute bot-vs-bot match (P2 won on territory at 51:50) both gave proper curves. A draw at the limit needs equal standing biomass and territory, in practice both at zero.
+
+## D-139 · 2026-10-05 · A guided tutorial
+- **Status:** accepted (user: guide through the UI, tips, spreading, plant layers, spawning and ordering animals; keep surprises)
+- **Decision:** eleven steps (`game/tutorial.ts`). Each names its control, and most add a muted tip:
+  1. welcome to the dashboard (Next);
+  2. found the colony;
+  3. spread to 4 %;
+  4. read the soil: the four layers, soil built by herbs, turn on the Soil overlay;
+  5. plant Grasses: done once they grow on your land, since the rabbits need them;
+  6. grow a second layer with Ferns (taller layers smother lower ones at the front);
+  7. open the tech tree;
+  8. call rabbits;
+  9. select them;
+  10. raid with A + click;
+  11. hold 55 %, with a teaser: "Not everything in this valley eats plants…".
+
+  Not explained, kept as surprises: hunters, recyclers, dead trees, weather, catastrophes.
+- Steps marked `ack` wait for a Next button. The tutorial state now carries:
+  - the steps acknowledged;
+  - the overlay shown;
+  - the tech tree opened;
+  - the highest plant layer held, and the plants held;
+  - the animals selected.
+- `TourPointer`: a pulsing gold ring with an arrow around the control the step names, found by `data-tour` keys (the resource and land bars, tech and display buttons, overlay toggles, build-bar families). It takes the first key on screen, so step 4 points at the display button, then at the Soil toggle inside the open menu.
+- **Consequences:**
+  - Tests: Next gating, the whole run in order, no skipping (e.g. Grasses unlocked but not planted), no going back.
+  - The browser walk-through of steps 1–8 found that unlocking Grasses without planting them stranded the rabbits step. Step 5 now requires grasses on the map.

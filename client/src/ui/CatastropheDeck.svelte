@@ -79,7 +79,7 @@
           {/each}
         </div>
         {#if hover}
-          <div class="tip">
+          <div class="tip panel">
             <strong>{label(hover.name)}</strong>
             <span>{hover.effect}</span>
             <span class="muted"
@@ -183,11 +183,18 @@
   .cost.gold {
     color: var(--gold);
   }
+  /* Out of the flyout's flow: growing it would slide the cards from under the pointer, which
+     hides the tip again (a flicker loop). */
   .tip {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    width: 260px;
+    padding: 6px 8px;
+    pointer-events: none;
     display: flex;
     flex-direction: column;
     gap: 3px;
-    max-width: 260px;
     font-size: 0.78em;
   }
   .tip strong {

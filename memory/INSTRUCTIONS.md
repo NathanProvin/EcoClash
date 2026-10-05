@@ -70,7 +70,7 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 
 - Seed / plant (grass patches, shrubs, trees) on any free cell; nobody owns land at the start, so the first planting is the player's spawn (D-095).
 - Spawn agents from trees (costs biomass).
-- Play catastrophe cards (D-129): a bark beetle outbreak, a violent storm, a chemical spill. Expensive, paid at each use, then cooling down; they hit both sides in their disc (gamerules §10b).
+- Play catastrophe cards (D-129): processionary caterpillars, a violent storm, a chemical spill. Expensive, paid at each use, then cooling down; they hit both sides in their disc (gamerules §10b).
 - Standard RTS unit control (D-053): drag or click to select, right-click to move (on an enemy cell: attack-move), A + click to attack-move, S to stop, Shift or Ctrl + 1–9 to set a control group, 1–9 to recall it. The camera pans with the arrow keys or a right-drag.
 - Camera: top-down RTS camera with pan, zoom and limited tilt.
 
@@ -307,7 +307,7 @@ Quality presets (low / medium / high): grass density, shadows, post-processing, 
 ## 8. UI
 
 - Svelte + CSS, a calm **frosted HUD** (D-048, D-064): translucent blurred panels with a thin light border over the diorama, bold numbers, few words (names in tooltips), settings grouped in one menu, one sans-serif font (e.g. Inter), and the player colours from §7.1. Theme tokens live in `client/src/app.css`.
-- **Species icons:** every species card has an icon slot (`client/src/ui/SpeciesIcon.svelte`). Put a square image with a transparent background, 128 px or more, at `client/public/icons/species/<species name>.webp`; until then the slot shows a placeholder glyph on the species' stratum or role colour.
+- **Species icons:** every species card has an icon slot (`client/src/ui/SpeciesIcon.svelte`). Put a square image with a transparent background, 128 px or more, at `client/public/icons/species/<species name>.webp`; until then the slot shows its family's pictogram (D-131).
 - Screens: main menu, settings (quality presets, keybinds), match setup (vs AI / vs player), in-game HUD (biomass, territory %, selected units, minimap), end screen with **live biomass/territory charts** of the match.
 - Built so far: main menu (D-057, D-081: Play opens the match setup, Options holds display settings and the shortcuts, Species catalog to come), in-game HUD (D-048), end screen with territory and standing-biomass charts and Play again (D-059, D-081), a guided tutorial match with objectives (D-117), the tech tree as a food web: plants, grazers and hunters in rows, feeding links lit on hover, the enemy's species and your counters marked (T; D-124), notifications: raid and lost-ground alerts with map pings and off-screen arrows, unlock infos, order notices (D-077), strategic icons over large groups of your animals (I; D-078), a compact cell panel read at a glance: owner, ground, health, strata, soil, enemy push, lockout, plant and animal icons (D-100).
 

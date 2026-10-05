@@ -1,4 +1,4 @@
-// Species helpers shared by the UI: display names, glyphs, and tech-tree state at a given time.
+// Species helpers shared by the UI: display names and tech-tree state at a given time.
 // Mirrors the unlock rules of tools/prototype/economy.py (D-029).
 
 import type { ReplayMeta, Source, Species } from "../replay/replay";
@@ -7,12 +7,6 @@ import type { ReplayMeta, Source, Species } from "../replay/replay";
 export function label(name: string): string {
   const words = name.replace(/_and_/g, " & ").replace(/_/g, " ");
   return words.charAt(0).toUpperCase() + words.slice(1);
-}
-
-/** The placeholder shape of a species, as drawn in the 3D view (D-028). */
-export function glyph(s: Species): string {
-  if (s.kind === "flora") return ["•", "♣", "▲", "■"][s.level - 1] ?? "•";
-  return { herbivore: "●", decomposer: "∙", predator: "▲" }[s.role] ?? "●";
 }
 
 /** What `s` feeds on (D-122), primary first; a family name stands for its plants. Recyclers

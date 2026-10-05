@@ -531,3 +531,7 @@
 ## 2026-10-01 · Catastrophe cards (D-129)
 - **Done:** sim module, balance, command, cooldowns, effects, wasm bindings, deck UI, targeting ring, animations, enemy-cast toasts, tests. In the browser, the beetle outbreak turned a forest patch into dead trees, the storm felled shrubs and blew leaves, the spill left a bare hole, and the card showed its cooldown.
 - **Next:** weather (later); the bot learning catastrophes; M5a 9 (deploy) when the user is ready.
+
+## 2026-10-05 · Card rename, tooltip flicker, species icons (D-130, D-131)
+- **Done:** finished the bark beetle → processionary caterpillars card rename (fmt fix, all checks green). The catastrophe tooltip flickered because it grew the bottom-anchored flyout and slid the cards from under the pointer; it is now absolute. Species icons show their family pictogram. Both were checked in the browser.
+- **Next:** weather (spec needed from the user); the bot learning catastrophes; M5a 9.

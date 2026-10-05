@@ -4,10 +4,10 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-01: D-127…D-129 done (dead trees, falling trees, catastrophe cards). Next: weather (user, later); the bot learning catastrophes; M5a 9, static deploy, when the user is ready.
+- **Now:** 2026-10-05: D-130 (processionary caterpillars card), D-131 (species icons, tooltip fix). Next: weather (awaiting the spec); the bot learning catastrophes; M5a 9, static deploy, when the user is ready.
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
-- **Last updated:** 2026-10-01
+- **Last updated:** 2026-10-05
 
 ---
 

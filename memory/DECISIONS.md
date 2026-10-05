@@ -1432,3 +1432,16 @@ Template:
     - a short bank is refused;
     - client: card status, plumbing.
   - The bot does not cast catastrophes yet: for the balance loop (M7-lite).
+
+## D-130 · 2026-10-05 · Processionary caterpillars replace the bark beetle card
+- **Status:** accepted (user, 2026-10-02)
+- **Decision:** the `kill_trees` catastrophe card is now `[catastrophes.processionary_caterpillars]`, with a caterpillar pictogram (`Icon` `caterpillar`). Its rules are unchanged (D-129). The bark beetles stay as a species (H4).
+- **Consequences:** the balance hash changes (renamed key). The tests, the `proptest` stream and the flora fixture follow.
+
+## D-131 · 2026-10-05 · Species icons show their family pictogram
+- **Status:** accepted (user: icons more explicit than geometric forms, looking like their group icon)
+- **Decision:**
+  - Until a species has its own `.webp`, `SpeciesIcon` draws its family's `FamilyIcon` (pictogram and tone). The stratum and role glyphs (`glyph()`) are removed.
+  - The tier stays readable from the medal dots and rings around the build-bar tiles (D-106).
+  - Fix: a catastrophe card's tooltip is placed out of the flyout's flow. Before, growing the flyout slid the cards from under the pointer, so the tooltip flickered on and off.
+- **Consequences:** species of one family share a pictogram until real icons come (M5b).

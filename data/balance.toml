@@ -5,7 +5,7 @@
 [sim]
 tick_hz = 10             # §4 fixed tick
 flora_every_ticks = 8    # §5.3: flora fields at 1.25 Hz (D-038; keep growth x dt <= 1)
-pace = 1.0               # seconds of ecology per real second (D-069): growth, spread, income,
+pace = 0.75              # seconds of ecology per real second (D-069): growth, spread, income,
                          # feeding and breeding run at this pace; movement and the clock do not
 env_every_ticks = 10     # §5.3: nutrients / water at 1 Hz
 grid_size = 32           # §5.1: 1 cell = 4 m, a 128 m map (D-047, D-049, D-070, D-091)
@@ -181,7 +181,7 @@ rot_s = 600             # time for standing dead wood to rot away without recycl
 # flora tick while it acts.
 [catastrophes.processionary_caterpillars]
 act = "kill_trees"
-cost = 6000
+cost = 15000
 radius = 4
 cooldown_s = 300
 duration_s = 8
@@ -190,7 +190,7 @@ effect = "Processionary caterpillars strip the woods: the trees in the area die 
 
 [catastrophes.storm]
 act = "storm"
-cost = 9000
+cost = 22000
 radius = 9
 cooldown_s = 420
 duration_s = 6
@@ -199,7 +199,7 @@ effect = "A violent storm sweeps a wide area: here and there, shrubs and trees a
 
 [catastrophes.chemical_spill]
 act = "spill"
-cost = 4000
+cost = 10000
 radius = 1
 cooldown_s = 240
 duration_s = 0

@@ -1617,3 +1617,39 @@ Template:
   - TS tests: the step order and the defend fallback.
   - Browser run, every step in order to "Tutorial complete": the herd bred, the raid and the airdrop (×1.5) completed their steps, and great tits dropped on the swarm ended the defense.
   - The bot sat at its grasshopper cap, so the scripted waves were refused, but its own swarm was already on the player's land. The fallback covers a bot with no swarm at all.
+
+## D-142 · 2026-10-05 · Balance pass 1: pacing and unit weight
+- **Status:** accepted (user: early game 5–7 min, mid game peaking at 12–15 min, late game from 20 min, matches of about 30 min; each unit called should matter, no spam)
+- **Decision:**
+  - Tool: `sim-cli bench` (bot vs bot, threads, a compact marker table; `TRACE=<min>` for one match).
+  - The bot as a player proxy:
+    - strict unlock plan, ordered by phase, with savings when the next unlock is within 120 s of income;
+    - undergrowth in succession;
+    - swarm = one card; four grazer cards in total;
+    - units before swarms; only calls that can land;
+    - calls every third decision, raid drops every fifth with a reserve.
+  - Data:
+    - `pace` 1.0 → 0.75 (every ecological rate);
+    - swarm caps 300 → 60–80, smaller cards, calls about 2–4× the price;
+    - unit grazers: pricier calls, 3–4 per card, caps of 40, stronger bites and yields;
+    - tier-3 grazers 6 000–9 000;
+    - first hunters cheaper (Great tit 3 000, Kestrel 6 000);
+    - Elder 2 500 and slower;
+    - trees 9 000 / 12 000 / 16 000;
+    - catastrophes 15 000 / 22 000 / 10 000;
+    - Bramble, Hazel, Cattails and Black woodpecker raised to the late-game range.
+- **Consequences** (normal vs hard, 8 seeds, median):
+
+  | Marker | Before | After |
+  |---|---|---|
+  | First animal | 0:52 | 2:49 |
+  | Shrubs | 35:31 | 18:04 |
+  | First hunter | never | 18:10 |
+  | Trees | 44:34 | 28:37 |
+  | Catastrophes affordable | 44:05 | 25:56 |
+  | Match end | 42:51 (5 of 8 unfinished) | 24–30 |
+  | Calls per player-minute | 10.9 | 2.7 |
+  | Swarm members | 300–675 | 80–140 |
+  | Units at 20 min | 0 | 11 |
+
+- **Open:** the levels show no difficulty ladder (outcomes depend on the map, not the level), since every level is money-limited. Next: difficulty by play quality (D-143).

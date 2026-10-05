@@ -1692,3 +1692,16 @@ Template:
   - Test fixes:
     - the relay test's earthworm call moved to tick 1 100 (calls cost more);
     - the Python decay test uses the window.
+
+## D-144 · 2026-10-05 · Faster breeding; no waiting in the tutorial
+- **Status:** accepted (user playtest: saving for Ferns and waiting for births broke the tutorial's rhythm)
+- **Breeding worked, but slowly.** Measured: three rabbits on their own rich meadow grew to 9 in 4 minutes. The local food check needed 900 s of bites per animal in sight.
+- **Change:**
+  - `food_reserve` 900 → 300 s;
+  - the rabbit breeding cooldown (`growth`) is 30 s.
+
+  Now the herd doubles about every 40 s (3 → 6 → 12 → 21) and levels off near 30 on a 16² meadow. Test: `a_fed_herd_breeds_within_two_minutes`.
+- **Bench** (normal vs hard, 16 seeds): units 10 at 10 min and 25 at 20 min (were 7 and 12); median end 30:28; the other markers unchanged.
+- **Tutorial:**
+  - Each step that costs biomass has a `need`. On entering the step, the tutorial tops the bank up to it with the tutorial-only grant (`topUp`): Grasses 500, Ferns 1 000, Rabbits 4 000, the airdrop 3 600, Elder + Great tit 7 000.
+  - The herd step waits for one birth (was 2).

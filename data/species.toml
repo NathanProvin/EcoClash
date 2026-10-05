@@ -407,7 +407,7 @@ group = 8
 wobble = 0.3
 
 [fauna.rabbits]
-growth = 45
+growth = 30
 spawn_cost = 800
 unlock_cost = 1000
 yield = 0.12

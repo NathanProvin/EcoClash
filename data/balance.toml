@@ -271,7 +271,7 @@ refuge_cover = 0.5      # summed cover of refuge flora that hides small fauna (D
 shallow_speed = 0.5
 path_cells = 400
 # Local carrying capacity (D-066): a birth needs food nearby, within the species' sight.
-food_reserve = 900      # grazers, decomposers: seconds of bites the food in sight must hold per animal
+food_reserve = 300      # grazers, decomposers: seconds of bites the food in sight must hold per animal
 prey_per_predator = 4   # predators: huntable enemy prey in sight per predator
 strike_radius = 1       # a predator catches prey up to this many cells away (each axis), once per flora tick
 catch_chance = 0.5      # chance that a hunting predator with prey in reach makes its kill, per flora tick

@@ -11,7 +11,7 @@
   import { loadSetup, MAP_SIZES, saveSetup, withUrl } from "./game/setup";
   import { ALL_TIPS, loadSeen, saveSeen, TIPS, TipWatch } from "./game/tips";
   import { CATASTROPHE_LOOK } from "./game/catastrophes";
-  import { advance, DEFEND_TITLE, OBJECTIVES, RAID, TUTORIAL_SETUP } from "./game/tutorial";
+  import { advance, DEFEND_TITLE, OBJECTIVES, RAID, topUp, TUTORIAL_SETUP } from "./game/tutorial";
   import { loadReplay, type Fields, type Role, type Source, type Species } from "./replay/replay";
   import { Live, type Outcome } from "./worker/live";
   import {
@@ -321,6 +321,10 @@
       });
       if (step !== tutorialStep) {
         tutorialStep = step;
+        // No waiting to save up (D-144): grant the new step's shortfall (tutorial only).
+        const bank = l.meta.series[`bank_p${me}`]?.at(-1) ?? 0;
+        const gift = topUp(step, bank);
+        if (gift > 0) l.grant(me, gift);
         toast(step < OBJECTIVES.length ? "Objective done" : "Tutorial complete", "info");
       }
       return; // no first-match tips during the tutorial: the objectives guide

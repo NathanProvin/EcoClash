@@ -52,6 +52,9 @@ export interface Objective {
   point?: TourTarget;
   /** An explanation: done when the player clicks Next. */
   ack?: true;
+  /** Biomass the step needs (D-144): on entry the tutorial tops the bank up to it, so the
+   *  player never waits to save up. */
+  need?: number;
   done: (s: TutorialState, index: number) => boolean;
 }
 
@@ -61,7 +64,7 @@ export const TUTORIAL_GOAL = 0.55;
 /** The land to reach while learning to spread. */
 export const SPREAD_GOAL = 0.04;
 /** Births to wait for while the herd grows at home. */
-export const HERD_BIRTHS = 2;
+export const HERD_BIRTHS = 1;
 /** The step during which the bot raids with grasshopper swarms (the App drives that raid). */
 export const DEFEND_TITLE = "Defend your meadows";
 /** The scripted raid (D-141): a swarm of grasshoppers dropped by the bot onto the player's grass
@@ -104,6 +107,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     title: "Plant Grasses",
+    need: 500, // unlock 200 + a planting
     text: "Open Herbs: the Grasses card fills with colour as you save up. Click it when its padlock turns gold to unlock it, click it again, then plant grasses on your land.",
     tip: "Grasses spread faster than lichen, and feed most grazers.",
     point: ["family-L1"],
@@ -111,6 +115,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     title: "Grow a second layer",
+    need: 1000, // Ferns 600 + a planting
     text: "Unlock Ferns in Undergrowth and plant them where your soil is rich.",
     tip: "At the front, a taller layer shades and smothers the enemy's lower plants: that is how borders move.",
     point: ["family-L2"],
@@ -125,6 +130,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     title: "Call rabbits",
+    need: 4000, // Grasshoppers 600 + Rabbits 1000 + a card of three (800 each)
     text: "In Grazers (yellow), unlock Grasshoppers, then Rabbits. Pick Rabbits and click your grass: on your own land they come at the base price.",
     point: ["family-H1"],
     done: (s) => s.animals > 0,
@@ -148,6 +154,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     title: "Airdrop a raid",
+    need: 3600, // a card of rabbits at ×1.5
     text: "You can also drop animals straight into enemy land: pick Rabbits in Grazers and click enemy grass. They land on its food at once, but cost ×1.5.",
     tip: "The ring under the cursor turns warm when the drop costs more.",
     point: ["family-H1"],
@@ -155,6 +162,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     title: DEFEND_TITLE,
+    need: 7000, // Elder 2500 + a planting + Great tit 3000 + a card
     text: "The enemy is dropping grasshopper swarms on your meadows! Great tits eat them: unlock Elder in Shrubs and plant it (tits nest in shrubs), then unlock Great tit in Insect eaters and drop it onto the swarm.",
     tip: "Every grazer has a hunter: the tech tree shows who eats whom.",
     point: ["family-L3", "family-P1"],
@@ -170,6 +178,11 @@ export const OBJECTIVES: Objective[] = [
     done: (s) => s.owned >= TUTORIAL_GOAL,
   },
 ];
+
+/** What to grant on entering step `step` with `bank` biomass: the shortfall to its need. */
+export function topUp(step: number, bank: number): number {
+  return Math.max(0, Math.ceil((OBJECTIVES[step]?.need ?? 0) - bank));
+}
 
 /** The current objective (OBJECTIVES.length: all done): from `step`, past every one done now. */
 export function advance(step: number, s: TutorialState): number {

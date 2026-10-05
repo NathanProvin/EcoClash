@@ -1054,6 +1054,28 @@ mod tests {
         }
     }
 
+    /// D-144: a rabbit card on its own rich meadow breeds fast enough to play with: three
+    /// become at least ten within two minutes.
+    #[test]
+    fn a_fed_herd_breeds_within_two_minutes() {
+        let b = balance();
+        let mut w = World::new(&b, 1, 16);
+        w.state.soil.fill(crate::flora::U16);
+        let g = w.flora.p.index("grasses").unwrap();
+        let n2 = 256;
+        for k in 0..n2 {
+            w.state.owner[k] = 1;
+            w.state.bio[g * n2 + k] = 30_000;
+            w.state.gauge[g * n2 + k] = i64::from(ONE);
+        }
+        let r = w.fauna.p.index("rabbits").unwrap();
+        w.fauna.place(r, 1, 8 * 16 + 8, 3, 16);
+        for _ in 0..1200 {
+            w.step();
+        }
+        assert!(w.fauna.census(1)[r] >= 10, "{}", w.fauna.census(1)[r]);
+    }
+
     /// D-141: a grant adds to the bank in the tutorial only; any other match refuses it.
     #[test]
     fn grants_only_in_the_tutorial() {

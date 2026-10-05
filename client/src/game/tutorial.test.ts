@@ -5,6 +5,7 @@ import {
   OBJECTIVES,
   SPREAD_GOAL,
   TUTORIAL_GOAL,
+  topUp,
   type TutorialState,
 } from "./tutorial";
 
@@ -49,7 +50,6 @@ describe("tutorial objectives (D-139)", () => {
       [{ techOpened: true }, 7],
       [{ animals: 2 }, 8],
       [{ selected: 2 }, 9],
-      [{ born: 1 }, 9], // one birth: the herd is still growing
       [{ born: HERD_BIRTHS }, 10],
       [{ onEnemy: 1 }, 11], // raid
       [{ airdropped: 1 }, 12],
@@ -76,6 +76,13 @@ describe("tutorial objectives (D-139)", () => {
     expect(advance(3, at({ owned: 0.1, animals: 3, selected: 3 }))).toBe(3);
     expect(advance(3, at({ overlay: "moisture" }))).toBe(3); // another overlay
     expect(advance(5, at({ layer: 1 }))).toBe(5); // herbs only
+  });
+
+  it("tops the bank up to a step's need, never down (D-144)", () => {
+    const step = OBJECTIVES.findIndex((o) => o.title === "Grow a second layer");
+    expect(topUp(step, 200)).toBe(800);
+    expect(topUp(step, 5000)).toBe(0);
+    expect(topUp(0, 0)).toBe(0); // no need: nothing granted
   });
 
   it("never goes back once an objective is done", () => {

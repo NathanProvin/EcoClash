@@ -185,6 +185,10 @@ pub struct FaunaRules {
     /// (D-123).
     pub diet_yield: Vec<f64>,
     pub own_graze: f64,
+    /// Enemy plants lose this many times what a grazer eats (D-152): the rest is trampled to
+    /// litter, so raids break fronts without feeding the raiders more.
+    #[serde(default = "one")]
+    pub graze_damage: f64,
     pub soil_per_dead: f64,
     /// Seconds during which a player may not take back a cell that enemy grazers ate bare
     /// (D-098).
@@ -751,6 +755,11 @@ fn section<T: serde::de::DeserializeOwned>(
         }
     }
     Ok(out)
+}
+
+/// Serde default for multipliers that are neutral when absent.
+fn one() -> f64 {
+    1.0
 }
 
 #[cfg(test)]

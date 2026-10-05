@@ -1776,3 +1776,14 @@ Template:
   - GPU culling per chunk;
   - moving `paintFields` into the worker;
   - chunk-level dirty updates for plants.
+
+## D-152 · 2026-10-05 · Trampling grazers and shorter-lived trees
+- **Status:** accepted (user: help break fronts in the late game)
+- **Decision:**
+  - `[fauna] graze_damage = 4.0`: on enemy land, plants lose 4× what a grazer eats; the extra goes to litter. The grazer's energy is unchanged (no faster breeding). The pressure lines count enemy grazers 4× too.
+  - `[deadwood] natural_death_s` 10 800 → 3 600 (trees die of old age 3× as often).
+  - Balance hash version 19.
+- **Bench** (normal mirror, 30 seeds, 60 min):
+  - more decided matches: 8 unfinished, were 12;
+  - median end 25:25 (was 25:32);
+  - trees settle at about 19:00 (were 17:25).

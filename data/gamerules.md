@@ -274,7 +274,7 @@ All dead organisms, plants and animals, feed `Dead biomass`.
 - Predators attack enemy agents whose species is in their diet. Damage reduces health, and a killed agent becomes dead biomass.
 - Predators cannot attack species outside their diet. A fox ignores slugs, for example.
 - **Refuge (D-023):** a player's small fauna inside own cells with dense hawthorn & blackthorn or bramble, or in the water dense cattails (D-125), cannot be hunted. Predators are otherwise kept in check by their own predators (§5.2).
-- **Dead trees (D-127):** trees can die of old age (a small chance, a mean life of 3 h of ecology time). The dead tree stays standing; while it stands, no tree can grow in that cell. It rots away slowly, and recyclers clear it faster, the black woodpecker best of all (dead wood is its primary food).
+- **Dead trees (D-127):** trees can die of old age (a small chance, a mean life of 1 h of ecology time; D-152). The dead tree stays standing; while it stands, no tree can grow in that cell. It rots away slowly, and recyclers clear it faster, the black woodpecker best of all (dead wood is its primary food).
 
 ### 6.3 Spawn conditions
 
@@ -301,6 +301,7 @@ A species can be spawned only when **all** of the following hold:
   - The per-player and per-species caps stay only as safety ceilings. Populations then rise and fall with their food: prey with the plants, predators with the prey, in the manner of Lotka–Volterra cycles.
 - **Hunting (D-066):** a hungry predator (below full energy; a sated one does not hunt) with huntable prey within `strike_radius` cells kills one per flora tick with chance `catch_chance`.
 - **Grazing at home (D-066):** herbivores bite their owner's plants at `own_graze` of a full bite, but gain the energy of a full bite, so they live and breed at home without eating their owner's economy.
+- **Trampling (D-152):** on enemy land, plants lose `graze_damage` (4) times what a grazer eats; the extra is trampled to litter. Raids break fronts faster, but the raiders are not fed more.
 - Every animal has an energy value. It regains energy by eating and loses it over time. At zero energy it dies and becomes dead biomass.
 - **Trophic transfer:** eating converts ~10 % of the consumed biomass into the eater's energy, and ~10 % into biomass points for its owner. This follows the ecological 10 % rule and keeps consumer armies expensive.
 

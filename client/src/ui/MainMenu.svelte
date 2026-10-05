@@ -2,8 +2,8 @@
   // Main menu (D-057, D-081): title over a placeholder background, and the game's entry points.
   // "Play" lists the modes (D-137): Sandbox, Multiplayer and Ranked (soon), AI opponent; a mode
   // opens its setup (map size and seed, plus the bot level against the AI), remembered per browser;
-  // "Options" holds the display settings and the list of shortcuts; "Species" (a catalog of every
-  // species) is still to come. Background: drop an image at client/public/menu/background.webp
+  // "Options" holds the display settings and the list of shortcuts; "Species" shows the tech tree
+  // with every species (D-140). Background: drop an image at client/public/menu/background.webp
   // and it replaces the painted placeholder.
   import {
     BOTS,
@@ -27,6 +27,7 @@
     onTips,
     onStart,
     onTutorial,
+    onSpecies,
   }: {
     setup: MatchSetup;
     quality: Quality;
@@ -37,6 +38,7 @@
     onTips: (on: boolean) => void;
     onStart: () => void;
     onTutorial: () => void;
+    onSpecies: () => void;
   } = $props();
 
   let view: "home" | "modes" | Mode | "options" = $state("home");
@@ -89,9 +91,7 @@
         <button onclick={onTutorial} title="A short guided match against the easy bot">
           Tutorial
         </button>
-        <button disabled title="A catalog of every species: coming soon">
-          Species <small>soon</small>
-        </button>
+        <button onclick={onSpecies} title="Every species and who eats whom">Species</button>
         <button onclick={() => (view = "options")}>Options</button>
       </nav>
     {:else if view === "modes"}

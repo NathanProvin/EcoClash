@@ -1594,3 +1594,11 @@ Template:
 - **Consequences:**
   - Tests: Next gating, the whole run in order, no skipping (e.g. Grasses unlocked but not planted), no going back.
   - The browser walk-through of steps 1–8 found that unlocking Grasses without planting them stranded the rabbits step. Step 5 now requires grasses on the map.
+
+## D-140 · 2026-10-05 · Species page in the main menu
+- **Status:** accepted (user: the in-game tech tree as the menu's Species page, without much work)
+- **Decision:**
+  - "Species" opens the tech tree (`TechTree`, D-124) over the menu, on a catalog source (`game/catalog.ts`, tested): every species unlocked (full-colour cards), zero counts (no enemy or counter marks), no series, nothing to buy.
+  - The species table comes from `sim-wasm` on the main thread, loaded on demand, so it reads the same data files as a match.
+  - Esc or Close returns to the menu.
+- **Consequences:** the legend still names the in-match marks (enemy, counters), which never show on this page. Left as is (user: no need to work much on it).

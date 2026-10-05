@@ -560,3 +560,8 @@
 ## 2026-10-05 · Time limit, end-screen charts (D-138)
 - **Done:** time limit 600 min; charts sampled and spread-free, with "No data" on all-zero curves; tests. Checked a 1-min end screen in the browser (temporary limit, restored).
 - **Open:** the user's 60-min draw with flat curves was not reproduced; ask which mode it was played in if it comes back.
+
+## 2026-10-05 · Guided tutorial, Species page (D-139, D-140)
+- **Done:** an eleven-step tutorial with tips, Next on explanations and a pointer ring on each control. In the browser I walked steps 1–8; the gap that walk found (Grasses unlocked but not planted) is fixed. Then the Species page (the tech tree over a catalog source), with Esc to close.
+- **Note:** a wedged background tab looked like a page hang; a fresh tab was fine.
+- **Next:** the bot reacting to weather and casting catastrophes; M5a 9 (deploy) when the user is ready.

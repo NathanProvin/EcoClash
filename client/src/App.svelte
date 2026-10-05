@@ -40,6 +40,7 @@
   import TourPointer from "./ui/TourPointer.svelte";
   import { CLEAR, weatherToasts, type WeatherNow } from "./game/weather";
   import type { OverlayId } from "./game/overlays";
+  import { catalogSource } from "./game/catalog";
   import TopBar from "./ui/TopBar.svelte";
 
   let canvas: HTMLCanvasElement;
@@ -109,6 +110,22 @@
   $effect(() => {
     if (techOpen) techSeen = true;
   });
+  /** The menu's Species page (D-140): the tech tree over a catalog of every species. */
+  let catalog: Source | null = $state(null);
+  async function openCatalog() {
+    // The species table comes from the sim itself (the same data files as a match), loaded once.
+    const [{ default: init, Sim }, { default: wasmUrl }, { default: bal }, { default: spe }] =
+      await Promise.all([
+        import("../../sim-wasm/pkg/sim_wasm.js"),
+        import("../../sim-wasm/pkg/sim_wasm_bg.wasm?url"),
+        import("../../data/balance.toml?raw"),
+        import("../../data/species.toml?raw"),
+      ]);
+    await init({ module_or_path: wasmUrl });
+    const sim = new Sim(bal, spe, 1n, 0);
+    catalog = catalogSource(JSON.parse(sim.speciesTable()) as Species[]);
+    sim.free();
+  }
   function nextStep(step: number) {
     acked.add(step);
     if (tutorialStep === step) tutorialStep = step + 1;
@@ -599,6 +616,7 @@
       e.preventDefault();
       return;
     }
+    if (down && inMenu && catalog && key === "Escape") catalog = null; // the Species page (D-140)
     if (!down || typing || inMenu) return;
     const digit = /^Digit([1-9])$/.exec(e.code)?.[1]; // the digit row, whatever the layout
     if (digit) {
@@ -863,11 +881,23 @@
       }}
       onStart={() => launch()}
       onTutorial={() => launch(true)}
+      onSpecies={() => void openCatalog().catch((e: unknown) => (error = String(e)))}
     />
+    {#if catalog}
+      <div class="catalog">
+        <TechTree replay={catalog} tick={0} player={1} onClose={() => (catalog = null)} />
+      </div>
+    {/if}
   {/if}
 </main>
 
 <style>
+  /* The Species page sits over the main menu (D-140). */
+  .catalog {
+    position: absolute;
+    inset: 0;
+    z-index: 25;
+  }
   main {
     position: relative;
     height: 100%;

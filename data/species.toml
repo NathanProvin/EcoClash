@@ -833,13 +833,13 @@ rest = 0.2
 
 [fauna.pine_marten]
 growth = 120
-spawn_cost = 1500
-unlock_cost = 12000
-yield = 0.25
+spawn_cost = 3000
+unlock_cost = 16000
+yield = 0.5
 cap = 20
 effect = "Agile woodland hunter."
 family = "P2"
-tier = 2
+tier = 3
 role = "predator"
 eats = ["red_squirrel", "bank_vole"]
 habitat = ["L4"]
@@ -856,13 +856,13 @@ rest = 0.3
 
 [fauna.fox]
 growth = 120
-spawn_cost = 3000
-unlock_cost = 16000
-yield = 0.5
+spawn_cost = 1500
+unlock_cost = 12000
+yield = 0.25
 cap = 20
 effect = "Hunts small mammals; drop it on enemy grazers."
 family = "P2"
-tier = 3
+tier = 2
 role = "predator"
 eats = ["rabbits", "bank_vole", "mallard"]
 habitat = ["L3"]

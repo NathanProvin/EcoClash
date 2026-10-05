@@ -30,6 +30,11 @@ export const TIPS: Tip[] = [
     text: "Your plants spread on their own. Plant more: open Herbs in the bar, pick a species, click your land.",
   },
   {
+    id: "shift",
+    when: (p) => p.t >= 30,
+    text: "Hold Shift while you click to plant or drop the same card again and again, without picking it each time.",
+  },
+  {
     id: "unlock",
     when: (p) => p.canUnlock,
     text: "Biomass buys new species: a padlock marks one you can unlock now.",
@@ -47,7 +52,12 @@ export const TIPS: Tip[] = [
   {
     id: "orders",
     when: (p) => p.animals >= 3,
-    text: "Drag to select your animals, right-click to move, A to attack-move. Press I for group icons.",
+    text: "Drag to select your animals, right-click to move, A to attack-move.",
+  },
+  {
+    id: "icons",
+    when: (p) => p.animals >= 6 || p.raided,
+    text: "Press I for group icons over every herd and swarm, yours and the enemy's: see where the threat comes from.",
   },
   {
     id: "raids",

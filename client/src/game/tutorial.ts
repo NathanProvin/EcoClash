@@ -132,13 +132,14 @@ export const OBJECTIVES: Objective[] = [
     title: "Call rabbits",
     need: 4000, // Grasshoppers 600 + Rabbits 1000 + a card of three (800 each)
     text: "In Grazers (yellow), unlock Grasshoppers, then Rabbits. Pick Rabbits and click your grass: on your own land they come at the base price.",
+    tip: "Hold Shift while you click to drop the same card several times.",
     point: ["family-H1"],
     done: (s) => s.animals > 0,
   },
   {
     title: "Command them",
     text: "Drag a box over your rabbits to select them, then right-click your land to move them.",
-    tip: "Ctrl + 1 saves a selection as group 1; press 1 to recall it.",
+    tip: "Ctrl + 1 saves a selection as group 1; press 1 to recall it. Press I for group icons over every herd, yours and the enemy's.",
     done: (s) => s.selected > 0,
   },
   {

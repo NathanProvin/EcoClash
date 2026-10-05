@@ -1705,3 +1705,10 @@ Template:
 - **Tutorial:**
   - Each step that costs biomass has a `need`. On entering the step, the tutorial tops the bank up to it with the tutorial-only grant (`topUp`): Grasses 500, Ferns 1 000, Rabbits 4 000, the airdrop 3 600, Elder + Great tit 7 000.
   - The herd step waits for one birth (was 2).
+
+## D-145 · 2026-10-05 · Shortcut tips: Shift repeats a card, I shows group icons
+- **Status:** accepted (user playtest)
+- **First-match tips:**
+  - "Hold Shift to plant or drop the same card again" (from 30 s);
+  - "Press I for group icons, yours and the enemy's" (once you have 6 animals or after a raid alert).
+- **Tutorial:** the same two hints on the Call rabbits and Command them steps.

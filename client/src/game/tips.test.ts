@@ -11,10 +11,12 @@ describe("TipWatch", () => {
     expect(w.scan({ ...start, t: 4, canUnlock: true })).toBeNull(); // too soon after the last
     expect(w.scan({ ...start, t: 3 + TIP_GAP_S, canUnlock: true })).toMatch(/padlock/);
     const later = { ...start, t: 100, canUnlock: true, animals: 5 };
-    expect(w.scan(later)).toMatch(/smother/);
-    expect(w.scan({ ...later, t: 130 })).toMatch(/right-click/);
-    expect(w.scan({ ...later, t: 160 })).toMatch(/Win by taking/);
-    expect(w.scan({ ...later, t: 200 })).toBeNull(); // nothing left that applies
+    expect(w.scan(later)).toMatch(/Hold Shift/);
+    expect(w.scan({ ...later, t: 130 })).toMatch(/smother/);
+    expect(w.scan({ ...later, t: 160 })).toMatch(/right-click/);
+    expect(w.scan({ ...later, t: 190 })).toMatch(/Win by taking/); // icons wait for a herd
+    expect(w.scan({ ...later, t: 220 })).toBeNull(); // nothing left that applies
+    expect(w.scan({ ...later, t: 250, animals: 6 })).toMatch(/Press I/);
   });
 
   it("skips seen tips, remembers new ones, and stays silent when tips are off", () => {

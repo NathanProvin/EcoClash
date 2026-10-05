@@ -1,42 +1,43 @@
-// Planting feedback (D-121): a handful of seeds pop up from the clicked point and arc down onto
-// the planting area, lie there a moment, then shrink away; the plants' own grow-in takes over when
-// the cells sprout. One instanced mesh for every burst in flight.
+// Planting feedback (D-121, D-136): a sprinkle of small seeds falls from the sky over the
+// planting area, lands, lies there a moment, then shrinks away; the plants' own grow-in takes over
+// when the cells sprout. One instanced mesh for every burst in flight.
 
 import * as THREE from "three/webgpu";
 
-/** Seeds per click; flight time (s) and arc height (share of the planting radius); time lying on
- *  the ground (s) and fade (s); seed size (m), at least `screen` x the camera distance so a burst
+/** Seeds per click; fall time (s) and height (m, a range); sideways sway (m); time lying on the
+ *  ground (s) and fade (s); seed size (m), at least `screen` x the camera distance so a sprinkle
  *  reads from the overview; start stagger (s); how many can be in flight at once. */
 export const SEEDS = {
-  count: 12,
-  s: 0.6,
-  arc: 0.45,
+  count: 24,
+  s: 0.9,
+  height: [6, 9],
+  sway: 0.35,
   rest: 0.5,
   fade: 0.3,
-  size: 0.12,
-  screen: 0.006,
-  stagger: 0.025,
-  capacity: 120,
+  size: 0.06,
+  screen: 0.0035,
+  stagger: 0.03,
+  capacity: 240,
 } as const;
 
 export interface Seed {
-  x0: number;
-  y0: number;
-  z0: number;
-  x1: number;
-  y1: number;
-  z1: number;
-  /** When it leaves (s), and the top of its arc above the straight line (m). */
+  /** Where it lands (m). */
+  x: number;
+  y: number;
+  z: number;
+  /** How high it starts above its spot (m), when it starts (s), its sway phase (rad). */
+  h: number;
   t0: number;
-  arc: number;
+  phase: number;
   color: THREE.Color;
 }
 
-/** Where a seed is (m) at time `t` (s): a parabola from the click to its spot, then resting. */
+/** Where a seed is (m) at time `t` (s): falling with gravity onto its spot, swaying less as it
+ *  nears the ground, then resting. */
 export function seedAt(s: Seed, t: number): [number, number, number] {
   const k = Math.min(Math.max((t - s.t0) / SEEDS.s, 0), 1);
-  const lift = 4 * s.arc * k * (1 - k);
-  return [s.x0 + (s.x1 - s.x0) * k, s.y0 + (s.y1 - s.y0) * k + lift, s.z0 + (s.z1 - s.z0) * k];
+  const sway = SEEDS.sway * (1 - k) * Math.sin(k * Math.PI * 3 + s.phase);
+  return [s.x + sway, s.y + s.h * (1 - k * k), s.z + sway * 0.6];
 }
 
 /** A seed's scale at `t`: full size until it has rested, then shrinking to nothing. */
@@ -66,7 +67,7 @@ export class SeedBurst {
     scene.add(this.mesh);
   }
 
-  /** Scatter seeds from (x, z) over a disc of `radius` m, each landing on `height`. */
+  /** Sprinkle seeds over a disc of `radius` m around (x, z), each landing on `height`. */
   add(
     x: number,
     z: number,
@@ -75,15 +76,21 @@ export class SeedBurst {
     now: number,
     height: (x: number, z: number) => number,
   ): void {
-    const y0 = height(x, z) + 0.3;
+    const [low, high] = SEEDS.height;
     for (let i = 0; i < SEEDS.count; i++) {
       // Even angles with a little jitter, and an even spread over the disc (sqrt).
       const a = ((i + Math.random() * 0.6) / SEEDS.count) * Math.PI * 2;
-      const r = radius * Math.sqrt(0.1 + 0.9 * Math.random());
+      const r = radius * Math.sqrt(Math.random());
       const [x1, z1] = [x + Math.cos(a) * r, z + Math.sin(a) * r];
-      const y1 = height(x1, z1) + SEEDS.size * 0.5;
-      const t0 = now + i * SEEDS.stagger;
-      this.seeds.push({ x0: x, y0, z0: z, x1, y1, z1, t0, arc: SEEDS.arc * radius, color });
+      this.seeds.push({
+        x: x1,
+        y: height(x1, z1) + SEEDS.size * 0.5,
+        z: z1,
+        h: low + (high - low) * Math.random(),
+        t0: now + i * SEEDS.stagger,
+        phase: Math.random() * Math.PI * 2,
+        color,
+      });
     }
     if (this.seeds.length > SEEDS.capacity)
       this.seeds.splice(0, this.seeds.length - SEEDS.capacity);

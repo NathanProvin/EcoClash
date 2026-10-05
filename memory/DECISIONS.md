@@ -1538,3 +1538,11 @@ Template:
 - **Consequences:**
   - Tests: overlay values (soil, cover, relative shade, diversity with animals), ramp painting, the shade and moisture frames (Rust), the live plumbing.
   - Found in the browser: an `$effect` that read the (non-reactive) viewer before the overlay never re-ran.
+
+## D-136 · 2026-10-05 · Planting feedback: a sprinkle from the sky
+- **Status:** accepted (user: smaller particles that fall like a sprinkle from the sky, not a geyser)
+- **Decision:** `render/seeds.ts`:
+  - 24 seeds per click (was 12), half the size (0.06 m; at least 0.35 % of the camera distance);
+  - they start 6–9 m above random spots of the planting disc, staggered by 0.03 s;
+  - each falls in 0.9 s with gravity (`h·(1 − k²)`) and a sway that dies as it lands, then rests and fades as before.
+- **Consequences:** the seed tests cover the fall (gravity: more than half the height left at half time), the landing and the fade.

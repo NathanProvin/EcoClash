@@ -172,7 +172,7 @@
     padding: 2px;
     border: 0;
     background: none;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     color: var(--ink-soft);
   }
   .ib:hover {

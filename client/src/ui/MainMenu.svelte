@@ -277,7 +277,7 @@
     font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     transition:
       border-color 0.12s,
       box-shadow 0.12s,
@@ -294,7 +294,7 @@
   }
   nav button:disabled {
     opacity: 0.5;
-    cursor: default;
+    cursor: var(--cursor);
   }
   small {
     margin-left: 6px;
@@ -334,7 +334,7 @@
     border: 1px solid var(--line);
     border-radius: 10px;
     color: var(--ink);
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
   .choice.on {
     border-color: var(--gold);
@@ -366,7 +366,7 @@
     border: 1px solid var(--line);
     border-radius: 8px;
     background: var(--well);
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
   select option {
     background: #1f2823;
@@ -376,7 +376,7 @@
     font-size: 0.85em;
   }
   summary {
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
   dl {
     display: grid;

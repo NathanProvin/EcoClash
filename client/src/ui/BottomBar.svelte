@@ -313,7 +313,7 @@
     position: relative;
     border: 1px solid transparent;
     background: none;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     transition:
       transform 0.12s,
       border-color 0.12s,
@@ -388,7 +388,7 @@
   .tile.locked {
     opacity: 0.55;
     filter: grayscale(0.85);
-    cursor: default;
+    cursor: var(--cursor);
   }
   .grey {
     display: grid;
@@ -440,7 +440,7 @@
     gap: 4px;
     border: 0;
     background: none;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     font-size: 0.8em;
   }
   .keys {
@@ -452,7 +452,7 @@
     border: 0;
     background: none;
     color: var(--ink-soft);
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
   .tip {
     position: absolute;

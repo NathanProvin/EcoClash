@@ -1865,3 +1865,10 @@ Template:
   - **Herb chunks:** each herb mesh (grass, lichen, flowers) is split into 4 × 4 chunks (`HERB_CHUNKS`). Each has hand-set bounds (its square, the relief and the tallest herb), so three culls the chunks off screen. Before, the whole-map meshes were always drawn. Zoomed in, 9 of 48 chunks are drawn; the overview draws all.
   - **High preset:** resolution cap 1.5 → 1.25 (about 30 % fewer pixels for every fragment shader and the post passes), herb tufts per cell 18 → 14. Bloom and depth of field already run at half resolution.
   - **Lichen and moss:** half as many patches (`LICHEN.share` 0.5 → 0.25 of the grass tufts).
+
+## D-156 · 2026-10-05 · A cheaper fox, a leaf cursor, a full-screen button
+- **Status:** accepted (user)
+- **Decision:**
+  - Fox unlock 12 000 → 8 000: a quick rabbit counter (follows D-154).
+  - **Leaf cursor:** a curved leaf-shaped arrow, leaf green with a bark outline and a pale vein (`public/cursors/leaf.svg`), golden over things you can click (`leaf-hover.svg`). The `--cursor` and `--cursor-pointer` tokens replace `pointer` and `default` everywhere. Planting keeps its crosshair and dropping its ghost.
+  - **Full screen:** a button in the top-right row, before the menu, toggles the browser's full screen; its icon follows the state (Esc also leaves).

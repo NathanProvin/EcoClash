@@ -1,7 +1,7 @@
 <script lang="ts">
   // Resource bar (D-030, D-048, D-064): land (with a P1 / P2 tug-of-war gauge), species alive,
   // biomass and its rate, for the viewed player. Icon buttons on the right: tech tree, view and
-  // display (layers, quality, viewed player, source, performance readout), main menu.
+  // display (layers, quality, viewed player, source, performance readout), full screen, main menu.
   import type { Source } from "../replay/replay";
   import type { Layer } from "../render/viewer";
   import type { Quality } from "../render/quality";
@@ -11,6 +11,20 @@
   import FamilyIcon from "./FamilyIcon.svelte";
   import Icon from "./Icon.svelte";
   import WeatherBadge from "./WeatherBadge.svelte";
+
+  // Full screen (D-156): the browser's own; Esc or the button leaves it.
+  let fullscreen = $state(!!document.fullscreenElement);
+  $effect(() => {
+    const sync = () => (fullscreen = !!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  });
+  function toggleFullscreen() {
+    const done = document.fullscreenElement
+      ? document.exitFullscreen()
+      : document.documentElement.requestFullscreen();
+    done.catch(() => {}); // refused (an iframe without permission): nothing to do
+  }
 
   let {
     replay,
@@ -244,6 +258,14 @@
         </div>
       {/if}
     </div>
+    <button
+      class="icon"
+      onclick={toggleFullscreen}
+      title={fullscreen ? "Leave full screen" : "Full screen"}
+      aria-label={fullscreen ? "Leave full screen" : "Full screen"}
+    >
+      <Icon name={fullscreen ? "shrink" : "expand"} />
+    </button>
     <button class="icon" onclick={onMenu} title="Main menu" aria-label="Main menu">
       <Icon name="menu" />
     </button>
@@ -335,7 +357,7 @@
     background: var(--panel);
     backdrop-filter: var(--blur);
     color: var(--ink);
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     transition: border-color 0.15s;
   }
   .icon:hover {
@@ -375,12 +397,12 @@
     border: 0;
     background: none;
     color: var(--ink-soft);
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     font-size: 0.72em;
   }
   .tog:disabled {
     opacity: 0.35;
-    cursor: default;
+    cursor: var(--cursor);
   }
   .disc {
     display: grid;
@@ -425,7 +447,7 @@
     background: var(--well);
     color: var(--ink-soft);
     opacity: 0.5;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
   .mini.on {
     color: var(--ink);
@@ -445,7 +467,7 @@
     border-radius: 999px;
     background: none;
     color: var(--ink-soft);
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     font-size: 0.85em;
   }
   .seg button.on {
@@ -478,7 +500,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
   .drop .pair {
     display: flex;

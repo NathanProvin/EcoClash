@@ -61,7 +61,7 @@
     animation: in 0.25s ease-out;
   }
   button.toast {
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     color: var(--ink);
   }
   button.toast:hover {

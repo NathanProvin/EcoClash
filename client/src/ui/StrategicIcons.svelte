@@ -56,14 +56,14 @@
     box-shadow:
       0 0 0 2px var(--player),
       0 3px 10px rgba(0, 0, 0, 0.35);
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     transition: transform 0.12s;
   }
   .icon.enemy {
     --player: var(--enemy);
     outline: 2px dashed var(--enemy);
     outline-offset: 3px;
-    cursor: default;
+    cursor: var(--cursor);
   }
   .icon:hover {
     transform: translate(-50%, -120%) scale(1.1);
@@ -90,7 +90,7 @@
     line-height: 1.4;
   }
   .icon.swarm {
-    cursor: default;
+    cursor: var(--cursor);
     opacity: 0.85;
     box-shadow:
       0 0 0 2px var(--player),

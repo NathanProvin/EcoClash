@@ -110,7 +110,7 @@
     border: 1px solid transparent;
     border-radius: 12px;
     background: none;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
   .item:hover,
   .item.open,
@@ -151,10 +151,10 @@
     color: #fff;
     background: radial-gradient(circle at 35% 28%, var(--tone), #2a2622);
     box-shadow: inset 0 0 0 1.5px var(--tone);
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
   .card:disabled {
-    cursor: default;
+    cursor: var(--cursor);
     filter: grayscale(0.85);
     opacity: 0.7;
   }

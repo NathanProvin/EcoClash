@@ -95,7 +95,7 @@
     border-radius: 50%;
     background: var(--well);
     font-size: 0.75em;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
   .clock {
     font-weight: 600;
@@ -109,7 +109,7 @@
     border: 0;
     background: none;
     color: var(--ink-soft);
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
   select option {
     background: #1f2823;

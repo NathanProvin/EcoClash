@@ -430,7 +430,7 @@
     align-items: center;
     margin-left: auto;
     font-size: 0.85em;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
   .body {
     flex: 1;
@@ -532,7 +532,7 @@
     color: var(--ink);
     font-size: 0.82em;
     text-align: left;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
     transition:
       opacity 0.15s,
       border-color 0.15s,
@@ -543,7 +543,7 @@
     background: rgba(20, 24, 22, 0.85);
   }
   .node.litter {
-    cursor: default;
+    cursor: var(--cursor);
     color: var(--ink-soft);
     font-style: italic;
   }
@@ -668,7 +668,7 @@
     background: none;
     color: var(--ink);
     font-size: 0.95em;
-    cursor: pointer;
+    cursor: var(--cursor-pointer);
   }
   .chip.food {
     border-color: var(--gold);

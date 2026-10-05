@@ -857,7 +857,7 @@ rest = 0.3
 [fauna.fox]
 growth = 120
 spawn_cost = 1500
-unlock_cost = 12000
+unlock_cost = 8000
 yield = 0.25
 cap = 20
 effect = "Hunts small mammals; drop it on enemy grazers."

@@ -42,13 +42,23 @@
     P3: "predator",
   };
 
-  let { family, size = 40 }: { family: string; size?: number } = $props();
+  /** `bare`: the pictogram alone, in the current colour (round toggles, D-135). */
+  let {
+    family,
+    size = 40,
+    bare = false,
+  }: { family: string; size?: number; bare?: boolean } = $props();
 </script>
 
-<span class="icon {TONE[family] ?? 'herbivore'}" style:--size="{size}px" aria-hidden="true">
+<span
+  class="icon {TONE[family] ?? 'herbivore'}"
+  class:bare
+  style:--size="{size}px"
+  aria-hidden="true"
+>
   <svg
-    width={size * 0.62}
-    height={size * 0.62}
+    width={size * (bare ? 1 : 0.62)}
+    height={size * (bare ? 1 : 0.62)}
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -72,6 +82,11 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.22),
       inset 0 -2px 4px rgba(0, 0, 0, 0.3),
       0 0 0 1px rgba(0, 0, 0, 0.4);
+  }
+  .icon.bare {
+    color: inherit;
+    background: none;
+    box-shadow: none;
   }
   svg {
     filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));

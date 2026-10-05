@@ -38,6 +38,7 @@
   import StrategicIcons from "./ui/StrategicIcons.svelte";
   import Toasts from "./ui/Toasts.svelte";
   import { CLEAR, weatherToasts, type WeatherNow } from "./game/weather";
+  import type { OverlayId } from "./game/overlays";
   import TopBar from "./ui/TopBar.svelte";
 
   let canvas: HTMLCanvasElement;
@@ -82,6 +83,12 @@
   const EDGE = 28; // arrows keep this far from the screen edge (px)
   let toasts: Toast[] = $state([]);
   let weather: WeatherNow = $state.raw(CLEAR); // D-132 (raw: compared by identity)
+  /** The map overlay shown (D-135): off at the start of every match. */
+  let overlay: OverlayId | null = $state(null);
+  $effect(() => {
+    const id = overlay; // read first: the viewer is not reactive, the overlay is
+    viewer?.setOverlay(id);
+  });
   let arrows: { x: number; y: number; angle: number }[] = $state([]);
   let pinged: { cell: { row: number; col: number }; until: number }[] = [];
   let watch = new RaidWatch();
@@ -412,6 +419,7 @@
     [toasts, arrows, pinged, available, seenNotice] = [[], [], [], null, 0];
     watch = new RaidWatch();
     weather = CLEAR;
+    overlay = null;
     front = new FrontWatch();
     victory = new VictoryWatch();
     tips = new TipWatch(loadSeen(), saveSeen);
@@ -708,6 +716,7 @@
       bind:chosen
       onChoose={open}
       weather={live ? { now: weather, kinds: live.weatherKinds } : undefined}
+      bind:overlay
     />
     <Timeline
       {replay}

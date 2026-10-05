@@ -492,6 +492,17 @@ impl World {
         crate::snapshot::pressure_frame(&self.flora, &self.state, &self.fauna)
     }
 
+    /// Shade on the ground and moisture per cell, 0..=255, for the map overlays (D-135).
+    #[must_use]
+    pub fn shade_frame(&self) -> Vec<u8> {
+        crate::snapshot::shade_frame(&self.flora, &self.state)
+    }
+
+    #[must_use]
+    pub fn moisture_frame(&self) -> Vec<u8> {
+        crate::snapshot::moisture_frame(&self.state)
+    }
+
     /// Standing dead wood per cell, 0..=255, for the dead-tree models (D-127).
     #[must_use]
     pub fn deadwood_frame(&self) -> Vec<u8> {
@@ -997,6 +1008,23 @@ mod tests {
                 "fish stay in water"
             );
         }
+    }
+
+    /// D-135: the overlays read shade under a canopy (none in the open) and full moisture on
+    /// water.
+    #[test]
+    fn shade_and_moisture_frames() {
+        let n = 8;
+        let mut w = forest(n);
+        let oak = w.flora.p.index("oak").unwrap();
+        let open = 3; // a cell without its trees
+        w.state.bio[oak * n * n + open] = 0;
+        w.state.ground[5] = crate::terrain::DEEP;
+        w.state.water[5] = crate::flora::U16;
+        let shade = w.shade_frame();
+        assert!(shade[0] > 0, "under oaks: {}", shade[0]);
+        assert_eq!(shade[open], 0, "in the open");
+        assert_eq!(w.moisture_frame()[5], 255);
     }
 }
 

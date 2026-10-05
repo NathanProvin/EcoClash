@@ -30,6 +30,7 @@ import {
   vec4,
 } from "three/tsl";
 import { interpolate, type Animal, type Fields, type Source } from "../replay/replay";
+import { OVERLAYS, overlayValues, paintOverlay, type OverlayId } from "../game/overlays";
 import { AnimalView } from "./animals";
 import { Ghost, type GhostSpec } from "./ghost";
 import { SeedBurst, SEEDS } from "./seeds";
@@ -44,7 +45,15 @@ import {
 } from "./terrain";
 import { makeGrass } from "./grass";
 import { CELL, rand, SLAB_DEPTH, STRATA, stratumOf } from "./layout";
-import { hexToRgb, plantColor, PLAYER, soilColor, WORLD, type PlayerId } from "./palette";
+import {
+  hexToRgb,
+  OVERLAY_RAMPS,
+  plantColor,
+  PLAYER,
+  soilColor,
+  WORLD,
+  type PlayerId,
+} from "./palette";
 import { DeadTrees, LowPolyPlants, PlantView } from "./plants";
 import { QUALITY, type Quality } from "./quality";
 import { WeatherFx } from "./weather";
@@ -68,6 +77,8 @@ const BLEND_S = { min: 0.2, max: 2 } as const;
 /** Ground tints (D-086): wet within `wet` m above the water, dry on the top `dry` share of the
  *  relief, bare rock on slopes past `rock` (1 - normal.y). */
 const TINT = { wet: 1.5, dry: [0.55, 0.9], rock: [0.03, 0.1] } as const;
+/** Map overlays (D-135) float this far above the ground (m). */
+const OVERLAY_LIFT = 0.1;
 /** The sun's shadow map is redrawn every this many frames: shadows lag one frame behind the wind,
  *  invisibly, for half the shadow-pass cost (D-090). */
 const SHADOW_EVERY = 2;
@@ -117,6 +128,12 @@ export class Viewer {
   /** The map's heights (D-085), the ground mesh (picking), the height texture (shaders). */
   private readonly field: Heightfield;
   private readonly ground: THREE.Mesh;
+  /** The map overlay (D-135): one texel per cell over a lifted copy of the ground. */
+  private readonly overlayData: Uint8Array;
+  private readonly overlayTex: THREE.DataTexture;
+  private readonly overlayMesh: THREE.Mesh;
+  private overlay: OverlayId | null = null;
+  private lastFields: Fields | null = null;
   private readonly heights: THREE.DataTexture;
   /** Seconds, for growth and blends (set once per frame). */
   private readonly now = uniform(0);
@@ -249,6 +266,25 @@ export class Viewer {
     this.ground = new THREE.Mesh(groundGeometry(this.field), groundMat);
     this.ground.receiveShadow = true;
     this.scene.add(this.ground);
+    this.overlayData = new Uint8Array(n * n * 4);
+    this.overlayTex = new THREE.DataTexture(this.overlayData, n, n);
+    this.overlayTex.magFilter = THREE.LinearFilter;
+    this.overlayTex.minFilter = THREE.LinearFilter; // smooth from afar too: cells never read as pixels
+    this.overlayTex.colorSpace = THREE.SRGBColorSpace;
+    // Drawn over the scene (no depth test), like a map mode: the canopy would hide it otherwise.
+    const overlayMat = new THREE.MeshBasicNodeMaterial({
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+    });
+    const heat = texture(this.overlayTex, uv());
+    overlayMat.colorNode = heat.rgb;
+    overlayMat.opacityNode = heat.a;
+    this.overlayMesh = new THREE.Mesh(this.ground.geometry, overlayMat);
+    this.overlayMesh.position.y = OVERLAY_LIFT;
+    this.overlayMesh.renderOrder = 20;
+    this.overlayMesh.visible = false;
+    this.scene.add(this.overlayMesh);
 
     // The map as a diorama slab: an earth cross-section on its sides, topsoil to bedrock.
     const slabMat = new THREE.MeshStandardNodeMaterial({ roughness: 1 });
@@ -693,6 +729,26 @@ export class Viewer {
     }
   }
 
+  /** Show one map overlay (D-135), or none. */
+  setOverlay(id: OverlayId | null): void {
+    this.overlay = id;
+    this.overlayMesh.visible = id !== null;
+    if (this.lastFields) this.paintOverlay(this.lastFields);
+  }
+
+  private paintOverlay(fields: Fields): void {
+    const o = OVERLAYS.find((x) => x.id === this.overlay);
+    if (!o) return;
+    const n = this.replay.meta.n;
+    const values = overlayValues(o.id, fields, this.shown, n);
+    // Texture row 0 is the near edge (+z); grid row 0 the far edge: flip rows, as the ground.
+    const flipped = new Float32Array(n * n);
+    for (let k = 0; k < n * n; k++)
+      flipped[(n - 1 - Math.floor(k / n)) * n + (k % n)] = values[k] ?? 0;
+    paintOverlay(flipped, OVERLAY_RAMPS[o.ramp], this.overlayData);
+    this.overlayTex.needsUpdate = true;
+  }
+
   /** The weather now (D-132): its kind (null: clear) and phase, for the light and particles. */
   setWeather(kind: string | null, phase: "clear" | "alert" | "active"): void {
     this.weather.set(kind, phase);
@@ -784,6 +840,8 @@ export class Viewer {
   private paintFields(fields: Fields, now: number, step: boolean): void {
     const { owner, soil: soilDev, species } = fields;
     this.owner = owner;
+    this.lastFields = fields;
+    if (this.overlay) this.paintOverlay(fields);
     const n = this.replay.meta.n;
     const tint = { 1: hexToRgb(PLAYER[1].base), 2: hexToRgb(PLAYER[2].base) };
     const herbs = this.herbs;

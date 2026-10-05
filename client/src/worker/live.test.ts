@@ -105,6 +105,8 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     lock: new Uint8Array([0, 0, 0, 0, 2, 12, 0, 0]).buffer, // cell 2: P2 barred for 12 s
     deadwood: new Uint8Array([0, 0, 0, 51]).buffer, // cell 3: a dead tree (D-127)
     flood: [2], // cell 2 under flood water (D-132)
+    shade: new Uint8Array([0, 0, 0, 90]).buffer, // D-135
+    moisture: new Uint8Array([60, 60, 255, 60]).buffer,
     bank: [1000, 990],
     income: [4, 2],
     standing: [5000, 4000],
@@ -139,6 +141,8 @@ test("live source decodes frames into census, HUD series, animals and cells", as
   expect(live.catastrophes[0]?.name).toBe("storm");
   expect(live.weather).toEqual({ kind: "flood", phase: "active", seconds: 60 });
   expect(live.fields().flood).toEqual([2]);
+  expect(live.fields().shade?.[3]).toBe(90);
+  expect(live.fields().moisture?.[2]).toBe(255);
 
   expect(live.tick).toBe(9);
   expect(live.counts(9, 1)).toEqual([2, 1, 1]);

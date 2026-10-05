@@ -1516,3 +1516,25 @@ Template:
 - **Decision:**
   - The land gauge is a bar across the top of the resource pill: P1 fills from the left, P2 from the right, free land in between, with a mark at 50 %.
   - The weather badge (D-132) is a round button at the start of the top-right icon row. Its countdown sits in a pill under it, and its tooltip opens below it.
+
+## D-135 · 2026-10-05 · Map overlays and the display menu
+- **Status:** accepted (user: layers as round toggles that show a heatmap of the chosen feature; add biodiversity, moisture and shade)
+- **Decision:**
+  - Overlays, one at a time, off by default (and at each new match):
+    - soil fertility;
+    - the cover of herbs, undergrowth, shrubs and trees;
+    - diversity: plant species growing plus animal species standing in the cell, relative to the richest cell;
+    - moisture (live only);
+    - shade on the ground, relative to the darkest cell (live only).
+  - `game/overlays.ts` (pure, tested) maps fields to 0..1. The ramps are one hue each, light to dark (`OVERLAY_RAMPS` in `palette.ts`). Opacity rises with the value, so low ground stays visible.
+  - The viewer draws the overlay texture on a copy of the ground mesh over the scene (no depth test, like a map mode). Drawn under the canopy, it was hidden. Linear filtering, so cells never read as squares.
+  - Sim: `shade_frame` and `moisture_frame` (`snapshot.rs`), views that are not hashed. The shade rule moved into `Flora::casts` and `Flora::light`, which `Flora::step` now uses, so the overlay and the rule cannot drift apart. The prototype parity is unchanged.
+  - The display menu:
+    - an overlay grid of round toggles that light up gold, with a legend (also shown on the map while the menu is closed);
+    - a "Show" row of small round toggles for the old show/hide layers;
+    - a segmented Low/Med/High quality control;
+    - round toggles for group icons and the performance readout.
+  - `FamilyIcon` gets a `bare` mode, so the strata reuse the build-bar pictograms.
+- **Consequences:**
+  - Tests: overlay values (soil, cover, relative shade, diversity with animals), ramp painting, the shade and moisture frames (Rust), the live plumbing.
+  - Found in the browser: an `$effect` that read the (non-reactive) viewer before the overlay never re-ran.

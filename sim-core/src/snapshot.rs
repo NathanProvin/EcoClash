@@ -33,6 +33,40 @@ pub fn deadwood_frame(flora: &Flora, st: &FloraState) -> Vec<u8> {
         .collect()
 }
 
+/// Shade on the ground per cell, 0..=255 (D-135): the light the shrubs and trees take from the
+/// herbs (`Flora::light` of a level-1 plant with no tolerance), 0 with the shade rule off. A view.
+#[must_use]
+pub fn shade_frame(flora: &Flora, st: &FloraState) -> Vec<u8> {
+    let (p, cells) = (&flora.p, st.n * st.n);
+    let one = ONE as i64;
+    (0..cells)
+        .map(|k| {
+            if !p.shade {
+                return 0;
+            }
+            let casts = flora.casts(|j| {
+                let b = st.bio[j * cells + k];
+                if b > 0 {
+                    div_round(b * one, p.kmax[j])
+                } else {
+                    0
+                }
+            });
+            let shade = one - Flora::light(&casts, 1, 0);
+            u8::try_from(div_round(shade.clamp(0, one) * 255, one)).unwrap_or(255)
+        })
+        .collect()
+}
+
+/// Moisture per cell, 0..=255 (D-135): water cells are 255; floods raise it while they last.
+#[must_use]
+pub fn moisture_frame(st: &FloraState) -> Vec<u8> {
+    st.water
+        .iter()
+        .map(|&w| u8::try_from(div_round(w.clamp(0, U16) * 255, U16)).unwrap_or(255))
+        .collect()
+}
+
 /// How hard the non-owner pushes into each cell, 0..=255, for the frontier lines (D-076): the
 /// flora step's smothering attack (`Flora::push`) plus the enemy grazers standing on the cell.
 /// Derived from the state, never hashed: a view, like the snapshot.

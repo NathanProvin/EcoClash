@@ -44,6 +44,8 @@ export interface Fields {
   lock?: Uint8Array; // live only: per cell, the barred player and seconds left (D-098)
   deadwood?: Uint8Array; // live only: standing dead wood per cell, 0..255 (D-127)
   flood?: number[]; // live only: cells under flood water (D-132)
+  shade?: Uint8Array; // live only: shade on the ground per cell, 0..255 (D-135)
+  moisture?: Uint8Array; // live only: moisture per cell, 0..255 (D-135)
 }
 
 /** What stands on one cell at one tick (the cell panel). */

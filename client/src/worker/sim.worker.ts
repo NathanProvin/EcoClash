@@ -39,6 +39,8 @@ function sendFields(s: Sim) {
   const lock = s.lockFrame().buffer as ArrayBuffer; // D-098
   const deadwood = s.deadwoodFrame().buffer as ArrayBuffer; // D-127
   const flood = [...s.floodCells()]; // D-132
+  const shade = s.shadeFrame().buffer as ArrayBuffer; // D-135
+  const moisture = s.moistureFrame().buffer as ArrayBuffer;
   const bank = [s.bank(1), s.bank(2)];
   const income = [s.income(1), s.income(2)];
   const standing = [s.standing(1), s.standing(2)];
@@ -51,11 +53,13 @@ function sendFields(s: Sim) {
       lock,
       deadwood,
       flood,
+      shade,
+      moisture,
       bank,
       income,
       standing,
     },
-    [frame, pressure, lock, deadwood],
+    [frame, pressure, lock, deadwood, shade, moisture],
   );
 }
 

@@ -323,6 +323,17 @@ impl Sim {
     }
 
     /// Standing dead wood per cell, 0..=255 (D-127).
+    /// Shade on the ground and moisture per cell, 0..=255, for the map overlays (D-135).
+    #[wasm_bindgen(js_name = shadeFrame)]
+    pub fn shade_frame(&self) -> Vec<u8> {
+        self.world.shade_frame()
+    }
+
+    #[wasm_bindgen(js_name = moistureFrame)]
+    pub fn moisture_frame(&self) -> Vec<u8> {
+        self.world.moisture_frame()
+    }
+
     #[wasm_bindgen(js_name = deadwoodFrame)]
     pub fn deadwood_frame(&self) -> Vec<u8> {
         self.world.deadwood_frame()

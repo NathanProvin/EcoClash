@@ -6,6 +6,9 @@
   import type { Layer } from "../render/viewer";
   import type { Quality } from "../render/quality";
   import type { WeatherKind, WeatherNow } from "../game/weather";
+  import { OVERLAYS, type Overlay, type OverlayId } from "../game/overlays";
+  import { OVERLAY_RAMPS } from "../render/palette";
+  import FamilyIcon from "./FamilyIcon.svelte";
   import Icon from "./Icon.svelte";
   import WeatherBadge from "./WeatherBadge.svelte";
 
@@ -25,6 +28,7 @@
     chosen = $bindable(),
     onChoose,
     weather,
+    overlay = $bindable(),
   }: {
     replay: Source;
     tick: number;
@@ -42,6 +46,8 @@
     onChoose: (name: string) => void;
     /** Live matches: the weather now and its kinds (D-132), shown in the icon row. */
     weather?: { now: WeatherNow; kinds: WeatherKind[] } | undefined;
+    /** The map overlay shown (D-135), or none. */
+    overlay: OverlayId | null;
   } = $props();
 
   let menu = $state(false);
@@ -50,15 +56,34 @@
   const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
   const rate = $derived(value(`yield_p${player}`));
   const land = $derived([value("territory_p1"), value("territory_p2")]);
+  /** Show / hide the map's pieces (D-135): territory lines, each stratum's models, animals. */
   const layerNames: [Layer, string][] = [
-    ["territory", "Territory"],
+    ["territory", "Territory lines"],
     ["L1", "Herbs"],
     ["L2", "Undergrowth"],
     ["L3", "Shrubs"],
     ["L4", "Trees"],
     ["animals", "Animals"],
   ];
+  const OVERLAY_ICON = {
+    soil: "soil",
+    diversity: "diversity",
+    moisture: "water",
+    shade: "shade",
+  } as const;
+  const QUALITIES: [Quality, string][] = [
+    ["low", "Low"],
+    ["medium", "Med"],
+    ["high", "High"],
+  ];
+  const shown = $derived(OVERLAYS.find((o) => o.id === overlay));
+  const gradient = (o: Overlay) => `linear-gradient(90deg, ${OVERLAY_RAMPS[o.ramp].join(", ")})`;
 </script>
+
+{#snippet legend(o: Overlay)}
+  <span class="legend-bar" style:background={gradient(o)}></span>
+  <span class="legend-ends"><span>low</span><span>{o.high}</span></span>
+{/snippet}
 
 <header class="bar">
   <div class="resources panel p{player}">
@@ -99,26 +124,68 @@
       </button>
       {#if menu}
         <div class="drop panel" role="menu">
-          {#each layerNames as [layer, name] (layer)}
-            <label>
-              <input type="checkbox" checked={layers[layer]} onchange={() => toggle(layer)} />
-              {name}
-            </label>
-          {/each}
+          <span class="fh">Map overlay</span>
+          <div class="grid">
+            {#each OVERLAYS as o (o.id)}
+              {@const off = o.live === true && !weather}
+              <button
+                class="tog"
+                class:on={overlay === o.id}
+                disabled={off}
+                aria-pressed={overlay === o.id}
+                title={off ? "Live matches only" : `${o.label}: darker where ${o.high}`}
+                onclick={() => (overlay = overlay === o.id ? null : o.id)}
+              >
+                <span class="disc">
+                  {#if o.id.startsWith("L")}
+                    <FamilyIcon family={o.id} size={18} bare />
+                  {:else}
+                    <Icon name={OVERLAY_ICON[o.id as keyof typeof OVERLAY_ICON]} size={18} />
+                  {/if}
+                </span>
+                <span class="lab">{o.label}</span>
+              </button>
+            {/each}
+          </div>
+          {#if shown}{@render legend(shown)}{/if}
           <hr />
-          <label class="pair">
+          <span class="fh">Show</span>
+          <div class="row">
+            {#each layerNames as [layer, name] (layer)}
+              <button
+                class="mini"
+                class:on={layers[layer]}
+                aria-pressed={layers[layer]}
+                title="{layers[layer] ? 'Hide' : 'Show'} {name.toLowerCase()}"
+                onclick={() => toggle(layer)}
+              >
+                {#if layer === "territory"}
+                  <Icon name="land" size={15} />
+                {:else}
+                  <FamilyIcon family={layer === "animals" ? "P3" : layer} size={15} bare />
+                {/if}
+              </button>
+            {/each}
+          </div>
+          <hr />
+          <div class="pair">
             Quality
-            <select
-              value={quality}
-              onchange={(e) => onQuality(e.currentTarget.value as Quality)}
+            <span
+              class="seg"
+              role="radiogroup"
               aria-label="Quality preset"
               title="Shadows change from the next match"
             >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-          </label>
+              {#each QUALITIES as [q, name] (q)}
+                <button
+                  role="radio"
+                  aria-checked={quality === q}
+                  class:on={quality === q}
+                  onclick={() => onQuality(q)}>{name}</button
+                >
+              {/each}
+            </span>
+          </div>
           <label class="pair">
             View
             <select bind:value={player} aria-label="Viewed player">
@@ -138,8 +205,34 @@
               </select>
             </label>
           {/if}
-          <label><input type="checkbox" bind:checked={icons} /> Strategic icons (I)</label>
-          <label><input type="checkbox" bind:checked={perf} /> Performance readout</label>
+          <div class="row two">
+            <button
+              class="tog"
+              class:on={icons}
+              aria-pressed={icons}
+              title="Strategic icons over your large groups (I)"
+              onclick={() => (icons = !icons)}
+            >
+              <span class="disc"><Icon name="pin" size={17} /></span>
+              <span class="lab">Group icons</span>
+            </button>
+            <button
+              class="tog"
+              class:on={perf}
+              aria-pressed={perf}
+              title="Frame rate and simulation time"
+              onclick={() => (perf = !perf)}
+            >
+              <span class="disc"><Icon name="gauge" size={17} /></span>
+              <span class="lab">Performance</span>
+            </button>
+          </div>
+        </div>
+      {/if}
+      {#if shown && !menu}
+        <div class="legend panel" aria-label="Overlay legend">
+          <span class="fh">{shown.label}</span>
+          {@render legend(shown)}
         </div>
       {/if}
     </div>
@@ -249,10 +342,129 @@
     top: 46px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    min-width: 190px;
+    gap: 7px;
+    width: 262px;
     white-space: nowrap;
     font-size: 0.9em;
+  }
+  .fh {
+    font-size: 0.68em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  /* Round toggles (D-135): a disc that lights up gold when on, its name under it. */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px 2px;
+  }
+  .tog {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    border: 0;
+    background: none;
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-size: 0.72em;
+  }
+  .tog:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+  .disc {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--well);
+    color: var(--ink);
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s,
+      background 0.15s;
+  }
+  .tog:not(:disabled):hover .disc {
+    border-color: var(--accent);
+  }
+  .tog.on {
+    color: var(--ink);
+  }
+  .tog.on .disc {
+    border-color: var(--gold);
+    background: rgba(212, 175, 55, 0.18);
+    box-shadow: 0 0 10px var(--gold-soft);
+    color: var(--gold);
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+  }
+  .row.two {
+    justify-content: space-around;
+  }
+  .mini {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--well);
+    color: var(--ink-soft);
+    opacity: 0.5;
+    cursor: pointer;
+  }
+  .mini.on {
+    color: var(--ink);
+    opacity: 1;
+    border-color: var(--accent);
+  }
+  .seg {
+    display: inline-flex;
+    padding: 2px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--well);
+  }
+  .seg button {
+    padding: 2px 10px;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-size: 0.85em;
+  }
+  .seg button.on {
+    background: var(--panel);
+    color: var(--gold);
+    box-shadow: 0 0 0 1px var(--gold-soft);
+  }
+  .legend-bar {
+    height: 8px;
+    border-radius: 4px;
+  }
+  .legend-ends {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.72em;
+    color: var(--ink-soft);
+  }
+  .legend {
+    position: absolute;
+    right: 0;
+    top: 70px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 180px;
+    padding: 6px 10px 7px;
+    font-size: 0.85em;
   }
   .drop label {
     display: flex;
@@ -261,6 +473,8 @@
     cursor: pointer;
   }
   .drop .pair {
+    display: flex;
+    align-items: center;
     justify-content: space-between;
   }
   .drop select {

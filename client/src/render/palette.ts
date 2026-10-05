@@ -97,6 +97,15 @@ export const SKY: Record<string, Sky> = {
 
 export type PlayerId = keyof typeof PLAYER;
 
+/** Map overlay ramps (D-135): sequential, one hue each, light (low) to dark (high). */
+export const OVERLAY_RAMPS = {
+  soil: ["#f3e3b5", "#c08a2e", "#6b4410"],
+  cover: ["#e3f1c8", "#6aa84f", "#1f5524"],
+  diversity: ["#f1e2f3", "#b45fb5", "#5a1a63"],
+  moisture: ["#dcecf7", "#5d9fd3", "#1c4f8a"],
+  shade: ["#ececec", "#7a7a7a", "#2b2b2b"],
+} as const;
+
 /** Natural colour of each plant species (D-067); unknown species fall back per stratum. */
 export const FLORA: Record<string, string> = {
   lichen_and_moss: "#8f9c6c", // grey-green

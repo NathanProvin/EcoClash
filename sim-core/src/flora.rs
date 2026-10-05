@@ -449,6 +449,31 @@ impl Flora {
         response(x, self.p.w_opt[s], self.p.w_tol[s])
     }
 
+    /// The shade each stratum casts on the strata below, from the cover of each species (Q16):
+    /// `casts[u]` for stratum u + 1 (u = 0, the herbs, casts on nothing).
+    pub(crate) fn casts(&self, cover: impl Fn(usize) -> i64) -> [i64; LEVELS] {
+        let p = &self.p;
+        std::array::from_fn(|u| {
+            div(
+                p.strata[u].iter().map(|&j| p.cast[j] * cover(j)).sum(),
+                ONE_I,
+            )
+        })
+    }
+
+    /// The light left (Q16, ONE: full) for a plant of `level` with shade tolerance `tol` under
+    /// `casts`: each higher stratum blocks its cast, less the tolerated share.
+    pub(crate) fn light(casts: &[i64; LEVELS], level: u8, tol: i64) -> i64 {
+        let mut light = ONE_I;
+        for (u, &cast) in casts.iter().enumerate().skip(1) {
+            if usize::from(level) <= u {
+                let block = div(cast * (ONE_I - tol), ONE_I);
+                light = div(light * (ONE_I - block).max(0), ONE_I);
+            }
+        }
+        light
+    }
+
     /// The single site modifier (gamerules §2.3): f_dev x f_soil x f_water x f_light, 0..=ONE.
     #[must_use]
     pub fn suitability(&self, st: &FloraState, s: usize, k: usize) -> i64 {
@@ -642,25 +667,15 @@ impl Flora {
             }
 
             // 1-2. Shade and logistic growth with competition, for the species present here.
-            // casts[u]: the shade cast by stratum u + 1 (u = 0, the herbs, casts on nothing).
-            let casts: [i64; LEVELS] = std::array::from_fn(|u| {
-                div(
-                    p.strata[u].iter().map(|&j| p.cast[j] * cover[at(j)]).sum(),
-                    ONE_I,
-                )
-            });
+            let casts = self.casts(|j| cover[at(j)]);
             let totals: [i64; LEVELS] =
                 std::array::from_fn(|l| p.strata[l].iter().map(|&j| cover[at(j)]).sum());
             for s in species().filter(|&s| bio[at(s)] > 0) {
-                let mut shade = ONE_I;
-                if p.shade {
-                    for (u, &cast) in casts.iter().enumerate().skip(1) {
-                        if usize::from(p.level[s]) <= u {
-                            let block = div(cast * (ONE_I - p.tol[s]), ONE_I);
-                            shade = div(shade * (ONE_I - block).max(0), ONE_I);
-                        }
-                    }
-                }
+                let shade = if p.shade {
+                    Self::light(&casts, p.level[s], p.tol[s])
+                } else {
+                    ONE_I
+                };
                 let i = at(s);
                 let cap = div(shade * st.gauge[i], ONE_I).max(1);
                 let total = totals[usize::from(p.level[s]) - 1];

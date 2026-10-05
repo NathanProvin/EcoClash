@@ -43,6 +43,7 @@ export interface Fields {
   pressure?: Uint8Array; // live only: how hard the non-owner pushes into each cell, 0..255 (D-076)
   lock?: Uint8Array; // live only: per cell, the barred player and seconds left (D-098)
   deadwood?: Uint8Array; // live only: standing dead wood per cell, 0..255 (D-127)
+  flood?: number[]; // live only: cells under flood water (D-132)
 }
 
 /** What stands on one cell at one tick (the cell panel). */

@@ -1445,3 +1445,47 @@ Template:
   - The tier stays readable from the medal dots and rings around the build-bar tiles (D-106).
   - Fix: a catastrophe card's tooltip is placed out of the flyout's flow. Before, growing the flyout slid the cards from under the pointer, so the tooltip flickered on and off.
 - **Consequences:** species of one family share a pictogram until real icons come (M5b).
+
+## D-132 · 2026-10-05 · Weather events
+- **Status:** accepted (user: rain, drought and flood, no seasons; a weather icon at the top left; weather alerts so players can prepare; once, maybe twice per 30-min game; particles, light and background change). The numbers are defaults picked here.
+- **Decision:**
+  - Effects:
+
+    | Weather | Plant growth | Animals | Also |
+    |---|---|---|---|
+    | Rain | ×1.15 | speed ×0.9 | |
+    | Drought | ×0.4 | speed ×0.9, bites ×0.85 | 12 % of tree stands die standing; 20 % of grass-only cells laid bare |
+    | Flood | ×0.85 | speed ×0.85 | bank cells flood (0.6 each) |
+
+  - Schedule: the first event in 480–900 s, the next 720–1200 s after one ends, with an alert 30 s before. Over 40 seeds, a 30-min match gets one or two events (tested).
+  - `sim-core/src/weather.rs`:
+    - Its own PCG32 stream, so nothing changes before the first alert: the flora parity and the `cli:check` run match without weather.
+    - The kind is drawn at the alert, so the terrain is known; floods only on maps with water.
+    - All state is hashed: RNG, kind, start, end, flooded cells.
+  - The factors are Q16 and exact when neutral:
+    - `Flora::growth` scales positive growth only, with the growth floor (D-021);
+    - `Fauna::speed` scales movement;
+    - `Fauna::bite` scales grazing bites.
+  - Drought: the shares are per event, converted to a chance per flora tick. It goes through `Flora::kill_trees` (dead trees, D-127) and `Flora::fell(1)` on grass-only cells.
+  - Flood:
+    - land cells 4-adjacent to water become `SHALLOW` with full moisture;
+    - plants whose moisture response under full water is below `drown_below` (0.5) drown to litter: land plants 0.17, water plants keep;
+    - when it ends, the saved ground and moisture come back.
+  - wasm: `weather()` (kind, phase, ticks left), `weatherTable()`, `floodCells()` (sent with the field frames).
+  - Client:
+    - `WeatherBadge` under the clock: icon, name and countdown; a pulsing ring during the alert; the effect in the tooltip;
+    - toasts for the alert (what to prepare for), the start and the end (`game/weather.ts`);
+    - `render/weather.ts`: the sun, sky light, fog and backdrop tint ease toward the weather's `SKY` (`palette.ts`); a third of the way during the alert;
+    - slanted rain streaks or drifting dust (CPU-moved line segments, up to 2,400);
+    - water tiles on flooded cells. The backdrop is now drawn through `scene.backgroundNode`, so it can be tinted.
+- **Consequences:**
+  - Balance hash version 17.
+  - Tests:
+    - one or two events per 30 min on 40 seeds, each after its alert;
+    - drought losses within bounds, and neutral factors after it;
+    - flood on the banks only, drowning, and recede;
+    - rain grows more than clear weather, drought less;
+    - client: decoding and toasts, plus the live plumbing.
+  - Checked in the browser with a shortened schedule for each kind (reverted). The first rain looked like snow dots, so the streaks are now longer and slanted; drought dust was too faint, so it is paler.
+  - The bot ignores the weather.
+  - The native vs WASM check (1,200 ticks) ends before the first event; the weather is integer-only like the rest.

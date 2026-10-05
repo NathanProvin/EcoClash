@@ -367,7 +367,15 @@ Late-game trump cards, at the far right of the build bar: available from the sta
 | Violent storm | radius 9 (about a quarter of a mid map) | Over 6 s, some cells lose all their shrubs and trees, felled to litter | 9000 · 7 min |
 | Chemical spill | radius 1 | The cells go back to bare soil: no plants, litter, dead wood or soil development, owned by no one | 4000 · 4 min |
 
-Weather (seasons, drought, rain) comes later.
+## 10c. Weather (D-132)
+
+Random weather events hit the whole map, both players alike. There is one per half hour, sometimes two: the first starts 8 to 15 min in, the next 12 to 20 min after one ends. A **weather alert** comes 30 s before each (a toast and the badge under the clock), so players can prepare. Values in `data/balance.toml` `[weather]`. Seasons are not in V1.
+
+| Weather | Lasts | Plants | Animals | Also |
+|---|---|---|---|---|
+| Rain | 2.5 min | growth +15 % | speed −10 % | |
+| Drought | 2.5 min | growth −60 % | speed −10 %, bites −15 % | about 12 % of tree stands die standing (dead trees, §6); about 20 % of grass-only cells dry up to bare soil |
+| Flood | 2 min | growth −15 % | speed −15 % | land cells next to water flood (60 % each) and turn to shallows until it ends; land plants there drown to litter. Only on maps with water |
 
 ## 11. Game phases, endgame and anti-stalemate
 

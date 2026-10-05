@@ -37,6 +37,8 @@
   import Objectives from "./ui/Objectives.svelte";
   import StrategicIcons from "./ui/StrategicIcons.svelte";
   import Toasts from "./ui/Toasts.svelte";
+  import WeatherBadge from "./ui/WeatherBadge.svelte";
+  import { CLEAR, weatherToasts, type WeatherNow } from "./game/weather";
   import TopBar from "./ui/TopBar.svelte";
 
   let canvas: HTMLCanvasElement;
@@ -80,6 +82,7 @@
   const SCAN_MS = 1000; // raid and unlock checks, once a second
   const EDGE = 28; // arrows keep this far from the screen edge (px)
   let toasts: Toast[] = $state([]);
+  let weather: WeatherNow = $state(CLEAR); // D-132
   let arrows: { x: number; y: number; angle: number }[] = $state([]);
   let pinged: { cell: { row: number; col: number }; until: number }[] = [];
   let watch = new RaidWatch();
@@ -355,6 +358,11 @@
         scan(now);
       }
       aim(now);
+      if (live.weather !== weather) {
+        for (const text of weatherToasts(weather, live.weather)) toast(text, "alert", undefined, 1);
+        viewer?.setWeather(live.weather.kind, live.weather.phase);
+        weather = live.weather;
+      }
       if (now - lastIcons > ICONS_MS) {
         lastIcons = now;
         placeIcons();
@@ -404,6 +412,7 @@
     endDismissed = false;
     [toasts, arrows, pinged, available, seenNotice] = [[], [], [], null, 0];
     watch = new RaidWatch();
+    weather = CLEAR;
     front = new FrontWatch();
     victory = new VictoryWatch();
     tips = new TipWatch(loadSeen(), saveSeen);
@@ -757,6 +766,7 @@
         <strong>Choose your spawn.</strong> Pick a plant in the bar and click anywhere on land.
       </p>
     {/if}
+    {#if live}<WeatherBadge now={weather} kinds={live.weatherKinds} />{/if}
     <Toasts {toasts} {arrows} onGo={(t) => t.cell && viewer?.lookAt(t.cell)} />
     {#if cellInfo && cell}
       <CellPanel

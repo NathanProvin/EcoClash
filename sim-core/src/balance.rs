@@ -113,6 +113,49 @@ pub struct DeadwoodRules {
     pub rot_s: f64,
 }
 
+/// `[weather]` (D-132): random weather events, announced by an alert, one or two per half hour.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WeatherRules {
+    /// Real seconds: the first event starts at a random time in this window.
+    pub first_s: [f64; 2],
+    /// Real seconds from the end of one event to the start of the next, drawn in this window.
+    pub gap_s: [f64; 2],
+    /// Real seconds between the weather alert and the event.
+    pub warning_s: f64,
+    /// The kinds of weather, drawn by `weight` when an alert is raised.
+    pub kinds: Vec<WeatherKind>,
+}
+
+/// One kind of weather (`[[weather.kinds]]`, D-132).
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WeatherKind {
+    pub name: String,
+    /// Relative chance of being drawn.
+    pub weight: u32,
+    /// Real seconds it lasts.
+    pub duration_s: f64,
+    /// Factor on positive plant growth, on animal speed, on herbivore bites.
+    pub growth: f64,
+    pub speed: f64,
+    pub bite: f64,
+    /// Share of the tree stands that die standing over the event (drought).
+    #[serde(default)]
+    pub tree_death: f64,
+    /// Share of the grass-only cells laid bare over the event (drought).
+    #[serde(default)]
+    pub grass_loss: f64,
+    /// Chance that a land cell next to water floods while it lasts (flood).
+    #[serde(default)]
+    pub flood: f64,
+    /// Flooded plants drown when their moisture response under full water is below this.
+    #[serde(default)]
+    pub drown_below: f64,
+    /// The text for players.
+    pub effect: String,
+}
+
 /// `[fauna]` global rules (gamerules §6; D-023, D-026).
 #[derive(Clone, Debug, Deserialize)]
 pub struct FaunaRules {
@@ -358,6 +401,7 @@ pub struct Balance {
     pub deadwood: DeadwoodRules,
     /// Catastrophe cards by name, in name order (D-129).
     pub catastrophes: std::collections::BTreeMap<String, CatastropheRule>,
+    pub weather: WeatherRules,
     #[allow(clippy::struct_field_names)]
     pub r#match: MatchRules,
     /// Plant species in file order: the index is the species id.
@@ -376,6 +420,7 @@ struct BalanceFile {
     fauna: FaunaRules,
     deadwood: DeadwoodRules,
     catastrophes: std::collections::BTreeMap<String, CatastropheRule>,
+    weather: WeatherRules,
     r#match: MatchRules,
 }
 
@@ -394,6 +439,7 @@ impl Balance {
             fauna: file.fauna,
             deadwood: file.deadwood,
             catastrophes: file.catastrophes,
+            weather: file.weather,
             r#match: file.r#match,
             flora_species: section(&doc, "flora")?,
             fauna_species: section(&doc, "fauna")?,
@@ -556,6 +602,34 @@ impl Balance {
                     && c.chance <= 1.0,
                 format!(
                     "[catastrophes.{name}] cost, cooldown_s, duration_s >= 0, chance in (0, 1]"
+                ),
+            )?;
+        }
+        let w = &self.weather;
+        check(
+            w.first_s[0] >= 0.0
+                && w.first_s[0] <= w.first_s[1]
+                && w.gap_s[0] >= 0.0
+                && w.gap_s[0] <= w.gap_s[1]
+                && w.warning_s >= 0.0
+                && w.warning_s <= w.first_s[0].min(w.gap_s[0])
+                && w.kinds.iter().any(|k| k.weight > 0),
+            "[weather] windows ordered, warning_s within them, one kind with weight > 0".into(),
+        )?;
+        for k in &w.kinds {
+            let share = |x: f64| (0.0..=1.0).contains(&x);
+            check(
+                k.duration_s > 0.0
+                    && k.growth >= 0.0
+                    && k.speed > 0.0
+                    && k.bite >= 0.0
+                    && share(k.tree_death)
+                    && share(k.grass_loss)
+                    && share(k.flood)
+                    && share(k.drown_below),
+                format!(
+                    "[[weather.kinds]] {}: duration_s > 0, factors >= 0, shares in [0, 1]",
+                    k.name
                 ),
             )?;
         }

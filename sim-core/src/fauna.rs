@@ -561,6 +561,9 @@ fn offset(id: u32, salt: u32, r: i64) -> i64 {
 pub struct Fauna {
     pub p: FaunaParams,
     pub agents: Agents,
+    /// Weather factors on speed and herbivore bites (Q16, D-132); ONE: none.
+    pub speed: i64,
+    pub bite: i64,
 }
 
 impl Fauna {
@@ -569,6 +572,8 @@ impl Fauna {
         Fauna {
             p,
             agents: Agents::default(),
+            speed: ONE_I,
+            bite: ONE_I,
         }
     }
 
@@ -649,6 +654,7 @@ impl Fauna {
             if medium == Medium::Walk && st.ground[a.cell(i, n)] == SHALLOW {
                 v = div_round(v * p.shallow_speed, ONE_I).max(1);
             }
+            v = crate::weather::scale(v, self.speed).max(1);
             let (dy, dx) = (a.py[i] - a.y[i], a.px[i] - a.x[i]);
             let len = i64::try_from((dy * dy + dx * dx).unsigned_abs().isqrt()).unwrap_or(i64::MAX);
             let want = v.min(div_round(len * p.pull, ONE_I));
@@ -778,7 +784,7 @@ impl Fauna {
                 }
             }
             if let Some((rank, j, _)) = pick {
-                let mut bite = p.bite[s];
+                let mut bite = crate::weather::scale(p.bite[s], self.bite);
                 if st.owner[k] == a.owner[i] {
                     bite = div_round(bite * p.own_graze, ONE_I);
                     home[i] = true;

@@ -1,7 +1,7 @@
 //! The world and its tick loop (INSTRUCTIONS §4, §5.3). One `step()` = one fixed tick (10 Hz):
 //! 1. apply the tick's commands, in (player, seq) order;
 //! 2. agents walk toward their targets (every tick);
-//! 3. every `flora_every_ticks` (default 8: 1.25 Hz): the animals act (feed, die, breed, choose
+//! 3. every `flora_every_ticks` (default 8: 1.25 Hz): the weather (D-132), the animals act (feed, die, breed, choose
 //!    targets), then the flora step (which settles ownership), then the income;
 //! 4. environment, every `env_every_ticks` (nothing to update in V1);
 //! 5. refresh the dirty field-chunk hashes and return the tick hash.
@@ -19,6 +19,7 @@ use crate::hash::{FieldHashes, Hasher};
 use crate::rng::Pcg32;
 use crate::snapshot::Snapshot;
 use crate::terrain::{self, TerrainParams};
+use crate::weather::{Weather, WeatherParams};
 
 /// Stream of the world's RNG (the seed comes from the match).
 const RNG_STREAM: u64 = 0x0ec0_c1a5;
@@ -62,6 +63,8 @@ pub struct World {
     pub fauna: Fauna,
     /// Catastrophe cards: cooldowns and the ones at work (D-129).
     pub catastrophes: Catastrophes,
+    /// Weather events and their alerts (D-132).
+    pub weather: Weather,
     /// Why recent orders did nothing, for the UI: (player, text). Not part of the state hash;
     /// callers drain it (`take_notices`).
     pub notices: Vec<(u8, String)>,
@@ -124,6 +127,7 @@ impl World {
             economy: Economy::new(balance, &fauna.p),
             fauna,
             catastrophes: Catastrophes::new(CatastropheParams::from_balance(balance)),
+            weather: Weather::new(WeatherParams::from_balance(balance), seed),
             notices: Vec::new(),
             drops: Vec::new(),
             result: None,
@@ -167,6 +171,10 @@ impl World {
         }
         self.fauna.walk(&self.state, &mut self.rng);
         if self.tick.is_multiple_of(self.flora_every) {
+            // Weather (D-132): alert, start, act, end; its factors hold until the next flora tick.
+            self.weather
+                .flora_tick(self.tick, &self.flora, &mut self.state);
+            (self.flora.growth, self.fauna.speed, self.fauna.bite) = self.weather.factors();
             self.fauna
                 .act(&self.flora.p, &mut self.state, &mut self.rng);
             self.flora.step(&mut self.state);
@@ -458,6 +466,7 @@ impl World {
             .u64(digest);
         self.economy.hash_state(&mut h);
         self.catastrophes.hash_state(&mut h);
+        self.weather.hash_state(&mut h);
         if let Some(o) = self.result {
             h.u64(u64::from(o.winner)).u64(o.reason as u64).u64(o.tick);
         }

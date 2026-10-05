@@ -38,6 +38,63 @@ export const WORLD = {
   groundLight: "#6b5f4c",
 } as const;
 
+/** The light of each weather (D-132): sun colour and strength, sky light strength, haze, the
+ *  backdrop tint, and its particles (rain streaks or drifting dust; `amount`: share of the most
+ *  drawn). Clear is the default light above. */
+export interface Sky {
+  sun: string;
+  sunI: number;
+  hemi: number;
+  fog: string;
+  tint: string;
+  particles: "rain" | "dust" | null;
+  amount: number;
+  /** Particle colour. */
+  mote: string;
+}
+export const SKY: Record<string, Sky> = {
+  clear: {
+    sun: WORLD.sun,
+    sunI: 2.6,
+    hemi: 1.3,
+    fog: WORLD.horizon,
+    tint: "#ffffff",
+    particles: null,
+    amount: 0,
+    mote: "#ffffff",
+  },
+  rain: {
+    sun: "#cfd8de",
+    sunI: 1.3,
+    hemi: 1.05,
+    fog: "#7c8a90",
+    tint: "#a3adb2",
+    particles: "rain",
+    amount: 0.7,
+    mote: "#c4d2da",
+  },
+  drought: {
+    sun: "#ffc47e",
+    sunI: 3.1,
+    hemi: 1.15,
+    fog: "#b59d72",
+    tint: "#efcf98",
+    particles: "dust",
+    amount: 0.5,
+    mote: "#fbeecb",
+  },
+  flood: {
+    sun: "#b4c2cb",
+    sunI: 0.95,
+    hemi: 0.95,
+    fog: "#66767f",
+    tint: "#86939b",
+    particles: "rain",
+    amount: 1,
+    mote: "#b8c8d2",
+  },
+};
+
 export type PlayerId = keyof typeof PLAYER;
 
 /** Natural colour of each plant species (D-067); unknown species fall back per stratum. */

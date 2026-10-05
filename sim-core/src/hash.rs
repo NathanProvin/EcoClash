@@ -148,7 +148,7 @@ impl FieldHashes {
 }
 
 /// Bumped whenever the set or order of hashed balance values changes.
-pub const BALANCE_HASH_VERSION: u64 = 16; // 2: economy; 3: fauna; 4: costs; 5: victory; 6: drops; 7: movement; 8: capacity; 9: pace; 10: terrain; 11: families; 12: map types; 13: steering; 14: ranked diets; 15: dead wood; 16: catastrophes
+pub const BALANCE_HASH_VERSION: u64 = 17; // 2: economy; 3: fauna; 4: costs; 5: victory; 6: drops; 7: movement; 8: capacity; 9: pace; 10: terrain; 11: families; 12: map types; 13: steering; 14: ranked diets; 15: dead wood; 16: catastrophes; 17: weather
 
 /// The balance hash (INSTRUCTIONS §4, §10): the values the simulation uses, **after** conversion
 /// to fixed-point, never the file bytes. Formatting, comments, CRLF / LF and changes below the
@@ -176,6 +176,7 @@ pub fn balance_hash(b: &Balance) -> u64 {
     crate::world::hash_victory(b, &mut h);
     crate::terrain::TerrainParams::from_balance(b).hash_into(&mut h);
     crate::catastrophe::CatastropheParams::from_balance(b).hash_into(&mut h);
+    crate::weather::WeatherParams::from_balance(b).hash_into(&mut h);
     h.finish()
 }
 

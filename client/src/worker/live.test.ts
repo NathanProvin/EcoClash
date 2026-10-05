@@ -34,6 +34,10 @@ class FakeWorker {
               effect: "",
             },
           ]),
+          weather: JSON.stringify({
+            warning_s: 30,
+            kinds: [{ name: "flood", duration_s: 120, effect: "" }],
+          }),
           n: 2,
           tickHz: 10,
           pace: 1,
@@ -98,6 +102,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     pressure: new Uint8Array([0, 128, 0, 0]).buffer,
     lock: new Uint8Array([0, 0, 0, 0, 2, 12, 0, 0]).buffer, // cell 2: P2 barred for 12 s
     deadwood: new Uint8Array([0, 0, 0, 51]).buffer, // cell 3: a dead tree (D-127)
+    flood: [2], // cell 2 under flood water (D-132)
     bank: [1000, 990],
     income: [4, 2],
     standing: [5000, 4000],
@@ -115,6 +120,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     drops: [1, 2],
     waits: [[50], [0]], // P1's storm: 5 s to go at 10 Hz (D-129)
     effects: [2, 0, 3, 4], // P2 cast a storm at (3, 4)
+    weather: [1, 2, 600], // a flood at work for 60 s more (D-132)
   };
   worker.emit({ type: "tick", tick: 8, agents: agents([[1, 0, 0, 0, 1]]), ...tick });
   worker.emit({ type: "tick", tick: 9, agents: agents([[1, 0, 1, 0, 1]]), ...tick });
@@ -129,6 +135,8 @@ test("live source decodes frames into census, HUD series, animals and cells", as
   expect(live.takeEffects()[0]).toEqual({ player: 2, card: 0, row: 3, col: 4 });
   expect(live.takeEffects()).toEqual([]); // drained
   expect(live.catastrophes[0]?.name).toBe("storm");
+  expect(live.weather).toEqual({ kind: "flood", phase: "active", seconds: 60 });
+  expect(live.fields().flood).toEqual([2]);
 
   expect(live.tick).toBe(9);
   expect(live.counts(9, 1)).toEqual([2, 1, 1]);

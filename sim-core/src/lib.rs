@@ -15,4 +15,5 @@ pub mod pathing;
 pub mod rng;
 pub mod snapshot;
 pub mod terrain;
+pub mod weather;
 pub mod world;

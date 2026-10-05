@@ -535,3 +535,8 @@
 ## 2026-10-05 · Card rename, tooltip flicker, species icons (D-130, D-131)
 - **Done:** finished the bark beetle → processionary caterpillars card rename (fmt fix, all checks green). The catastrophe tooltip flickered because it grew the bottom-anchored flyout and slid the cards from under the pointer; it is now absolute. Species icons show their family pictogram. Both were checked in the browser.
 - **Next:** weather (spec needed from the user); the bot learning catastrophes; M5a 9.
+
+## 2026-10-05 · Weather (D-132)
+- **Done:** sim module (schedule, alerts, rain, drought, flood), balance, hash, wasm bindings, badge, alert toasts, sky, particles, flood tiles, tests. Browser check of the alert, the flood, the drought and the rain with a temporarily shortened schedule; rain and dust tuned after the look.
+- **Note:** the browser tab advances game time only while it renders (a background window), so natural events were too slow to wait for; the schedule was shortened in `balance.toml` for the check, then restored.
+- **Next:** the bot reacting to weather alerts and casting catastrophes; M5a 9 (deploy) when the user is ready.

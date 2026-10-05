@@ -206,6 +206,48 @@ duration_s = 0
 chance = 1.0
 effect = "A chemical spill poisons a few cells: back to bare soil, owned by no one."
 
+# Weather (D-132): random events, one or two per half hour, each announced by a weather alert.
+# Times are real seconds. Factors apply while it lasts: growth on positive plant growth, speed
+# on animal movement, bite on herbivore bites. Drought kills a share of the tree stands (dead
+# trees, D-127) and lays a share of the grass-only cells bare over the event; a flood turns
+# land cells next to water into shallows (chance per cell) until it ends, drowning the plants
+# whose moisture response under full water is below drown_below.
+[weather]
+first_s = [480, 900]    # the first event starts in this window
+gap_s = [720, 1200]     # from the end of one event to the start of the next
+warning_s = 30          # the weather alert comes this long before
+
+[[weather.kinds]]
+name = "rain"
+weight = 1
+duration_s = 150
+growth = 1.15
+speed = 0.9
+bite = 1.0
+effect = "Steady rain: plants grow a little faster, animals move a little slower."
+
+[[weather.kinds]]
+name = "drought"
+weight = 1
+duration_s = 150
+growth = 0.4
+speed = 0.9
+bite = 0.85
+tree_death = 0.12
+grass_loss = 0.2
+effect = "Drought: plants grow much slower, animals are sluggish; some trees die standing and some grass patches dry up to bare soil."
+
+[[weather.kinds]]
+name = "flood"
+weight = 1
+duration_s = 120
+growth = 0.85
+speed = 0.85
+bite = 1.0
+flood = 0.6
+drown_below = 0.5
+effect = "Flood: the water rises over its banks for a while, drowning the land plants there; plants grow a little slower, animals move slower."
+
 [fauna]
 transfer = 0.1          # share of eaten biomass that becomes the eater's energy (10 % rule)
 diet_yield = [1.0, 0.75, 0.5]  # energy from a primary, secondary, tertiary food, as a share of the transfer (D-123)

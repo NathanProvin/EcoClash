@@ -38,15 +38,25 @@ function sendFields(s: Sim) {
   const pressure = s.pressureFrame().buffer as ArrayBuffer;
   const lock = s.lockFrame().buffer as ArrayBuffer; // D-098
   const deadwood = s.deadwoodFrame().buffer as ArrayBuffer; // D-127
+  const flood = [...s.floodCells()]; // D-132
   const bank = [s.bank(1), s.bank(2)];
   const income = [s.income(1), s.income(2)];
   const standing = [s.standing(1), s.standing(2)];
-  post({ type: "fields", tick: s.tick, frame, pressure, lock, deadwood, bank, income, standing }, [
-    frame,
-    pressure,
-    lock,
-    deadwood,
-  ]);
+  post(
+    {
+      type: "fields",
+      tick: s.tick,
+      frame,
+      pressure,
+      lock,
+      deadwood,
+      flood,
+      bank,
+      income,
+      standing,
+    },
+    [frame, pressure, lock, deadwood],
+  );
 }
 
 function loop() {
@@ -72,6 +82,7 @@ function loop() {
     const drops = [...s.takeDrops()];
     const waits = [[...s.catastropheWait(1)], [...s.catastropheWait(2)]]; // D-129, in ticks
     const effects = [...s.takeEffects()];
+    const weather = [...s.weather()]; // D-132
     post(
       {
         type: "tick",
@@ -85,6 +96,7 @@ function loop() {
         drops,
         waits,
         effects,
+        weather,
       },
       [agents],
     );
@@ -136,6 +148,7 @@ async function begin(
     me: net?.player ?? 1,
     species: s.speciesTable(),
     catastrophes: s.catastropheTable(), // D-129
+    weather: s.weatherTable(), // D-132
     n,
     tickHz: s.tickHz,
     pace: s.pace,

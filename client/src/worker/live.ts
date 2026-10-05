@@ -3,6 +3,7 @@
 // tick; animals with every tick, and are interpolated between the last two frames.
 
 import type { Catastrophe } from "../game/catastrophes";
+import { CLEAR, decodeWeather, type WeatherKind, type WeatherNow } from "../game/weather";
 import type { TerrainFrame } from "../render/terrain";
 import {
   cellAt,
@@ -36,6 +37,7 @@ export type ToMain =
       me: number; // the player this client commands (the relay assigns it)
       species: string;
       catastrophes: string; // the catastrophe cards as JSON (D-129)
+      weather: string; // the kinds of weather and the alert lead time, as JSON (D-132)
       n: number;
       tickHz: number;
       pace: number;
@@ -60,6 +62,7 @@ export type ToMain =
       drops: number[]; // animals just dropped by spawn commands: flat (first id, count) pairs
       waits: number[][]; // per player, ticks before each catastrophe card is ready (D-129)
       effects: number[]; // catastrophes just cast: flat (player, card, row, col) quadruples
+      weather: number[]; // [kind + 1 (0: none), phase (0 clear, 1 alert, 2 active), ticks left] (D-132)
     }
   | {
       type: "fields";
@@ -68,6 +71,7 @@ export type ToMain =
       pressure: ArrayBuffer;
       lock: ArrayBuffer;
       deadwood: ArrayBuffer;
+      flood: number[]; // cells under flood water (D-132)
       bank: number[];
       income: number[];
       standing: number[];
@@ -136,6 +140,9 @@ export class Live implements Source {
   /** Catastrophe cards (D-129), and per player the seconds before each is ready again. */
   readonly catastrophes: Catastrophe[];
   waits: number[][] = [[], []];
+  /** The kinds of weather, and the weather now (D-132). */
+  readonly weatherKinds: WeatherKind[];
+  weather: WeatherNow = CLEAR;
   private effects: { player: number; card: number; row: number; col: number }[] = [];
   private readonly tickHz: number;
   private readonly maxAgents: number;
@@ -166,6 +173,7 @@ export class Live implements Source {
     this.me = ready.me === 2 ? 2 : 1;
     this.maxAgents = ready.maxAgents;
     this.catastrophes = JSON.parse(ready.catastrophes) as Catastrophe[];
+    this.weatherKinds = (JSON.parse(ready.weather) as { kinds: WeatherKind[] }).kinds;
     this.tickHz = ready.tickHz;
     this.meta = {
       version: REPLAY_VERSION,
@@ -291,12 +299,14 @@ export class Live implements Source {
         ];
         this.effects.push({ player, card, row, col });
       }
+      this.weather = decodeWeather(m.weather, this.weatherKinds, this.tickHz);
       if (m.result && !this.result) this.result = JSON.parse(m.result) as Outcome;
     } else if (m.type === "fields") {
       this.current = this.decode(this.current.frame + 1, new Uint8Array(m.frame), m);
       this.current.pressure = new Uint8Array(m.pressure);
       this.current.lock = new Uint8Array(m.lock);
       this.current.deadwood = new Uint8Array(m.deadwood);
+      this.current.flood = m.flood;
     } else if (m.type === "notice") {
       const at = performance.now();
       this.notices = [...this.notices, ...m.notices.map((n) => ({ ...n, at }))].slice(-4);

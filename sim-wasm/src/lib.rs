@@ -18,6 +18,7 @@ pub struct Sim {
     balance_hash: u64,
     species: String,
     catastrophes: String,
+    weather: String,
     tick_hz: u32,
     flora_every: u32,
     pace: f64,
@@ -46,6 +47,7 @@ impl Sim {
             balance_hash: balance_hash(&b),
             species: species_table(&b),
             catastrophes: catastrophe_table(&b),
+            weather: weather_table(&b),
             tick_hz: b.sim.tick_hz,
             flora_every: b.sim.flora_every_ticks,
             pace: b.sim.pace,
@@ -358,6 +360,37 @@ impl Sim {
             .collect()
     }
 
+    /// The kinds of weather (D-132), as JSON: name, duration, effect; plus the alert lead time.
+    #[wasm_bindgen(js_name = weatherTable)]
+    pub fn weather_table(&self) -> String {
+        self.weather.clone()
+    }
+
+    /// The weather now (D-132): [kind + 1 (0: none), phase (0 calm, 1 alert, 2 at work), ticks
+    /// until it starts (alert) or ends (at work)].
+    pub fn weather(&self) -> Vec<u32> {
+        use sim_core::weather::Phase;
+        let w = &self.world.weather;
+        let tick = self.world.tick;
+        let kind = w.kind.map_or(0, |k| u32::try_from(k).unwrap_or(0) + 1);
+        let (phase, until) = match w.phase() {
+            Phase::Calm => (0, 0),
+            Phase::Warning => (1, w.start.saturating_sub(tick)),
+            Phase::Active => (2, w.end.saturating_sub(tick)),
+        };
+        vec![kind, phase, u32::try_from(until).unwrap_or(u32::MAX)]
+    }
+
+    /// The cells under flood water now (D-132), row-major indices.
+    #[wasm_bindgen(js_name = floodCells)]
+    pub fn flood_cells(&self) -> Vec<u32> {
+        let w = &self.world.weather;
+        w.flooded
+            .iter()
+            .map(|&(c, _, _)| u32::try_from(c).unwrap_or(u32::MAX))
+            .collect()
+    }
+
     /// Catastrophes cast since the last call, as flat (player, card, row, col) quadruples.
     #[wasm_bindgen(js_name = takeEffects)]
     pub fn take_effects(&mut self) -> Vec<u32> {
@@ -378,6 +411,14 @@ fn catastrophe_table(b: &Balance) -> String {
         })
     });
     serde_json::Value::Array(cards.collect()).to_string()
+}
+
+fn weather_table(b: &Balance) -> String {
+    let kinds = b.weather.kinds.iter().map(
+        |k| serde_json::json!({ "name": k.name, "duration_s": k.duration_s, "effect": k.effect }),
+    );
+    serde_json::json!({ "warning_s": b.weather.warning_s, "kinds": kinds.collect::<Vec<_>>() })
+        .to_string()
 }
 
 fn species_table(b: &Balance) -> String {

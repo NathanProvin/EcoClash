@@ -302,6 +302,8 @@ fn response(x: i64, opt: i64, tol: i64) -> i64 {
 #[derive(Clone, Debug)]
 pub struct Flora {
     pub p: FloraParams,
+    /// Weather factor on positive growth (Q16, D-132); ONE leaves the rules exactly as is.
+    pub growth: i64,
     scratch: Scratch,
 }
 
@@ -436,8 +438,15 @@ impl Flora {
     pub fn new(p: FloraParams) -> Flora {
         Flora {
             p,
+            growth: ONE_I,
             scratch: Scratch::default(),
         }
+    }
+
+    /// Species `s`'s moisture response at moisture `x` (0..=ONE; neutral species: ONE).
+    #[must_use]
+    pub fn moisture(&self, s: usize, x: i64) -> i64 {
+        response(x, self.p.w_opt[s], self.p.w_tol[s])
     }
 
     /// The single site modifier (gamerules §2.3): f_dev x f_soil x f_water x f_light, 0..=ONE.
@@ -657,6 +666,9 @@ impl Flora {
                 let total = totals[usize::from(p.level[s]) - 1];
                 let comp = cover[i] + div(p.alpha * (total - cover[i]), ONE_I);
                 growth[s] = grow_div(p.rdt[s] * bio[i] * (cap - comp), cap * ONE_I);
+                if growth[s] > 0 && self.growth != ONE_I {
+                    growth[s] = grow_div(growth[s] * self.growth, ONE_I); // weather (D-132)
+                }
             }
 
             // 3. Soil development.

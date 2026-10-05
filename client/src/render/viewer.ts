@@ -20,12 +20,14 @@ import {
   pass,
   positionLocal,
   positionWorld,
+  screenUV,
   smoothstep,
   texture,
   time,
   uniform,
   uv,
   vec3,
+  vec4,
 } from "three/tsl";
 import { interpolate, type Animal, type Fields, type Source } from "../replay/replay";
 import { AnimalView } from "./animals";
@@ -45,6 +47,7 @@ import { CELL, rand, SLAB_DEPTH, STRATA, stratumOf } from "./layout";
 import { hexToRgb, plantColor, PLAYER, soilColor, WORLD, type PlayerId } from "./palette";
 import { DeadTrees, LowPolyPlants, PlantView } from "./plants";
 import { QUALITY, type Quality } from "./quality";
+import { WeatherFx } from "./weather";
 
 export type Layer = "territory" | "L1" | "L2" | "L3" | "L4" | "animals";
 
@@ -101,6 +104,9 @@ export class Viewer {
   private readonly frontierPrev: THREE.DataTexture; // blended into, like the grass (D-108)
   private readonly showFrontier = uniform(1);
   private readonly sun: THREE.DirectionalLight;
+  private readonly weather: WeatherFx; // D-132
+  /** The weather's tint on the backdrop (D-132). */
+  private readonly backdropTint = uniform(new THREE.Color(1, 1, 1));
   /** High preset: the post-processing pipeline (built once, on first use; D-090), whether it is
    *  on, and the camera's distance to its target. */
   private post: THREE.RenderPipeline | null = null;
@@ -161,10 +167,12 @@ export class Viewer {
       ? "WebGPU"
       : "WebGL2";
 
-    this.scene.background = backdrop();
+    const back = texture(backdrop(), screenUV.flipY());
+    this.scene.backgroundNode = vec4(back.rgb.mul(this.backdropTint), 1);
     this.seeds = new SeedBurst(this.scene);
     this.scene.fog = new THREE.Fog(WORLD.horizon, size * 2.2, size * 5); // haze beyond the slab
-    this.scene.add(new THREE.HemisphereLight(WORLD.sky, WORLD.groundLight, 1.3));
+    const hemi = new THREE.HemisphereLight(WORLD.sky, WORLD.groundLight, 1.3);
+    this.scene.add(hemi);
     const sun = new THREE.DirectionalLight(WORLD.sun, 2.6); // one low key light (§7.1)
     sun.position.set(-size, size * 0.6, -size * 0.4);
     // Soft shadows over the whole slab (the light looks at the origin).
@@ -207,6 +215,8 @@ export class Viewer {
     const humus = earth.mul(vec3(0.74, 0.68, 0.62)); // darker, warmer patches
     const mottle = smoothstep(0.05, 0.8, patches).mul(0.6);
     this.field = new Heightfield(n, replay.terrain);
+    const ground = (x: number, z: number) => this.field.at(x, z);
+    this.weather = new WeatherFx(this.scene, size, ground, { sun, hemi }, this.backdropTint);
     this.heights = this.field.texture();
     // Front lines (D-108), drawn in the ground itself so they follow the relief (D-085): each
     // player's line is the band just inside its territory where its blurred ownership crosses
@@ -679,6 +689,11 @@ export class Viewer {
     }
   }
 
+  /** The weather now (D-132): its kind (null: clear) and phase, for the light and particles. */
+  setWeather(kind: string | null, phase: "clear" | "alert" | "active"): void {
+    this.weather.set(kind, phase);
+  }
+
   /** Draw the replay at a fractional tick. */
   render(tick: number): void {
     const now = performance.now() / 1000;
@@ -695,6 +710,7 @@ export class Viewer {
     this.blend.value = Math.min(1, (now - this.blendFrom) / this.blendS);
     this.plants.frame(now);
     this.deadTrees.frame(now);
+    this.weather.update(dt);
     const t0 = Math.floor(tick);
     this.shown = interpolate(this.replay.animals(t0), this.replay.animals(t0 + 1), tick - t0);
     const dropped = this.replay.droppedAt?.bind(this.replay);
@@ -811,6 +827,7 @@ export class Viewer {
     this.blendFrom = now;
     this.lastPaint = now;
     this.deadTrees.update(fields.deadwood, n, now, (x, z) => this.field.at(x, z));
+    this.weather.flood(fields.flood, n);
     this.plants.update(
       (c) => this.modelled.map((list) => present(list, c)),
       owner,

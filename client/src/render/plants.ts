@@ -72,9 +72,9 @@ const TREE_LIMBS = 3;
 const BEECH_BARK = "#8d8a82";
 /** Undergrowth shapes (D-150): fronds per fern (length and height x the clump radius); nettle
  *  stems (height x the radius); bramble canes (length x the radius) and their colour. */
-const FERN = { fronds: 7, length: 1.15, height: 0.9 } as const;
-const NETTLE_STEMS = { least: 6, most: 9, height: 2.1 } as const;
-const BRAMBLE = { canes: 5, length: 1.5, color: "#6e3b4a" } as const;
+const FERN = { fronds: 6, length: 1.15, height: 0.9 } as const;
+const NETTLE_STEMS = { least: 5, most: 7, height: 2.1 } as const;
+const BRAMBLE = { canes: 4, length: 1.5, color: "#6e3b4a" } as const;
 
 /** Blob sizes beyond the first one, relative to the main blob, and their spread. */
 const BLOB = { size: 0.62, spread: 0.5 } as const;

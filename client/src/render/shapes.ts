@@ -42,7 +42,7 @@ function quads(corners: [number, number, number][][]): THREE.BufferGeometry {
 }
 
 /** Fern frond leaflets (pairs) and how high the frond arches (unit length). */
-export const FROND = { steps: 7, rise: 0.45, width: 0.2 } as const;
+export const FROND = { steps: 6, rise: 0.45, width: 0.22 } as const;
 
 /** A fern frond: a strip arching out along +x and down, edged with square leaflets that shrink
  *  toward the tip, a blocky, pixel-like outline (the user's "Minecraft fern"). */
@@ -103,7 +103,7 @@ export function nettleGeometry(): THREE.BufferGeometry {
 }
 
 /** Bramble cane: thorns along it, their length (of the cane's 1). */
-const CANE = { thorns: 9, thorn: 0.07, radius: 0.022 } as const;
+const CANE = { thorns: 6, thorn: 0.08, radius: 0.024 } as const;
 
 /** A bramble cane one unit long: it rises from the origin and arches back down toward +x, with
  *  small thorns along it. */
@@ -114,7 +114,7 @@ export function caneGeometry(): THREE.BufferGeometry {
     new THREE.Vector3(1, 0.1, 0),
   );
   const parts: THREE.BufferGeometry[] = [
-    new THREE.TubeGeometry(curve, 10, CANE.radius, 4, false).toNonIndexed(),
+    new THREE.TubeGeometry(curve, 7, CANE.radius, 3, false).toNonIndexed(),
   ];
   for (let i = 1; i <= CANE.thorns; i++) {
     const t = i / (CANE.thorns + 1);

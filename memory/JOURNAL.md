@@ -540,3 +540,6 @@
 - **Done:** sim module (schedule, alerts, rain, drought, flood), balance, hash, wasm bindings, badge, alert toasts, sky, particles, flood tiles, tests. Browser check of the alert, the flood, the drought and the rain with a temporarily shortened schedule; rain and dust tuned after the look.
 - **Note:** the browser tab advances game time only while it renders (a background window), so natural events were too slow to wait for; the schedule was shortened in `balance.toml` for the check, then restored.
 - **Next:** the bot reacting to weather alerts and casting catastrophes; M5a 9 (deploy) when the user is ready.
+
+## 2026-10-05 · Weather tooltip, quality freeze (D-133)
+- **Done:** the weather tooltip in the species-tooltip style, with factor stats. Found the High → Medium freeze in the console ("Destroyed texture ShadowDepthTexture used in a submit") and fixed it by setting shadows once per match. The full preset cycle is clean in the browser. Also fixed the weather `$state` proxy comparison, which refreshed the badge every frame.

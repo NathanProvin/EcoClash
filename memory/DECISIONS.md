@@ -1489,3 +1489,24 @@ Template:
   - Checked in the browser with a shortened schedule for each kind (reverted). The first rain looked like snow dots, so the streaks are now longer and slanted; drought dust was too faint, so it is paler.
   - The bot ignores the weather.
   - The native vs WASM check (1,200 ticks) ends before the first event; the weather is integer-only like the rest.
+
+## D-133 · 2026-10-05 · Weather tooltip; shadows set once per match
+- **Status:** accepted (user: the weather tooltip should look like the species tooltip; switching High → Medium froze the map)
+- **Decision:**
+  - The weather badge's tooltip is a frosted panel like the build bar's species tooltip:
+    - the name, with the alert countdown or the time left;
+    - the factors as signed changes with icons (plant growth, animal speed, grazing);
+    - the effect text.
+  - The weather table now carries the factors (`growth`, `speed`, `bite`).
+  - The App keeps the weather in `$state.raw`. A `$state` proxy never equals the object it wraps, so the badge refreshed every frame.
+  - Shadows (on or off, map size) are set once, before the first frame. A preset change mid-match applies grass, resolution and post-processing at once, and shadows from the next match (the quality select says so).
+  - Cause: the direct render (Low, Medium) and the High post pass share the sun's shadow node, but each caches its own bindings, and three caches bind groups by texture id and version.
+    - Resizing the map left the other path on the destroyed texture: every submit failed and the canvas froze on its last frame, while the HTML overlay kept moving.
+    - Toggling shadows disposed the node under the other path: a crash, then a white canvas.
+  - Tried first, each still failing in the browser:
+    - swapping in a new sun;
+    - drawing every preset through one rebuilt pipeline;
+    - bumping the depth texture's version.
+- **Consequences:**
+  - The browser cycle Medium → High → Medium → Low → High → Medium ran with no validation error, and the map still pans and zooms.
+  - A full live switch would need a new viewer (renderer and scene), not worth it now.

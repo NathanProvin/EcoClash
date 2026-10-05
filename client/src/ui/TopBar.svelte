@@ -105,6 +105,7 @@
               value={quality}
               onchange={(e) => onQuality(e.currentTarget.value as Quality)}
               aria-label="Quality preset"
+              title="Shadows change from the next match"
             >
               <option value="low">Low</option>
               <option value="medium">Medium</option>

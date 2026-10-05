@@ -342,14 +342,18 @@ export class Viewer {
     this.camera.updateProjectionMatrix();
   }
 
-  /** The preset's light: the sun's shadow map (0: none) and the post-processing pipeline. The
-   *  shadow map is resized by three itself from `mapSize`; disposing it here destroyed a texture
-   *  the materials still sample (white canvas, device lost; D-090). */
+  /** The preset's light: the sun's shadow map (0: none) and the post-processing pipeline.
+   *  Shadows are set once, before the first frame (D-133): the direct render and the High pass
+   *  share the sun's shadow node but each caches its own bindings, so a live resize or toggle
+   *  leaves one of them on a destroyed map (every submit fails, the canvas freezes) or a disposed
+   *  node (crash). A new shadow setting applies from the next match. */
   private applyLight(): void {
     const { shadow, post } = QUALITY[this.quality];
-    this.sun.castShadow = shadow > 0;
-    if (shadow > 0) this.sun.shadow.mapSize.set(shadow, shadow);
-    this.sun.shadow.needsUpdate = true;
+    if (this.frames === 0) {
+      this.sun.castShadow = shadow > 0;
+      if (shadow > 0) this.sun.shadow.mapSize.set(shadow, shadow);
+      this.sun.shadow.needsUpdate = true;
+    }
     this.postOn = post;
     if (post) this.post ??= this.makePost();
   }

@@ -61,24 +61,24 @@ impl Level {
     }
 }
 
-/// Unlock order (players start with lichen & moss only, D-118): meadow income first, then succession, then the food web (D-087). Land only:
+/// Unlock order (players start with lichen & moss only, D-118), by game phase (D-142): herbs and the first
+/// grazers, then undergrowth, shrubs and the first hunters, then trees and the big hunters. Land only:
 /// the bot leaves the aquatic families (W, HW, PW) to players for now.
 const UNLOCKS: &[&str] = &[
     "grasses",
     "wildflowers",
+    "grasshoppers",
+    "rabbits",
+    "ferns",
     "earthworms",
     "elder",
-    "grasshoppers",
-    "ferns",
-    "nettle",
-    "rabbits",
-    "oak",
-    "slugs",
-    "caterpillars",
     "great_tit",
+    "slugs",
+    "nettle",
     "hawthorn",
     "kestrel",
-    "bank_vole",
+    "oak",
+    "caterpillars",
     "chestnut",
     "bark_beetles",
     "pine_marten",
@@ -90,6 +90,9 @@ const UNLOCKS: &[&str] = &[
     "bison",
     "wolf",
 ];
+
+/// Seconds of income the bot is willing to save for its next unlock (D-142).
+const SAVE_HORIZON_S: i64 = 120;
 
 /// Spreaders for the front line, best first.
 const SPREADERS: &[&str] = &["grasses", "wildflowers", "lichen_and_moss"];
@@ -174,22 +177,51 @@ impl Bot {
         (w.flora.p.index(name)).or_else(|| w.fauna.p.index(name).map(|s| w.economy.animal(s)))
     }
 
+    /// Whether `units` of species `i` fit in the bank above the savings for the next unlock.
     fn can_pay(&self, w: &World, i: usize, units: i64) -> bool {
-        w.economy
-            .affordable(self.player, w.economy.unit_cost(i, false))
-            >= units
+        self.spare(w) >= w.economy.unit_cost(i, false) * units
     }
 
-    /// The next species of the plan that may be unlocked now (and is affordable).
+    /// The bank above the savings (D-142): when the next unlock of the plan is held back only by
+    /// its price, and that price is within SAVE_HORIZON_S of income, the bot saves for it instead
+    /// of spending everything on planting. Further goals do not freeze it.
+    fn spare(&self, w: &World) -> i64 {
+        let pi = usize::from(self.player - 1);
+        let bank = w.economy.bank[pi];
+        let reach = w.economy.income[pi] * SAVE_HORIZON_S;
+        let saving = UNLOCKS
+            .iter()
+            .filter_map(|name| Bot::sheet(w, name))
+            .find(|&i| !w.economy.is_unlocked(self.player, i))
+            .filter(|&i| {
+                w.economy
+                    .check_unlock(self.player, i)
+                    .is_err_and(|e| e.ends_with("biomass"))
+            })
+            .map_or(0, |i| w.economy.unlock_price(i));
+        if saving > reach { bank } else { bank - saving }
+    }
+
+    /// The plan in order (D-142): the first species not unlocked yet that its tier and habitat
+    /// allow; if only its price holds it back, wait and save for it rather than buy a cheaper,
+    /// later one.
     fn unlock(&self, v: &View) -> Option<Payload> {
         let w = v.w;
-        UNLOCKS.iter().find_map(|name| {
-            let i = Bot::sheet(w, name)?;
-            w.economy.check_unlock(self.player, i).ok()?;
-            Some(Payload::Unlock {
-                species: (*name).into(),
-            })
-        })
+        for name in UNLOCKS {
+            let Some(i) = Bot::sheet(w, name) else {
+                continue;
+            };
+            match w.economy.check_unlock(self.player, i) {
+                Ok(()) => {
+                    return Some(Payload::Unlock {
+                        species: (*name).into(),
+                    });
+                }
+                Err(e) if e.ends_with("biomass") => return None,
+                Err(_) => {}
+            }
+        }
+        None
     }
 
     /// No land yet (D-095): found the colony with the first unlocked spreader, on the free cell
@@ -225,14 +257,14 @@ impl Bot {
     }
 
     /// The tallest unlocked plant, on an own cell where the soil suits it and it is missing,
-    /// nearest the enemy: shrubs and trees follow the grass (succession).
+    /// nearest the enemy: undergrowth, shrubs and trees follow the grass (succession).
     fn succession(&self, v: &View) -> Option<Payload> {
         let (w, n, n2) = (v.w, v.n, v.n * v.n);
         let p = &w.flora.p;
         let mut order: Vec<usize> = (0..p.species()).collect();
         order.sort_by_key(|&s| (std::cmp::Reverse(p.level[s]), s));
         for s in order {
-            if p.level[s] < 3 // shrubs and trees (D-087)
+            if p.level[s] < 2 // undergrowth, shrubs and trees (D-087, D-142)
                 || !w.economy.is_unlocked(self.player, s)
                 || !self.can_pay(w, s, disc_cells(self.radius) / 2)
             {
@@ -255,26 +287,37 @@ impl Bot {
 
     /// A card of decomposers on own land, while there are few.
     fn decomposers(&self, v: &View) -> Option<Payload> {
-        self.call(v, Role::Decomposer, 8, self.own_near(v, v.home)?)
+        if !self.turn.is_multiple_of(3) {
+            return None; // calls are paced like a player's attention (D-142)
+        }
+        self.call(v, Role::Decomposer, 2, self.own_near(v, v.home)?)
     }
 
     /// Grazers on own land (base price) to build biomass, while there are few (D-061).
     fn herbivores(&self, v: &View) -> Option<Payload> {
-        self.call(v, Role::Herbivore, 12, self.own_near(v, v.home)?)
+        if !self.turn.is_multiple_of(3) {
+            return None;
+        }
+        self.call(v, Role::Herbivore, 4, self.own_near(v, v.home)?)
     }
 
     /// A raid by drop (×1.5, D-061): the most advanced unlocked herbivore that has food on enemy
     /// land, dropped on the enemy cell with its food nearest home.
+    /// Every fifth decision, and only with a reserve of three such drops in the bank; units before
+    /// swarms: a raid is a choice, not a reflex (D-142).
     fn drop_raiders(&self, v: &View) -> Option<Payload> {
+        if !self.turn.is_multiple_of(5) {
+            return None;
+        }
         let (w, n, n2) = (v.w, v.n, v.n * v.n);
         let fa = &w.fauna.p;
-        (0..fa.names.len()).rev().find_map(|s| {
+        let mut order: Vec<usize> = (0..fa.names.len()).rev().collect();
+        order.sort_by_key(|&s| fa.group_size(s) > 4); // units (small cards) first, stable
+        order.into_iter().find_map(|s| {
             let i = w.economy.animal(s);
             let ready = fa.role[s] == Role::Herbivore
                 && w.economy.is_unlocked(self.player, i)
-                && w.economy
-                    .affordable(self.player, w.economy.unit_cost(i, true))
-                    >= 1;
+                && self.spare(w) >= 3 * w.economy.unit_cost(i, true);
             if !ready {
                 return None;
             }
@@ -305,12 +348,15 @@ impl Bot {
 
     /// A predator on the enemy prey nearest own land (the sim drops it on the nearest match).
     fn predators(&self, v: &View) -> Option<Payload> {
+        if !self.turn.is_multiple_of(2) {
+            return None;
+        }
         let a = &v.w.fauna.agents;
         let prey = (0..a.len())
             .filter(|&j| a.owner[j] == 3 - self.player)
             .map(|j| a.cell(j, v.n))
             .min_by_key(|&k| (dist2(k, v.n, v.home), k))?;
-        self.call(v, Role::Predator, 3, (prey / v.n, prey % v.n))
+        self.call(v, Role::Predator, 2, (prey / v.n, prey % v.n))
     }
 
     /// Every fourth decision: own herbivores attack-move to the enemy land nearest home.
@@ -337,20 +383,41 @@ impl Bot {
         })
     }
 
-    /// Spawn the most advanced unlocked, affordable species of `role` near `at`, if the bot has
-    /// fewer than `enough` animals of that role.
-    fn call(&self, v: &View, role: Role, enough: usize, at: (usize, usize)) -> Option<Payload> {
+    /// While the bot has fewer than `enough` cards of `role` on the map (animals over the card
+    /// size: a swarm counts as one card, D-142): its most advanced unlocked species, units before
+    /// swarms, if affordable and able to land at `at` now.
+    fn call(&self, v: &View, role: Role, enough: i64, at: (usize, usize)) -> Option<Payload> {
         let w = v.w;
         let (fa, a) = (&w.fauna.p, &w.fauna.agents);
-        let mine = (0..a.len())
-            .filter(|&i| a.owner[i] == self.player && fa.role[usize::from(a.sp[i])] == role)
-            .count();
-        if mine >= enough {
-            return None;
+        let cards = |s: usize| {
+            let mine = (0..a.len())
+                .filter(|&i| a.owner[i] == self.player && usize::from(a.sp[i]) == s)
+                .count();
+            let mine = i64::try_from(mine).unwrap_or(i64::MAX);
+            if fa.group_size(s) > 4 {
+                mine.min(1) // a swarm breeds on its own: one card while it lives
+            } else {
+                mine / fa.group_size(s).max(1)
+            }
+        };
+        let mut order: Vec<usize> = (0..fa.names.len()).rev().collect();
+        order.sort_by_key(|&s| fa.group_size(s) > 4); // units (small cards) before swarms
+        let total: i64 = (0..fa.names.len())
+            .filter(|&s| fa.role[s] == role)
+            .map(cards)
+            .sum();
+        if total >= enough {
+            return None; // enough cards of this role on the map, whatever the species
         }
-        let s = (0..fa.names.len()).rev().find(|&s| {
+        let s = order.into_iter().find(|&s| {
             let i = w.economy.animal(s);
-            fa.role[s] == role && w.economy.is_unlocked(self.player, i) && self.can_pay(w, i, 1)
+            fa.role[s] == role
+                && w.economy.is_unlocked(self.player, i)
+                && w.economy.affordable(self.player, w.economy.unit_cost(i, false)) >= 1 // the
+                // savings hold back planting, not the few animals the bot keeps (D-142)
+                && w.fauna
+                    .spawn_site(&w.flora.p, &w.state, self.player, s, at)
+                    .is_ok() // it can land there now (habitat, food or prey)
         })?;
         Some(Payload::Spawn {
             species: fa.names[s].clone(),

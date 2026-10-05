@@ -13,6 +13,8 @@
 //! `--out` writes metrics once per flora tick (territory, biomass, cells of each plant species per
 //! player). The command file holds one JSON command per line (`sim_core::commands::Command`).
 
+mod bench;
+
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::fs;
@@ -42,6 +44,9 @@ fn run(args: Vec<String>) -> Result<(), String> {
     let Some((cmd, rest)) = args.split_first() else {
         return Err("missing command".into());
     };
+    if cmd == "bench" {
+        return bench_cmd(rest);
+    }
     if cmd != "run" {
         return Err(format!("unknown command {cmd}"));
     }
@@ -109,6 +114,36 @@ fn run(args: Vec<String>) -> Result<(), String> {
         "tick {} state hash {last:016x} (rejected commands: {})",
         world.tick, world.rejected
     );
+    Ok(())
+}
+
+/// `sim-cli bench` (D-142): bot-vs-bot matches in parallel, one compact table of phase markers.
+fn bench_cmd(rest: &[String]) -> Result<(), String> {
+    let opts = options(rest)?;
+    let get = |k: &str, d: &str| opts.get(k).map_or(d.to_string(), Clone::clone);
+    let number = |k: &str, d: &str| get(k, d).parse::<u64>().map_err(|e| format!("--{k}: {e}"));
+    let read = |path: String| fs::read_to_string(&path).map_err(|e| format!("{path}: {e}"));
+    let b = Balance::from_toml(
+        &read(get("balance", "data/balance.toml"))?,
+        &read(get("species", "data/species.toml"))?,
+    )?;
+    let level = |k: &str, d: &str| {
+        sim_ai::Level::parse(&get(k, d)).ok_or(format!("--{k}: easy, normal or hard"))
+    };
+    let levels = [level("p1", "normal")?, level("p2", "hard")?];
+    let size = usize::try_from(number("size", &b.sim.grid_size.to_string())?)
+        .map_err(|e| e.to_string())?;
+    let threads = std::thread::available_parallelism().map_or(4, std::num::NonZero::get);
+    let threads = usize::try_from(number("threads", &threads.to_string())?).unwrap_or(4);
+    let ms = bench::run(
+        &b,
+        number("seeds", "8")?,
+        size,
+        levels,
+        number("minutes", "45")?,
+        threads,
+    );
+    print!("{}", bench::summary(&ms, levels));
     Ok(())
 }
 

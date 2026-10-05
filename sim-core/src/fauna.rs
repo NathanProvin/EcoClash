@@ -116,6 +116,12 @@ pub struct FaunaParams {
 }
 
 impl FaunaParams {
+    /// Animals one card of species `s` brings.
+    #[must_use]
+    pub fn group_size(&self, s: usize) -> i64 {
+        self.group[s]
+    }
+
     #[must_use]
     #[allow(clippy::float_arithmetic)] // load-time conversion, see fixed::Q16::from_balance
     pub fn from_balance(b: &Balance) -> FaunaParams {

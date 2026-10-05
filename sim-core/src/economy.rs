@@ -190,6 +190,12 @@ impl Economy {
         Ok(())
     }
 
+    /// What unlocking species `i` costs (Q16).
+    #[must_use]
+    pub fn unlock_price(&self, i: usize) -> i64 {
+        self.unlock_cost[i]
+    }
+
     /// Unlock species `i` for `player`, paying its unlock cost.
     pub fn unlock(&mut self, player: u8, i: usize) -> Result<(), String> {
         self.check_unlock(player, i)?;

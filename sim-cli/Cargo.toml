@@ -11,4 +11,5 @@ workspace = true
 
 [dependencies]
 serde_json = "1.0.151"
+sim-ai = { path = "../sim-ai" }
 sim-core = { path = "../sim-core" }

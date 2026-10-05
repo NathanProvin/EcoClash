@@ -15,9 +15,16 @@ chunk_size = 32          # §5.3 chunk sleeping, hashing
 players = 2
 victory_territory = 0.90 # §2.3, Q-013, D-094
 time_limit_s = 36000     # §2.3: 600 min, virtually no limit (D-138; was 60 min, D-094)
-territory_decay = false  # [Proposed] switch (gamerules §11.3): threshold decays linearly ...
-territory_start = 0.75   # ... from this at t = 0 ...
-territory_end = 0.55     # ... to this at the time limit
+territory_decay = true   # gamerules §11.3, D-143: the threshold decays linearly ...
+territory_start = 0.90   # ... from this (held until decay_from_s) ...
+territory_end = 0.60     # ... to this at decay_to_s, so a lead ends the match (about 30 min)
+decay_from_s = 1200      # real seconds: the decay starts at 20 min ...
+decay_to_s = 2400        # ... and ends at 40 min
+
+# Bot difficulty (D-143): the bots' income factor by level (easy, normal, hard); humans earn 1.
+# With play quality (easy plays at home, hard adds drops and catastrophes) it makes the ladder.
+[bots]
+income = [0.8, 1.0, 1.25]
 
 [agents]
 max_agents = 2000        # §5.4 budget; per player: half

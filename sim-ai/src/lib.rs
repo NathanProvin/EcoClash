@@ -7,6 +7,7 @@
 //! toward the enemy, plant shrubs and trees where the soil is ready, call decomposers, herbivores
 //! and predators, and send herbivores raiding. Deterministic: no randomness, fixed orders.
 
+use sim_core::balance::Act;
 use sim_core::commands::{OrderKind, Payload};
 use sim_core::fauna::Role;
 use sim_core::fixed::ONE;
@@ -47,6 +48,16 @@ impl Level {
             Level::Normal => 2,
             Level::Hard => 3,
         }
+    }
+
+    /// This level's income factor (D-143), from `[bots] income`.
+    #[must_use]
+    pub fn income(self, b: &sim_core::balance::Balance) -> f64 {
+        b.bots.income[match self {
+            Level::Easy => 0,
+            Level::Normal => 1,
+            Level::Hard => 2,
+        }]
     }
 
     /// "easy", "normal" or "hard".
@@ -90,6 +101,14 @@ const UNLOCKS: &[&str] = &[
     "bison",
     "wolf",
 ];
+
+/// Game-time pacing (D-143), the same at every level so faster levels do not waste more: an
+/// animal call at most every CALL_S, a raid every RAID_S (with at least RAID_HERD units), a drop
+/// raid every DROP_S. Seconds.
+const CALL_S: u64 = 9;
+const RAID_S: u64 = 60;
+const RAID_HERD: usize = 6;
+const DROP_S: u64 = 45;
 
 /// Seconds of income the bot is willing to save for its next unlock (D-142).
 const SAVE_HORIZON_S: i64 = 120;
@@ -150,7 +169,8 @@ impl Bot {
             }
             return self.found(&view).into_iter().collect(); // no land yet: found the colony
         }
-        let plays: [Play; 8] = [
+        let plays: [Play; 9] = [
+            Bot::catastrophe,
             Bot::unlock,
             Bot::expand,
             Bot::succession,
@@ -170,6 +190,11 @@ impl Bot {
             }
         }
         out
+    }
+
+    /// True once per `secs` of game time (at the first decision in each window).
+    fn every(&self, v: &View, secs: u64) -> bool {
+        v.w.tick % (secs * 10) < self.level.period()
     }
 
     /// Index of a species in the whole stat sheet (plants, then animals).
@@ -275,9 +300,15 @@ impl Bot {
                     && w.state.bio[s * n2 + k] == 0
                     && w.flora.suitability(&w.state, s, k) >= i64::from(ONE) / 2
             };
+            // Easy grows its tall plants at home; normal and hard push them onto the front.
+            let toward = if self.level == Level::Easy {
+                v.home
+            } else {
+                v.enemy
+            };
             if let Some(k) = (0..n2)
                 .filter(|&k| good(k))
-                .min_by_key(|&k| (dist2(k, n, v.enemy), k))
+                .min_by_key(|&k| (dist2(k, n, toward), k))
             {
                 return Some(self.plant(&p.names[s], k, n));
             }
@@ -287,7 +318,7 @@ impl Bot {
 
     /// A card of decomposers on own land, while there are few.
     fn decomposers(&self, v: &View) -> Option<Payload> {
-        if !self.turn.is_multiple_of(3) {
+        if !self.every(v, CALL_S) {
             return None; // calls are paced like a player's attention (D-142)
         }
         self.call(v, Role::Decomposer, 2, self.own_near(v, v.home)?)
@@ -295,7 +326,7 @@ impl Bot {
 
     /// Grazers on own land (base price) to build biomass, while there are few (D-061).
     fn herbivores(&self, v: &View) -> Option<Payload> {
-        if !self.turn.is_multiple_of(3) {
+        if !self.every(v, CALL_S) {
             return None;
         }
         self.call(v, Role::Herbivore, 4, self.own_near(v, v.home)?)
@@ -306,7 +337,7 @@ impl Bot {
     /// Every fifth decision, and only with a reserve of three such drops in the bank; units before
     /// swarms: a raid is a choice, not a reflex (D-142).
     fn drop_raiders(&self, v: &View) -> Option<Payload> {
-        if !self.turn.is_multiple_of(5) {
+        if self.level != Level::Hard || !self.every(v, DROP_S) {
             return None;
         }
         let (w, n, n2) = (v.w, v.n, v.n * v.n);
@@ -348,7 +379,7 @@ impl Bot {
 
     /// A predator on the enemy prey nearest own land (the sim drops it on the nearest match).
     fn predators(&self, v: &View) -> Option<Payload> {
-        if !self.turn.is_multiple_of(2) {
+        if self.level == Level::Easy || !self.every(v, CALL_S) {
             return None;
         }
         let a = &v.w.fauna.agents;
@@ -359,9 +390,60 @@ impl Bot {
         self.call(v, Role::Predator, 2, (prey / v.n, prey % v.n))
     }
 
-    /// Every fourth decision: own herbivores attack-move to the enemy land nearest home.
+    /// Hard only (D-143): play a ready, affordable catastrophe card where it hurts the enemy most,
+    /// on the enemy cell with the most tall plants (trees for the caterpillars, shrubs and trees
+    /// for the storm), or the enemy cell nearest home (the spill). At most every CALL_S.
+    fn catastrophe(&self, v: &View) -> Option<Payload> {
+        if self.level != Level::Hard || !self.every(v, CALL_S) {
+            return None;
+        }
+        let (w, n, n2) = (v.w, v.n, v.n * v.n);
+        let c = &w.catastrophes;
+        let pi = usize::from(self.player - 1);
+        let fl = &w.flora.p;
+        let tall = |k: usize, min: u8| -> i64 {
+            (0..fl.species())
+                .filter(|&s| fl.level[s] >= min)
+                .map(|s| w.state.bio[s * n2 + k])
+                .sum()
+        };
+        let enemy: Vec<usize> = (0..n2)
+            .filter(|&k| w.state.owner[k] == 3 - self.player)
+            .collect();
+        for k in 0..c.p.names.len() {
+            if w.tick < c.ready[pi][k] || w.economy.bank[pi] < c.p.cost[k] {
+                continue;
+            }
+            let at = match c.p.act(k) {
+                Act::KillTrees => enemy
+                    .iter()
+                    .copied()
+                    .filter(|&k| tall(k, 4) > 0)
+                    .max_by_key(|&k| (tall(k, 4), k)),
+                Act::Storm => enemy
+                    .iter()
+                    .copied()
+                    .filter(|&k| tall(k, 3) > 0)
+                    .max_by_key(|&k| (tall(k, 3), k)),
+                Act::Spill => enemy
+                    .iter()
+                    .copied()
+                    .min_by_key(|&k| (dist2(k, n, v.home), k)),
+            };
+            if let Some(at) = at {
+                return Some(Payload::Catastrophe {
+                    kind: c.p.names[k].clone(),
+                    row: u32::try_from(at / n).unwrap_or(0),
+                    col: u32::try_from(at % n).unwrap_or(0),
+                });
+            }
+        }
+        None
+    }
+
+    /// Every RAID_S, with a herd of RAID_HERD units or more: own herbivores attack-move to the enemy land nearest home.
     fn raid(&self, v: &View) -> Option<Payload> {
-        if !self.turn.is_multiple_of(4) {
+        if self.level == Level::Easy || !self.every(v, RAID_S) {
             return None;
         }
         let (w, n) = (v.w, v.n);
@@ -375,7 +457,14 @@ impl Bot {
         let target = (0..n * n)
             .filter(|&k| w.state.owner[k] == 3 - self.player)
             .min_by_key(|&k| (dist2(k, n, v.home), k))?;
-        (!ids.is_empty()).then(|| Payload::Order {
+        let units = ids
+            .iter()
+            .filter(|&&id| {
+                a.id.binary_search(&id)
+                    .is_ok_and(|i| w.fauna.p.group_size(usize::from(a.sp[i])) <= 4)
+            })
+            .count();
+        (units >= RAID_HERD).then(|| Payload::Order {
             ids,
             kind: OrderKind::Attack,
             row: u32::try_from(target / n).unwrap_or(0),

@@ -576,3 +576,16 @@
   The browser walk-through reached "Tutorial complete".
 - **Note:** the hidden test tab skipped 65 game minutes in one jump, and the bot shrank to two cells. At a natural pace it still held 80 cells at the raid step.
 - **Next:** the bot reacting to weather and casting catastrophes; M5a 9 (deploy) when the user is ready.
+
+## 2026-10-05 · Balance passes (D-142, D-143)
+- **Done:**
+  - `sim-cli bench` (30 matches in about 40 s);
+  - the bot made a fair player proxy;
+  - the species-stat passes;
+  - pace 0.75;
+  - the decaying threshold window;
+  - the difficulty ladder through play quality and bot income.
+
+  The phase markers hit the targets (early ≤ 6 min, mid 12–14, late 19–22, median end 30 min); hard beats normal 72 %. All checks pass.
+- **Lessons:** most "balance" problems were the bot: buying cheap items out of plan order, spamming swarms, failed calls blocking real ones, per-decision pacing punishing faster levels. Fix the proxy before tuning numbers.
+- **Next:** the user's playtest per level (and the tutorial at the new pace); then the Cloudflare deploy (M5a 9).

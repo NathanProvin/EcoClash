@@ -39,6 +39,8 @@ pub struct Economy {
     pub unlocked: [Vec<bool>; 2],
     /// Everything unlocked and free (tools and checks; part of the state hash).
     pub sandbox: bool,
+    /// Income factor per player (Q16, D-143): ONE for humans; bots by difficulty. Hashed.
+    pub gain: [i64; 2],
     /// The tutorial match (D-141): it alone accepts `Grant` commands. Hashed, like the sandbox.
     pub tutorial: bool,
     /// Per species (plants, then animals), Q16 points.
@@ -71,6 +73,7 @@ impl Economy {
         Economy {
             unlocked: [free.clone(), free],
             sandbox: false,
+            gain: [ONE_I; 2],
             tutorial: false,
             spawn_cost: costs(&|_, s| s),
             unlock_cost,
@@ -117,6 +120,7 @@ impl Economy {
         }
         for (pi, inc) in income.into_iter().enumerate() {
             let inc = div_round(inc * self.pace, ONE_I); // per ecology second -> per real second
+            let inc = div_round(inc * self.gain[pi], ONE_I); // the bots' difficulty (D-143)
             self.income[pi] = inc;
             self.bank[pi] += div_round(inc * self.every, self.hz);
         }
@@ -142,7 +146,8 @@ impl Economy {
     pub fn hash_state(&self, h: &mut Hasher) {
         h.i64s(&self.bank)
             .u64(u64::from(self.sandbox))
-            .u64(u64::from(self.tutorial));
+            .u64(u64::from(self.tutorial))
+            .i64s(&self.gain);
         for list in &self.unlocked {
             let bytes: Vec<u8> = list.iter().map(|&u| u8::from(u)).collect();
             h.bytes(&bytes);

@@ -364,9 +364,9 @@ Late-game trump cards, at the far right of the build bar: available from the sta
 
 | Card | Area | Effect | Cost · cooldown |
 |---|---|---|---|
-| Processionary caterpillars (D-130) | radius 4 | Over 8 s, the tree stands die and stay as standing dead trees (§6, D-127) | 6000 · 5 min |
-| Violent storm | radius 9 (about a quarter of a mid map) | Over 6 s, some cells lose all their shrubs and trees, felled to litter | 9000 · 7 min |
-| Chemical spill | radius 1 | The cells go back to bare soil: no plants, litter, dead wood or soil development, owned by no one | 4000 · 4 min |
+| Processionary caterpillars (D-130) | radius 4 | Over 8 s, the tree stands die and stay as standing dead trees (§6, D-127) | 15000 · 5 min |
+| Violent storm | radius 9 (about a quarter of a mid map) | Over 6 s, some cells lose all their shrubs and trees, felled to litter | 22000 · 7 min |
+| Chemical spill | radius 1 | The cells go back to bare soil: no plants, litter, dead wood or soil development, owned by no one | 10000 · 4 min |
 
 ## 10c. Weather (D-132)
 
@@ -403,7 +403,7 @@ The mechanics below make sure **no position is permanently locked**, and that **
    - *Processionary caterpillars:* targeted area; the trees there are weakened and lose biomass over time.
    - *Storm:* windthrow along a corridor, opening a line of gaps through a forest.
    - *Forest fire* **[Post-V1]**: ignites a target area. Each tick, fire spreads to neighbouring cells with a chance (seeded RNG) that grows with the cell's biomass. Burnt strata become dead biomass and the soil gains nutrients. Fire dies out on bare or low-biomass cells, so meadow strips act as firebreaks. It opens irregular gaps through a forest.
-4. **Decaying territory threshold.** The territorial victory threshold starts high (e.g. 75 %) and decreases linearly to ~55 % at the time limit. This rewards late aggression. If validated, it supersedes the fixed threshold (90 %, D-094) in `INSTRUCTIONS.md` §2.3.
+4. **Decaying territory threshold (adopted, D-143).** The territorial victory threshold holds 90 % until 20 min, then decreases linearly to 60 % at 40 min. This rewards whoever leads and ends matches in about 30 min.
 5. **Guaranteed end.** At the time limit, the highest standing biomass (living flora + fauna) wins; if tied, the higher territory share wins; if still tied, the match is a draw.
 
 ### 11.4 Comeback levers for the trailing player

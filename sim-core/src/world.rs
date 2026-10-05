@@ -50,6 +50,8 @@ pub struct Outcome {
 struct Victory {
     fixed: i64,
     decay: Option<(i64, i64)>,
+    /// The decay window in ticks (D-143).
+    window: (u64, u64),
     limit: u64,
 }
 
@@ -95,12 +97,24 @@ impl Victory {
             decay: m
                 .territory_decay
                 .then(|| (q(m.territory_start), q(m.territory_end))),
+            window: {
+                let hz = u64::from(b.sim.tick_hz);
+                let to = if m.decay_to_s == 0 {
+                    m.time_limit_s
+                } else {
+                    m.decay_to_s
+                };
+                (u64::from(m.decay_from_s) * hz, u64::from(to) * hz)
+            },
             limit: u64::from(m.time_limit_s) * u64::from(b.sim.tick_hz),
         }
     }
 
     fn hash_into(&self, h: &mut Hasher) {
-        h.i64(self.fixed).u64(self.limit);
+        h.i64(self.fixed)
+            .u64(self.limit)
+            .u64(self.window.0)
+            .u64(self.window.1);
         if let Some((a, b)) = self.decay {
             h.i64(a).i64(b);
         }
@@ -380,8 +394,11 @@ impl World {
         let threshold = match v.decay {
             None => v.fixed,
             Some((start, end)) => {
-                let done = i64::try_from(tick.min(v.limit)).unwrap_or(0);
-                start + div_round((end - start) * done, i64::try_from(v.limit).unwrap_or(1))
+                // Holds `start` until the window opens, reaches `end` when it closes (D-143).
+                let (from, to) = v.window;
+                let span = i64::try_from(to.saturating_sub(from).max(1)).unwrap_or(1);
+                let done = i64::try_from(tick.clamp(from, to) - from).unwrap_or(0);
+                start + div_round((end - start) * done, span)
             }
         };
         let top = if t[1] > t[0] { 2 } else { 1 }; // ties: P1, as the prototype
@@ -444,6 +461,15 @@ impl World {
     /// first tick; it is part of the state hash, so peers must agree on it.
     pub fn set_sandbox(&mut self, on: bool) {
         self.economy.sandbox = on;
+    }
+
+    /// A bot's income factor (D-143), as a share (1.0: a human's). Set it before the first tick;
+    /// it is part of the state hash.
+    #[allow(clippy::float_arithmetic)] // setup-time conversion, like the balance
+    pub fn set_income_factor(&mut self, player: u8, factor: f64) {
+        if let p @ 1..=2 = player {
+            self.economy.gain[usize::from(p) - 1] = crate::flora::round(factor * f64::from(ONE));
+        }
     }
 
     /// The tutorial match (D-141): it accepts `Grant` commands. Set it before the first tick; it is

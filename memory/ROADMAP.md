@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-05: D-130, D-131 (card rename, species icons, tooltip fix), D-132 (weather: rain, drought, flood, with alerts), D-133 (weather tooltip, quality-switch freeze), D-134…D-137 (top bar, map overlays, seed sprinkle, Play modes), D-138 (600-min limit, robust end charts), D-139 (guided tutorial), D-140 (Species page), D-141 (tutorial predator-prey steps). Next: the bot reacting to weather and casting catastrophes; M5a 9, static deploy, when the user is ready.
+- **Now:** 2026-10-05: balance passes D-142/D-143 (pacing, unit weight, 30-min matches, bot ladder). Next: the user's playtest per level; then deploy on Cloudflare Pages (M5a 9), then online multiplayer with room codes and quick match (M6a, Durable Objects).
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-10-05
@@ -112,7 +112,7 @@ In this order:
 - [x] **5. Visible drop animation** (D-089): high fall, readable canopy, ground shadow, dust ring.
 
 ## M7-lite · Balance loop (pulled forward, D-073)
-- [ ] `tools/balance/`: bot-vs-bot batch runs through `sim-cli` (seeds × difficulties) → match length, win rates, population curves, collapses.
+- [x] Bot-vs-bot batch runs: `sim-cli bench` (seeds × difficulties → phase markers, match length, win rates, calls; D-142).
 - [ ] One-page report; tune `pace`, `food_reserve`, caps, costs and the victory thresholds (Q-013) with it and the playtest feedback.
 
 ## Content · Terrain, biomes, map generator, species (D-073)

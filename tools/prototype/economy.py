@@ -29,6 +29,9 @@ class Economy:
         self.events: list[tuple[int, str, int]] = []  # (player, species, cost) bought, for the log
         self.time_limit, self.fixed = m["time_limit_s"], m["victory_territory"]
         self.decay = (m["territory_start"], m["territory_end"]) if m["territory_decay"] else None
+        # The decay window (D-143): holds the start until decay_from_s, reaches the end at
+        # decay_to_s (0: the time limit).
+        self.window = (m.get("decay_from_s", 0), m.get("decay_to_s", 0) or m["time_limit_s"])
 
     def stat(self, name: str, key: str):
         return self.species[name][1][key]
@@ -92,7 +95,8 @@ class Economy:
         if not self.decay:
             return self.fixed
         start, end = self.decay
-        return start + (end - start) * min(t / self.time_limit, 1)
+        lo, hi = self.window
+        return start + (end - start) * min(max(t - lo, 0) / max(hi - lo, 1), 1)
 
     def winner(self, t: float, territory: dict, standing: dict):
         """(winner or 0 for a draw, reason) once the match is decided, else None. Territory at any

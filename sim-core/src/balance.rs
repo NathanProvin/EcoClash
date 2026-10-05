@@ -57,6 +57,27 @@ pub struct MatchRules {
     pub territory_decay: bool,
     pub territory_start: f64,
     pub territory_end: f64,
+    /// The decay window (D-143), real seconds: the threshold holds `territory_start` until
+    /// `decay_from_s` and reaches `territory_end` at `decay_to_s` (0: the time limit).
+    #[serde(default)]
+    pub decay_from_s: u32,
+    #[serde(default)]
+    pub decay_to_s: u32,
+}
+
+/// `[bots]` (D-143): the bots' income factor by level (easy, normal, hard); humans earn 1.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BotRules {
+    pub income: [f64; 3],
+}
+
+impl Default for BotRules {
+    fn default() -> BotRules {
+        BotRules {
+            income: [1.0, 1.0, 1.0],
+        }
+    }
 }
 
 /// `[agents]`: the agent budget (INSTRUCTIONS §5.4).
@@ -404,6 +425,7 @@ pub struct Balance {
     pub weather: WeatherRules,
     #[allow(clippy::struct_field_names)]
     pub r#match: MatchRules,
+    pub bots: BotRules,
     /// Plant species in file order: the index is the species id.
     pub flora_species: Vec<(String, FloraSpecies)>,
     /// Animal species in file order: the index is the species id.
@@ -422,6 +444,8 @@ struct BalanceFile {
     catastrophes: std::collections::BTreeMap<String, CatastropheRule>,
     weather: WeatherRules,
     r#match: MatchRules,
+    #[serde(default)]
+    bots: BotRules,
 }
 
 impl Balance {
@@ -441,6 +465,7 @@ impl Balance {
             catastrophes: file.catastrophes,
             weather: file.weather,
             r#match: file.r#match,
+            bots: file.bots,
             flora_species: section(&doc, "flora")?,
             fauna_species: section(&doc, "fauna")?,
         };

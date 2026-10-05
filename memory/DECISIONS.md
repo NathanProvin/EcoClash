@@ -1653,3 +1653,42 @@ Template:
   | Units at 20 min | 0 | 11 |
 
 - **Open:** the levels show no difficulty ladder (outcomes depend on the map, not the level), since every level is money-limited. Next: difficulty by play quality (D-143).
+
+## D-143 · 2026-10-05 · Balance pass 2: bot difficulty ladder and match length
+- **Status:** accepted (follows D-142; the user asked for about 30-min matches and a real difficulty ladder)
+- **Decision:**
+  - Difficulty by play quality:
+    - easy grows its tall plants at home, never raids, calls no hunters;
+    - normal raids with a herd (at least 6 units) and calls hunters onto enemy prey;
+    - hard adds airdrop raids and catastrophe cards (caterpillars on the enemy's densest woods, the storm on its tallest stands, the spill on the front).
+  - Pacing is in game time and the same for every level: calls at most every 9 s, raids every 60 s, hard's drops every 45 s. Faster decisions no longer mean more waste: per-decision pacing made hard *weaker* than normal.
+  - Bot income `[bots] income = [0.8, 1.0, 1.25]` (`World::set_income_factor`, hashed; set by `addBot` and the bench; never for humans or lockstep matches).
+  - Victory (Q-013 resolved):
+    - the decaying threshold of gamerules §11.3 is adopted;
+    - it uses its own window: 90 % until 20 min (`decay_from_s`), 60 % at 40 min (`decay_to_s`);
+    - the time limit stays 600 min;
+    - the prototype mirrors the window.
+  - Balance hash version 18.
+- **Consequences** (30 seeds per side, normal vs hard):
+  - Markers, medians:
+
+    | Marker | Median |
+    |---|---|
+    | First animal | 2:43 |
+    | Tier 2 | 5:43 |
+    | Undergrowth | 12:40 |
+    | Shrubs | 13:10 |
+    | First hunter | 13:22 |
+    | Catastrophes affordable | 19:18 |
+    | Trees | 21:43 |
+    | Tier 3 | 22:23 |
+    | Match end | 30:11 (p25–p75 24–35) |
+
+    Units: 7 at 10 min, 12 at 20 min. Calls per player-minute 1.8.
+  - The ladder:
+    - hard beat normal in 33 of 46 decided matches (72 %);
+    - normal beat easy in 15 of 17 (12-seed runs).
+  - Still off target: the biomass growth peak (20:30, since trees keep adding late biomass), and units at 20 min (12, below the 15–35 aim). Next lever if the playtest agrees: cheaper unit calls in the mid game.
+  - Test fixes:
+    - the relay test's earthworm call moved to tick 1 100 (calls cost more);
+    - the Python decay test uses the window.

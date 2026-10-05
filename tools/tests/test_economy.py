@@ -74,12 +74,17 @@ def test_victory_rules():
 
 
 def test_decaying_threshold_switch():
+    """The threshold holds its start until the window opens, then decays to its end (D-143)."""
     bal = uncapped()
-    bal["match"]["territory_decay"] = True
+    m = bal["match"]
+    m.update(territory_decay=True, territory_start=0.9, territory_end=0.6)
+    m.update(decay_from_s=1200, decay_to_s=2400)
     ec = economy(bal)
-    assert ec.threshold(0) == 0.75
-    assert abs(ec.threshold(ec.time_limit / 2) - 0.65) < 1e-9
-    assert ec.threshold(ec.time_limit) == 0.55
+    assert ec.threshold(0) == 0.9
+    assert ec.threshold(1200) == 0.9
+    assert abs(ec.threshold(1800) - 0.75) < 1e-9
+    assert abs(ec.threshold(2400) - 0.6) < 1e-9
+    assert abs(ec.threshold(ec.time_limit) - 0.6) < 1e-9
 
 
 def test_match_with_economy_ends_at_the_time_limit():

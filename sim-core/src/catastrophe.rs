@@ -61,6 +61,12 @@ impl CatastropheParams {
         }
     }
 
+    /// What card `k` does.
+    #[must_use]
+    pub fn act(&self, k: usize) -> Act {
+        self.act[k]
+    }
+
     #[must_use]
     pub fn index(&self, name: &str) -> Option<usize> {
         self.names.iter().position(|n| n == name)

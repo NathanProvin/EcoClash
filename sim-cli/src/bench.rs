@@ -44,6 +44,8 @@ pub struct Markers {
     /// Spawn orders sent, species at their cap at 20 min.
     pub calls: [u64; 2],
     pub capped: [u64; 2],
+    /// Land held at the end (cells), per player.
+    pub land: [i64; 2],
     /// Winner (0 draw), reason, end (s); None: still running at the end.
     pub end: Option<(u8, Reason, u64)>,
     pub minutes: u64,
@@ -54,6 +56,8 @@ pub struct Markers {
 pub fn play(b: &Balance, seed: u64, size: usize, levels: [Level; 2], minutes: u64) -> Markers {
     let mut w = World::new(b, seed, size);
     w.generate_terrain(&TerrainParams::from_balance(b), seed);
+    w.set_income_factor(1, levels[0].income(b));
+    w.set_income_factor(2, levels[1].income(b));
     let mut bots = [
         Bot::new(1, levels[0], b.flora.plant_radius),
         Bot::new(2, levels[1], b.flora.plant_radius),
@@ -94,6 +98,9 @@ pub fn play(b: &Balance, seed: u64, size: usize, levels: [Level; 2], minutes: u6
         for bot in &mut bots {
             for payload in bot.think(&w) {
                 let p = bot.player;
+                if let Payload::Catastrophe { kind, .. } = &payload {
+                    *m.called.entry(format!("cast {kind}")).or_insert(0) += 1;
+                }
                 if let Payload::Spawn { species, .. } = &payload {
                     m.calls[usize::from(p - 1)] += 1;
                     *m.called.entry(species.clone()).or_insert(0) += 1;
@@ -209,6 +216,7 @@ pub fn play(b: &Balance, seed: u64, size: usize, levels: [Level; 2], minutes: u6
             break;
         }
     }
+    m.land = w.territory();
     m
 }
 
@@ -342,6 +350,36 @@ pub fn summary(ms: &[Markers], levels: [Level; 2]) -> String {
         .map(|(k, v)| format!("{k} {v}"))
         .collect();
     let _ = writeln!(t, "top calls: {}", top.join(", "));
+    let casts: u64 = ms
+        .iter()
+        .flat_map(|m| m.called.iter())
+        .filter(|(k, _)| k.starts_with("cast"))
+        .map(|(_, v)| v)
+        .sum();
+    let open: Vec<&Markers> = ms.iter().filter(|m| m.end.is_none()).collect();
+    let lead = |p: usize| open.iter().filter(|m| m.land[p] > m.land[1 - p]).count();
+    let share: i64 = open
+        .iter()
+        .map(|m| 100 * m.land[0] / (m.land[0] + m.land[1]).max(1))
+        .sum::<i64>()
+        / i64::try_from(open.len().max(1)).unwrap_or(1);
+    let _ = writeln!(
+        t,
+        "casts {casts}; unfinished: P1 leads {} / P2 leads {}, P1 share of held land {share} %",
+        lead(0),
+        lead(1)
+    );
+    let per: String = ms
+        .iter()
+        .map(|m| match m.end {
+            Some((1, ..)) => '1',
+            Some((2, ..)) => '2',
+            Some(_) => '=',
+            None if m.land[0] > m.land[1] => 'a',
+            None => 'b',
+        })
+        .collect();
+    let _ = writeln!(t, "per seed (1/2 won, a/b leads unfinished): {per}");
     let wins = |p: u8| {
         ms.iter()
             .filter(|m| m.end.is_some_and(|e| e.0 == p))

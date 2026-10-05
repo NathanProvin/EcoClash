@@ -49,8 +49,7 @@
 
 ## Q-012 · Decomposers: agent or field — resolved → D-018
 
-## Q-013 · Victory thresholds and match length
-- Defaults: 90 % of the map / 60 min (user, 2026-10-01, D-094; were 60 % / 20 min). Tune them with `tools/balance` in M7-lite (D-073).
+## Q-013 · Victory thresholds and match length — resolved → D-143
 
 ## Q-014 · Plant species per player
 - Default: grass + shrub (fields) + tree (structure).

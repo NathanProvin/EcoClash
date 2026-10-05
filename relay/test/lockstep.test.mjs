@@ -24,7 +24,7 @@ function script(player, tick, ids) {
     100: [{ type: "plant", species: "grasses", row: r + 4, col: c, radius: 2 }],
     250: [{ type: "unlock", species: "wildflowers" }],
     300: [{ type: "unlock", species: "earthworms" }],
-    400: [{ type: "spawn", species: "earthworms", row: r, col: c }],
+    1100: [{ type: "spawn", species: "earthworms", row: r, col: c }], // calls cost more (D-142)
     700: [{ type: "plant", species: "wildflowers", row: r, col: c + 4, radius: 2 }],
     1200: ids.length ? [{ type: "order", ids, kind: "move", row: 16, col: 16 }] : [],
     2800: [{ type: "unlock", species: "grasshoppers" }], // income runs at the 0.4 pace (D-069)

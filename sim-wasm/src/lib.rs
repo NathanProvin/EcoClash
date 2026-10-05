@@ -29,6 +29,8 @@ pub struct Sim {
     max_agents: u32,
     terrain: TerrainParams,
     relief_m: f64,
+    /// The bots' income factors by level (D-143).
+    bot_income: [f64; 3],
     seed: u64,
     /// Scripted opponents, and the next sequence number of each one's commands.
     bots: Vec<(sim_ai::Bot, u32)>,
@@ -58,6 +60,7 @@ impl Sim {
             max_agents: b.agents.max_agents,
             terrain: TerrainParams::from_balance(&b),
             relief_m: b.terrain.relief_m,
+            bot_income: b.bots.income,
             seed,
             bots: Vec::new(),
             world: World::new(&b, seed, n),
@@ -156,6 +159,12 @@ impl Sim {
             return Err(JsError::new("player must be 1 or 2"));
         }
         let bot = sim_ai::Bot::new(player, level, self.plant_radius);
+        let factor = self.bot_income[match level {
+            sim_ai::Level::Easy => 0,
+            sim_ai::Level::Normal => 1,
+            sim_ai::Level::Hard => 2,
+        }];
+        self.world.set_income_factor(player, factor); // D-143
         self.bots.push((bot, 1 << 30));
         Ok(())
     }

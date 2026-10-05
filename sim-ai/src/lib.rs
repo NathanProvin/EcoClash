@@ -44,9 +44,19 @@ impl Level {
     /// Commands per decision at most.
     fn actions(self) -> usize {
         match self {
-            Level::Easy => 1,
-            Level::Normal => 2,
-            Level::Hard => 3,
+            Level::Easy => 2,
+            Level::Normal => 3,
+            Level::Hard => 4,
+        }
+    }
+
+    /// Aggression (D-148): seconds between raids, the herd of units a raid needs, seconds between
+    /// drop raids (None: never), and how many grazer cards the bot keeps on the map.
+    fn aggression(self) -> (u64, usize, Option<u64>, i64) {
+        match self {
+            Level::Easy => (90, 8, None, 4),
+            Level::Normal => (45, 4, Some(90), 6),
+            Level::Hard => (30, 5, Some(60), 8),
         }
     }
 
@@ -78,9 +88,9 @@ impl Level {
 const UNLOCKS: &[&str] = &[
     "grasses",
     "wildflowers",
+    "ferns",
     "grasshoppers",
     "rabbits",
-    "ferns",
     "earthworms",
     "elder",
     "great_tit",
@@ -102,13 +112,9 @@ const UNLOCKS: &[&str] = &[
     "wolf",
 ];
 
-/// Game-time pacing (D-143), the same at every level so faster levels do not waste more: an
-/// animal call at most every CALL_S, a raid every RAID_S (with at least RAID_HERD units), a drop
-/// raid every DROP_S. Seconds.
+/// Game-time pacing (D-143): an animal call at most every CALL_S seconds at every level, so faster
+/// levels do not waste more. Raids and drops are paced per level (`Level::aggression`, D-148).
 const CALL_S: u64 = 9;
-const RAID_S: u64 = 60;
-const RAID_HERD: usize = 6;
-const DROP_S: u64 = 45;
 
 /// Seconds of income the bot is willing to save for its next unlock (D-142).
 const SAVE_HORIZON_S: i64 = 120;
@@ -329,15 +335,21 @@ impl Bot {
         if !self.every(v, CALL_S) {
             return None;
         }
-        self.call(v, Role::Herbivore, 4, self.own_near(v, v.home)?)
+        self.call(
+            v,
+            Role::Herbivore,
+            self.level.aggression().3,
+            self.own_near(v, v.home)?,
+        )
     }
 
     /// A raid by drop (×1.5, D-061): the most advanced unlocked herbivore that has food on enemy
     /// land, dropped on the enemy cell with its food nearest home.
-    /// Every fifth decision, and only with a reserve of three such drops in the bank; units before
-    /// swarms: a raid is a choice, not a reflex (D-142).
+    /// Normal and hard, at their drop pace (D-148), and only with a reserve of three such drops in
+    /// the bank; units before swarms: a raid is a choice, not a reflex (D-142).
     fn drop_raiders(&self, v: &View) -> Option<Payload> {
-        if self.level != Level::Hard || !self.every(v, DROP_S) {
+        let every = self.level.aggression().2?;
+        if !self.every(v, every) {
             return None;
         }
         let (w, n, n2) = (v.w, v.n, v.n * v.n);
@@ -407,13 +419,19 @@ impl Bot {
                 .map(|s| w.state.bio[s * n2 + k])
                 .sum()
         };
-        let enemy: Vec<usize> = (0..n2)
-            .filter(|&k| w.state.owner[k] == 3 - self.player)
+        let own: Vec<usize> = (0..n2)
+            .filter(|&k| w.state.owner[k] == self.player)
             .collect();
         for k in 0..c.p.names.len() {
-            if w.tick < c.ready[pi][k] || w.economy.bank[pi] < c.p.cost[k] {
+            if w.tick < c.ready[pi][k] || self.spare(w) < c.p.cost[k] {
                 continue;
             }
+            // Only where the disc spares the bot's own land (D-148): cards hit both sides.
+            let r2 = u64::from(c.p.radius[k]).pow(2) as usize;
+            let enemy: Vec<usize> = (0..n2)
+                .filter(|&e| w.state.owner[e] == 3 - self.player)
+                .filter(|&e| own.iter().all(|&o| dist2(o, n, (e / n, e % n)) > r2))
+                .collect();
             let at = match c.p.act(k) {
                 Act::KillTrees => enemy
                     .iter()
@@ -441,9 +459,11 @@ impl Bot {
         None
     }
 
-    /// Every RAID_S, with a herd of RAID_HERD units or more: own herbivores attack-move to the enemy land nearest home.
+    /// At the level's raid pace, with a large enough herd of units (D-148): own herbivores
+    /// attack-move to the enemy land nearest home.
     fn raid(&self, v: &View) -> Option<Payload> {
-        if self.level == Level::Easy || !self.every(v, RAID_S) {
+        let (every, herd, ..) = self.level.aggression();
+        if !self.every(v, every) {
             return None;
         }
         let (w, n) = (v.w, v.n);
@@ -464,7 +484,7 @@ impl Bot {
                     .is_ok_and(|i| w.fauna.p.group_size(usize::from(a.sp[i])) <= 4)
             })
             .count();
-        (units >= RAID_HERD).then(|| Payload::Order {
+        (units >= herd).then(|| Payload::Order {
             ids,
             kind: OrderKind::Attack,
             row: u32::try_from(target / n).unwrap_or(0),

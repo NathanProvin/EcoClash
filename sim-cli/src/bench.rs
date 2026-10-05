@@ -32,6 +32,10 @@ pub struct Markers {
     /// The first plant of layer 2, 3, 4 held.
     pub layer: [[Option<u64>; 2]; 3],
     pub hunter: [Option<u64>; 2],
+    /// The first attack-move order (D-148).
+    pub raid: [Option<u64>; 2],
+    /// Share of the map held (%) at 5 and 10 min (D-148).
+    pub share: [[u64; 2]; 2],
     pub catastrophe: [Option<u64>; 2],
     /// When the standing biomass grew fastest (over 30 s).
     pub peak: [Option<u64>; 2],
@@ -98,6 +102,14 @@ pub fn play(b: &Balance, seed: u64, size: usize, levels: [Level; 2], minutes: u6
         for bot in &mut bots {
             for payload in bot.think(&w) {
                 let p = bot.player;
+                if let Payload::Order {
+                    kind: sim_core::commands::OrderKind::Attack,
+                    ..
+                } = &payload
+                {
+                    let at = w.tick / HZ;
+                    m.raid[usize::from(p - 1)].get_or_insert(at);
+                }
                 if let Payload::Catastrophe { kind, .. } = &payload {
                     *m.called.entry(format!("cast {kind}")).or_insert(0) += 1;
                 }
@@ -190,6 +202,12 @@ pub fn play(b: &Balance, seed: u64, size: usize, levels: [Level; 2], minutes: u6
                         }
                     }
                     eprintln!("  notices {seen:?}");
+                }
+                for (j, at) in [5u64, 10].into_iter().enumerate() {
+                    if now == at * 60 {
+                        let held = w.state.owner.iter().filter(|&&o| o == player).count();
+                        m.share[j][p] = u64::try_from(held * 100 / n2).unwrap_or(0);
+                    }
                 }
                 if now == 20 * 60 {
                     m.capped[p] = census
@@ -295,6 +313,7 @@ pub fn summary(ms: &[Markers], levels: [Level; 2]) -> String {
     line("layer 2 (undergrowth)", &|m| m.layer[0]);
     line("layer 3 (shrubs)", &|m| m.layer[1]);
     line("first hunter", &|m| m.hunter);
+    line("first raid", &|m| m.raid);
     line("biomass growth peak", &|m| m.peak);
     line("tier 3 unlock", &|m| m.tier3);
     line("layer 4 (trees)", &|m| m.layer[2]);
@@ -302,6 +321,14 @@ pub fn summary(ms: &[Markers], levels: [Level; 2]) -> String {
     let mut ends: Vec<u64> = ms.iter().filter_map(|m| m.end.map(|e| e.2)).collect();
     let unfinished = ms.len() - ends.len();
     let _ = writeln!(t, "{:<28}{}", "match end", spread(&mut ends, unfinished));
+    for (j, at) in [5, 10].into_iter().enumerate() {
+        let side = |p: usize| {
+            let mut v: Vec<u64> = ms.iter().map(|m| m.share[j][p]).collect();
+            v.sort_unstable();
+            v.get(v.len() / 2).copied().unwrap_or(0)
+        };
+        let _ = writeln!(t, "land at {at} min: P1 {} %, P2 {} %", side(0), side(1));
+    }
     for (j, at) in COUNT_AT.iter().enumerate() {
         let (mut units, mut swarms): (Vec<u64>, Vec<u64>) =
             ms.iter().flat_map(|m| m.animals[j]).unzip();

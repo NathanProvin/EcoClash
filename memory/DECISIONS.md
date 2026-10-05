@@ -1721,3 +1721,37 @@ Template:
 - **Status:** accepted (user playtest: 90 % is too restrictive)
 - **Decision:** `victory_territory` and `territory_start` 0.90 → 0.80. The decay to 60 % between 20 and 40 min stays.
 - **Bench** (normal vs hard, 16 seeds): median end 25:12 (was 30:28). The stronger bots of D-148 are measured against it.
+
+## D-148 · 2026-10-05 · Stronger bots
+- **Status:** accepted (user playtest: bots far too easy; weak expansion, little aggression, slow tiers)
+- **Behaviour** (`sim-ai`):
+  - Actions per decision: 2 / 3 / 4 (were 1 / 2 / 3).
+  - Ferns come before the first grazers in the unlock plan.
+  - Per-level aggression (`Level::aggression`):
+
+    | Level | Raids | Drop raids | Grazer cards kept |
+    |---|---|---|---|
+    | Easy | herd of 8 units, every 90 s | none | 4 |
+    | Normal | herd of 4, every 45 s | every 90 s | 6 |
+    | Hard | herd of 5, every 30 s | every 60 s | 8 |
+
+  - Hard casts catastrophes only where the disc holds none of its own land, and only from the bank above its savings. Unguarded casts were hurting it: hard won 67 % without them, but only even with them.
+- **Income:** `[bots] income` 0.8 / 1.0 / 1.25 → 1.0 / 1.3 / 2.0. Behaviour alone barely moved the timings: the economy is the bottleneck.
+- **Match length:** the decay window moves to 25 → 45 min (`decay_from_s = 1500`, `decay_to_s = 2700`), so the stronger bots still play about 30-min matches.
+- **Bench, 30 seeds:**
+  - Normal mirror, medians:
+
+    | Marker | Median |
+    |---|---|
+    | First animal | 3:10 |
+    | Tier 2 | 5:52 |
+    | Undergrowth | 5:55 |
+    | First raid | 9:00 |
+    | Shrubs | 12:07 |
+    | Trees | 17:25 (was 21:43) |
+    | Tier 3 | 20:34 |
+    | Match end | 25:32 |
+
+    Units at 10 min 14 (was 7); land 37 % at 5 min.
+  - Hard beats normal in 46 of 52 decided matches (88 %), and normal beats easy in 18 of 20. Hard at 1.75 or 1.85 income gave only about 58 %, so the step is steep around 2.0.
+- New bench markers: first raid, land at 5 and 10 min.

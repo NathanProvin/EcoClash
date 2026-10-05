@@ -63,7 +63,7 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 
 - **Resource:** biomass points, a bank separate from the fields. Income comes from the growth of the player's living plants and fauna; spending never removes biomass from the fields. Points are spent on unlocking tech-tree cards and spawning species (D-018, `data/gamerules.md` §4, §7).
 - **Territory:** a cell belongs to the player whose living plant biomass dominates it (above a minimum threshold).
-- **Victory:** control ≥ X % of the map (80 % until 20 min, then decaying to 60 % at 40 min; D-143, D-147), **or** have the highest standing biomass (living flora + fauna, D-023) when the time limit is reached (600 min, virtually none; D-094, D-138). Both values are configurable.
+- **Victory:** control ≥ X % of the map (80 % until 25 min, then decaying to 60 % at 45 min; D-143, D-147, D-148), **or** have the highest standing biomass (living flora + fauna, D-023) when the time limit is reached (600 min, virtually none; D-094, D-138). Both values are configurable.
 - **Core tension:** predator–prey oscillations are a feature.
 
 ### 2.4 Player actions (v1)
@@ -261,7 +261,7 @@ Optimisations, in order: algorithmic → multi-rate → chunk sleeping → WASM 
 - **The bot AI is just another player.** It reads snapshots and emits commands through the same queue as humans, and never mutates state directly. This gives replays, fairness, and a clean worker boundary. Difficulty = reaction delay + APM cap.
 - **Tick overrun:** if the sim can't keep 10 Hz, game time slows down (every lockstep peer waits). The HUD reports it. Ticks are never skipped.
 - The renderer interpolates agent positions between the two latest snapshots.
-- **Bot difficulty (D-143):** easy grows its tall plants at home and never raids; normal raids with a herd and calls hunters onto enemy prey; hard adds airdrop raids and catastrophe cards. Bots earn `[bots] income` (0.8 / 1.0 / 1.25); humans earn 1. Raids, calls and drops are paced in game time at every level. `sim-cli bench` measures the ladder and the phase markers.
+- **Bot difficulty (D-143, D-148):** every level expands, climbs the plant tiers (ferns first) and raids; the level sets the pace and herd of raids (easy: 8 units every 90 s; normal: 4 every 45 s plus drops; hard: 5 every 30 s, drops, and catastrophe cards cast clear of its own land), the grazer cards kept (4 / 6 / 8), and the actions per decision (2 / 3 / 4). Bots earn `[bots] income` (1.0 / 1.3 / 2.0); humans earn 1. Calls are paced in game time at every level. `sim-cli bench` measures the ladder and the phase markers.
 - The render layer is an **adapter** over `snapshot.rs`. This keeps a future native renderer (e.g. Unreal via a C API) possible without touching the simulation.
 
 ---

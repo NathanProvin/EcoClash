@@ -8,6 +8,10 @@ export interface WeatherKind {
   name: string;
   duration_s: number;
   effect: string;
+  /** Factors on plant growth, animal speed, herbivore bites. */
+  growth: number;
+  speed: number;
+  bite: number;
 }
 
 export interface WeatherNow {
@@ -16,6 +20,12 @@ export interface WeatherNow {
   phase: "clear" | "alert" | "active";
   /** Seconds before it starts (alert) or ends (active). */
   seconds: number;
+}
+
+/** A factor as a signed change, "+15 %"; null when it changes nothing. */
+export function change(factor: number): string | null {
+  const pct = Math.round((factor - 1) * 100);
+  return pct ? `${pct > 0 ? "+" : "−"}${Math.abs(pct)} %` : null;
 }
 
 export const CLEAR: WeatherNow = { kind: null, phase: "clear", seconds: 0 };

@@ -82,7 +82,7 @@
   const SCAN_MS = 1000; // raid and unlock checks, once a second
   const EDGE = 28; // arrows keep this far from the screen edge (px)
   let toasts: Toast[] = $state([]);
-  let weather: WeatherNow = $state(CLEAR); // D-132
+  let weather: WeatherNow = $state.raw(CLEAR); // D-132 (raw: compared by identity)
   let arrows: { x: number; y: number; angle: number }[] = $state([]);
   let pinged: { cell: { row: number; col: number }; until: number }[] = [];
   let watch = new RaidWatch();

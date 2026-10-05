@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { CLEAR, decodeWeather, weatherToasts } from "./weather";
+import { change, CLEAR, decodeWeather, weatherToasts } from "./weather";
 
 const kinds = [
-  { name: "rain", duration_s: 150, effect: "" },
-  { name: "drought", duration_s: 150, effect: "" },
+  { name: "rain", duration_s: 150, effect: "", growth: 1, speed: 1, bite: 1 },
+  { name: "drought", duration_s: 150, effect: "", growth: 1, speed: 1, bite: 1 },
 ];
 
 describe("weather", () => {
+  it("writes factors as changes", () => {
+    expect(change(1.15)).toBe("+15 %");
+    expect(change(0.4)).toBe("−60 %");
+    expect(change(1)).toBeNull();
+  });
+
   it("decodes the sim's report", () => {
     expect(decodeWeather([0, 0, 0], kinds, 10)).toEqual(CLEAR);
     expect(decodeWeather([2, 1, 300], kinds, 10)).toEqual({

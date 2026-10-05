@@ -360,7 +360,8 @@ impl Sim {
             .collect()
     }
 
-    /// The kinds of weather (D-132), as JSON: name, duration, effect; plus the alert lead time.
+    /// The kinds of weather (D-132), as JSON: name, duration, factors, effect; plus the alert lead
+    /// time.
     #[wasm_bindgen(js_name = weatherTable)]
     pub fn weather_table(&self) -> String {
         self.weather.clone()
@@ -414,9 +415,12 @@ fn catastrophe_table(b: &Balance) -> String {
 }
 
 fn weather_table(b: &Balance) -> String {
-    let kinds = b.weather.kinds.iter().map(
-        |k| serde_json::json!({ "name": k.name, "duration_s": k.duration_s, "effect": k.effect }),
-    );
+    let kinds = b.weather.kinds.iter().map(|k| {
+        serde_json::json!({
+            "name": k.name, "duration_s": k.duration_s, "effect": k.effect,
+            "growth": k.growth, "speed": k.speed, "bite": k.bite,
+        })
+    });
     serde_json::json!({ "warning_s": b.weather.warning_s, "kinds": kinds.collect::<Vec<_>>() })
         .to_string()
 }

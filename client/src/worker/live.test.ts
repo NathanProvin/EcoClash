@@ -36,7 +36,9 @@ class FakeWorker {
           ]),
           weather: JSON.stringify({
             warning_s: 30,
-            kinds: [{ name: "flood", duration_s: 120, effect: "" }],
+            kinds: [
+              { name: "flood", duration_s: 120, effect: "", growth: 0.85, speed: 0.85, bite: 1 },
+            ],
           }),
           n: 2,
           tickHz: 10,

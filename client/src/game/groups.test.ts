@@ -30,6 +30,12 @@ describe("strategicGroups", () => {
     expect(strategicGroups(herd(0, GROUP.minSwarm, 1, 1), 1, [true])).toHaveLength(1);
   });
 
+  it("groups each side apart, so the enemy's herds get icons too (D-146)", () => {
+    const both = [...herd(0, 4, 1, 1, 1), ...herd(0, 5, 1, 1, 2)];
+    expect(strategicGroups(both, 1, [false]).map((g) => g.count)).toEqual([4]);
+    expect(strategicGroups(both, 2, [false]).map((g) => g.count)).toEqual([5]);
+  });
+
   it("keeps far herds of one species apart", () => {
     const groups = strategicGroups([...herd(0, 3, 1, 1), ...herd(0, 3, 30, 30)], 1, [false]);
     expect(groups).toHaveLength(2);

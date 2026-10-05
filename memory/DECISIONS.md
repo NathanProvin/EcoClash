@@ -1712,3 +1712,7 @@ Template:
   - "Hold Shift to plant or drop the same card again" (from 30 s);
   - "Press I for group icons, yours and the enemy's" (once you have 6 animals or after a raid alert).
 - **Tutorial:** the same two hints on the Call rabbits and Command them steps.
+
+## D-146 · 2026-10-05 · Enemy strategic icons
+- **Status:** accepted (user playtest: "see where the threat is")
+- **Decision:** the strategic icons (I) also show the enemy's groups. They have a dashed ring in the enemy's colour (`--enemy`), are not clickable, and have a tooltip such as "Enemy rabbits ×12". The same grouping applies (`strategicGroups` per owner); one toggle shows both sides.

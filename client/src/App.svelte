@@ -155,6 +155,7 @@
     count: number;
     ids: number[];
     order: boolean;
+    enemy: boolean;
   }[] = $state([]);
   let lastIcons = 0;
   const fauna = $derived((replay?.meta.species ?? []).filter((s) => s.kind === "fauna"));
@@ -182,13 +183,20 @@
       return;
     }
     const swarm = kinds.map((k) => k.swarm);
-    icons = strategicGroups(v.visibleAnimals(), live ? me : player, swarm).flatMap((g) => {
-      const s = fauna[g.species];
-      const at = v.screenPoint({ row: g.row, col: g.col });
-      if (!s || !at.inView) return [];
-      const key = `${g.species}:${g.ids[0] ?? 0}`;
-      return [{ key, x: at.x, y: at.y, s, count: g.count, ids: g.ids, order: !swarm[g.species] }];
-    });
+    // Yours, then the enemy's (D-146): see where the threat is; theirs only show.
+    const mine = live ? me : player;
+    const animals = v.visibleAnimals();
+    icons = [mine, 3 - mine].flatMap((owner) =>
+      strategicGroups(animals, owner, swarm).flatMap((g) => {
+        const s = fauna[g.species];
+        const at = v.screenPoint({ row: g.row, col: g.col });
+        if (!s || !at.inView) return [];
+        const key = `${owner}:${g.species}:${g.ids[0] ?? 0}`;
+        const enemy = owner !== mine;
+        const order = !enemy && !swarm[g.species];
+        return [{ key, x: at.x, y: at.y, s, count: g.count, ids: g.ids, order, enemy }];
+      }),
+    );
   }
 
   /** Seconds before each catastrophe card is ready again for you (D-129). */

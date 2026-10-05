@@ -2,6 +2,7 @@
   // Strategic icons (D-078, D-114): the family pictogram of the build bar with a head count over
   // each large group of your animals, at a fixed screen size, so the whole army reads at a
   // glance. Clicking one selects the group (swarms cannot be ordered: their icons only show).
+  // The enemy's groups show too (D-146), with a dashed ring in their colour: where the threat is.
   import { label, MEDAL } from "../game/species";
   import type { Species } from "../replay/replay";
   import FamilyIcon from "./FamilyIcon.svelte";
@@ -18,6 +19,7 @@
       count: number;
       ids: number[];
       order: boolean;
+      enemy: boolean;
     }[];
     onSelect: (ids: number[]) => void;
   } = $props();
@@ -27,11 +29,14 @@
   <button
     class="icon"
     class:swarm={!i.order}
+    class:enemy={i.enemy}
     style:left="{i.x}px"
     style:top="{i.y}px"
-    title="{label(i.s.name)} · {i.order
-      ? 'click to select the group'
-      : 'a swarm: it cannot be ordered'}"
+    title="{i.enemy ? 'Enemy ' : ''}{label(i.s.name)} ×{i.count}{i.enemy
+      ? ''
+      : i.order
+        ? ' · click to select the group'
+        : ' · a swarm: it cannot be ordered'}"
     onclick={() => i.order && onSelect(i.ids)}
   >
     <FamilyIcon family={i.s.family} size={30} />
@@ -53,6 +58,12 @@
       0 3px 10px rgba(0, 0, 0, 0.35);
     cursor: pointer;
     transition: transform 0.12s;
+  }
+  .icon.enemy {
+    --player: var(--enemy);
+    outline: 2px dashed var(--enemy);
+    outline-offset: 3px;
+    cursor: default;
   }
   .icon:hover {
     transform: translate(-50%, -120%) scale(1.1);

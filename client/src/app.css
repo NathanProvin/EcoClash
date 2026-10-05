@@ -108,10 +108,12 @@ select.btn option {
 .p1 {
   --player: var(--p1);
   --player-glow: var(--p1-glow);
+  --enemy: var(--p2);
 }
 .p2 {
   --player: var(--p2);
   --player-glow: var(--p2-glow);
+  --enemy: var(--p1);
 }
 
 /* Tier medals (D-106): bronze, silver, gold, on build-bar tiles and strategic icons. */

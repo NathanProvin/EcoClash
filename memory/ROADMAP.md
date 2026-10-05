@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-05: models v2 on branch `models-v2` (D-150), waiting for the user's look and fps check; merge or drop. Then deploy on Cloudflare Pages (M5a 9), then online multiplayer (M6a).
+- **Now:** 2026-10-05: models v2 rounds 1–2 on branch `models-v2` (D-150, D-151), waiting for the user's look and fps check; merge or drop. Then deploy on Cloudflare Pages (M5a 9), then online multiplayer (M6a).
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-10-05

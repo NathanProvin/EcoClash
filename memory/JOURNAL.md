@@ -616,3 +616,17 @@
   Client tests, check, lint and build pass.
 - **Not done:** a visual check in the browser (the extension disconnected), and an fps measurement.
 - **Next:** the user looks at the branch and checks fps; merge or drop. Then the Cloudflare deploy.
+
+## 2026-10-05 (4) · Models v2 round 2 (D-151)
+- **Done:**
+  - lichen patches and flower heads;
+  - reed beds;
+  - patchy stands (15 % fewer shrubs, 14 % fewer trees);
+  - simpler ferns and nettles;
+  - GPU rain;
+  - shadows every 4th frame;
+  - baked noise for the ground and water.
+
+  Checked in the browser: lichen colours, ferns, trees, GPU rain during a flood.
+- **Lesson:** WebGPU timestamp queries (`trackTimestamp` + `resolveTimestampsAsync("render")`) give GPU time per pass. The ground shader, not the models, was the main GPU cost.
+- **Next:** the user's fps check on High and Medium (late game, rain); merge or drop the branch; then the deploy.

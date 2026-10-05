@@ -1802,3 +1802,26 @@ Template:
 - **To check before merging:**
   - The visual look: the browser tool was disconnected, so it isn't checked in-session.
   - Late-game fps on Medium on the laptop. Estimated triangles a frame rise from about 1.9 M to 3–3.5 M; most of it is animals (they cast shadows) and trees.
+
+## D-151 · 2026-10-05 · Models v2, round 2: herb shapes, reed beds, patchy stands, and fps (branch `models-v2`)
+- **Status:** proposed, on the branch (follows the user's review of D-150)
+- **Looks:**
+  - **Herbs** are three static GPU meshes driven by the herb-mix texture. Each herb's tufts show where its cover (L1 cover × its share) beats the tuft's seed.
+    - grasses: blades;
+    - lichen and moss: flat, slightly domed, irregular round patches in white-grey, lichen yellow or moss green, one colour per 2 m patch;
+    - wildflowers: round octahedron heads on thin stems, twice the old size, one of 4 colours per 3 m patch.
+  - **Reeds:** 10 stems per clump (were 5); 25 % straw yellow and 15 % brown.
+  - **Patchy stands:** a smooth value noise over a 3-cell lattice sets a per-cell density multiplier.
+    - shrub stratum (bushes, cattails): 0.3–1.4, averaging 0.85, so 15 % fewer, in clumps;
+    - undergrowth: 0.4–1.6, averaging 1;
+    - `MAX_MODELS` (caps) and `BASE_MODELS` (average);
+    - trees: two per cell on 15 % of cells (was 1/3), about 14 % fewer.
+  - **Ferns and nettles:** single-sided leaves on double-sided materials. Ferns have 5 fronds of 5 steps, about 100 triangles (were 288). Nettles have 4–6 stems with 2 leaf pairs, about 70 (were 240).
+- **Performance** (GPU timestamp queries now used: `renderer.backend.trackTimestamp`; same machine, Large map, bots both sides):
+  - Mid game, the ground's fragment shader was the biggest GPU cost (about 7.7 of 14 ms for the scene pass): three Perlin noises per pixel. The water plane runs a 3D noise over the whole map.
+  - Both now read one baked, tileable value-noise texture (`noiseTexture`, three channels).
+  - Scene pass: about 8–11 ms mid game (was 14–25), 13.4 ms late game at 1.8 M triangles. CPU about 1.4–7 ms a frame.
+  - Rain and dust move on the GPU (a static seed buffer, positions from `time` and the heights texture). This removes the per-frame CPU move and upload; 60 % of the particles below High.
+  - Shadows are redrawn every 4th frame (was 2nd).
+- **Not measured:** High's post-processing (bloom and tilt-shift at 1.5× resolution). The timestamps only cover the final pass there.
+- **Left:** the field paint (`paintFields` with `PlantView.update`) takes about 34 ms once per field frame (1.25 Hz), a periodic hitch. Next levers: spread it over frames, or move it to the worker; post-processing at half resolution on High.

@@ -1,7 +1,8 @@
 <script lang="ts">
   // Match chart (D-059): one measure over time, one line per player, one axis. Legend above,
   // a direct label at each line's end, a recessive grid, and a hover crosshair with the values.
-  // P2 is dashed so the players differ without colour.
+  // P2 is dashed so the players differ without colour. Long matches are sampled down (D-138).
+  import { pick, sampleIndices, topValue } from "./chart";
   export interface Line {
     label: string;
     values: number[];
@@ -11,10 +12,15 @@
 
   let {
     title,
-    t,
-    lines,
+    t: times,
+    lines: series,
     format,
   }: { title: string; t: number[]; lines: Line[]; format: (v: number) => string } = $props();
+
+  const kept = $derived(sampleIndices(times.length));
+  const t = $derived(pick(times, kept));
+  const lines = $derived(series.map((l) => ({ ...l, values: pick(l.values, kept) })));
+  const top = $derived(topValue(lines.map((l) => l.values)));
 
   const W = 520;
   const H = 190;
@@ -24,9 +30,7 @@
     `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
   const tMax = $derived(Math.max(t.at(-1) ?? 0, 1));
-  const vMax = $derived(
-    Math.max(1e-9, ...lines.flatMap((l) => l.values)) * 1.08, // headroom above the top line
-  );
+  const vMax = $derived(Math.max(1e-9, top) * 1.08); // headroom above the top line
   const x = (s: number) => M.left + (s / tMax) * iw;
   const y = (v: number) => M.top + ih - (v / vMax) * ih;
   const path = (values: number[]) =>
@@ -120,6 +124,11 @@
           />
         {/each}
       {/if}
+      {#if top === 0}
+        <text class="empty" x={M.left + iw / 2} y={M.top + ih / 2} text-anchor="middle"
+          >No data: neither player held any yet</text
+        >
+      {/if}
       <rect
         x={M.left}
         y={M.top}
@@ -143,6 +152,10 @@
 </figure>
 
 <style>
+  .empty {
+    fill: var(--ink-soft);
+    font-size: 12px;
+  }
   figure {
     margin: 0;
   }

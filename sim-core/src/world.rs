@@ -768,6 +768,9 @@ mod tests {
         assert_eq!((o.winner, o.reason), (1, Reason::Territory));
 
         // A small patch each: nobody reaches the threshold; at the time limit, biomass decides.
+        // A short limit: the rule, not the value (600 min, D-138), is under test.
+        let mut b = b;
+        b.r#match.time_limit_s = 120;
         let mut w = World::new(&b, 1, 20);
         w.setup_plant(1, "grasses", 3, 3, 2);
         w.setup_plant(2, "lichen_and_moss", 16, 16, 2); // slower, lighter: P1 stands taller

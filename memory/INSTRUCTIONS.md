@@ -63,7 +63,7 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 
 - **Resource:** biomass points, a bank separate from the fields. Income comes from the growth of the player's living plants and fauna; spending never removes biomass from the fields. Points are spent on unlocking tech-tree cards and spawning species (D-018, `data/gamerules.md` §4, §7).
 - **Territory:** a cell belongs to the player whose living plant biomass dominates it (above a minimum threshold).
-- **Victory:** control ≥ X % of the map (default 90 %), **or** have the highest standing biomass (living flora + fauna, D-023) when the time limit is reached (default 60 min; D-094). Both values are configurable.
+- **Victory:** control ≥ X % of the map (default 90 %), **or** have the highest standing biomass (living flora + fauna, D-023) when the time limit is reached (600 min, virtually none; D-094, D-138). Both values are configurable.
 - **Core tension:** predator–prey oscillations are a feature.
 
 ### 2.4 Player actions (v1)

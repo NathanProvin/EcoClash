@@ -1558,3 +1558,12 @@ Template:
   - Sandbox opens map size and seed. AI opponent adds the difficulty (easy / normal / hard).
   - `forMode` (`game/setup.ts`, tested) maps a mode onto the saved setup: sandbox means sandbox on and no bot; AI means sandbox off, keeping the chosen level (normal if none).
   - The mode is derived from `sandbox`, not stored, so old saves need no migration. URL overrides are unchanged.
+
+## D-138 · 2026-10-05 · Time limit 600 min; robust end-screen charts
+- **Status:** accepted (user: a draw at 60 min with flat curves at 0; remove the limit virtually, and make the end-screen curves render)
+- **Decision:**
+  - `[match] time_limit_s = 36000` (600 min). The territory threshold (90 %) now decides almost every match. The world test that plays a match up to its limit sets its own 120 s limit.
+  - `LineChart` draws at most 400 points per line, sampled evenly with the last kept (`ui/chart.ts`, tested). It finds the top value with a loop, not `Math.max(...values)`: at 600 min a line has about 45 000 samples, too many to spread into arguments. It reads non-finite values as 0, and says "No data" when both players stay at zero.
+- **Consequences:**
+  - Balance hash changes (match rule).
+  - Not reproduced in the browser: a 1-minute match and a headless 60-minute bot-vs-bot match (P2 won on territory at 51:50) both gave proper curves. A draw at the limit needs equal standing biomass and territory, in practice both at zero.

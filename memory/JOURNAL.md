@@ -556,3 +556,7 @@
   - The overlays first did not show: an `$effect` read the non-reactive viewer first, so it never re-ran. Then the canopy hid them, so they are drawn over the scene.
   - A half-written file left Vite with a stale module (white page); touching the file fixed it.
 - **Next:** the bot reacting to weather and casting catastrophes; M5a 9 (deploy) when the user is ready.
+
+## 2026-10-05 · Time limit, end-screen charts (D-138)
+- **Done:** time limit 600 min; charts sampled and spread-free, with "No data" on all-zero curves; tests. Checked a 1-min end screen in the browser (temporary limit, restored).
+- **Open:** the user's 60-min draw with flat curves was not reproduced; ask which mode it was played in if it comes back.

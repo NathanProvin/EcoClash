@@ -20,6 +20,18 @@ export interface MatchSetup {
   map: MapSize;
 }
 
+/** The Play menu's modes (D-137): a sandbox (everything unlocked and free, no opponent) or a
+ *  match against a bot. Multiplayer and ranked come later. */
+export type Mode = "sandbox" | "ai";
+
+/** The setup for a mode: the sandbox has no opponent; the AI mode keeps the chosen bot level
+ *  (normal if none was chosen). */
+export function forMode(setup: MatchSetup, mode: Mode): MatchSetup {
+  return mode === "sandbox"
+    ? { ...setup, sandbox: true, bot: "none" }
+    : { ...setup, sandbox: false, bot: setup.bot === "none" ? "normal" : setup.bot };
+}
+
 export const DEFAULT_SETUP: MatchSetup = { bot: "normal", seed: 1, sandbox: false, map: "mid" };
 const KEY = "ecoclash.setup";
 

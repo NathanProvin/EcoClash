@@ -1546,3 +1546,15 @@ Template:
   - they start 6–9 m above random spots of the planting disc, staggered by 0.03 s;
   - each falls in 0.9 s with gravity (`h·(1 − k²)`) and a sway that dies as it lands, then rests and fades as before.
 - **Consequences:** the seed tests cover the fall (gravity: more than half the height left at half time), the landing and the fade.
+
+## D-137 · 2026-10-05 · Play menu by mode
+- **Status:** accepted (user: Play lists Sandbox, Multi, Ranked, AI opponent; Multi and Ranked greyed out for now; a mode opens map size and seed; the sandbox has no opponent)
+- **Decision:**
+  - Play shows the modes, in order:
+    - Sandbox;
+    - Multiplayer (disabled, "soon");
+    - Ranked (disabled, "soon");
+    - AI opponent.
+  - Sandbox opens map size and seed. AI opponent adds the difficulty (easy / normal / hard).
+  - `forMode` (`game/setup.ts`, tested) maps a mode onto the saved setup: sandbox means sandbox on and no bot; AI means sandbox off, keeping the chosen level (normal if none).
+  - The mode is derived from `sandbox`, not stored, so old saves need no migration. URL overrides are unchanged.

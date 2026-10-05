@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SETUP, loadSetup, randomSeed, saveSetup, withUrl } from "./setup";
+import { DEFAULT_SETUP, forMode, loadSetup, randomSeed, saveSetup, withUrl } from "./setup";
 
 function memory() {
   const data = new Map<string, string>();
@@ -10,6 +10,13 @@ function memory() {
 }
 
 describe("match setup", () => {
+  it("maps the Play modes to a setup (D-137)", () => {
+    const hard = { ...DEFAULT_SETUP, bot: "hard" as const, seed: 7 };
+    expect(forMode(hard, "sandbox")).toEqual({ ...hard, sandbox: true, bot: "none" });
+    expect(forMode(hard, "ai")).toEqual({ ...hard, sandbox: false }); // keeps the level
+    expect(forMode({ ...hard, bot: "none" }, "ai").bot).toBe("normal");
+  });
+
   it("remembers the chosen setup, and falls back to the default on bad data", () => {
     const store = memory();
     expect(loadSetup(store)).toEqual(DEFAULT_SETUP);

@@ -1,16 +1,19 @@
 <script lang="ts">
   // Main menu (D-057, D-081): title over a placeholder background, and the game's entry points.
-  // "Play" opens the match setup (opponent, map seed, practice sandbox), remembered per browser;
+  // "Play" lists the modes (D-137): Sandbox, Multiplayer and Ranked (soon), AI opponent; a mode
+  // opens its setup (map size and seed, plus the bot level against the AI), remembered per browser;
   // "Options" holds the display settings and the list of shortcuts; "Species" (a catalog of every
   // species) is still to come. Background: drop an image at client/public/menu/background.webp
   // and it replaces the painted placeholder.
   import {
     BOTS,
+    forMode,
     MAP_SIZES,
     randomSeed,
     type Bot,
     type MapSize,
     type MatchSetup,
+    type Mode,
   } from "../game/setup";
   import type { Quality } from "../render/quality";
 
@@ -36,13 +39,24 @@
     onTutorial: () => void;
   } = $props();
 
-  let view: "home" | "play" | "options" = $state("home");
+  let view: "home" | "modes" | Mode | "options" = $state("home");
   const BOT_NAMES: Record<Bot, string> = {
-    easy: "Bot · easy",
-    normal: "Bot · normal",
-    hard: "Bot · hard",
+    easy: "Easy",
+    normal: "Normal",
+    hard: "Hard",
     none: "No opponent",
   };
+  /** The Play modes, in the menu's order; Multiplayer and Ranked come later (M6). */
+  const MODES: { id: Mode | null; name: string; hint: string }[] = [
+    { id: "sandbox", name: "Sandbox", hint: "Everything unlocked and free, no opponent" },
+    { id: null, name: "Multiplayer", hint: "Play another player: coming soon" },
+    { id: null, name: "Ranked", hint: "Ranked matches: coming soon" },
+    { id: "ai", name: "AI opponent", hint: "A match against the bot" },
+  ];
+  function pick(mode: Mode) {
+    setup = forMode(setup, mode);
+    view = mode;
+  }
   const MAP_NAMES: Record<MapSize, string> = { small: "Small", mid: "Mid", large: "Large" };
   /** Shortcuts (letters follow the printed key, D-075). */
   const KEYS: [string, string][] = [
@@ -71,7 +85,7 @@
     {#if view === "home"}
       <p class="tagline">Grow a food web. Outgrow your rival.</p>
       <nav aria-label="Main menu">
-        <button class="primary" onclick={() => (view = "play")}>Play</button>
+        <button class="primary" onclick={() => (view = "modes")}>Play</button>
         <button onclick={onTutorial} title="A short guided match against the easy bot">
           Tutorial
         </button>
@@ -80,26 +94,49 @@
         </button>
         <button onclick={() => (view = "options")}>Options</button>
       </nav>
-    {:else if view === "play"}
+    {:else if view === "modes"}
+      <nav aria-label="Play">
+        {#each MODES as m (m.name)}
+          {@const id = m.id}
+          <button
+            class:primary={id === "ai"}
+            disabled={id === null}
+            title={m.hint}
+            onclick={() => id && pick(id)}
+          >
+            {m.name}
+            {#if id === null}<small>soon</small>{/if}
+          </button>
+        {/each}
+        <button onclick={() => (view = "home")}>Back</button>
+      </nav>
+    {:else if view === "sandbox" || view === "ai"}
       <form
         class="panel-form"
-        aria-label="Match setup"
+        aria-label={view === "ai" ? "Match against the AI" : "Sandbox"}
         onsubmit={(e) => {
           e.preventDefault();
           onStart();
         }}
       >
-        <fieldset>
-          <legend>Opponent</legend>
-          <div class="choices">
-            {#each BOTS as b (b)}
-              <label class="choice" class:on={setup.bot === b}>
-                <input type="radio" name="bot" value={b} bind:group={setup.bot} />
-                {BOT_NAMES[b]}
-              </label>
-            {/each}
-          </div>
-        </fieldset>
+        <p class="mode">
+          {view === "ai" ? "AI opponent" : "Sandbox"}
+          <small>{view === "ai" ? "a match against the bot" : "everything unlocked and free"}</small
+          >
+        </p>
+        {#if view === "ai"}
+          <fieldset>
+            <legend>Difficulty</legend>
+            <div class="choices three">
+              {#each BOTS.filter((b) => b !== "none") as b (b)}
+                <label class="choice" class:on={setup.bot === b}>
+                  <input type="radio" name="bot" value={b} bind:group={setup.bot} />
+                  {BOT_NAMES[b]}
+                </label>
+              {/each}
+            </div>
+          </fieldset>
+        {/if}
         <fieldset>
           <legend>Map size</legend>
           <div class="choices three">
@@ -120,13 +157,9 @@
             </button>
           </span>
         </label>
-        <label class="row">
-          <span>Sandbox <small>everything unlocked and free</small></span>
-          <input type="checkbox" bind:checked={setup.sandbox} />
-        </label>
         <nav>
           <button class="primary" type="submit">Start</button>
-          <button type="button" onclick={() => (view = "home")}>Back</button>
+          <button type="button" onclick={() => (view = "modes")}>Back</button>
         </nav>
       </form>
     {:else}
@@ -185,6 +218,21 @@
       radial-gradient(ellipse 70% 38% at 90% 100%, #56713f 60%, transparent 61%),
       radial-gradient(ellipse 70% 30% at 10% 100%, #6b8a47 60%, transparent 61%);
     opacity: 0.9;
+  }
+  /* The chosen mode, over its setup (D-137). */
+  .mode {
+    margin: 0;
+    text-align: center;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .mode small {
+    display: block;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink-soft);
   }
   .content {
     position: relative;

@@ -543,3 +543,16 @@
 
 ## 2026-10-05 · Weather tooltip, quality freeze (D-133)
 - **Done:** the weather tooltip in the species-tooltip style, with factor stats. Found the High → Medium freeze in the console ("Destroyed texture ShadowDepthTexture used in a submit") and fixed it by setting shadows once per match. The full preset cycle is clean in the browser. Also fixed the weather `$state` proxy comparison, which refreshed the badge every frame.
+
+## 2026-10-05 · QOL pass (D-134…D-137)
+- **Done:**
+  - top bar: a centred land tug-of-war bar, and the weather button in the icon row;
+  - map overlays (soil, strata cover, diversity, moisture, shade) with a reworked display menu, and sim shade and moisture frames;
+  - a seed sprinkle from the sky;
+  - the Play menu by mode.
+  
+  All checked in the browser.
+- **Notes:**
+  - The overlays first did not show: an `$effect` read the non-reactive viewer first, so it never re-ran. Then the canopy hid them, so they are drawn over the scene.
+  - A half-written file left Vite with a stale module (white page); touching the file fixed it.
+- **Next:** the bot reacting to weather and casting catastrophes; M5a 9 (deploy) when the user is ready.

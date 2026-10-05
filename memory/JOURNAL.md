@@ -589,3 +589,17 @@
   The phase markers hit the targets (early ≤ 6 min, mid 12–14, late 19–22, median end 30 min); hard beats normal 72 %. All checks pass.
 - **Lessons:** most "balance" problems were the bot: buying cheap items out of plan order, spamming swarms, failed calls blocking real ones, per-decision pacing punishing faster levels. Fix the proxy before tuning numbers.
 - **Next:** the user's playtest per level (and the tutorial at the new pace); then the Cloudflare deploy (M5a 9).
+
+## 2026-10-05 (2) · Playtest round (D-144…D-149)
+- **Done:**
+  - Breeding measured: it worked, but slowly. It's 4× faster now (`food_reserve` 300, rabbit cooldown 30 s).
+  - The tutorial tops up each paid step's biomass.
+  - Tips for Shift repeat drops and the I icons.
+  - Enemy strategic icons.
+  - Victory at 80 % (decaying to 60 % between 25 and 45 min).
+  - Stronger bots: more actions, level-paced raids and drops, guarded catastrophes, income 1.0 / 1.3 / 2.0. Hard beats normal 88 %, normal beats easy 90 %; the normal mirror ends at about 26 min.
+  - Performance: three re-uploaded every dynamic instance buffer on every pass. Static buffers took the late-game CPU render from 27.7 to 3.4 ms.
+- **Lessons:**
+  - Profile the renderer by wrapping three's internals (`renderer.backend`, `_attributes`…) in a dev page; the cause was one level below our code.
+  - `ecoLive.send({type: "bot"})` plus speed 8 builds a late game in two minutes.
+- **Next:** the user's playtest (fps on the laptop, bot strength per level, the tutorial pace); then the Cloudflare Pages deploy.

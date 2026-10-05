@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-05: balance passes D-142/D-143 (pacing, unit weight, 30-min matches, bot ladder). Next: the user's playtest per level; then deploy on Cloudflare Pages (M5a 9), then online multiplayer with room codes and quick match (M6a, Durable Objects).
+- **Now:** 2026-10-05: playtest round D-144…D-149 (breeding, tutorial pace, enemy icons, 80 % victory, stronger bots, static instance buffers). Next: the user's playtest; then deploy on Cloudflare Pages (M5a 9), then online multiplayer (M6a).
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-10-05

@@ -150,7 +150,7 @@ export class Viewer {
   private readonly blend = uniform(1);
   private blendFrom = 0;
   private blendS: number = BLEND_S.max;
-  private grass: THREE.Mesh;
+  private grass: THREE.Group;
   private readonly plants: PlantView;
   private readonly deadTrees: DeadTrees; // D-127
   private readonly animals: AnimalView;
@@ -365,7 +365,7 @@ export class Viewer {
     return new Viewer(canvas, replay, renderer, quality);
   }
 
-  private makeGrass(): THREE.Mesh {
+  private makeGrass(): THREE.Group {
     const perCell = QUALITY[this.quality].grass;
     const n = this.replay.meta.n;
     const mix = { now: this.mixTex, prev: this.mixPrev };
@@ -378,7 +378,6 @@ export class Viewer {
       this.heights,
       mix,
     );
-    grass.receiveShadow = true;
     return grass;
   }
 
@@ -435,8 +434,11 @@ export class Viewer {
     this.applyLight();
     const visible = this.grass.visible;
     this.scene.remove(this.grass);
-    this.grass.geometry.dispose();
-    (this.grass.material as THREE.Material).dispose();
+    this.grass.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      o.geometry.dispose();
+      (o.material as THREE.Material).dispose();
+    });
     this.grass = this.makeGrass();
     this.grass.visible = visible;
     this.scene.add(this.grass);

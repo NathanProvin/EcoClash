@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { grassBlades, TUFT } from "./grass";
+import { grassBlades, LICHEN, TUFT, tuftGeometry } from "./grass";
 import { CELL } from "./layout";
 
 describe("grassBlades", () => {
@@ -36,21 +36,24 @@ describe("grassBlades", () => {
     expect(again.seed).toEqual(b.seed);
   });
 
-  it("gives each tuft one herb pick and a flower colour shared by its patch (D-150)", () => {
-    expect(b.lay.length).toBe(blades * 12);
-    const hueAt = new Map<string, number>();
-    for (let tuft = 0; tuft < blades / TUFT; tuft++) {
-      const first = tuft * TUFT * 12;
-      const [pick, , , hue] = [...b.lay.slice(first, first + 4)];
-      for (let v = 0; v < TUFT * 3; v++) {
-        expect(b.lay[first + v * 4]).toBe(pick); // every vertex of the tuft
-      }
-      expect(hue).toBeGreaterThanOrEqual(0);
-      expect(hue).toBeLessThan(4);
-      const [x, z] = [b.root[tuft * TUFT * 6] ?? 0, b.root[tuft * TUFT * 6 + 1] ?? 0];
-      const patch = `${Math.floor(x / 3)}:${Math.floor(z / 3)}`;
-      if (hueAt.has(patch)) expect(hueAt.get(patch)).toBe(hue);
-      hueAt.set(patch, hue ?? 0);
+  it("builds lichen and flower tufts with one colour per patch (D-151)", () => {
+    const g = tuftGeometry(n, 2, 6100, LICHEN.patch, 3, (rnd, hue) => ({
+      position: [0, 0, 0, rnd(0), 0, 0, 0, 0, 1],
+      normal: [0, 1, 0, 0, 1, 0, 0, 1, 0],
+      index: [0, 2, 1],
+      hue: [hue, hue, hue],
+    }));
+    expect(g.getAttribute("position").count).toBe(n * n * 2 * 3);
+    expect(g.index?.count).toBe(n * n * 2 * 3);
+    const [hue, root] = [g.getAttribute("hue"), g.getAttribute("root")];
+    const seen = new Map<string, number>();
+    for (let v = 0; v < hue.count; v++) {
+      const h = hue.getX(v);
+      expect(h).toBeGreaterThanOrEqual(0);
+      expect(h).toBeLessThan(3);
+      const key = `${Math.floor(root.getX(v) / LICHEN.patch)}:${Math.floor(root.getY(v) / LICHEN.patch)}`;
+      if (seen.has(key)) expect(seen.get(key)).toBe(h);
+      seen.set(key, h);
     }
   });
 });

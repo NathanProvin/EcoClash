@@ -17,6 +17,9 @@ export const PLAYER = {
   },
 } as const;
 
+/** Lichen and moss patch colours (D-151): white-grey, lichen yellow, moss green. */
+export const LICHENS = ["#d9d6c8", "#d4c25a", "#5f7a3a"] as const;
+
 /** Wildflower colours (D-150): yellow, white, violet, pink; one per patch. */
 export const FLOWERS = ["#f2cf45", "#f4f1e6", "#9b7fd4", "#e58fb2"] as const;
 

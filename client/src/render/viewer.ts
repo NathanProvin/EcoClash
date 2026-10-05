@@ -142,6 +142,11 @@ export class Viewer {
   private readonly floraData: Uint8Array;
   private readonly floraTex: THREE.DataTexture;
   private readonly floraPrev: THREE.DataTexture;
+  // Herb shares per cell (D-150): R lichen and moss, G grasses, B wildflowers; the grass shader
+  // gives each tuft one of these looks.
+  private readonly mixData: Uint8Array;
+  private readonly mixTex: THREE.DataTexture;
+  private readonly mixPrev: THREE.DataTexture;
   private readonly blend = uniform(1);
   private blendFrom = 0;
   private blendS: number = BLEND_S.max;
@@ -311,6 +316,14 @@ export class Viewer {
     this.floraData = new Uint8Array(n * n * 4);
     this.floraTex = floraTexture(this.floraData);
     this.floraPrev = floraTexture(new Uint8Array(n * n * 4));
+    const mixTexture = (data: Uint8Array) => {
+      const t = new THREE.DataTexture(data, n, n);
+      t.magFilter = THREE.LinearFilter;
+      return t;
+    };
+    this.mixData = new Uint8Array(n * n * 4);
+    this.mixTex = mixTexture(this.mixData);
+    this.mixPrev = mixTexture(new Uint8Array(n * n * 4));
     this.grass = this.makeGrass();
     this.scene.add(this.grass);
 
@@ -355,7 +368,16 @@ export class Viewer {
   private makeGrass(): THREE.Mesh {
     const perCell = QUALITY[this.quality].grass;
     const n = this.replay.meta.n;
-    const grass = makeGrass(n, perCell, this.floraTex, this.floraPrev, this.blend, this.heights);
+    const mix = { now: this.mixTex, prev: this.mixPrev };
+    const grass = makeGrass(
+      n,
+      perCell,
+      this.floraTex,
+      this.floraPrev,
+      this.blend,
+      this.heights,
+      mix,
+    );
     grass.receiveShadow = true;
     return grass;
   }
@@ -852,7 +874,11 @@ export class Viewer {
       });
     // Grass: the frame shown so far becomes the one to blend from.
     if (step) (this.floraPrev.image.data as Uint8Array).set(this.floraData);
+    if (step) (this.mixPrev.image.data as Uint8Array).set(this.mixData);
     if (step) (this.frontierPrev.image.data as Uint8Array).set(this.frontierData);
+    const names = this.replay.meta.flora.names;
+    const look = (i: number) =>
+      names[i] === "lichen_and_moss" ? 0 : names[i] === "wildflowers" ? 2 : 1;
     for (let c = 0; c < n * n; c++) {
       const soil = soilColor(soilDev[c] ?? 0);
       const o = owner[c] ?? 0;
@@ -866,23 +892,30 @@ export class Viewer {
       this.groundData[texel + 3] = 255;
       if (o !== 1 && o !== 2) {
         this.floraData.fill(0, c * 4, c * 4 + 4);
+        this.mixData.fill(0, c * 4, c * 4 + 4);
         continue;
       }
       // Grass texel (rows not flipped: the grass shader maps world z to rows itself): the
       // cover-weighted colour of the cell's herbs.
       const rgb = [0, 0, 0];
+      const shares = [0, 0, 0];
       let weight = 0;
       for (const h of present(herbs, c)) {
         const col = this.plantRgb[o][h.species] ?? [0, 0, 0];
         for (let j = 0; j < 3; j++) rgb[j] = (rgb[j] ?? 0) + (col[j] ?? 0) * h.cover;
+        const k = look(h.species);
+        shares[k] = (shares[k] ?? 0) + h.cover;
         weight += h.cover;
       }
       const w = weight || 1;
+      const [lichen = 0, grass = 0, flowers = 0] = shares.map((v) => Math.round((v / w) * 255));
+      this.mixData.set([lichen, grass, flowers, 255], c * 4);
       const alpha = Math.min(255, Math.round(weight * 255)); // land herbs' cover
       this.floraData.set([(rgb[0] ?? 0) / w, (rgb[1] ?? 0) / w, (rgb[2] ?? 0) / w, alpha], c * 4);
     }
     frontierField(owner, n, this.frontierData, fields.pressure);
     if (!step) (this.floraPrev.image.data as Uint8Array).set(this.floraData); // no blend
+    if (!step) (this.mixPrev.image.data as Uint8Array).set(this.mixData);
     if (!step) (this.frontierPrev.image.data as Uint8Array).set(this.frontierData);
     const since = now - this.lastPaint;
     this.blendS = Math.min(BLEND_S.max, Math.max(BLEND_S.min, since));
@@ -902,6 +935,8 @@ export class Viewer {
     );
     this.floraTex.needsUpdate = true;
     this.floraPrev.needsUpdate = true;
+    this.mixTex.needsUpdate = true;
+    this.mixPrev.needsUpdate = true;
     this.groundTex.needsUpdate = true;
     this.frontierTex.needsUpdate = true;
     this.frontierPrev.needsUpdate = true;

@@ -17,6 +17,9 @@ export const PLAYER = {
   },
 } as const;
 
+/** Wildflower colours (D-150): yellow, white, violet, pink; one per patch. */
+export const FLOWERS = ["#f2cf45", "#f4f1e6", "#9b7fd4", "#e58fb2"] as const;
+
 export const WORLD = {
   soil: "#c8b58f", // bare, undeveloped ground (pale, sandy)
   soilRich: "#5c4430", // fully developed soil (dark humus)

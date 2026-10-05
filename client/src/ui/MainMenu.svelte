@@ -17,6 +17,11 @@
   } from "../game/setup";
   import type { Quality } from "../render/quality";
 
+  // The build badge and feedback link (M5a 9, D-157): set by the deploy (VITE_BUILD) and in
+  // .env (VITE_FEEDBACK_URL); a dev server shows "dev" and no link.
+  const BUILD: string = import.meta.env.VITE_BUILD ?? "dev";
+  const FEEDBACK: string | undefined = import.meta.env.VITE_FEEDBACK_URL || undefined;
+
   let {
     setup = $bindable(),
     quality,
@@ -189,7 +194,10 @@
       </div>
     {/if}
   </div>
-  <p class="foot">Prototype build · placeholder art</p>
+  <p class="foot">
+    Prototype build {BUILD} · placeholder art{#if FEEDBACK}
+      · <a href={FEEDBACK} target="_blank" rel="noopener">Send feedback</a>{/if}
+  </p>
 </div>
 
 <style>
@@ -400,5 +408,8 @@
     margin: 0;
     font-size: 0.75em;
     color: rgba(243, 238, 219, 0.6);
+  }
+  .foot a {
+    color: rgba(243, 238, 219, 0.85);
   }
 </style>

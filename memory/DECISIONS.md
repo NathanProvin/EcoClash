@@ -1872,3 +1872,13 @@ Template:
   - Fox unlock 12 000 → 8 000: a quick rabbit counter (follows D-154).
   - **Leaf cursor:** a curved leaf-shaped arrow, leaf green with a bark outline and a pale vein (`public/cursors/leaf.svg`), golden over things you can click (`leaf-hover.svg`). The `--cursor` and `--cursor-pointer` tokens replace `pointer` and `default` everywhere. Planting keeps its crosshair and dropping its ghost.
   - **Full screen:** a button in the top-right row, before the menu, toggles the browser's full screen; its icon follows the state (Esc also leaves).
+
+## D-157 · 2026-10-05 · Static deploy on Cloudflare Pages (M5a 9)
+- **Status:** accepted; it goes live once the user's Cloudflare project, token and account id exist
+- **Decision:**
+  - The CI client job (it already gets the WASM package from the rust job, lints, checks and tests) builds the client with `VITE_BUILD` = commit · date and `VITE_FEEDBACK_URL` from the repo variable `FEEDBACK_URL`.
+  - On pushes to `main` it deploys `client/dist` with `cloudflare/wrangler-action@v3` (`pages deploy`), only when the repository variable `CLOUDFLARE_PAGES_PROJECT` and the secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are set. Until then CI skips the step and stays green.
+  - `npm run deploy` does the same by hand (`npx wrangler@4`, after `wrangler login`).
+  - The main menu shows the build and a "Send feedback" link (hidden without a URL).
+  - `.env.example` documents both variables (INSTRUCTIONS §14); `src/env.d.ts` types them.
+  - The cross-origin headers ship in `public/_headers`. The bundle is 4.5 MB (WASM 1.4 MB), under the 30 MB budget.

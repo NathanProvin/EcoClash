@@ -645,3 +645,12 @@
   Checked in the browser: plants render and the queue drains.
 - **Lesson:** the profiling tab runs JavaScript about 4× slower than a foreground tab (10 M additions in 45 ms). Compare before and after in the same tab, never against numbers from another one.
 - **Next:** the user's fps check on the branch; merge or drop; then the deploy.
+
+## 2026-10-05 (6) · Small changes, merge, deploy pipeline (D-156, D-157)
+- **Done:**
+  - fox unlock 8 000;
+  - the leaf cursor;
+  - the full-screen button;
+  - `models-v2` merged into `main` and pushed;
+  - the Cloudflare Pages deploy: a CI step plus `npm run deploy`, the build badge and the feedback link.
+- **Next:** the user creates the Pages project and the API token, then sets the GitHub secrets and variable; the first deploy; share the URL with playtesters.

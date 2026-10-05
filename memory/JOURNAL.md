@@ -565,3 +565,14 @@
 - **Done:** an eleven-step tutorial with tips, Next on explanations and a pointer ring on each control. In the browser I walked steps 1–8; the gap that walk found (Grasses unlocked but not planted) is fixed. Then the Species page (the tech tree over a catalog source), with Esc to close.
 - **Note:** a wedged background tab looked like a page hang; a fresh tab was fine.
 - **Next:** the bot reacting to weather and casting catastrophes; M5a 9 (deploy) when the user is ready.
+
+## 2026-10-05 · Tutorial: predators and prey (D-141)
+- **Done:**
+  - steps for breeding, the raid, the airdrop and the defense against a grasshopper raid with great tits;
+  - a tutorial-only `Grant` command;
+  - no territory win in the tutorial;
+  - great tits eat grasshoppers.
+
+  The browser walk-through reached "Tutorial complete".
+- **Note:** the hidden test tab skipped 65 game minutes in one jump, and the bot shrank to two cells. At a natural pace it still held 80 cells at the raid step.
+- **Next:** the bot reacting to weather and casting catastrophes; M5a 9 (deploy) when the user is ready.

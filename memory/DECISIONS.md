@@ -1615,4 +1615,5 @@ Template:
 - **Consequences:**
   - Rust tests: a grant only in the tutorial; no territory win there.
   - TS tests: the step order and the defend fallback.
-  - The browser run reached the raid step. The airdrop and defend steps were not checked in the browser yet.
+  - Browser run, every step in order to "Tutorial complete": the herd bred, the raid and the airdrop (×1.5) completed their steps, and great tits dropped on the swarm ended the defense.
+  - The bot sat at its grasshopper cap, so the scripted waves were refused, but its own swarm was already on the player's land. The fallback covers a bot with no swarm at all.

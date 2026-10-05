@@ -6,7 +6,7 @@
   // attack-move, S = stop, Shift or Ctrl + 1-9 = set a control group, 1-9 = recall it,
   // Home = reset view, Space = play, T = tech tree, Esc = cancel / close / clear selection.
   import { onDestroy, onMount } from "svelte";
-  import { SvelteMap } from "svelte/reactivity";
+  import { SvelteMap, SvelteSet } from "svelte/reactivity";
   import { strategicGroups } from "./game/groups";
   import { loadSetup, MAP_SIZES, saveSetup, withUrl } from "./game/setup";
   import { ALL_TIPS, loadSeen, saveSeen, TIPS, TipWatch } from "./game/tips";
@@ -104,7 +104,7 @@
   let tutorialStep = $state(0);
   let raidOrdered = false; // an order sent animals onto enemy land (tutorial)
   /** Tutorial (D-139): explanation steps the player clicked Next on; the tech tree opened. */
-  let acked = new Set<number>();
+  let acked = new SvelteSet<number>();
   let techSeen = false;
   $effect(() => {
     if (techOpen) techSeen = true;
@@ -650,7 +650,7 @@
   async function launch(asTutorial = false) {
     tutorial = asTutorial;
     tutorialStep = 0;
-    acked = new Set();
+    acked = new SvelteSet();
     techSeen = false;
     raidOrdered = false;
     if (!asTutorial) saveSetup(setup);

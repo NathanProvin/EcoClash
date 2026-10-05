@@ -81,7 +81,9 @@ const TINT = { wet: 1.5, dry: [0.55, 0.9], rock: [0.03, 0.1] } as const;
 const OVERLAY_LIFT = 0.1;
 /** The sun's shadow map is redrawn every this many frames: shadows lag one frame behind the wind,
  *  invisibly, for half the shadow-pass cost (D-090). */
-const SHADOW_EVERY = 2;
+const SHADOW_EVERY = 4; // D-151 (was 2): the sun barely moves
+/** Share of rain and dust particles drawn below the High preset (D-151). */
+const RAIN_LIGHT = 0.6;
 
 /** Camera tilt limit (D-112): the lowest view (polar angle, rad) is `low` up to `near` metres
  *  from the target and `high` from `far` x the map size, eased in between. */
@@ -238,8 +240,9 @@ export class Viewer {
     const mottle = smoothstep(0.05, 0.8, patches).mul(0.6);
     this.field = new Heightfield(n, replay.terrain);
     const ground = (x: number, z: number) => this.field.at(x, z);
-    this.weather = new WeatherFx(this.scene, size, ground, { sun, hemi }, this.backdropTint);
     this.heights = this.field.texture();
+    const lights = { sun, hemi };
+    this.weather = new WeatherFx(this.scene, size, ground, lights, this.backdropTint, this.heights);
     // Front lines (D-108), drawn in the ground itself so they follow the relief (D-085): each
     // player's line is the band just inside its territory where its blurred ownership crosses
     // 0.5 (frontier.ts), widened by its push, gliding from the last field frame to this one.
@@ -413,6 +416,7 @@ export class Viewer {
     }
     this.postOn = post;
     if (post) this.post ??= this.makePost();
+    this.weather.setDensity(this.quality === "high" ? 1 : RAIN_LIGHT);
   }
 
   private makePost(): THREE.RenderPipeline {

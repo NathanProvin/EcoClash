@@ -603,3 +603,16 @@
   - Profile the renderer by wrapping three's internals (`renderer.backend`, `_attributes`…) in a dev page; the cause was one level below our code.
   - `ecoLive.send({type: "bot"})` plus speed 8 builds a late game in two minutes.
 - **Next:** the user's playtest (fps on the laptop, bot strength per level, the tutorial pace); then the Cloudflare Pages deploy.
+
+## 2026-10-05 (3) · Models v2 on branch `models-v2` (D-150)
+- **Done:**
+  - fine large animals;
+  - finer ground and rocks;
+  - species tree silhouettes;
+  - fern, nettle and bramble shapes;
+  - flat lichen and wildflower patches;
+  - the undergrowth trimmed after counting triangles.
+
+  Client tests, check, lint and build pass.
+- **Not done:** a visual check in the browser (the extension disconnected), and an fps measurement.
+- **Next:** the user looks at the branch and checks fps; merge or drop. Then the Cloudflare deploy.

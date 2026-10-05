@@ -1776,3 +1776,29 @@ Template:
   - GPU culling per chunk;
   - moving `paintFields` into the worker;
   - chunk-level dirty updates for plants.
+
+## D-150 · 2026-10-05 · Models v2 (branch `models-v2`)
+- **Status:** proposed, on a branch (user: "a new code branch that can be quickly dropped"). Merge after the user's look and fps check.
+- **Decision** (visual only: no sim, balance or hash change):
+  - **Large animals** (length ≥ 0.4 m, `FINE_LENGTH`): smooth spheres, cones and cylinders with twice the segments, plus necks, hooves, a fuller muzzle and humps. Models have 3 880–4 488 triangles (were 820–1 120). Small animals keep the light model.
+  - **Ground:** 4 subdivisions per cell (were 3, ×1.8). Rocks: icosahedron detail 1 with a broad and a craggy jitter.
+  - **Trees by species:**
+    - oak: short thick trunk, limbs, a broad low ring of lumps;
+    - chestnut: stout trunk, a dense dome;
+    - beech: tall grey trunk, a stacked oval crown.
+
+    Each tree varies by its slot seed (lean, limb count, lump layout). Triangles: 572 / 472 / 432 (were 264 / 264 / 184). Shrubs unchanged.
+  - **Undergrowth:**
+    - ferns: rosettes of 6 arching fronds with square, stepped leaflets;
+    - nettle: brushes of 5–7 straight stems with leaf pairs;
+    - bramble: a dark mound with 4 thorny purple canes.
+
+    240–332 triangles (were 60); they cast no shadow.
+  - **Herbs:**
+    - lichen and moss lie flat as rosettes;
+    - wildflowers are shorter, with tips in one of four colours, one colour per 3 m patch;
+    - each tuft picks its look from the cell's herb shares (a second texture).
+  - Code: `render/shapes.ts` (new); the `PARTS` and `KEY_MESHES` key space is 12 × 16.
+- **To check before merging:**
+  - The visual look: the browser tool was disconnected, so it isn't checked in-session.
+  - Late-game fps on Medium on the laptop. Estimated triangles a frame rise from about 1.9 M to 3–3.5 M; most of it is animals (they cast shadows) and trees.

@@ -1886,3 +1886,11 @@ Template:
 ## D-158 · 2026-10-06 · Enemy group icons in solid red
 - **Status:** accepted (user, Alpha 2)
 - **Decision:** enemy strategic icons get a solid red ring (`--threat: #d8392b`), not the dashed one in the enemy's colour (D-146).
+
+## D-159 · 2026-10-06 · A lighter selection aura
+- **Status:** accepted (user, Alpha 2)
+- **Decision:** the selected cell's fog ring is less dense, fainter and thinner:
+  - 20 smoke puffs (were 48);
+  - two layers (were three), opacities 0.6 / 0.3;
+  - ring alpha 0.28 / 0.16 (was 0.5 / 0.32);
+  - a band of radii 88–116 of 256 (was 64–120).

@@ -1039,26 +1039,26 @@ function backdrop(): THREE.CanvasTexture {
   return tex;
 }
 
-/** A foggy, smoky light-grey ring: three soft layers stacked through the plant height, each a
+/** A foggy, smoky light-grey ring: two soft layers stacked through the plant height, each a
  *  radial ring with smoke puffs, drifting in opposite directions. */
 function makeAura(): THREE.Group {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 256;
   const g = canvas.getContext("2d");
   if (!g) throw new Error("2D canvas unavailable");
-  // A band half as wide as before (D-093), around the same middle radius.
-  const ring = g.createRadialGradient(128, 128, 64, 128, 128, 120);
+  // A thin, faint band (D-093, D-159) around the same middle radius.
+  const ring = g.createRadialGradient(128, 128, 88, 128, 128, 116);
   ring.addColorStop(0, "rgba(232,234,236,0)");
-  ring.addColorStop(0.55, "rgba(232,234,236,0.5)");
-  ring.addColorStop(0.72, "rgba(232,234,236,0.32)");
+  ring.addColorStop(0.5, "rgba(232,234,236,0.28)");
+  ring.addColorStop(0.7, "rgba(232,234,236,0.16)");
   ring.addColorStop(1, "rgba(232,234,236,0)");
   g.fillStyle = ring;
   g.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 48; i++) {
+  for (let i = 0; i < 20; i++) {
     const [a, r, s] = [rand(i, 1) * Math.PI * 2, 86 + rand(i, 2) * 24, 6 + rand(i, 3) * 7];
     const [x, y] = [128 + Math.cos(a) * r, 128 + Math.sin(a) * r];
     const puff = g.createRadialGradient(x, y, 0, x, y, s);
-    puff.addColorStop(0, "rgba(240,241,243,0.22)");
+    puff.addColorStop(0, "rgba(240,241,243,0.12)");
     puff.addColorStop(1, "rgba(240,241,243,0)");
     g.fillStyle = puff;
     g.fillRect(x - s, y - s, s * 2, s * 2);
@@ -1068,7 +1068,7 @@ function makeAura(): THREE.Group {
   const group = new THREE.Group();
   AURA_LIFT.forEach((_, i) => {
     const material = new THREE.MeshBasicNodeMaterial({ map, transparent: true, depthWrite: false });
-    material.opacity = [0.9, 0.55, 0.3][i] ?? 0.3;
+    material.opacity = [0.6, 0.3][i] ?? 0.3;
     const layer = new THREE.Mesh(
       new THREE.PlaneGeometry(CELL * (2.6 + i * 0.25), CELL * (2.6 + i * 0.25), 24, 24).rotateX(
         -Math.PI / 2,
@@ -1098,4 +1098,4 @@ function animateAura(
 }
 
 /** The aura's three fog layers float this far above the ground (m). */
-const AURA_LIFT = [0.15, 0.9, 1.8] as const;
+const AURA_LIFT = [0.15, 0.9] as const; // two layers (D-159: was three)

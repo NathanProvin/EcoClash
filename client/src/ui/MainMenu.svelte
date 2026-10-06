@@ -16,6 +16,7 @@
     type Mode,
   } from "../game/setup";
   import type { Quality } from "../render/quality";
+  import OptionsMenu from "./OptionsMenu.svelte";
 
   // The build badge and feedback link (M5a 9, D-157): set by the deploy (VITE_BUILD) and in
   // .env (VITE_FEEDBACK_URL); a dev server shows "dev" and no link.
@@ -74,7 +75,8 @@
   }));
   /** Shortcuts (letters follow the printed key, D-075). */
   const KEYS: [string, string][] = [
-    ["Left-click / drag", "Inspect a cell / select your animals"],
+    ["Left-click", "Select an animal / inspect a cell"],
+    ["Left-drag", "Select your animals"],
     ["Right-click", "Move (on enemy land: attack-move)"],
     ["A, then click", "Attack-move"],
     ["S", "Stop"],
@@ -189,30 +191,16 @@
         </nav>
       </form>
     {:else}
-      <div class="panel-form" aria-label="Options">
-        <label class="row">
-          Quality
-          <select value={quality} onchange={(e) => onQuality(e.currentTarget.value as Quality)}>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-          </select>
-        </label>
-        <label class="row">Strategic icons <input type="checkbox" bind:checked={icons} /></label>
-        <label class="row">Performance readout <input type="checkbox" bind:checked={perf} /></label>
-        <label class="row">
-          <span>First-match tips <small>on: shown again</small></span>
-          <input type="checkbox" checked={tips} onchange={(e) => onTips(e.currentTarget.checked)} />
-        </label>
-        <details>
-          <summary>Shortcuts</summary>
-          <dl>
-            {#each KEYS as [key, what] (key)}<dt>{key}</dt>
-              <dd>{what}</dd>{/each}
-          </dl>
-        </details>
-        <nav><button onclick={() => (view = "home")}>Back</button></nav>
-      </div>
+      <OptionsMenu
+        {quality}
+        {onQuality}
+        bind:icons
+        bind:perf
+        {tips}
+        {onTips}
+        keys={KEYS}
+        onBack={() => (view = "home")}
+      />
     {/if}
   </div>
   <p class="foot">
@@ -484,8 +472,7 @@
     display: flex;
     gap: 6px;
   }
-  .seed input,
-  select {
+  .seed input {
     width: 7em;
     padding: 4px 8px;
     border: 1px solid var(--line);
@@ -498,32 +485,6 @@
     border-radius: 8px;
     background: var(--well);
     cursor: var(--cursor-pointer);
-  }
-  select option {
-    background: #1f2823;
-  }
-  details {
-    color: var(--ink-soft);
-    font-size: 0.85em;
-  }
-  summary {
-    cursor: var(--cursor-pointer);
-  }
-  dl {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 3px 14px;
-    margin: 8px 0 0;
-    max-height: 30vh;
-    overflow: auto;
-  }
-  dt {
-    color: var(--gold);
-    white-space: nowrap;
-  }
-  dd {
-    margin: 0;
-    color: var(--ink);
   }
   .foot {
     position: absolute;

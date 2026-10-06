@@ -1955,3 +1955,12 @@ Template:
   - The AI opponent setup has no heading; Sandbox keeps its short one.
   - START and BACK are centred.
   - The selected difficulty and map size wear the primary buttons' mustard (gold border and gradient); the choices glow gold on hover.
+
+## D-166 · 2026-10-06 · A game-like Options screen
+- **Status:** accepted (user, Alpha 2 polish)
+- **Decision:** Options (`ui/OptionsMenu.svelte`) has three tabs:
+  - **Graphics:** the quality presets as cards with signal bars and a one-line hint.
+  - **Interface:** strategic icons, performance readout and first-match tips as sliding toggles.
+  - **Controls:** the shortcuts as keycaps beside their action.
+
+  The active tab, the chosen preset and an "on" toggle wear the menu's mustard; BACK is centred. The settings and their storage are unchanged.

@@ -8,7 +8,7 @@
 <script lang="ts">
   // Species icon slot (D-048). Drop a square image with a transparent background, 128 px or more,
   // at client/public/icons/species/<species name>.webp (e.g. tawny_owl.webp) and every card shows
-  // it; until then the slot shows its family's pictogram (D-131), as on the build bar.
+  // it; until then the slot shows the species' silhouette on its family's tile (D-167).
   import type { Species } from "../replay/replay";
   import FamilyIcon from "./FamilyIcon.svelte";
 
@@ -17,7 +17,7 @@
 </script>
 
 <span class="icon" aria-hidden="true">
-  <FamilyIcon family={s.family} {size} />
+  <FamilyIcon family={s.family} {size} glyph={s.name} />
   {#if !missing.has(s.name)}
     <img
       class:loaded

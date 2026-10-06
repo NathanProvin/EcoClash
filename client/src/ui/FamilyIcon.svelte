@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { SPECIES_GLYPHS } from "./glyphs";
+
   // Build-bar family pictograms (D-105): one sober line drawing per family, tied to what the
   // family is (blades of grass, a fern frond, a bush, a tree, a lily pad, a grasshopper, a
   // snail, a caterpillar on its leaf, a beetle, a bird, a fox, a paw, a fish, a heron, a
@@ -42,12 +44,17 @@
     P3: "predator",
   };
 
-  /** `bare`: the pictogram alone, in the current colour (round toggles, D-135). */
+  /** `bare`: the pictogram alone, in the current colour (round toggles, D-135). `glyph`: a
+   *  species name; its silhouette replaces the family pictogram when there is one (D-167). */
   let {
     family,
     size = 40,
     bare = false,
-  }: { family: string; size?: number; bare?: boolean } = $props();
+    glyph,
+  }: { family: string; size?: number; bare?: boolean; glyph?: string } = $props();
+  // One path per primitive: overlaps simply paint over each other (in one path, opposite
+  // windings would cancel and punch holes).
+  const silhouette = $derived(glyph ? SPECIES_GLYPHS[glyph]?.split(/(?=M)/) : undefined);
 </script>
 
 <span
@@ -64,7 +71,12 @@
     stroke="currentColor"
     stroke-width="1.7"
     stroke-linecap="round"
-    stroke-linejoin="round"><path d={PATHS[family] ?? PATHS["L1"]} /></svg
+    stroke-linejoin="round"
+    >{#if silhouette}{#each silhouette as d, i (i)}<path
+          {d}
+          fill="currentColor"
+          stroke="none"
+        />{/each}{:else}<path d={PATHS[family] ?? PATHS["L1"]} />{/if}</svg
   >
 </span>
 

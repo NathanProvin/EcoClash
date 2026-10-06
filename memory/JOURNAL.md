@@ -672,3 +672,13 @@
 
   The enemy icon ring isn't shown in a background tab (the HUD loop doesn't run there).
 - **Lesson:** order feedback must allow for the lockstep input delay: the sim reports the old order for a tick or two.
+
+## 2026-10-06 (2) · Alpha 2 polish (D-164…D-167)
+- **Done:**
+  - main menu title (outline, shadow, moss-green ECO), new tagline, a drifting background (sky Ken Burns, parallax hills, rising motes);
+  - match setup without the AI heading, centred buttons, mustard selection;
+  - a tabbed, game-like Options screen;
+  - 45 species silhouettes, used everywhere a species shows.
+
+  Checked in the browser: menus, Options tabs, a contact sheet of all 45 icons (6 redrawn after the first look), the Grazers flyout.
+- **Next:** the user's review; push to deploy Alpha 2.

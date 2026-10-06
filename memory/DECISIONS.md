@@ -1964,3 +1964,17 @@ Template:
   - **Controls:** the shortcuts as keycaps beside their action.
 
   The active tab, the chosen preset and an "on" toggle wear the menu's mustard; BACK is centred. The settings and their storage are unchanged.
+
+## D-167 · 2026-10-06 · An icon per species
+- **Status:** accepted (user, Alpha 2 polish)
+- **Decision:** every species gets its own filled silhouette (`ui/glyphs.ts`, 45 in a 24 × 24 box), drawn on its family's tile and tone:
+  - animals in side view facing right (a rabbit, a bison, a fox, a heron…);
+  - plants as their shape (a grass tuft, daisies, a fern frond, an oak's crown, cattails…).
+
+  Built from primitives (ellipses, polygons, thick segments), one SVG path each, so overlaps never cancel.
+- **Where:**
+  - `SpeciesIcon` uses them everywhere a species shows (build bar cards, cell and unit cards, end screen);
+  - strategic icons show the group's species;
+  - the build bar's family tiles keep the family pictograms;
+  - a dropped `.webp` still takes precedence (D-048).
+- **Test:** every species of the stat sheet has a glyph inside its box.

@@ -44,7 +44,7 @@
     onpointerenter={() => onHover?.(i.ids)}
     onpointerleave={() => onHover?.(null)}
   >
-    <FamilyIcon family={i.s.family} size={30} />
+    <FamilyIcon family={i.s.family} size={30} glyph={i.s.name} />
     <span class="num"><span class="medal {MEDAL[i.s.tier - 1] ?? 'bronze'}"></span>{i.count}</span>
   </button>
 {/each}

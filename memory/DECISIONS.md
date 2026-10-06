@@ -2065,3 +2065,13 @@ Template:
 ## D-178 · 2026-10-06 · Audio options
 - **Status:** accepted
 - **Decision:** an Audio tab in Options (master, interface, effects and ambience sliders with a preview, a mute switch); M mutes in game.
+
+## D-179 · 2026-10-06 · Sound tweaks: plant groups, a felt click, life, water, howls, munching
+- **Status:** accepted (user, after listening)
+- **Decision:**
+  - **Planting** is louder, with one sprinkle per group: high and light for herbs and undergrowth, fuller for shrubs, deep for trees, watery drops for water plants.
+  - **Button click:** a soft, low brown-noise tap.
+  - **Birds and insects** follow life: silent on bare land, half once you unlock a shrub, full with a tree. Soft insects join the clear-weather mix. The menu keeps its birds.
+  - **Water:** maps with water get plops and trickles now and then.
+  - **Drops:** a dropped animal calls in 60 % of drops; the wolf howls.
+  - **Munching:** enemy swarms on your land (3 or more on screen) munch, at most every 2.2 s.

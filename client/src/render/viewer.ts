@@ -491,6 +491,11 @@ export class Viewer {
   }
 
   /** Show the aura over a cell, or hide it (null). */
+  /** Whether the map has open water (D-179: water sounds). */
+  hasWater(): boolean {
+    return this.field.water !== null;
+  }
+
   /** How close the camera is (0 the whole map .. 1 at plant scale), for the ambience (D-177). */
   closeness(): number {
     const d = this.camera.position.distanceTo(this.controls.target);

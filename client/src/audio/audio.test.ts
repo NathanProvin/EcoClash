@@ -43,6 +43,22 @@ describe("sounds and ambience (D-176)", () => {
       expect(v && RECIPES[v], name).toBeTruthy();
     }
     expect(voiceOf("earthworms", undefined)).toBeNull();
+    expect(voiceOf("wolf", "canid")).toBe("animal.howl"); // D-179
+    expect(voiceOf("fox", "canid")).toBe("animal.hunter");
+  });
+
+  it("has a sprinkle per plant group, water sounds and munching (D-179)", () => {
+    for (const id of [
+      "fx.plant.herb",
+      "fx.plant.shrub",
+      "fx.plant.tree",
+      "fx.plant.water",
+      "fx.plop",
+      "fx.trickle",
+      "fx.munch",
+    ]) {
+      expect(RECIPES[id], id).toBeTruthy();
+    }
   });
 
   it("maps the weather to a mood, rain loudest in a flood", () => {

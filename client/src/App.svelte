@@ -283,6 +283,41 @@
     const p = v.screenPoint(cell);
     return { x: p.x, inView: p.inView, width: canvas.clientWidth };
   }
+  /** The chance that a dropped animal calls as it lands (D-179). */
+  const DROP_CALL = 0.6;
+  /** A planting's sound by plant group (D-179): herbs light, shrubs fuller, trees deep, water
+   *  plants watery. */
+  function plantSound(s: Species | undefined): string {
+    if (s?.family === "W") return "fx.plant.water";
+    if ((s?.level ?? 1) >= 4) return "fx.plant.tree";
+    if ((s?.level ?? 1) === 3) return "fx.plant.shrub";
+    return "fx.plant.herb";
+  }
+  /** Life in the soundscape (D-179): birds and insects arrive with your first shrub, fully with
+   *  your first tree; bare land is quiet. */
+  function lifeOf(names: Set<string>): number {
+    const fam = (f: string) =>
+      (replay?.meta.species ?? []).some((x) => x.family === f && names.has(x.name));
+    return fam("L4") ? 1 : fam("L3") ? 0.5 : 0;
+  }
+  /** Enemy swarms eating your plants munch now and then (D-179), at one of them on screen. */
+  let lastMunch = 0;
+  function munching(now: number) {
+    const [l, v] = [live, viewer];
+    if (!l || !v || now - lastMunch < 2200) return;
+    const owner = l.fields().owner;
+    const n = l.meta.n;
+    const raiders = v.visibleAnimals().filter((a) => {
+      const k = kinds[a.species];
+      return a.owner !== me && k?.swarm && owner[Math.floor(a.y) * n + Math.floor(a.x)] === me;
+    });
+    if (raiders.length < 3) return;
+    const a = raiders[Math.floor(Math.random() * raiders.length)];
+    const place = a ? placeOf({ row: Math.floor(a.y), col: Math.floor(a.x) }) : null;
+    if (!place?.inView) return;
+    lastMunch = now;
+    audio.play("fx.munch", { at: place });
+  }
   /** The call of an animal species (D-177), if it has one. */
   function callOf(name: string): string | null {
     const s = replay?.meta.species.find((x) => x.name === name);
@@ -579,8 +614,13 @@
         placeIcons();
         ambience.set(moodOf(weather.kind, weather.phase), weather.phase === "alert" ? 0.35 : 1);
         ambience.setPaused(!playing);
-        if (viewer) ambience.setNear(viewer.closeness());
+        if (viewer) {
+          ambience.setNear(viewer.closeness());
+          ambience.setWater(viewer.hasWater());
+        }
+        ambience.setLife(lifeOf(unlocked));
         animalLife(now);
+        munching(now);
       }
       const showing = fresh(toasts, now);
       if (showing.length !== toasts.length) toasts = showing;
@@ -769,13 +809,15 @@
         live.plant(me, planting, at.row, at.col);
         const s = live.meta.species.find((x) => x.name === planting);
         viewer.plantFeedback(at, live.plantRadius, plantColor(planting, s?.level ?? 1, me));
-        audio.play("fx.plant", { at: placeOf(at) });
+        audio.play(plantSound(s), { at: placeOf(at), gain: 1.4 });
       } else {
         live.spawn(me, planting, at.row, at.col);
         const place = placeOf(at);
         audio.play("fx.drop", { at: place });
         const call = callOf(planting);
-        if (call) setTimeout(() => audio.play(call, { at: place }), 450);
+        // Most drops land with a call (D-179), not every one.
+        if (call && Math.random() < DROP_CALL)
+          setTimeout(() => audio.play(call, { at: place }), 450);
       }
       if (!e.shiftKey) planting = null;
     } else if (click) {

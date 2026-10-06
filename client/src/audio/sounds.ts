@@ -91,14 +91,49 @@ function hiss(
   src.stop(t + o.dur + 0.02);
 }
 
+/** Seeds falling: `grains` tiny noise ticks around `centre` Hz (± `spread`) over 0.35 s. */
+function sprinkle(
+  ctx: AudioContext,
+  out: AudioNode,
+  t: number,
+  noise: AudioBuffer | null,
+  centre: number,
+  spread: number,
+  grains: number,
+  gain: number,
+): void {
+  for (let i = 0; i < grains; i++) {
+    hiss(ctx, out, t + Math.random() * 0.35, noise, {
+      type: "bandpass",
+      f0: Math.max(200, centre + (Math.random() * 2 - 1) * spread),
+      q: 6,
+      dur: 0.04,
+      gain,
+    });
+  }
+}
+
+/** A drop into water: a sine that rises quickly (a bubble's "bloop"). */
+function plop(ctx: AudioContext, out: AudioNode, t: number, f: number, gain: number): void {
+  tone(ctx, out, t, { f0: f, f1: f * 2.2, dur: 0.09, gain });
+}
+
 export const RECIPES: Record<string, Recipe> = {
   // Interface.
+  // A soft, low brown-noise tap (D-179), like a press on felt.
   "ui.click": {
     bus: "ui",
-    ms: 60,
+    ms: 80,
     play: (c, o, t, p, n) => {
-      tone(c, o, t, { type: "triangle", f0: 1700 * p, f1: 1100 * p, dur: 0.035, gain: 0.22 });
-      hiss(c, o, t, n, { type: "highpass", f0: 3500, dur: 0.018, gain: 0.06 });
+      hiss(c, o, t, n, {
+        type: "lowpass",
+        f0: 420 * p,
+        f1: 220 * p,
+        q: 0.9,
+        dur: 0.07,
+        gain: 0.55,
+      });
+      tone(c, o, t, { f0: 150 * p, f1: 110 * p, dur: 0.05, gain: 0.12 });
     },
   },
   "ui.open": {
@@ -160,18 +195,78 @@ export const RECIPES: Record<string, Recipe> = {
   },
 
   // World events.
-  "fx.plant": {
+  // Planting (D-179): a sprinkle of seeds, high and light for herbs and undergrowth, lower and
+  // fuller for shrubs, deep for trees, watery drops for water plants.
+  "fx.plant.herb": {
     bus: "fx",
     ms: 420,
+    play: (c, o, t, p, n) => sprinkle(c, o, t, n, 4200 * p, 2800, 11, 0.2),
+  },
+  "fx.plant.shrub": {
+    bus: "fx",
+    ms: 460,
+    play: (c, o, t, p, n) => sprinkle(c, o, t, n, 2300 * p, 1400, 10, 0.22),
+  },
+  "fx.plant.tree": {
+    bus: "fx",
+    ms: 520,
     play: (c, o, t, p, n) => {
-      for (let i = 0; i < 9; i++) {
-        const dt = Math.random() * 0.32;
-        hiss(c, o, t + dt, n, {
+      sprinkle(c, o, t, n, 1300 * p, 800, 9, 0.24);
+      tone(c, o, t, { f0: 140 * p, f1: 90 * p, dur: 0.18, gain: 0.12 });
+    },
+  },
+  "fx.plant.water": {
+    bus: "fx",
+    ms: 520,
+    play: (c, o, t, p) => {
+      for (let i = 0; i < 5; i++)
+        plop(c, o, t + Math.random() * 0.38, (500 + Math.random() * 500) * p, 0.1);
+    },
+  },
+  // Enemy swarms eating your plants (D-179): crunchy bites, irregular.
+  "fx.munch": {
+    bus: "fx",
+    ms: 700,
+    vary: 0.12,
+    play: (c, o, t, p, n) => {
+      let at = t;
+      for (let i = 0; i < 4; i++) {
+        hiss(c, o, at, n, {
           type: "bandpass",
-          f0: (3500 + Math.random() * 3000) * p,
-          q: 6,
-          dur: 0.035,
+          f0: (2600 + Math.random() * 1600) * p,
+          q: 3,
+          dur: 0.05,
+          gain: 0.2,
+        });
+        hiss(c, o, at + 0.02, n, {
+          type: "bandpass",
+          f0: (1100 + Math.random() * 600) * p,
+          q: 2,
+          dur: 0.06,
           gain: 0.12,
+        });
+        at += 0.12 + Math.random() * 0.08;
+      }
+    },
+  },
+  // Water on the map (D-179): a plop, a short trickle.
+  "fx.plop": {
+    bus: "ambience",
+    ms: 300,
+    vary: 0.15,
+    play: (c, o, t, p) => plop(c, o, t, 700 * p, 0.09),
+  },
+  "fx.trickle": {
+    bus: "ambience",
+    ms: 900,
+    play: (c, o, t, p, n) => {
+      for (let i = 0; i < 8; i++) {
+        hiss(c, o, t + i * 0.1 + Math.random() * 0.05, n, {
+          type: "bandpass",
+          f0: (900 + Math.random() * 900) * p,
+          q: 9,
+          dur: 0.08,
+          gain: 0.07,
         });
       }
     },
@@ -353,6 +448,37 @@ export const RECIPES: Record<string, Recipe> = {
       });
     },
   },
+  "animal.howl": {
+    bus: "fx",
+    ms: 2000,
+    vary: 0.05,
+    play: (c, o, t, p) => {
+      const osc = c.createOscillator();
+      const vib = c.createOscillator();
+      const depth = c.createGain();
+      vib.frequency.value = 5.5;
+      depth.gain.value = 9;
+      vib.connect(depth).connect(osc.frequency);
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(380 * p, t);
+      osc.frequency.exponentialRampToValueAtTime(620 * p, t + 0.45);
+      osc.frequency.setValueAtTime(620 * p, t + 1.2);
+      osc.frequency.exponentialRampToValueAtTime(430 * p, t + 1.8);
+      const f = c.createBiquadFilter();
+      f.type = "lowpass";
+      f.frequency.value = 1600;
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.12, t + 0.25);
+      g.gain.setValueAtTime(0.12, t + 1.3);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 1.9);
+      osc.connect(f).connect(g).connect(o);
+      osc.start(t);
+      vib.start(t);
+      osc.stop(t + 1.95);
+      vib.stop(t + 1.95);
+    },
+  },
   "animal.frog": {
     bus: "fx",
     ms: 340,
@@ -388,6 +514,7 @@ export function voiceOf(name: string, body: string | undefined): string | null {
     case "fish":
       return "animal.fish";
     case "canid":
+      return name === "wolf" ? "animal.howl" : "animal.hunter";
     case "cat":
       return "animal.hunter";
     case "deer":

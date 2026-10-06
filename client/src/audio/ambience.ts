@@ -13,7 +13,7 @@ export const MIX: Record<
   { wind: number; rain: number; dry: number; water: number; birds: number; cicadas: number }
 > = {
   menu: { wind: 0.35, rain: 0, dry: 0, water: 0, birds: 0.35, cicadas: 0 },
-  clear: { wind: 0.4, rain: 0, dry: 0, water: 0, birds: 1, cicadas: 0 },
+  clear: { wind: 0.4, rain: 0, dry: 0, water: 0, birds: 1, cicadas: 0.3 },
   rain: { wind: 0.35, rain: 0.8, dry: 0, water: 0, birds: 0.15, cicadas: 0 },
   drought: { wind: 0.1, rain: 0, dry: 0.55, water: 0, birds: 0.2, cicadas: 0.8 },
   flood: { wind: 0.4, rain: 1, dry: 0, water: 0.6, birds: 0, cicadas: 0 },
@@ -33,6 +33,10 @@ class Ambience {
   private near = 0.5; // 0 zoomed out .. 1 close: more birds and insects
   private paused = false;
   private timer = 0;
+  /** How alive the land is (D-179): 0 bare soil, birds and insects silent; 1 a grown forest. */
+  private life = 1;
+  /** Whether the map has water: plops and trickles now and then (D-179). */
+  private water = false;
 
   /** Build the beds once the audio context runs. */
   constructor() {
@@ -49,6 +53,14 @@ class Ambience {
   setNear(near: number): void {
     this.near = Math.max(0, Math.min(1, near));
   }
+  /** How alive the land is, 0..1 (D-179): birds and insects follow it (the menu ignores it). */
+  setLife(life: number): void {
+    this.life = Math.max(0, Math.min(1, life));
+  }
+  /** Whether the map has water (D-179). */
+  setWater(on: boolean): void {
+    this.water = on;
+  }
   /** Paused game: the beds hush. */
   setPaused(paused: boolean): void {
     if (paused === this.paused) return;
@@ -59,7 +71,8 @@ class Ambience {
   private level(bed: keyof (typeof MIX)["clear"]): number {
     const to = MIX[this.mood][bed];
     const from = MIX.clear[bed];
-    return (this.paused ? 0.25 : 1) * (from + (to - from) * this.share);
+    const alive = bed === "birds" || bed === "cicadas" ? (this.mood === "menu" ? 1 : this.life) : 1;
+    return (this.paused ? 0.25 : 1) * alive * (from + (to - from) * this.share);
   }
 
   private apply(): void {
@@ -118,6 +131,11 @@ class Ambience {
     if (Math.random() < 0.06 * this.level("birds") * nearBoost) chirp(ctx, bus, t);
     if (Math.random() < 0.35 * this.level("cicadas")) cicada(ctx, bus, t, noise);
     if (Math.random() < 0.5 * this.level("rain")) drop(ctx, bus, t, noise);
+    if (this.water && this.mood !== "menu") {
+      const at = { x: Math.random(), inView: true, width: 1 };
+      if (Math.random() < 0.035) audio.play("fx.plop", { at, gain: 0.8 });
+      if (Math.random() < 0.01) audio.play("fx.trickle", { at, gain: 0.8 });
+    }
   }
 
   /** Stop the event timer (tests, teardown). */

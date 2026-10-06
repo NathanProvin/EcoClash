@@ -30,6 +30,9 @@ import {
   vec2,
   vec3,
   vec4,
+  normalGeometry,
+  transformNormalToView,
+  cameraPosition,
 } from "three/tsl";
 import { interpolate, type Animal, type Fields, type Source } from "../replay/replay";
 import { OVERLAYS, overlayValues, paintOverlay, type OverlayId } from "../game/overlays";
@@ -43,6 +46,8 @@ import {
   Heightfield,
   NOISE,
   noiseTexture,
+  RELIEF,
+  reliefTexture,
   drape,
   rockPlacements,
   slabGeometry,
@@ -146,6 +151,34 @@ export class Viewer {
   private readonly heights: THREE.DataTexture;
   /** Baked tileable noise for the ground and water shaders (D-151). */
   private readonly noiseTex = noiseTexture();
+  /** Baked soft relief: slopes and height (D-213). */
+  private readonly reliefTex = reliefTexture();
+
+  /** The baked relief at `frequency` lattice cells per metre, turned by `angle`, optionally
+   *  drifting by `shift` (texture units): slopes (x, z, about -1..1) and height (0..1). */
+  private relief(
+    frequency: number,
+    angle: number,
+    shift?: THREE.Node<"vec2">,
+  ): { slope: THREE.Node<"vec2">; height: THREE.Node<"float"> } {
+    const [c, s] = [Math.cos(angle), Math.sin(angle)];
+    const p = positionWorld.xz;
+    const turned = vec2(p.x.mul(c).sub(p.y.mul(s)), p.x.mul(s).add(p.y.mul(c)));
+    const uvw = turned.mul(frequency / RELIEF.period).add(angle * 0.29);
+    const t = texture(this.reliefTex, shift ? uvw.add(shift) : uvw);
+    // Slopes come back to world x / z: turn them by -angle.
+    const [gx, gz] = [t.r.mul(2).sub(1), t.g.mul(2).sub(1)];
+    return {
+      slope: vec2(gx.mul(c).add(gz.mul(s)), gz.mul(c).sub(gx.mul(s))),
+      height: t.b,
+    };
+  }
+
+  /** A surface normal tilted by a slope (world x / z), for a mesh whose geometry normals are
+   *  world normals (the ground, the water plane), as the view-space normal a material takes. */
+  private tilted(slope: THREE.Node<"vec2">): THREE.Node<"vec3"> {
+    return transformNormalToView(normalGeometry.sub(vec3(slope.x, 0, slope.y)).normalize());
+  }
   /** Seconds, for growth and blends (set once per frame). */
   private readonly now = uniform(0);
   // L1 as grass blades (grass.ts): RGB = the cell's herb colour, A = L1 cover, one texel per
@@ -302,7 +335,13 @@ export class Viewer {
         : smoothstep(this.field.water - 0.05, this.field.water + 0.02, positionWorld.y);
     const lineA = l1.max(l2).mul(this.showFrontier).mul(dryLine);
     const soilColour = mix(earth, humus, mottle).mul(grain);
-    groundMat.colorNode = mix(this.terrainTint(soilColour, grain), lineRgb, lineA);
+    // Soft relief (D-213): broad undulations and a finer, fainter layer tilt the normal, so the
+    // sun models gentle hollows and rises; hollows also take a touch of ambient shade.
+    const broad = this.relief(0.18, 0.6);
+    const fine = this.relief(0.9, 1.9);
+    groundMat.normalNode = this.tilted(broad.slope.mul(0.32).add(fine.slope.mul(0.1)));
+    const hollow = mix(float(0.9), float(1.04), broad.height.mul(0.7).add(fine.height.mul(0.3)));
+    groundMat.colorNode = mix(this.terrainTint(soilColour.mul(hollow), grain), lineRgb, lineA);
     groundMat.emissiveNode = lineRgb.mul(lineA.mul(0.35));
     this.ground = new THREE.Mesh(groundGeometry(this.field), groundMat);
     this.ground.receiveShadow = true;
@@ -618,7 +657,7 @@ export class Viewer {
     const level = this.field.water;
     if (level === null) return;
     const material = new THREE.MeshStandardNodeMaterial({
-      roughness: 0.4, // a soft sheen, no hard sun glare (D-087)
+      roughness: 0.3, // soft glints on the ripples (D-213; was 0.4, flat)
       metalness: 0.05,
       transparent: true,
       depthWrite: false,
@@ -626,15 +665,29 @@ export class Viewer {
     const at = positionWorld.xz.add(size / 2).div(size); // world x/z -> height texel
     const bed = texture(this.heights, at).r;
     const depth = float(level).sub(bed);
-    const shimmer = float(1).add(this.noise(0.35, "r", time.mul(0.04)).mul(0.06));
-    material.colorNode = mix(
-      color(WORLD.shallows),
+    // Two slow ripple layers drifting against each other (D-213).
+    const drift = (k: number) => vec2(time.mul(k), time.mul(k * 0.6));
+    const a = this.relief(0.35, 0.3, drift(0.012));
+    const b = this.relief(0.8, 2.2, drift(-0.018));
+    material.normalNode = this.tilted(a.slope.mul(0.08).add(b.slope.mul(0.03)));
+    // Shallows, mid and deep tones; light ribbons over a near bed; the sky at grazing angles.
+    const tone = mix(
+      mix(color(WORLD.shallows), color(WORLD.midWater), smoothstep(0.1, 0.9, depth)),
       color(WORLD.deepWater),
-      smoothstep(0.2, 2.2, depth),
-    ).mul(shimmer);
+      smoothstep(0.9, 2.6, depth),
+    );
+    const ribbons = float(1).add(
+      a.height
+        .sub(0.5)
+        .mul(0.22)
+        .mul(smoothstep(1.2, 0.2, depth)),
+    );
+    const view = cameraPosition.sub(positionWorld).normalize();
+    const grazing = float(1).sub(view.y.max(0)).pow(3);
+    material.colorNode = mix(tone.mul(ribbons), color(WORLD.sky), grazing.mul(0.35));
     // A crisp edge (D-210): full within 8 cm of depth. The old 35 cm fade spread over metres on
     // flat shores and blurred where land ends; the bed darkens under the water instead.
-    material.opacityNode = smoothstep(0.0, 0.08, depth).mul(0.82);
+    material.opacityNode = smoothstep(0.0, 0.08, depth).mul(float(0.8).add(grazing.mul(0.15)));
     const water = new THREE.Mesh(
       new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2),
       material,

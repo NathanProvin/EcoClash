@@ -2457,3 +2457,21 @@ Template:
 
     That is 6 texture reads per ground pixel (was 7).
   - **Blade colour:** lichen and wildflowers tint the grass blades they share a cell with, so their palette colours are leafy greens now (`#5a6e40`, `#4e7432`). Lichen patches and flower heads keep their own colours.
+
+## D-213 · 2026-10-06 · Living water, a softly lit ground, gentler banks (branch `optimization-v3`)
+- **Status:** accepted (user: water and soil looked bland and flat; banks still a little jagged. Procedural, with a smooth, low-poly, airy look)
+- **Decision:**
+  - **Noise:** the baked noise is a 3-octave fBm with quintic easing (`fbm`), so the old value-noise lattice diamonds are gone.
+  - **Relief texture:** a baked tileable soft relief (`reliefTexture`, R/G slopes, B height). It tilts the normals of the ground and the water plane, without a normal map's tangent frame.
+  - **Ground:** broad undulations plus a fainter fine layer, lit by the sun; hollows take a touch of ambient shade.
+  - **Water:**
+    - two slow ripple layers drifting against each other (gentle: 0.08 / 0.03 tilt);
+    - roughness 0.3 for soft sun glints;
+    - three depth tones (shallows, mid `#3d7a78`, deep);
+    - light ribbons over near beds;
+    - a sky tint at grazing angles.
+  - **Banks:**
+    - meander 0.12 m on a 4.5 m wave (was 0.22 / 2.6);
+    - ground mesh 5 subdivisions per cell (was 4);
+    - height texture 6 texels per cell side.
+- **Cost:** ground and water each take 2 more texture reads per pixel. The Mid ground mesh grows from 47k to 74k triangles; Large from about 100k to about 157k.

@@ -28,10 +28,10 @@ const SMOOTH = 1; // one pass: cliffs stay steep (D-096)
 /** Banks that curve and meander (D-212): heights pass smoothly (Catmull-Rom) through the cell
  *  centres instead of in straight lines, and a gentle ripple (`amp` m, `wave` m across) breaks
  *  the grid's period, so shores wind instead of repeating one cell-sized kink. */
-const MEANDER = { amp: 0.22, wave: 2.6 } as const;
+const MEANDER = { amp: 0.12, wave: 4.5 } as const; // D-213: smoother, same flow
 /** Height texels per cell side: the shaders (water depth, grass roots) follow the smooth
  *  heights, not a per-cell bilinear version of them (D-212). */
-const HEIGHT_TEXELS = 4;
+const HEIGHT_TEXELS = 6;
 
 /** Heights of an `n x n` map (m): per cell centre, smooth in between (D-212). */
 export class Heightfield {
@@ -151,7 +151,7 @@ function blur(h: Float32Array, n: number): void {
 }
 
 /** Ground mesh subdivisions per cell (4 since D-150: about 1.8x the triangles of 3). */
-const SUBDIV = 4;
+const SUBDIV = 5; // D-213: finer banks (was 4)
 
 /** The ground: a plane over the map, its vertices raised to the heightfield. UVs as before. */
 export function groundGeometry(field: Heightfield): THREE.BufferGeometry {
@@ -266,6 +266,70 @@ export function drape(
   pos.needsUpdate = true;
 }
 
+/** Tileable fractal value noise over the unit square (D-213): `octaves` layers from `period`
+ *  lattice cells across, each twice as fine and half as strong, quintic-eased. Values about
+ *  0..1, mean 0.5. */
+export function fbm(
+  period: number,
+  octaves: number,
+  salt: number,
+): (u: number, v: number) => number {
+  const quintic = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
+  return (u, v) => {
+    let [sum, amp, norm] = [0, 1, 0];
+    for (let o = 0; o < octaves; o++) {
+      const p = period << o;
+      const [fx, fy] = [u * p, v * p];
+      const [i, j] = [Math.floor(fx), Math.floor(fy)];
+      const [tx, ty] = [quintic(fx - i), quintic(fy - j)];
+      const c = (a: number, b: number) =>
+        rand((((a % p) + p) % p) * 977 + (((b % p) + p) % p), salt + o);
+      const top = c(i, j) * (1 - tx) + c(i + 1, j) * tx;
+      const bottom = c(i, j + 1) * (1 - tx) + c(i + 1, j + 1) * tx;
+      sum += (top * (1 - ty) + bottom * ty) * amp;
+      norm += amp;
+      amp *= 0.5;
+    }
+    return sum / norm;
+  };
+}
+
+/** Texels across the baked relief, and its lattice cells (D-213). */
+export const RELIEF = { size: 256, period: 6 } as const;
+
+/** A tileable soft relief (D-213): a smooth height field, baked once with its slopes, R and G =
+ *  0.5 + slope along x and y, B = height (0..1). Shaders tilt a surface's normal by the slopes:
+ *  broad, gentle undulations for the ground, ripples for the water, without a normal map's
+ *  tangent frame. */
+export function reliefTexture(): THREE.DataTexture {
+  const { size, period } = RELIEF;
+  const f = fbm(period, 3, 9100);
+  const h = new Float32Array(size * size);
+  for (let y = 0; y < size; y++)
+    for (let x = 0; x < size; x++) h[y * size + x] = f(x / size, y / size);
+  const at = (x: number, y: number) => h[((y + size) % size) * size + ((x + size) % size)] ?? 0;
+  const data = new Uint8Array(size * size * 4);
+  const k = size / (2 * period); // slopes in lattice units, about -1..1
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const sx = (at(x + 1, y) - at(x - 1, y)) * k;
+      const sy = (at(x, y + 1) - at(x, y - 1)) * k;
+      const i = (y * size + x) * 4;
+      data[i] = Math.round(Math.min(Math.max(0.5 + sx * 0.5, 0), 1) * 255);
+      data[i + 1] = Math.round(Math.min(Math.max(0.5 + sy * 0.5, 0), 1) * 255);
+      data[i + 2] = Math.round((at(x, y) ?? 0) * 255);
+      data[i + 3] = 255;
+    }
+  }
+  const t = new THREE.DataTexture(data, size, size);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  t.needsUpdate = true;
+  return t;
+}
+
 /** Lattice cells across the baked noise texture, and its size in texels (D-151). */
 export const NOISE = { period: 16, size: 256 } as const;
 
@@ -276,18 +340,14 @@ export const NOISE = { period: 16, size: 256 } as const;
 export function noiseTexture(): THREE.DataTexture {
   const { period, size } = NOISE;
   const data = new Uint8Array(size * size * 4);
-  const ease = (t: number) => t * t * (3 - 2 * t);
+  // D-213: a few octaves with quintic easing (smooth to the second derivative): soft, organic
+  // shapes, no lattice diamonds; stretched back to about 0..1.
   for (let ch = 0; ch < 3; ch++) {
-    const corner = (i: number, j: number) =>
-      rand(((i + period) % period) * 977 + ((j + period) % period), 8800 + ch);
+    const f = fbm(period, 3, 8800 + 10 * ch);
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
-        const [fx, fy] = [(x / size) * period, (y / size) * period];
-        const [i, j] = [Math.floor(fx), Math.floor(fy)];
-        const [tx, ty] = [ease(fx - i), ease(fy - j)];
-        const top = corner(i, j) * (1 - tx) + corner(i + 1, j) * tx;
-        const bottom = corner(i, j + 1) * (1 - tx) + corner(i + 1, j + 1) * tx;
-        data[(y * size + x) * 4 + ch] = Math.round((top * (1 - ty) + bottom * ty) * 255);
+        const v = 0.5 + (f(x / size, y / size) - 0.5) * 1.7;
+        data[(y * size + x) * 4 + ch] = Math.round(Math.min(Math.max(v, 0), 1) * 255);
       }
     }
   }

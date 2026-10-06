@@ -2311,3 +2311,14 @@ Template:
 ## D-197 · 2026-10-06 · "Superpredators"
 - **Status:** accepted (user)
 - **Decision:** family S (hawk, wildcat, eagle-owl) is named "Superpredators" in the UI and the docs (it was "Hunter hunters").
+
+## D-198 · 2026-10-06 · Perf panel and the `?perf=1` bench (branch `optimization-v3`)
+- **Status:** accepted (user: deep performance pass before Alpha 1.1; late game at about 30 fps on Mid/Medium and 15 fps on Large/High)
+- **Decision:**
+  - **The perf readout** (Display → performance) gets a detail panel:
+    - smoothed JS time per section: app, icons, fields, plants, animals, scene, submit;
+    - GPU time of the render pass via WebGPU timestamp queries (`trackTimestamp`), only when `?perf=1`;
+    - triangles and draw calls per family (herbs, plants, animals, ground, rocks, water, dead trees) and the shadow casters, from `userData.family` tags.
+  - **`?perf=1[&map=mid|large][&minute=22]`:** a Large map, both sides played by the hard bot at 8× until the minute, then 10 s measured at 1× from the overview. Fps, median, 90th percentile, JS sections, GPU and census go to the console and `window.ecoPerf`.
+- **First reading:** on an empty Mid map, the herbs already submit 393 k triangles, because every tuft of every cell is drawn, scaled to zero when hidden. Measured at minute 22 on a Large map: 1.16 M triangles, 79 draw calls, herbs 57 %.
+- **Limit:** a background browser tab gets no animation frames and a throttled GPU, so frame rates must be read on the reference laptop.

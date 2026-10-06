@@ -374,6 +374,7 @@ function instanced(
   mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3);
   mesh.frustumCulled = false;
   mesh.count = 0;
+  mesh.userData.family = "animals"; // the perf census (D-198)
   scene.add(mesh);
   return mesh;
 }

@@ -28,6 +28,7 @@
   import { plantColor, WORLD } from "./render/palette";
   import { Viewer, type CameraKeys, type Layer } from "./render/viewer";
   import { loadQuality, saveQuality, type Quality } from "./render/quality";
+  import { censusText, frameStats, Sections } from "./game/perf";
   import BottomBar from "./ui/BottomBar.svelte";
   import CellPanel from "./ui/CellPanel.svelte";
   import UnitPanel from "./ui/UnitPanel.svelte";
@@ -63,6 +64,17 @@
   let perf = $state("");
   let showPerf = $state(false); // the performance readout, off by default (D-064)
   let setup = $state(loadSetup()); // the next match: opponent, seed, sandbox (D-081)
+  /** The perf panel's detail (D-198): JS per section, GPU time, triangles and draws per family. */
+  let perfDetail = $state("");
+  const appTiming = new Sections();
+  let lastCensus = 0;
+  let censusLine = "";
+  /** `?perf=1` (D-198): a scripted late-game bench. Bot vs bot at 8× to `minute` (22), then
+   *  10 s measured at 1× from the overview; the figures land in the console and `window.ecoPerf`. */
+  const PERF = new URLSearchParams(location.search);
+  const perfBench = PERF.has("perf")
+    ? { until: Number(PERF.get("minute") ?? 22) * 600, phase: "warm", t0: 0, gaps: [] as number[] }
+    : null;
   let perfFrames = 0;
   let perfStart = 0;
   let perfWorst = 0;
@@ -661,6 +673,7 @@
   let last = 0;
 
   function frame(now: number) {
+    const frameStart = performance.now();
     const r = replay;
     const seconds = Math.min((now - last) / 1000, 0.1);
     if (Math.floor(frameTick) !== tick) frameTick = tick; // a seek on the timeline, or a reset
@@ -731,14 +744,27 @@
         }
       }
       if (Math.floor(frameTick) !== tick) tick = Math.floor(frameTick);
+      const before = performance.now();
+      appTiming.add("app", before - frameStart);
       viewer.render(frameTick);
+      const after = performance.now();
       projectIcons(); // after the camera moved this frame
+      appTiming.add("icons", performance.now() - after);
+      if (perfBench && live) benchStep(now);
     }
     perfFrames++;
     perfWorst = Math.max(perfWorst, now - last);
     if (now - perfStart >= 500) {
       const fps = (perfFrames * 1000) / (now - perfStart);
       perf = `${fps.toFixed(0)} fps · worst ${perfWorst.toFixed(0)} ms · ${viewer?.backend ?? ""}`;
+      if (showPerf && viewer) {
+        if (now - lastCensus > 2000) {
+          lastCensus = now;
+          censusLine = censusText(viewer.census());
+        }
+        const gpu = viewer.gpuMs ? ` · gpu ${viewer.gpuMs.toFixed(1)} ms` : "";
+        perfDetail = `js: ${appTiming.text()} · ${viewer.timing.text()}${gpu}\ntris/draws: ${censusLine}`;
+      }
       [perfFrames, perfStart, perfWorst] = [0, now, 0];
     }
     last = now;
@@ -782,10 +808,14 @@
         replay = await loadReplay(`replays/${name}`);
         speed = 4; // replays: fast playback
       }
-      viewer = await Viewer.create(canvas, replay, quality);
+      viewer = await Viewer.create(canvas, replay, quality, !!perfBench);
       viewer.resize();
       // Dev only: lets a browser check drive the camera and the match (window.ecoViewer, ecoLive).
       if (import.meta.env.DEV) Object.assign(window, { ecoViewer: viewer, ecoLive: live });
+      if (perfBench && live) {
+        live.send({ type: "bot", player: live.me, level: "hard" }); // both sides played (D-198)
+        speed = 8;
+      }
       for (const [layer, on] of Object.entries(layers)) viewer.setVisible(layer as Layer, on);
       tick = 0;
       playing = true;
@@ -993,6 +1023,41 @@
     }
   }
 
+  /** The `?perf=1` bench (D-198): warm up at 8× to the target minute, then measure 10 s at 1×
+   *  from the overview and publish the figures. */
+  function benchStep(now: number) {
+    const b = perfBench;
+    if (!b || !live || !viewer) return;
+    if (b.phase === "warm" && live.renderTick(now) >= b.until) {
+      speed = 1;
+      viewer.resetView();
+      [b.phase, b.t0, b.gaps] = ["measure", now, []];
+    } else if (b.phase === "measure") {
+      b.gaps.push(now - last);
+      if (now - b.t0 < 10_000) return;
+      b.phase = "done";
+      const f = frameStats(b.gaps.slice(5)); // skip the frames right after the speed change
+      const result = {
+        fps: Math.round(f.fps),
+        medianMs: +f.median.toFixed(1),
+        p90Ms: +f.p90.toFixed(1),
+        quality,
+        n: live.meta.n,
+        animals: viewer.visibleAnimals().length,
+        gpuMs: +viewer.gpuMs.toFixed(1),
+        js: `${appTiming.text()} · ${viewer.timing.text()}`,
+        census: censusText(viewer.census()),
+        simMs: +live.simMs.toFixed(1),
+      };
+      console.log("[perf]", JSON.stringify(result));
+      Object.assign(window, { ecoPerf: result });
+      toast(
+        `perf: ${result.fps} fps, median ${result.medianMs} ms, p90 ${result.p90Ms} ms`,
+        "info",
+      );
+    }
+  }
+
   /** From the main menu: start a live match (`asTutorial`: the tutorial's). */
   async function launch(asTutorial = false) {
     tutorial = asTutorial;
@@ -1049,6 +1114,15 @@
       Object.assign(window, { ecoAudio: audio, ecoAmbience: ambience, ecoMusic: music });
     raf = requestAnimationFrame(frame);
     void start();
+    if (perfBench) {
+      showPerf = true;
+      setup = {
+        ...setup,
+        map: (PERF.get("map") as typeof setup.map | null) ?? "large",
+        bot: "hard",
+      };
+      void launch();
+    }
   });
 
   onDestroy(() => {
@@ -1164,6 +1238,9 @@
     <div class="p{live ? me : player}" style:display="contents">
       <StrategicIcons {icons} onSelect={(ids) => select(ids)} onHover={(ids) => (hoverIds = ids)} />
     </div>
+    {#if showPerf && perfDetail}
+      <pre class="perf-detail">{perfDetail}</pre>
+    {/if}
     {#if live && tutorial && !outcome}
       <Objectives step={tutorialStep} onMenu={toMenu} onNext={nextStep} />
       <TourPointer targets={OBJECTIVES[tutorialStep]?.point} />
@@ -1269,6 +1346,24 @@
 </main>
 
 <style>
+  /* The perf panel's detail (D-198). */
+  .perf-detail {
+    position: fixed;
+    left: 12px;
+    bottom: 96px;
+    z-index: 20;
+    margin: 0;
+    padding: 6px 8px;
+    max-width: min(92vw, 900px);
+    white-space: pre-wrap;
+    font:
+      11px/1.4 ui-monospace,
+      monospace;
+    color: var(--ink-soft);
+    background: rgb(0 0 0 / 0.45);
+    border-radius: 6px;
+    pointer-events: none;
+  }
   /* The Species page sits over the main menu (D-140). */
   .catalog {
     position: absolute;

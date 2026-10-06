@@ -482,6 +482,7 @@ export class PlantView {
       const tree = STRATA.indexOf("tree");
       g.mesh.castShadow = (s.perModel[shrub] ?? 0) > 0 || (s.perModel[tree] ?? 0) > 0;
       g.mesh.receiveShadow = true;
+      g.mesh.userData.family = "plants"; // the perf census (D-198)
       scene.add(g.mesh);
       return g;
     });
@@ -635,6 +636,7 @@ export class DeadTrees {
     for (const g of [this.trunks, this.branches]) {
       g.mesh.castShadow = true;
       g.mesh.receiveShadow = true;
+      g.mesh.userData.family = "dead trees";
       scene.add(g.mesh);
     }
   }

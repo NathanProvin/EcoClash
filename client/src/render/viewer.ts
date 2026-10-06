@@ -7,6 +7,7 @@
 // ground tinted by slope, wetness and height, bloom and tilt-shift on High. 1 cell = CELL world
 // units (4 m, D-047).
 
+import { Sections, type Census } from "../game/perf";
 import { MapControls } from "three/addons/controls/MapControls.js";
 import { bloom } from "three/addons/tsl/display/BloomNode.js";
 import { dof } from "three/addons/tsl/display/DepthOfFieldNode.js";
@@ -280,6 +281,7 @@ export class Viewer {
     groundMat.emissiveNode = lineRgb.mul(lineA.mul(0.35));
     this.ground = new THREE.Mesh(groundGeometry(this.field), groundMat);
     this.ground.receiveShadow = true;
+    this.ground.userData.family = "ground";
     this.scene.add(this.ground);
     this.overlayData = new Uint8Array(n * n * 4);
     this.overlayTex = new THREE.DataTexture(this.overlayData, n, n);
@@ -299,6 +301,7 @@ export class Viewer {
     this.overlayMesh.position.y = OVERLAY_LIFT;
     this.overlayMesh.renderOrder = 20;
     this.overlayMesh.visible = false;
+    this.overlayMesh.userData.family = "ground";
     this.scene.add(this.overlayMesh);
 
     // The map as a diorama slab: an earth cross-section on its sides, topsoil to bedrock.
@@ -312,7 +315,9 @@ export class Viewer {
       new THREE.PlaneGeometry(size, size).rotateX(Math.PI / 2).translate(0, -SLAB_DEPTH, 0),
       slabMat,
     );
-    this.scene.add(new THREE.Mesh(slabGeometry(this.field, SLAB_DEPTH), slabMat), bottom);
+    const slab = new THREE.Mesh(slabGeometry(this.field, SLAB_DEPTH), slabMat);
+    slab.userData.family = bottom.userData.family = "ground";
+    this.scene.add(slab, bottom);
 
     this.addWater(size);
     this.addRocks();
@@ -365,9 +370,15 @@ export class Viewer {
     canvas: HTMLCanvasElement,
     replay: Source,
     quality: Quality,
+    gpuTiming = false,
   ): Promise<Viewer> {
-    // WebGPU when available, WebGL2 otherwise (INSTRUCTIONS §3.1).
-    const renderer = new THREE.WebGPURenderer({ canvas, antialias: true });
+    // WebGPU when available, WebGL2 otherwise (INSTRUCTIONS §3.1). `gpuTiming` (the `?perf=1`
+    // bench, D-198) asks for GPU timestamp queries where the browser offers them.
+    const renderer = new THREE.WebGPURenderer({
+      canvas,
+      antialias: true,
+      trackTimestamp: gpuTiming,
+    });
     renderer.shadowMap.enabled = true; // the presets switch the sun's shadow on and off
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Neutral tone mapping: hues stay, only highlights roll off instead of clipping.
@@ -390,6 +401,7 @@ export class Viewer {
       mix,
       Math.max(0, ...this.field.cell),
     );
+    grass.userData.family = "herbs"; // the perf census (D-198)
     return grass;
   }
 
@@ -581,6 +593,7 @@ export class Viewer {
     );
     water.position.y = level;
     water.renderOrder = 2;
+    water.userData.family = "water";
     this.scene.add(water);
   }
 
@@ -609,6 +622,7 @@ export class Viewer {
       mesh.receiveShadow = true;
       return mesh;
     });
+    for (const s of shapes) s.userData.family = "rocks";
     this.scene.add(...shapes);
   }
 
@@ -819,7 +833,41 @@ export class Viewer {
   }
 
   /** Draw the replay at a fractional tick. */
+  /** Smoothed JS time per render section (ms per frame), for the perf panel (D-198). */
+  readonly timing = new Sections();
+  /** GPU time of the render pass (ms), when timestamp queries run (D-198). */
+  gpuMs = 0;
+  private gpuPending = false;
+
+  /** Triangles and draw calls per family, main pass and shadow casters (D-198). */
+  census(): Census {
+    const c: Census = { family: {}, shadowTris: 0 };
+    this.scene.traverseVisible((o) => {
+      const m = o as THREE.Mesh & { count?: number; isInstancedMesh?: boolean };
+      if (!m.isMesh) return;
+      const g = m.geometry;
+      const per = (g.index ? g.index.count : (g.attributes.position?.count ?? 0)) / 3;
+      const copies = m.isInstancedMesh ? (m.count ?? 0) : 1;
+      if (!copies || !per) return;
+      let family: string | undefined;
+      for (let p: THREE.Object3D | null = m; p && !family; p = p.parent) {
+        family = p.userData.family as string | undefined;
+      }
+      const row = (c.family[family ?? "other"] ??= { tris: 0, draws: 0 });
+      row.tris += per * copies;
+      row.draws += 1;
+      if (m.castShadow) c.shadowTris += per * copies;
+    });
+    return c;
+  }
+
   render(tick: number): void {
+    let mark = performance.now();
+    const lap = (name: string) => {
+      const t = performance.now();
+      this.timing.add(name, t - mark);
+      mark = t;
+    };
     const now = performance.now() / 1000;
     const dt = Math.min(now - (this.lastTime || now), 0.1);
     this.lastTime = now;
@@ -831,9 +879,11 @@ export class Viewer {
       this.lastFrame = fields.frame;
       this.paintFields(fields, now, step);
     }
+    lap("fields");
     this.blend.value = Math.min(1, (now - this.blendFrom) / this.blendS);
     this.plants.frame(now);
     this.deadTrees.frame(now);
+    lap("plants");
     this.weather.update(dt);
     const t0 = Math.floor(tick);
     this.shown = interpolate(this.replay.animals(t0), this.replay.animals(t0 + 1), tick - t0);
@@ -844,6 +894,7 @@ export class Viewer {
     const eye = this.camera.position;
     this.animals.update(this.shown, this.selected, tick, n, ms, dropped, h, this.field.water, eye);
     this.orders.update(this.animals.drawn, this.shown, h);
+    lap("animals");
     animateAura(this.aura, now, this.surface);
     this.animatePings(now);
     this.seeds.update(now, this.camera.position.distanceTo(this.controls.target));
@@ -864,11 +915,23 @@ export class Viewer {
     this.controls.maxPolarAngle = THREE.MathUtils.lerp(TILT.low, TILT.high, far);
     this.controls.update();
     this.sun.shadow.needsUpdate = this.frames++ % SHADOW_EVERY === 0;
+    lap("scene");
     if (this.post && this.postOn) {
       this.focus.value = this.camera.position.distanceTo(this.controls.target);
       this.post.render();
     } else {
       void this.renderer.render(this.scene, this.camera);
+    }
+    lap("submit");
+    const backend = this.renderer.backend as { trackTimestamp?: boolean };
+    if (backend.trackTimestamp && !this.gpuPending && this.frames % 30 === 0) {
+      this.gpuPending = true;
+      void this.renderer
+        .resolveTimestampsAsync()
+        .then((ms) => {
+          if (typeof ms === "number" && ms > 0) this.gpuMs = ms;
+        })
+        .finally(() => (this.gpuPending = false));
     }
   }
 

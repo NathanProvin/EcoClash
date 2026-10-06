@@ -1,0 +1,30 @@
+import { describe, expect, it } from "vitest";
+import { censusText, frameStats, Sections } from "./perf";
+
+describe("perf figures (D-198)", () => {
+  it("reads fps, median and p90 from frame times", () => {
+    const ms = [...Array(9).fill(16), 50];
+    const s = frameStats(ms);
+    expect(s.median).toBe(16);
+    expect(s.p90).toBe(50);
+    expect(s.fps).toBeCloseTo(1000 / 19.4, 1);
+    expect(frameStats([])).toEqual({ fps: 0, median: 0, p90: 0 });
+  });
+
+  it("smooths section timings and lists the largest first", () => {
+    const s = new Sections(0.5);
+    s.add("render", 4);
+    s.add("render", 2);
+    s.add("animals", 5);
+    expect(s.ms.render).toBe(3);
+    expect(s.text()).toBe("animals 5.0 · render 3.0");
+  });
+
+  it("prints the census largest family first", () => {
+    const t = censusText({
+      family: { ground: { tris: 100_000, draws: 3 }, herbs: { tris: 658_000, draws: 48 } },
+      shadowTris: 304_000,
+    });
+    expect(t).toBe("herbs 658k/48 · ground 100k/3 · shadow 304k");
+  });
+});

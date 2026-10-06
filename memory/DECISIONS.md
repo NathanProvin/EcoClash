@@ -2513,3 +2513,19 @@ Template:
   - `Heightfield.at` (D-212) adds about 0.3 ms with about 1 100 animals.
 
   Before an A/B against D-208 ran, the user re-measured 45 fps late game on Large/High. No change was made; the leads are noted here if it comes back.
+
+## D-216 · 2026-10-06 · Soil and water back to D-208, crisp shores kept (branch `optimization-v3`)
+- **Status:** accepted (user: late-game fps drops came back; return soil and water to their state right after the fps optimization)
+- **Reverted:**
+  - `terrain.ts` and `viewer.ts` are back to D-208 (`3a02024`);
+  - D-211 (organic ground) and D-212 (patchwork; winding banks: Catmull-Rom heights, meander, fine height texture) are superseded;
+  - D-213 (lit relief, rippling water, fBm) and D-214 (baked ground detail, one ripple layer) are superseded;
+  - heights are bilinear again: a cheap `Heightfield.at`, called for every animal every frame.
+- **Kept:**
+  - D-210's crisp shore: the bed darkens under the water, and water opacity is full within 8 cm;
+  - herbs and land plants stay out of the water;
+  - front lines fade under the water;
+  - bloom-only High (D-214);
+  - the D-209 resolution guard and Medium 1.25;
+  - grass and herb colours;
+  - D-215: names, weather badge, lichen, silent alerts.

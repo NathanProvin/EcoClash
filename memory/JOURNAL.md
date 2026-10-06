@@ -810,3 +810,12 @@
   - silent alert toasts.
 - **Measured:** late-game GPU time on Large/High is 8.5 ms (CPU-bound near the vsync step). The user re-measured 45 fps late game; the A/B was dropped.
 - **Next:** merge `optimization-v3` and deploy Alpha 1.1 when the user says so.
+
+## 2026-10-06 (12) · Soil and water reverted to D-208 (D-216)
+- **Done:**
+  - `terrain.ts` and `viewer.ts` restored to D-208;
+  - the crisp shore, no plants in the water, front lines under water, bloom-only High and the 8-frame GPU readout re-applied;
+  - `midWater` dropped.
+
+  Checks green; the overview looked right in the browser.
+- **Next:** the user's fps check, then merge and deploy Alpha 1.1.

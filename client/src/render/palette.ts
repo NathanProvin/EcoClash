@@ -30,7 +30,6 @@ export const WORLD = {
   alert: "#ff7a5c", // raid pings and alert accents (D-077)
   shallows: "#6f9c8f", // water over a near bed (D-085)
   deepWater: "#244b5a", // deep pools and pond centres
-  midWater: "#3d7a78", // between the shallows and the deep (D-213)
   rock: "#8a8176", // rock outcrops
   earthTop: "#3f3024", // diorama slab sides: topsoil band (D-054)
   earthSub: "#6d5840", // subsoil

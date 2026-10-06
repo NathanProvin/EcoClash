@@ -25,15 +25,7 @@ export interface TerrainFrame {
  *  instead of following the cell grid. */
 const SMOOTH = 1; // one pass: cliffs stay steep (D-096)
 
-/** Banks that curve and meander (D-212): heights pass smoothly (Catmull-Rom) through the cell
- *  centres instead of in straight lines, and a gentle ripple (`amp` m, `wave` m across) breaks
- *  the grid's period, so shores wind instead of repeating one cell-sized kink. */
-const MEANDER = { amp: 0.12, wave: 4.5 } as const; // D-213: smoother, same flow
-/** Height texels per cell side: the shaders (water depth, grass roots) follow the smooth
- *  heights, not a per-cell bilinear version of them (D-212). */
-const HEIGHT_TEXELS = 4; // D-214: was 6
-
-/** Heights of an `n x n` map (m): per cell centre, smooth in between (D-212). */
+/** Heights of an `n x n` map (m): per cell centre, bilinear in between. */
 export class Heightfield {
   /** Height of each cell centre (m), row-major. */
   readonly cell: Float32Array;
@@ -70,65 +62,30 @@ export class Heightfield {
     this.water = bed === null ? null : bed + WATER.surface;
   }
 
-  /** Height (m) at world point (x, z): Catmull-Rom through the cell centres (it passes through
-   *  each, C1 in between), clamped at the edges, plus the meander ripple (D-212). A flat map
-   *  stays flat. */
+  /** Height (m) at world point (x, z), bilinear between cell centres, clamped at the edges. */
   at(x: number, z: number): number {
     const n = this.n;
     const fx = Math.min(Math.max(x / CELL + n / 2 - 0.5, 0), n - 1);
     const fz = Math.min(Math.max(z / CELL + n / 2 - 0.5, 0), n - 1);
     const [x0, z0] = [Math.floor(fx), Math.floor(fz)];
+    const [x1, z1] = [Math.min(x0 + 1, n - 1), Math.min(z0 + 1, n - 1)];
     const [tx, tz] = [fx - x0, fz - z0];
-    const clampN = (v: number) => Math.min(Math.max(v, 0), n - 1);
-    const h = (r: number, c: number) => this.cell[clampN(r) * n + clampN(c)] ?? 0;
-    const row = (r: number) => catmullRom(h(r, x0 - 1), h(r, x0), h(r, x0 + 1), h(r, x0 + 2), tx);
-    const smooth = catmullRom(row(z0 - 1), row(z0), row(z0 + 1), row(z0 + 2), tz);
-    return this.terrain
-      ? smooth + MEANDER.amp * ripple(x / MEANDER.wave, z / MEANDER.wave)
-      : smooth;
+    const h = (r: number, c: number) => this.cell[r * n + c] ?? 0;
+    const top = h(z0, x0) * (1 - tx) + h(z0, x1) * tx;
+    const bottom = h(z1, x0) * (1 - tx) + h(z1, x1) * tx;
+    return top * (1 - tz) + bottom * tz;
   }
 
   /** The heights as a half-float texture (rows = grid rows; 32-bit floats are not filterable in
    *  WebGPU), for shaders: grass roots, water depth. */
   texture(): THREE.DataTexture {
-    const m = this.n * HEIGHT_TEXELS;
-    const size = this.n * CELL;
-    const half = new Uint16Array(m * m);
-    for (let j = 0; j < m; j++) {
-      for (let i = 0; i < m; i++) {
-        const [x, z] = [((i + 0.5) / m - 0.5) * size, ((j + 0.5) / m - 0.5) * size];
-        half[j * m + i] = THREE.DataUtils.toHalfFloat(this.at(x, z));
-      }
-    }
-    const t = new THREE.DataTexture(half, m, m, THREE.RedFormat, THREE.HalfFloatType);
+    const half = Uint16Array.from(this.cell, (v) => THREE.DataUtils.toHalfFloat(v));
+    const t = new THREE.DataTexture(half, this.n, this.n, THREE.RedFormat, THREE.HalfFloatType);
     t.magFilter = THREE.LinearFilter;
     t.minFilter = THREE.LinearFilter;
     t.needsUpdate = true;
     return t;
   }
-}
-
-/** Catmull-Rom between `b` (t = 0) and `c` (t = 1), with neighbours `a` and `d`. */
-function catmullRom(a: number, b: number, c: number, d: number, t: number): number {
-  return (
-    0.5 *
-    (2 * b +
-      (c - a) * t +
-      (2 * a - 5 * b + 4 * c - d) * t * t +
-      (3 * b - a - 3 * c + d) * t * t * t)
-  );
-}
-
-/** A smooth value noise in -1..1 over the plane (lattice step 1), deterministic. */
-function ripple(x: number, z: number): number {
-  const [i, j] = [Math.floor(x), Math.floor(z)];
-  const ease = (t: number) => t * t * (3 - 2 * t);
-  const [u, v] = [ease(x - i), ease(z - j)];
-  const at = (a: number, b: number) =>
-    rand(((a % 4096) + 4096) * 4099 + ((b % 4096) + 4096), 7700) * 2 - 1;
-  const top = at(i, j) * (1 - u) + at(i + 1, j) * u;
-  const bottom = at(i, j + 1) * (1 - u) + at(i + 1, j + 1) * u;
-  return top * (1 - v) + bottom * v;
 }
 
 /** One 3 x 3 box blur of an `n x n` grid, in place (edges use the cells that exist). */
@@ -151,7 +108,7 @@ function blur(h: Float32Array, n: number): void {
 }
 
 /** Ground mesh subdivisions per cell (4 since D-150: about 1.8x the triangles of 3). */
-const SUBDIV = 4; // D-214: back from 5 (D-213), the smooth heights keep the banks curved
+const SUBDIV = 4;
 
 /** The ground: a plane over the map, its vertices raised to the heightfield. UVs as before. */
 export function groundGeometry(field: Heightfield): THREE.BufferGeometry {
@@ -266,70 +223,6 @@ export function drape(
   pos.needsUpdate = true;
 }
 
-/** Tileable fractal value noise over the unit square (D-213): `octaves` layers from `period`
- *  lattice cells across, each twice as fine and half as strong, quintic-eased. Values about
- *  0..1, mean 0.5. */
-export function fbm(
-  period: number,
-  octaves: number,
-  salt: number,
-): (u: number, v: number) => number {
-  const quintic = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
-  return (u, v) => {
-    let [sum, amp, norm] = [0, 1, 0];
-    for (let o = 0; o < octaves; o++) {
-      const p = period << o;
-      const [fx, fy] = [u * p, v * p];
-      const [i, j] = [Math.floor(fx), Math.floor(fy)];
-      const [tx, ty] = [quintic(fx - i), quintic(fy - j)];
-      const c = (a: number, b: number) =>
-        rand((((a % p) + p) % p) * 977 + (((b % p) + p) % p), salt + o);
-      const top = c(i, j) * (1 - tx) + c(i + 1, j) * tx;
-      const bottom = c(i, j + 1) * (1 - tx) + c(i + 1, j + 1) * tx;
-      sum += (top * (1 - ty) + bottom * ty) * amp;
-      norm += amp;
-      amp *= 0.5;
-    }
-    return sum / norm;
-  };
-}
-
-/** Texels across the baked relief, and its lattice cells (D-213). */
-export const RELIEF = { size: 256, period: 6 } as const;
-
-/** A tileable soft relief (D-213): a smooth height field, baked once with its slopes, R and G =
- *  0.5 + slope along x and y, B = height (0..1). Shaders tilt a surface's normal by the slopes:
- *  broad, gentle undulations for the ground, ripples for the water, without a normal map's
- *  tangent frame. */
-export function reliefTexture(): THREE.DataTexture {
-  const { size, period } = RELIEF;
-  const f = fbm(period, 3, 9100);
-  const h = new Float32Array(size * size);
-  for (let y = 0; y < size; y++)
-    for (let x = 0; x < size; x++) h[y * size + x] = f(x / size, y / size);
-  const at = (x: number, y: number) => h[((y + size) % size) * size + ((x + size) % size)] ?? 0;
-  const data = new Uint8Array(size * size * 4);
-  const k = size / (2 * period); // slopes in lattice units, about -1..1
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const sx = (at(x + 1, y) - at(x - 1, y)) * k;
-      const sy = (at(x, y + 1) - at(x, y - 1)) * k;
-      const i = (y * size + x) * 4;
-      data[i] = Math.round(Math.min(Math.max(0.5 + sx * 0.5, 0), 1) * 255);
-      data[i + 1] = Math.round(Math.min(Math.max(0.5 + sy * 0.5, 0), 1) * 255);
-      data[i + 2] = Math.round((at(x, y) ?? 0) * 255);
-      data[i + 3] = 255;
-    }
-  }
-  const t = new THREE.DataTexture(data, size, size);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.magFilter = THREE.LinearFilter;
-  t.minFilter = THREE.LinearMipmapLinearFilter;
-  t.generateMipmaps = true;
-  t.needsUpdate = true;
-  return t;
-}
-
 /** Lattice cells across the baked noise texture, and its size in texels (D-151). */
 export const NOISE = { period: 16, size: 256 } as const;
 
@@ -340,76 +233,22 @@ export const NOISE = { period: 16, size: 256 } as const;
 export function noiseTexture(): THREE.DataTexture {
   const { period, size } = NOISE;
   const data = new Uint8Array(size * size * 4);
-  // D-213: a few octaves with quintic easing (smooth to the second derivative): soft, organic
-  // shapes, no lattice diamonds; stretched back to about 0..1.
+  const ease = (t: number) => t * t * (3 - 2 * t);
   for (let ch = 0; ch < 3; ch++) {
-    const f = fbm(period, 3, 8800 + 10 * ch);
+    const corner = (i: number, j: number) =>
+      rand(((i + period) % period) * 977 + ((j + period) % period), 8800 + ch);
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
-        const v = 0.5 + (f(x / size, y / size) - 0.5) * 1.7;
-        data[(y * size + x) * 4 + ch] = Math.round(Math.min(Math.max(v, 0), 1) * 255);
+        const [fx, fy] = [(x / size) * period, (y / size) * period];
+        const [i, j] = [Math.floor(fx), Math.floor(fy)];
+        const [tx, ty] = [ease(fx - i), ease(fy - j)];
+        const top = corner(i, j) * (1 - tx) + corner(i + 1, j) * tx;
+        const bottom = corner(i, j + 1) * (1 - tx) + corner(i + 1, j + 1) * tx;
+        data[(y * size + x) * 4 + ch] = Math.round((top * (1 - ty) + bottom * ty) * 255);
       }
     }
   }
   for (let k = 3; k < data.length; k += 4) data[k] = 255;
-  const t = new THREE.DataTexture(data, size, size);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.magFilter = THREE.LinearFilter;
-  t.minFilter = THREE.LinearMipmapLinearFilter;
-  t.generateMipmaps = true;
-  t.needsUpdate = true;
-  return t;
-}
-
-/** Metres across one tile of the baked ground detail (D-214). */
-export const DETAIL_TILE = 48;
-
-/** The ground's look, baked once (D-214): the soft patchwork tints, the humus mottle, the relief's
- *  light and shade for the fixed sun (`sun`: its x / z direction) and the hollows, as one
- *  tileable texture. RGB = a colour multiplier (value 0.5 + m - 1, so m in 0.5..1.5), A = a warp
- *  for the soil colour. One read replaces about ten per ground pixel. */
-export function groundDetailTexture(sun: [number, number]): THREE.DataTexture {
-  const size = 256;
-  const tile = DETAIL_TILE;
-  // Features in metres, as before: patches ~12 m, zones ~24 m, spots ~16 m, relief ~6 m.
-  const patches = fbm(Math.round(tile / 12), 3, 9300);
-  const zones = fbm(Math.round(tile / 24), 3, 9400);
-  const spots = fbm(Math.round(tile / 16), 3, 9500);
-  const height = fbm(Math.round(tile / 6), 3, 9600);
-  const warp = fbm(Math.round(tile / 9), 2, 9700);
-  const soft = (v: number) => {
-    const t = Math.min(Math.max((v - 0.3) / 0.4, 0), 1);
-    return t * t * (3 - 2 * t);
-  };
-  const mix3 = (a: number[], b: number[], t: number) => a.map((x, i) => x + ((b[i] ?? 0) - x) * t);
-  const data = new Uint8Array(size * size * 4);
-  const step = 1 / size;
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const [u, v] = [x / size, y / size];
-      const tint = mix3(
-        mix3([1.04, 0.99, 0.9], [0.93, 0.97, 0.9], soft(zones(u, v))),
-        [0.97, 0.92, 0.88],
-        soft(spots(u, v)) * 0.55,
-      );
-      const p = patches(u, v) * 2 - 1;
-      const t = Math.min(Math.max((p - 0.1) / 0.8, 0), 1);
-      const mottle = t * t * (3 - 2 * t) * 0.35;
-      const humus = mix3([1, 1, 1], [0.82, 0.78, 0.72], mottle);
-      const h = height(u, v);
-      // Slopes per metre, lit by the sun along x / z: hollows facing away go a little darker.
-      const sx = (height(u + step, v) - height(u - step, v)) / ((2 * tile) / size);
-      const sz = (height(u, v + step) - height(u, v - step)) / ((2 * tile) / size);
-      const shade = 1 - (sx * sun[0] + sz * sun[1]) * 0.8;
-      const hollow = 0.9 + 0.14 * h;
-      const m = tint.map((c, i) => c * (humus[i] ?? 1) * hollow * shade * (1 + p * 0.04));
-      const i = (y * size + x) * 4;
-      for (let c = 0; c < 3; c++) {
-        data[i + c] = Math.round(Math.min(Math.max((m[c] ?? 1) - 0.5, 0), 1) * 255);
-      }
-      data[i + 3] = Math.round(warp(u, v) * 255);
-    }
-  }
   const t = new THREE.DataTexture(data, size, size);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.magFilter = THREE.LinearFilter;

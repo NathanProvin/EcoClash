@@ -19,8 +19,10 @@
     cardState,
     eatersOf,
     families,
+    habitatPlants,
     label,
     MEDAL,
+    orList,
     quickStats,
     roleName,
     unlockedNow,
@@ -160,7 +162,7 @@
         : undefined;
     const parts = prev ? [label(prev.name)] : [];
     if (s.kind === "fauna" && s.habitat.length)
-      parts.push(`a habitat plant (${s.habitat.map(label).join(" or ")})`);
+      parts.push(orList(habitatPlants(s, species).map((o) => label(o.name))));
     return parts.join(" + ");
   }
 

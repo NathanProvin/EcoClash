@@ -54,6 +54,30 @@ export function unlockedAt(meta: ReplayMeta, player: number, t: number): Set<str
 
 export type CardState = "unlocked" | "available" | "locked";
 
+/** The plants that make an animal's habitat (D-172): its habitat lists plant names or plant
+ *  families ("L3": any shrub), resolved to the plant species. */
+export function habitatPlants(s: Species, all: readonly Species[]): Species[] {
+  return all.filter(
+    (o) => o.kind === "flora" && s.habitat.some((h) => h === o.name || h === o.family),
+  );
+}
+
+/** Names as a choice: "Elder", "Elder or Hazel", "Elder, Hawthorn or Hazel". */
+export function orList(names: readonly string[]): string {
+  return names.length < 2
+    ? (names[0] ?? "")
+    : `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
+}
+
+/** What a locked card still needs (D-172): the previous tier, and an animal's habitat plants
+ *  by name. */
+export function lockText(s: Species, all: readonly Species[]): string {
+  const parts = s.tier > 1 ? [`tier ${s.tier - 1}`] : [];
+  if (s.kind === "fauna" && s.habitat.length)
+    parts.push(orList(habitatPlants(s, all).map((o) => label(o.name))));
+  return `${parts.join(" + ")} first`;
+}
+
 /** Whether a species can be unlocked now: one unlocked species on the previous tier of its
  *  family and, for an animal, one unlocked habitat plant (a family name, e.g. "L4" or "W",
  *  means any plant of that family). */

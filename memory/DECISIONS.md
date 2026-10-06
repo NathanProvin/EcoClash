@@ -2007,3 +2007,7 @@ Template:
 - **Status:** accepted (user: icons stuttered and froze while panning)
 - **Cause:** grouping and screen placement both ran every 100 ms, so while the camera panned at 60 fps the icons jumped 10 times a second behind the map.
 - **Decision:** grouping stays at 10 Hz (cell positions); the icons are projected to the screen every frame, after the camera moved.
+
+## D-172 · 2026-10-06 · Locked cards name their habitat plants
+- **Status:** accepted (user, Alpha 2)
+- **Decision:** a locked animal card reads, for example, "tier 1 + Elder, Hawthorn or Hazel first" (`lockText`, `habitatPlants`, `orList` in `game/species.ts`), not "+ habitat plant". The tech tree uses the same names. A tier-1 animal locked only by its habitat no longer says "tier 0".

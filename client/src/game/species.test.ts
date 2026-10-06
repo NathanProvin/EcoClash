@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { ReplayMeta, Species } from "../replay/replay";
 import {
+  habitatPlants,
+  lockText,
+  orList,
   capText,
   cardState,
   eatersOf,
@@ -119,5 +122,38 @@ describe("build card helpers", () => {
     expect(quickStats(fox).map((q) => q.icon)).toEqual(["coin", "biomass", "egg", "cap"]);
     const breeds = (pace: number) => parseFloat(quickStats(fox, pace)[2]?.value ?? "");
     expect(breeds(0.4)).toBeCloseTo(breeds(1) / 0.4, 5); // real seconds at 0.4 pace
+  });
+});
+
+describe("habitat plants (D-172)", () => {
+  const plant = (name: string, family: string) =>
+    ({
+      name,
+      kind: "flora",
+      family,
+      level: 3,
+      tier: 1,
+      role: family,
+      habitat: [],
+      eats: [],
+    }) as unknown as Species;
+  const shrubs = [plant("elder", "L3"), plant("hawthorn", "L3"), plant("hazel", "L3")];
+  const all = [...shrubs, plant("oak", "L4")];
+  const fox = {
+    name: "fox",
+    kind: "fauna",
+    family: "P2",
+    tier: 2,
+    habitat: ["L3"],
+  } as unknown as Species;
+
+  it("names the plants of an animal's habitat family", () => {
+    expect(habitatPlants(fox, all).map((s) => s.name)).toEqual(["elder", "hawthorn", "hazel"]);
+    expect(lockText(fox, all)).toBe("tier 1 + Elder, Hawthorn or Hazel first");
+  });
+
+  it("lists choices the way people say them", () => {
+    expect(orList(["Elder"])).toBe("Elder");
+    expect(orList(["Elder", "Hazel"])).toBe("Elder or Hazel");
   });
 });

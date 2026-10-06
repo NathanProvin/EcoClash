@@ -10,6 +10,7 @@
   import {
     cardState,
     families,
+    lockText,
     foodsOf,
     label,
     MEDAL,
@@ -275,11 +276,7 @@
       {#if state === "available"}
         <span class="act"><Icon name="unlock" size={12} /> {s.stats.unlock_cost} to unlock</span>
       {:else if state === "locked"}
-        <span class="act dim"
-          ><Icon name="lock" size={12} /> tier {s.tier - 1}{s.kind === "fauna"
-            ? " + habitat plant"
-            : ""} first</span
-        >
+        <span class="act dim"><Icon name="lock" size={12} /> {lockText(s, species)}</span>
       {/if}
       <em>{s.stats.effect}</em>
     </div>

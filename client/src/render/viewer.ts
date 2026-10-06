@@ -853,7 +853,7 @@ export class Viewer {
 
   /** Ids of the player's animals inside a screen rectangle (CSS pixels of the canvas). A click
    *  (tiny rectangle) picks the single nearest animal within 14 px. */
-  pick(x0: number, y0: number, x1: number, y1: number, player: number): number[] {
+  pick(x0: number, y0: number, x1: number, y1: number, player: number | null): number[] {
     const [left, right] = [Math.min(x0, x1), Math.max(x0, x1)];
     const [top, bottom] = [Math.min(y0, y1), Math.max(y0, y1)];
     const click = right - left < 4 && bottom - top < 4;
@@ -862,7 +862,7 @@ export class Viewer {
     let best: { id: number; d: number } | undefined;
     const hits: number[] = [];
     for (const a of this.animals.drawn) {
-      if (a.owner !== player) continue;
+      if (player !== null && a.owner !== player) continue; // null: anyone's (D-161)
       v.set(a.x, a.y, a.z).project(this.camera);
       if (v.z > 1) continue; // behind the camera
       const [sx, sy] = [((v.x + 1) / 2) * w, ((1 - v.y) / 2) * h];

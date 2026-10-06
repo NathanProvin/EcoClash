@@ -113,9 +113,6 @@
 
 <style>
   .cell {
-    position: absolute;
-    top: 74px;
-    right: 14px;
     width: 214px;
     padding: 8px 10px;
     font-size: 0.82em;

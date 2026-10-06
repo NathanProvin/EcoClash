@@ -10,6 +10,7 @@
   let {
     icons,
     onSelect,
+    onHover,
   }: {
     icons: {
       key: string;
@@ -22,6 +23,8 @@
       enemy: boolean;
     }[];
     onSelect: (ids: number[]) => void;
+    /** The group under the pointer (D-161: its unit card shows), or null on leaving. */
+    onHover?: (ids: number[] | null) => void;
   } = $props();
 </script>
 
@@ -38,6 +41,8 @@
         ? ' · click to select the group'
         : ' · a swarm: it cannot be ordered'}"
     onclick={() => i.order && onSelect(i.ids)}
+    onpointerenter={() => onHover?.(i.ids)}
+    onpointerleave={() => onHover?.(null)}
   >
     <FamilyIcon family={i.s.family} size={30} />
     <span class="num"><span class="medal {MEDAL[i.s.tier - 1] ?? 'bronze'}"></span>{i.count}</span>

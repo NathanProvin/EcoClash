@@ -30,6 +30,8 @@
   import { loadQuality, saveQuality, type Quality } from "./render/quality";
   import BottomBar from "./ui/BottomBar.svelte";
   import CellPanel from "./ui/CellPanel.svelte";
+  import UnitPanel from "./ui/UnitPanel.svelte";
+  import { unitCard } from "./game/units";
   import MainMenu from "./ui/MainMenu.svelte";
   import EndScreen from "./ui/EndScreen.svelte";
   import TechTree from "./ui/TechTree.svelte";
@@ -406,6 +408,19 @@
   );
   let cell = $state<{ row: number; col: number } | null>(null);
   const cellInfo = $derived(replay && cell ? replay.cell(tick, cell.row, cell.col) : null);
+  // The unit card (D-161): the clicked or box-selected animals, or the strategic icon under the
+  // pointer while hovered; it follows them every tick and goes when they are gone.
+  let unitIds = $state<number[]>([]);
+  let hoverIds = $state<number[] | null>(null);
+  const unit = $derived.by(() => {
+    void tick;
+    const ids = hoverIds ?? unitIds;
+    if (!viewer || !replay || !ids.length) return null;
+    const card = unitCard(viewer.visibleAnimals(), ids);
+    const name = card ? replay.meta.fauna.names[card.species] : undefined;
+    const s = name ? replay.meta.species.find((x) => x.name === name) : undefined;
+    return card && s ? { card, s } : null;
+  });
   let box: { x0: number; y0: number; x1: number; y1: number } | null = $state(null);
   let layers: Record<Layer, boolean> = $state({
     territory: true,
@@ -662,9 +677,23 @@
       } else live.spawn(me, planting, at.row, at.col);
       if (!e.shiftKey) planting = null;
     } else if (click) {
-      inspect(viewer.pickCell(box.x0, box.y0)); // click: inspect the cell under the cursor
+      // A click on an animal (anyone's) shows its card, and selects it when it is yours
+      // (D-161); elsewhere it inspects the cell under the cursor.
+      const hit = viewer.pick(box.x0, box.y0, box.x0, box.y0, null)[0];
+      const mine = live ? me : player;
+      if (hit !== undefined) {
+        const a = viewer.visibleAnimals().find((x) => x.id === hit);
+        if (a?.owner === mine) select([hit]);
+        unitIds = [hit];
+        inspect(null);
+      } else {
+        unitIds = [];
+        inspect(viewer.pickCell(box.x0, box.y0));
+      }
     } else {
-      select(viewer.pick(box.x0, box.y0, box.x1, box.y1, live ? me : player)); // own animals
+      const ids = viewer.pick(box.x0, box.y0, box.x1, box.y1, live ? me : player); // own animals
+      select(ids);
+      unitIds = ids;
     }
     box = null;
   }
@@ -878,7 +907,7 @@
       </p>
     {/if}
     <div class="p{live ? me : player}" style:display="contents">
-      <StrategicIcons {icons} onSelect={(ids) => select(ids)} />
+      <StrategicIcons {icons} onSelect={(ids) => select(ids)} onHover={(ids) => (hoverIds = ids)} />
     </div>
     {#if live && tutorial && !outcome}
       <Objectives step={tutorialStep} onMenu={toMenu} onNext={nextStep} />
@@ -889,14 +918,28 @@
       </p>
     {/if}
     <Toasts {toasts} {arrows} onGo={(t) => t.cell && viewer?.lookAt(t.cell)} />
-    {#if cellInfo && cell}
-      <CellPanel
-        info={cellInfo}
-        species={replay?.meta.species ?? []}
-        onZoom={() => cell && viewer?.zoomToCell(cell)}
-        onClose={() => inspect(null)}
-      />
-    {/if}
+    <div class="cards">
+      {#if cellInfo && cell}
+        <CellPanel
+          info={cellInfo}
+          species={replay?.meta.species ?? []}
+          onZoom={() => cell && viewer?.zoomToCell(cell)}
+          onClose={() => inspect(null)}
+        />
+      {/if}
+      {#if unit}
+        <UnitPanel
+          card={unit.card}
+          species={unit.s}
+          all={replay?.meta.species ?? []}
+          me={live ? me : player}
+          onClose={() => {
+            unitIds = [];
+            hoverIds = null;
+          }}
+        />
+      {/if}
+    </div>
     {#if techOpen}
       <TechTree
         {replay}
@@ -976,6 +1019,21 @@
     width: 100%;
     height: 100%;
     touch-action: none;
+  }
+  /* The cell and unit cards, stacked on the right (D-161). */
+  .cards {
+    position: absolute;
+    top: 74px;
+    right: 14px;
+    z-index: 4;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    pointer-events: none;
+  }
+  .cards > :global(*) {
+    pointer-events: auto;
   }
   canvas.planting {
     cursor: crosshair;

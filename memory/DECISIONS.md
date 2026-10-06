@@ -1904,3 +1904,16 @@ Template:
 - **Bench** (30 seeds):
   - normal mirror: median end 25:30 (unchanged);
   - hard vs normal: hard wins 23 of 27 decided (was 46 of 52), 3 unfinished.
+
+## D-161 · 2026-10-06 · Unit selection and the unit card
+- **Status:** accepted (user, Alpha 2)
+- **Decision:**
+  - **Selection:** a click on an animal (anyone's, within 14 px) selects it when it is yours and shows its card; a click elsewhere inspects the cell. A box selection also shows the card of the selected group.
+  - **Card** (`ui/UnitPanel.svelte`, stacked under the cell card on the right):
+    - species, count, owner and role;
+    - a fullness bar;
+    - the order (Free / Moving / Raiding);
+    - top speed;
+    - "Eats" and "Hunted by" icons (`related`).
+  - It follows the animals every tick (`game/units.ts` `unitCard`), and shows the group under the pointer while a strategic icon (own or enemy) is hovered.
+  - The animal frame carries fullness and order (D-160). The species table carries `speed`.

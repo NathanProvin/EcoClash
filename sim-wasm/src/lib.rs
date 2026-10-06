@@ -469,7 +469,7 @@ fn species_table(b: &Balance) -> String {
             "medium": format!("{:?}", s.medium).to_lowercase(),
             "stats": {
                 "growth": s.growth, "spawn_cost": s.spawn_cost, "unlock_cost": s.unlock_cost,
-                "yield": s.yield_, "cap": s.cap, "effect": s.effect,
+                "yield": s.yield_, "cap": s.cap, "effect": s.effect, "speed": s.speed,
             },
         })
     });

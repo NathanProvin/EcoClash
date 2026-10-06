@@ -28,6 +28,8 @@ export interface Species {
     yield: number;
     cap: number;
     effect: string;
+    /** Animals: top speed, cells per second (D-161). */
+    speed?: number;
   };
 }
 

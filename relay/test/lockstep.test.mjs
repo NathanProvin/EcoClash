@@ -14,7 +14,7 @@ initSync({ module: readFileSync(new URL("../../sim-wasm/pkg/sim_wasm_bg.wasm", i
 const BALANCE = readFileSync(new URL("../../data/balance.toml", import.meta.url), "utf8");
 const SPECIES = readFileSync(new URL("../../data/species.toml", import.meta.url), "utf8");
 const TICKS = 3000; // 5 minutes at 10 Hz
-const N = 32; // data/balance.toml grid_size (D-091)
+const N = 38; // data/balance.toml grid_size (D-091, D-186)
 
 /** Each player's orders, by the tick they are issued at. `ids` are the player's animals. */
 function script(player, tick, ids) {

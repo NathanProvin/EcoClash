@@ -6,7 +6,7 @@ export const BOTS = ["easy", "normal", "hard", "none"] as const;
 export type Bot = (typeof BOTS)[number];
 
 /** Map sizes (D-103): cells per side. Mid is the balance's default grid. */
-export const MAP_SIZES = { small: 24, mid: 32, large: 44 } as const;
+export const MAP_SIZES = { small: 24, mid: 38, large: 56 } as const;
 export type MapSize = keyof typeof MAP_SIZES;
 
 export interface MatchSetup {

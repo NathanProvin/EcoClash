@@ -2121,3 +2121,21 @@ Template:
   - **Woodpecker drumming:** a roll every few seconds on dead wood on screen.
   - **Pre-rumble:** a low swell when a weather alert begins, and under an enemy catastrophe.
   - **Growth creaks:** a wood creak when a cell's canopy cover on screen crosses 200/255 (camera close).
+
+## D-186 · 2026-10-06 · Bigger maps: Mid 38, Large 56
+- **Status:** accepted (user: more room for terrain diversity before the balance pass)
+- **Decision:**
+  - the match setup offers Small 24, Mid 38, Large 56 (were 24 / 32 / 44);
+  - `[sim] grid_size` 32 → 38, so the default and lockstep matches are 152 m across;
+  - the relay test follows the size.
+- **Bench** (normal mirror, 30 seeds, the old roster):
+
+  | Marker | 32² | 38² |
+  |---|---|---|
+  | First hunter | 13:58 | 11:34 |
+  | Units at 10 min | 6 | 15 |
+  | Median end | 27:20 | 27:52 |
+  | Unfinished at 45 min | 5 | 10 |
+
+  The roster rework (D-187) follows.
+- **Risk:** 56² has 1.6× the cells of 44²; Large on High needs a check on the reference laptop.

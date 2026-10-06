@@ -8,7 +8,7 @@ flora_every_ticks = 8    # §5.3: flora fields at 1.25 Hz (D-038; keep growth x 
 pace = 0.75              # seconds of ecology per real second (D-069): growth, spread, income,
                          # feeding and breeding run at this pace; movement and the clock do not
 env_every_ticks = 10     # §5.3: nutrients / water at 1 Hz
-grid_size = 32           # §5.1: 1 cell = 4 m, a 128 m map (D-047, D-049, D-070, D-091)
+grid_size = 38           # §5.1: 1 cell = 4 m, a 152 m map (D-047, D-049, D-070, D-091, D-186)
 chunk_size = 32          # §5.3 chunk sleeping, hashing
 
 [match]

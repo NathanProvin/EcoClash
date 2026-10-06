@@ -54,7 +54,7 @@ BUILDS = {
         (240, "grasshoppers"),
         (300, "elder", 0, 0, 2),
         (360, "rabbits"),
-        (600, "kestrel"),
+        (600, "weasel"),
         (720, "fox"),
     ),
 }

@@ -82,33 +82,37 @@ impl Level {
     }
 }
 
-/// Unlock order (players start with lichen & moss only, D-118), by game phase (D-142): herbs and the first
-/// grazers, then undergrowth, shrubs and the first hunters, then trees and the big hunters. Land only:
+/// Unlock order (players start with lichen & moss only, D-118), by game phase (D-142): herbs, the first
+/// grazers and their cheap answers (D-187), then undergrowth, shrubs and the hunter hunters, then trees
+/// and the big hunters. Land only:
 /// the bot leaves the aquatic families (W, HW, PW) to players for now.
 const UNLOCKS: &[&str] = &[
     "grasses",
     "wildflowers",
     "ferns",
     "grasshoppers",
+    "great_tit",
     "rabbits",
+    "weasel",
     "earthworms",
     "elder",
-    "great_tit",
     "slugs",
     "nettle",
+    "hawk",
     "hawthorn",
-    "kestrel",
     "oak",
     "caterpillars",
+    "fox",
     "chestnut",
     "bark_beetles",
-    "fox",
+    "wildcat",
     "bramble",
     "hazel",
-    "pine_marten",
     "lynx",
+    "pine_marten",
     "beech",
     "bison",
+    "eagle_owl",
     "wolf",
 ];
 

@@ -166,7 +166,7 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
 ### 4.1 Principles
 
 - The tree goes from the **simplest species to the most complex**, with **flora and fauna in the same tree**.
-- The tree is organised in **families** (D-087): 5 plant families and 10 animal families, each with three **tiers** (small, medium, large), one species per tier. Unlocking a card costs biomass.
+- The tree is organised in **families** (D-087): 5 plant families and 11 animal families, each with three **tiers** (small, medium, large), one species per tier. Unlocking a card costs biomass.
 - Unlocking a card does **not** place anything on the map. It only makes the species available to spawn.
 - Unlocks are permanent: a card stays unlocked even if the species dies out on the player's side.
 - **Unlock requirements:** the previous tier of the same family, plus, for an animal, one of its habitat plants. For example, the wolf needs the lynx and a tree.
@@ -188,18 +188,35 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
 | **H4** Tree eaters | Bark beetles | Eurasian beaver | Wild boar |
 | **HW** Aquatic grazers | Larvae (become dragonflies) | Roach (fish) | Mallard duck |
 | **P1** Insect eaters | Great tit | Common frog | Badger |
-| **P2** Small-mammal eaters | Kestrel | Red fox | Pine marten |
+| **P2** Small-mammal eaters | Weasel | Red fox | Pine marten |
 | **P3** Large-mammal eaters | Eurasian lynx | Wolf | Brown bear |
 | **PW** Aquatic hunters | Pike | Grey heron | Eurasian otter |
+| **S** Hunter hunters (D-187) | Hawk (kestrel, hobby, sparrowhawk) | Wildcat | Eurasian eagle-owl |
 
 ### 4.3 Diets, habitats and media [Proposed defaults, D-087]
 
 - **Diets (D-122, D-123, D-126):** each animal has a primary and a secondary food, and a tier 3 animal a tertiary one, listed in that order in `data/species.toml`. Low tiers are easy to counter (D-126): within each plant layer, the tier-1 insect eats the tier-1 plant first, then the tier-2 one; the tier-2 animal the tier-2 plant, then the tier-1; the tier-3 animal the tier-3 plant, then the tier-2, then a neighbouring layer. Every tier-1 plant has at least two eaters, one of them a tier-1 insect; tier-3 plants have one or two. Grazer families feed on their own plant layer first (H1 meadow, H2 undergrowth, H3 shrubs, H4 canopy, HW water), then a neighbouring one; hunter families target an animal size (P1 insects, P2 small mammals, P3 large game, PW water life). Every plant and every animal is food for someone. Recyclers eat dead biomass.
 - **Food ranks (D-123):** an animal seeks its primary food in sight first, then the secondary, then the tertiary (an attack-move looks on enemy land the same way). A grazer eats the best-ranked plant in its cell, a hunter the best-ranked prey in reach. A meal gives energy × `[fauna] diet_yield` of its rank: 100 %, 75 %, 50 %.
 - **Habitats:** grazers need their food plants on their owner's land; hunters need a plant family (woods for the lynx, water plants for the pike). Tier-1 insects live one layer below their food (D-126): grasshoppers and slugs on herbs, caterpillars on undergrowth, bark beetles on shrubs, so they can counter a layer before you grow it.
-- **Media (D-084):** fish and larvae swim; frog, beaver, otter, mallard and heron are amphibious; great tit, kestrel and black woodpecker fly; the rest walk.
+- **Media (D-084):** fish and larvae swim; frog, beaver, otter, mallard and heron are amphibious; great tit, hawk, eagle-owl and black woodpecker fly; the rest walk.
 - **Black woodpecker (D-092):** will speed up the decay of dead trees; the rule comes later, today it recycles litter like the others.
 - **Great tits (D-141)** also eat grasshoppers: a tier-1 answer to grasshopper swarms.
+- **Food-web harmony (D-187):** counters cost about what the raids they answer cost, and tier-1 hunters live on meadows, so defence comes in the same phase as attack.
+  - **Tiers:** within a family, no tier is weaker than the one below (costs, yield, body).
+  - **Eaters fall with tier and cost:**
+
+    | Species | Eaten by |
+    |---|---|
+    | Tier-1 grazers and insects | 2–3 species |
+    | Tier-2 grazers | 2 |
+    | Tier-3 grazers | 1–2 |
+    | Tier-1 hunters | 2–3 |
+    | Tier-2 hunters | 1–2 |
+    | Apex hunters (unlock 6 000 or more) | 0–1 |
+
+    Plants follow the same rule: tier-1 and tier-2 plants are eaten by 2–3 grazers, tier-3 plants by 1–2.
+  - **Hunter hunters (S):** the hunter hunters eat the hunters below them, so a defence can be answered: the hawk eats tits, the wildcat eats weasels and hawks, the eagle-owl eats foxes, hawks and herons.
+  - **Guard test:** `sim-core/tests/food_web.rs` checks the tier rule and the eater counts.
 - **Swarms (D-065):** earthworms, fungi, grasshoppers, slugs & snails, caterpillars, bark beetles and larvae are drawn as swarms, not units.
 - **Movement (author's direction, D-088):** insects keep a Brownian flutter; small herbivores are calm and slow and graze stop-and-go; large herbivores move slowly and steadily; hunters are fast when they hunt and calm when idle; birds drift lightly.
 

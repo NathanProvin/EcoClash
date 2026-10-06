@@ -669,8 +669,8 @@ impl Balance {
         };
         let fauna = |x: &str| self.fauna_species.iter().any(|(n, _)| n == x);
         check(
-            self.flora_species.len() <= 32 && self.fauna_species.len() <= 32,
-            "species.toml: at most 32 flora and 32 fauna species".into(),
+            self.flora_species.len() <= 32 && self.fauna_species.len() <= 64,
+            "species.toml: at most 32 flora and 64 fauna species".into(),
         )?;
         check(
             self.agents.max_agents >= 2,
@@ -781,7 +781,7 @@ mod tests {
             b.fauna_species.first().map(|(n, _)| n.as_str()),
             Some("earthworms")
         );
-        assert_eq!(b.fauna_species.len(), 30);
+        assert_eq!(b.fauna_species.len(), 33); // D-187: weasel, wildcat, eagle-owl; kestrel → hawk
     }
 
     #[test]

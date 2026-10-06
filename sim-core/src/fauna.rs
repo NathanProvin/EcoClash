@@ -50,11 +50,11 @@ pub struct FaunaParams {
     /// Flora the player must own (bitmask over flora species).
     pub(crate) habitat: Vec<u32>,
     /// Flora eaten (herbivores), fauna eaten (predators): bitmasks, all ranks together.
-    eats_flora: Vec<u32>,
-    eats_fauna: Vec<u32>,
+    eats_flora: Vec<u64>,
+    eats_fauna: Vec<u64>,
     /// The same, per diet rank (D-123): primary, secondary, tertiary.
-    rank_flora: Vec<[u32; DIET_RANKS]>,
-    rank_fauna: Vec<[u32; DIET_RANKS]>,
+    rank_flora: Vec<[u64; DIET_RANKS]>,
+    rank_fauna: Vec<[u64; DIET_RANKS]>,
     /// Energy from a food of each rank, as a share of `transfer` (Q16).
     diet_yield: [i64; DIET_RANKS],
     /// Recyclers' foods by rank (D-127): `LITTER`, `DEADWOOD`, or 0.
@@ -156,11 +156,11 @@ impl FaunaParams {
             .collect::<Vec<_>>();
         // Diets by rank (D-123): the n-th food listed is rank n; a food listed twice keeps its first
         // rank.
-        let ranked = |role: &str, mask: &dyn Fn(&String) -> u32| -> Vec<[u32; DIET_RANKS]> {
+        let ranked = |role: &str, mask: &dyn Fn(&String) -> u64| -> Vec<[u64; DIET_RANKS]> {
             sp.iter()
                 .map(|s| {
-                    let mut ranks = [0u32; DIET_RANKS];
-                    let mut seen = 0u32;
+                    let mut ranks = [0u64; DIET_RANKS];
+                    let mut seen = 0u64;
                     if s.role == role {
                         for (r, e) in s.eats.iter().take(DIET_RANKS).enumerate() {
                             ranks[r] = mask(e) & !seen;
@@ -171,11 +171,13 @@ impl FaunaParams {
                 })
                 .collect()
         };
-        let rank_flora = ranked("herbivore", &|e| flora_mask(std::slice::from_ref(e)));
-        let rank_fauna = ranked("predator", &|e| {
-            names.iter().position(|n| n == e).map_or(0, |i| 1u32 << i)
+        let rank_flora = ranked("herbivore", &|e| {
+            u64::from(flora_mask(std::slice::from_ref(e)))
         });
-        let any = |r: &[u32; DIET_RANKS]| r.iter().fold(0, |m, x| m | x);
+        let rank_fauna = ranked("predator", &|e| {
+            names.iter().position(|n| n == e).map_or(0, |i| 1u64 << i)
+        });
+        let any = |r: &[u64; DIET_RANKS]| r.iter().fold(0, |m, x| m | x);
         let rank_rot = sp
             .iter()
             .map(|s| {
@@ -314,8 +316,8 @@ impl FaunaParams {
         for (i, r) in self.role.iter().enumerate() {
             h.u64(*r as u64)
                 .u64(u64::from(self.habitat[i]))
-                .u64(u64::from(self.eats_flora[i]))
-                .u64(u64::from(self.eats_fauna[i]))
+                .u64(self.eats_flora[i])
+                .u64(self.eats_fauna[i])
                 .u64(u64::from(self.small[i]));
         }
         for v in [
@@ -2200,11 +2202,11 @@ mod tests {
     #[test]
     fn hunters_seek_their_primary_prey_first() {
         let (f, mut fa, st, mut rng) = setup(12);
-        let [fox, rabbit, vole] = ["fox", "rabbits", "bank_vole"].map(|n| fa.p.index(n).unwrap());
+        let [fox, rabbit, weasel] = ["fox", "rabbits", "weasel"].map(|n| fa.p.index(n).unwrap());
         assert_eq!(fa.p.prey_rank(fox, rabbit), Some(0));
-        assert_eq!(fa.p.prey_rank(fox, vole), Some(1));
+        assert_eq!(fa.p.prey_rank(fox, weasel), Some(1));
         fa.agents.push(fox, 1, centre(6), centre(6), ONE_I, 0);
-        fa.agents.push(vole, 2, centre(6), centre(7), ONE_I, 0); // next to it
+        fa.agents.push(weasel, 2, centre(6), centre(7), ONE_I, 0); // next to it
         fa.agents.push(rabbit, 2, centre(6), centre(9), ONE_I, 0); // three cells away
         fa.decide(&f.p, &st, &mut rng);
         assert_eq!(cell_of(fa.agents.tx[0]), 9, "the fox goes for the rabbit");

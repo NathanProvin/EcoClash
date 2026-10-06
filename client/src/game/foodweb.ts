@@ -10,6 +10,7 @@ export const ROWS = ["Hunters", "Grazers", "Plants"] as const;
 
 /** Where each family sits: [row, column] (rows as in ROWS). */
 const SLOT: Record<string, readonly [number, number]> = {
+  S: [0, 0],
   P1: [0, 1],
   P2: [0, 2],
   P3: [0, 3],

@@ -96,16 +96,15 @@ def test_spawn_conditions():
     fl.plant(st, 1, "grasses", left, frac=1.0)
     ag = Agents.empty()
     ag, n = fa.spawn(st, ag, 1, "fox", (4, 4))
-    assert n == 0  # no L2 habitat, no enemy prey
+    assert n == 0  # no enemy prey
     ag, n = fa.spawn(st, ag, 1, "rabbits", (4, 4))
     assert n == 0  # no enemy food in range
     fl.plant(st, 2, "grasses", ~left, frac=1.0)
     ag, n = fa.spawn(st, ag, 1, "rabbits", (4, 4))
     assert n == fa.group[fa.idx("rabbits")] and (ag.x == 7).all()  # at the front
-    ag, n = fa.spawn(st, ag, 2, "fox", (4, 12))
-    assert n == 0  # enemy prey exists, but no own L2 habitat
-    fl.plant(st, 2, "elder", ~left, frac=1.0)
-    ag, n = fa.spawn(st, ag, 2, "fox", (4, 12))
+    ag, n = fa.spawn(st, ag, 2, "badger", (4, 12))
+    assert n == 0  # no own shrub habitat (and no badger prey)
+    ag, n = fa.spawn(st, ag, 2, "fox", (4, 12))  # the fox lives on meadows too (D-187)
     assert n == 1 and ag.x[-1] == 7  # dropped on the prey
 
 

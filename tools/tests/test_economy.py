@@ -25,7 +25,7 @@ def test_start_unlocks_and_tier_path():
 
 def test_animals_need_their_habitat_unlocked_first():
     ec = economy()
-    assert ec.missing(1, "lynx") == ["oak", "lynx"]
+    assert ec.missing(1, "lynx") == ["elder", "lynx"]  # its first habitat plant (D-187)
 
 
 def test_prepare_buys_one_species_at_a_time_when_affordable():
@@ -113,9 +113,9 @@ def test_replay_export_round_trips(tmp_path):
     meta = json.loads((tmp_path / "r" / "replay.json").read_text(encoding="utf-8"))
     assert json.loads((tmp_path / "index.json").read_text(encoding="utf-8")) == ["r"]
     assert meta["ticks"] == len(record) and len(meta["series"]["t_s"]) == len(rows)
-    assert len(meta["species"]) == 45 and meta["species"][0]["stats"]["effect"]
+    assert len(meta["species"]) == 48 and meta["species"][0]["stats"]["effect"]
     assert len(meta["counts"]) == (meta["ticks"] - 1) // FIELD_EVERY + 1
-    assert all(len(c) == 2 and len(c[0]) == 45 for c in meta["counts"])
+    assert all(len(c) == 2 and len(c[0]) == 48 for c in meta["counts"])
     data = gzip.decompress((tmp_path / "r" / "frames.bin.gz").read_bytes())
     pos, fields, animals = 0, 0, 0
     for tick in range(meta["ticks"]):

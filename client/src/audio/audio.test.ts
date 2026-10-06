@@ -78,7 +78,10 @@ describe("sounds and ambience (D-176)", () => {
       ["great_tit", "bird"],
       ["frog", "frog"],
       ["badger", "mustelid"],
-      ["kestrel", "bird"],
+      ["hawk", "bird"],
+      ["weasel", "mustelid"],
+      ["wildcat", "cat"],
+      ["eagle_owl", "bird"],
       ["pine_marten", "mustelid"],
       ["fox", "canid"],
       ["lynx", "cat"],
@@ -91,7 +94,10 @@ describe("sounds and ambience (D-176)", () => {
       const v = voiceOf(name, body);
       expect(v && RECIPES[v], name).toBeTruthy();
     }
-    expect(voiceOf("kestrel", "bird")).toBe("animal.raptor");
+    expect(voiceOf("hawk", "bird")).toBe("animal.raptor");
+    expect(voiceOf("weasel", "mustelid")).toBe("animal.chatter");
+    expect(voiceOf("wildcat", "cat")).toBe("animal.yowl");
+    expect(voiceOf("eagle_owl", "bird")).toBe("animal.hoot");
     expect(voiceOf("pine_marten", "mustelid")).toBe("animal.chatter");
     expect(voiceOf("brown_bear", "bear")).toBe("animal.growl");
   });
@@ -113,6 +119,7 @@ describe("sounds and ambience (D-176)", () => {
       "P2",
       "P3",
       "PW",
+      "S",
     ])
       expect(unlockSound(f), f).toBe(`ui.unlock.${f}`);
     expect(unlockSound(undefined)).toBe("ui.unlock");

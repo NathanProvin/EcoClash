@@ -146,6 +146,7 @@ const MOTIFS: Record<
   P2: { notes: [64, 63, 59], type: "square", gap: 0.12, lp: 1200 },
   P3: { notes: [57, 56, 52], type: "sawtooth", gap: 0.14, lp: 900 },
   PW: { notes: [62, 61, 57], type: "sine", gap: 0.12, glide: 0.97 },
+  S: { notes: [57, 64, 56], type: "sawtooth", gap: 0.16, lp: 800 },
 };
 
 function unlockMotifs(): Record<string, Recipe> {
@@ -539,7 +540,7 @@ export const RECIPES: Record<string, Recipe> = {
       vib.stop(t + 1.95);
     },
   },
-  // D-182: the kestrel's "kee-kee", the mustelids' and squirrel's chitter, the bear's growl.
+  // D-182: the hawk's "kee-kee", the mustelids' and squirrel's chitter, the bear's growl.
   "animal.raptor": {
     bus: "fx",
     ms: 520,
@@ -690,6 +691,41 @@ export const RECIPES: Record<string, Recipe> = {
       }
     },
   },
+  // D-187: the eagle-owl's deep "hoo-hoo", the wildcat's short yowl.
+  "animal.hoot": {
+    bus: "fx",
+    ms: 1100,
+    vary: 0.04,
+    play: (c, o, t, p) => {
+      tone(c, o, t, { f0: 150 * p, f1: 135 * p, dur: 0.32, gain: 0.2, attack: 0.06 });
+      tone(c, o, t + 0.55, { f0: 140 * p, f1: 120 * p, dur: 0.45, gain: 0.18, attack: 0.08 });
+    },
+  },
+  "animal.yowl": {
+    bus: "fx",
+    ms: 700,
+    vary: 0.08,
+    play: (c, o, t, p, n) => {
+      tone(c, o, t, {
+        type: "sawtooth",
+        f0: 520 * p,
+        f1: 780 * p,
+        dur: 0.25,
+        gain: 0.06,
+        lp: 1800,
+        attack: 0.05,
+      });
+      tone(c, o, t + 0.25, {
+        type: "sawtooth",
+        f0: 780 * p,
+        f1: 420 * p,
+        dur: 0.35,
+        gain: 0.06,
+        lp: 1500,
+      });
+      hiss(c, o, t + 0.55, n, { type: "bandpass", f0: 3000 * p, q: 1.5, dur: 0.12, gain: 0.08 });
+    },
+  },
   "animal.frog": {
     bus: "fx",
     ms: 340,
@@ -718,7 +754,9 @@ export function voiceOf(name: string, body: string | undefined): string | null {
     return "animal.insect";
   if (["slugs", "earthworms", "fungi"].includes(name)) return null;
   if (name === "black_woodpecker") return "animal.woodpecker";
-  if (name === "kestrel") return "animal.raptor";
+  if (name === "hawk") return "animal.raptor";
+  if (name === "eagle_owl") return "animal.hoot";
+  if (name === "wildcat") return "animal.yowl";
   switch (body) {
     case "bird":
       return "animal.bird";

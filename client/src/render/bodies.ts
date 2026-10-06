@@ -113,11 +113,29 @@ export const ANIMAL_FORM: Record<string, AnimalForm> = {
     color: "#6d6a66",
     tones: { accent: "#ecebe7", dark: "#18181a", belly: "#3a3836" },
   },
-  kestrel: {
+  hawk: {
     body: "bird",
     length: 0.33,
     color: "#a0633a",
     tones: { belly: "#e0c49a", accent: "#8b8f96", dark: "#3a2a20", bill: "#e0b94a" },
+  },
+  weasel: {
+    body: "mustelid",
+    length: 0.3,
+    color: "#9a6236",
+    tones: { belly: "#f1e6cf", dark: "#4a2e1a" },
+  },
+  wildcat: {
+    body: "cat",
+    length: 0.6,
+    color: "#857b6c",
+    tones: { belly: "#d9cfbd", dark: "#2a2622" },
+  },
+  eagle_owl: {
+    body: "bird",
+    length: 0.6,
+    color: "#8a6a44",
+    tones: { belly: "#d8b47c", accent: "#3b2c1e", dark: "#4a3624", bill: "#2a2420" },
   },
   pine_marten: {
     body: "mustelid",

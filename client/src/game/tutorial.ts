@@ -163,8 +163,8 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     title: DEFEND_TITLE,
-    need: 7000, // Elder 2500 + a planting + Great tit 3000 + a card
-    text: "The enemy is dropping grasshopper swarms on your meadows! Great tits eat them: unlock Elder in Shrubs and plant it (tits nest in shrubs), then unlock Great tit in Insect eaters and drop it onto the swarm.",
+    need: 1500, // Great tit 800 + a few cards (D-187: tits live on meadows too)
+    text: "The enemy is dropping grasshopper swarms on your meadows! Great tits eat them: unlock Great tit in Insect eaters and drop it onto the swarm.",
     tip: "Every grazer has a hunter: the tech tree shows who eats whom.",
     point: ["family-L3", "family-P1"],
     // Fallback: a bot left without grass cannot raid; then the unlock is enough.

@@ -2027,3 +2027,12 @@ Template:
 ## D-174 · 2026-10-06 · Unit list on the left
 - **Status:** accepted (user, Alpha 2)
 - **Decision:** a titleless list at the left edge (`ui/UnitList.svelte`) of your controllable animals on the map, by species in the build bar's order, each an icon with its head count. A click selects every animal of that species. Swarms are not listed (they cannot be ordered).
+
+## D-175 · 2026-10-06 · Victory marks on the tug bar; a speed bar
+- **Status:** accepted (user, Alpha 2)
+- **Decision:**
+  - **Victory marks:**
+    - `World::threshold()` exposes the share that wins now (the decay included); `victoryNow` (sim-wasm, display only) rides each field frame into `Live.victoryNow`;
+    - the tug bar shows a green mark where your bar wins and a red one where the enemy's would, from each side, moving as the threshold decays.
+  - **Speed bar:** under the clock, four buttons with one to four stacked chevrons for ×1, ×2, ×4, ×8 (the active one in mustard), instead of the dropdown (×16 and ×32 dropped).
+  - **Layout:** the armed card's prompt moves above the build bar; the tutorial objectives move below the speed bar.

@@ -239,6 +239,15 @@ impl Sim {
         self.drop_radius
     }
 
+    /// Share of the map that wins now, the decay included (D-175), for display.
+    #[wasm_bindgen(js_name = victoryNow)]
+    pub fn victory_now(&self) -> f64 {
+        // Display only, never fed back into the sim.
+        #[allow(clippy::cast_precision_loss, clippy::float_arithmetic)]
+        let share = self.world.threshold() as f64 / f64::from(sim_core::fixed::ONE);
+        share
+    }
+
     /// Share of the map that wins (`[match] victory_territory`), for display.
     #[wasm_bindgen(getter, js_name = victoryTerritory)]
     pub fn victory_territory(&self) -> f64 {

@@ -44,6 +44,7 @@ function sendFields(s: Sim) {
   const bank = [s.bank(1), s.bank(2)];
   const income = [s.income(1), s.income(2)];
   const standing = [s.standing(1), s.standing(2)];
+  const victory = s.victoryNow(); // the share that wins now (D-175)
   post(
     {
       type: "fields",
@@ -58,6 +59,7 @@ function sendFields(s: Sim) {
       bank,
       income,
       standing,
+      victory,
     },
     [frame, pressure, lock, deadwood, shade, moisture],
   );

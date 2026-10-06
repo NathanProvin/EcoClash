@@ -444,6 +444,11 @@
   // The unit card (D-161): the clicked or box-selected animals, or the strategic icon under the
   // pointer while hovered; it follows them every tick and goes when they are gone.
   let unitIds = $state<number[]>([]);
+  /** The share of the map that wins now (D-175), for the tug bar's marks. */
+  const victoryNow = $derived.by(() => {
+    void tick;
+    return live ? live.victoryNow : null;
+  });
   /** The animals drawn now, refreshed with the HUD tick (the unit list, D-174). */
   const listAnimals = $derived.by(() => {
     void tick;
@@ -884,6 +889,7 @@
     <TopBar
       {replay}
       {tick}
+      victory={victoryNow}
       bind:player
       onTech={() => (techOpen = true)}
       onMenu={askMenu}
@@ -1110,10 +1116,13 @@
     box-shadow: 0 0 10px rgba(216, 180, 92, 0.4);
     pointer-events: none;
   }
+  /* The armed card's prompt, above the build bar (D-175: the top-left holds the speed bar). */
   .hint {
     position: absolute;
-    top: 64px;
-    left: 14px;
+    bottom: 104px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
     margin: 0;
     font-size: 0.76em;
     color: var(--ink-soft);

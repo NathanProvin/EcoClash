@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-06: Alpha 2 in progress: red enemy icons, lighter aura, raids that clear an area, unit selection and card, order lines, bigger cell card (D-158…D-163). Next: push to deploy Alpha 2 when the user agrees; then online multiplayer (M6a).
+- **Now:** 2026-10-06: Alpha 2 rounds 1–3 done locally (D-158…D-175), not pushed yet. Next: the user's review, then push to deploy Alpha 2; then online multiplayer (M6a).
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-10-05

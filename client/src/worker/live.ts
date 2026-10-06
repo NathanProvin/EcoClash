@@ -79,6 +79,7 @@ export type ToMain =
       bank: number[];
       income: number[];
       standing: number[];
+      victory: number; // the share of the map that wins now (D-175)
     }
   | { type: "notice"; notices: { player: number; text: string }[] }
   | { type: "net"; event: "desync" | "left"; tick: number }
@@ -144,6 +145,8 @@ export class Live implements Source {
   readonly terrain: TerrainFrame;
   /** Share of the map that wins, and the match length (s): for the "victory near" alerts. */
   readonly victory: number;
+  /** The share that wins now: the start share, then decaying (D-175). */
+  victoryNow: number;
   readonly timeLimitS: number;
   /** Catastrophe cards (D-129), and per player the seconds before each is ready again. */
   readonly catastrophes: Catastrophe[];
@@ -177,6 +180,7 @@ export class Live implements Source {
       reliefM: ready.reliefM,
     };
     this.victory = ready.victory;
+    this.victoryNow = ready.victory;
     this.timeLimitS = ready.timeLimitS;
     this.me = ready.me === 2 ? 2 : 1;
     this.maxAgents = ready.maxAgents;
@@ -331,6 +335,7 @@ export class Live implements Source {
       this.current.flood = m.flood;
       this.current.shade = new Uint8Array(m.shade);
       this.current.moisture = new Uint8Array(m.moisture);
+      this.victoryNow = m.victory;
     } else if (m.type === "notice") {
       const at = performance.now();
       this.notices = [...this.notices, ...m.notices.map((n) => ({ ...n, at }))].slice(-4);

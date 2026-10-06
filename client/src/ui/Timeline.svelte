@@ -26,7 +26,11 @@
     result: string;
   } = $props();
 
-  const speeds = [1, 2, 4, 8, 16, 32];
+  /** Game speeds (D-175): one to four stacked chevrons. */
+  const speeds = [1, 2, 4, 8] as const;
+  /** k chevrons side by side, 6 px apart, in a 24 px tall glyph. */
+  const chevrons = (k: number) =>
+    Array.from({ length: k }, (_, i) => `M${3 + i * 6} 6l5 6-5 6`).join("");
   const clock = (s: number) =>
     `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
   const slow = $derived(live && simMs * speed > replay.meta.dt * 1000);
@@ -53,9 +57,29 @@
     />
     <span class="end num">{clock(replay.meta.ticks * replay.meta.dt)}</span>
   {/if}
-  <select bind:value={speed} aria-label="Speed">
-    {#each speeds as s (s)}<option value={s}>{s}×</option>{/each}
-  </select>
+  <div class="speeds panel" role="radiogroup" aria-label="Speed">
+    {#each speeds as s, i (s)}
+      <button
+        role="radio"
+        aria-checked={speed === s}
+        class:on={speed === s}
+        onclick={() => (speed = s)}
+        title="Speed ×{s}"
+        aria-label="Speed ×{s}"
+      >
+        <svg
+          width={10 + (i + 1) * 6}
+          height="16"
+          viewBox="0 0 {10 + (i + 1) * 6} 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+          stroke-linecap="round"
+          stroke-linejoin="round"><path d={chevrons(i + 1)} /></svg
+        >
+      </button>
+    {/each}
+  </div>
   {#if slow}<span class="slow" title="The simulation cannot keep up: game time slows">slowed</span
     >{/if}
   {#if result}<strong class="result" role="status">{result}</strong>{/if}
@@ -65,6 +89,41 @@
 </div>
 
 <style>
+  /* The speed bar (D-175), just under the clock strip. */
+  .speeds {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    display: flex;
+    gap: 3px;
+    padding: 3px;
+    border-radius: 10px;
+  }
+  .strip:not(.live) .speeds {
+    top: auto;
+    bottom: calc(100% + 6px);
+  }
+  .speeds button {
+    display: grid;
+    place-items: center;
+    min-width: 30px;
+    height: 24px;
+    padding: 0 5px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: none;
+    color: var(--ink-soft);
+    cursor: var(--cursor-pointer);
+  }
+  .speeds button:hover {
+    color: var(--ink);
+    border-color: var(--gold);
+  }
+  .speeds button.on {
+    color: var(--ink);
+    border-color: var(--gold);
+    background: linear-gradient(180deg, rgba(216, 180, 92, 0.45), rgba(216, 180, 92, 0.15));
+  }
   .strip {
     position: absolute;
     display: flex;
@@ -104,15 +163,6 @@
   .end {
     color: var(--ink-soft);
     font-size: 0.85em;
-  }
-  select {
-    border: 0;
-    background: none;
-    color: var(--ink-soft);
-    cursor: var(--cursor-pointer);
-  }
-  select option {
-    background: #1f2823;
   }
   .slow {
     font-size: 0.75em;

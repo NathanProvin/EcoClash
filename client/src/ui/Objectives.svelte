@@ -38,7 +38,7 @@
 <style>
   .objectives {
     position: absolute;
-    top: 74px;
+    top: 100px; /* below the clock and speed bar (D-175) */
     left: 18px;
     z-index: 4;
     display: flex;

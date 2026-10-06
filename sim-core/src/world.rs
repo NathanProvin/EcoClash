@@ -387,20 +387,27 @@ impl World {
     /// The verdict, if the match is decided now (the prototype's `Economy.winner`): the
     /// territory threshold at any time; at the time limit, standing biomass, then territory, else
     /// a draw.
-    fn judge(&self) -> Option<Outcome> {
+    /// The share of the map that wins now (Q16): fixed, or decaying through its window (D-143).
+    #[must_use]
+    pub fn threshold(&self) -> i64 {
         let v = &self.victory;
-        let n2 = i64::try_from(self.state.n * self.state.n).unwrap_or(i64::MAX);
-        let (tick, t) = (self.tick, self.territory());
-        let threshold = match v.decay {
+        match v.decay {
             None => v.fixed,
             Some((start, end)) => {
                 // Holds `start` until the window opens, reaches `end` when it closes (D-143).
                 let (from, to) = v.window;
                 let span = i64::try_from(to.saturating_sub(from).max(1)).unwrap_or(1);
-                let done = i64::try_from(tick.clamp(from, to) - from).unwrap_or(0);
+                let done = i64::try_from(self.tick.clamp(from, to) - from).unwrap_or(0);
                 start + div_round((end - start) * done, span)
             }
-        };
+        }
+    }
+
+    fn judge(&self) -> Option<Outcome> {
+        let v = &self.victory;
+        let n2 = i64::try_from(self.state.n * self.state.n).unwrap_or(i64::MAX);
+        let (tick, t) = (self.tick, self.territory());
+        let threshold = self.threshold();
         let top = if t[1] > t[0] { 2 } else { 1 }; // ties: P1, as the prototype
         let outcome = |winner, reason| {
             Some(Outcome {

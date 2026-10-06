@@ -30,6 +30,7 @@
     replay,
     tick,
     player = $bindable(),
+    victory = null,
     onTech,
     onMenu,
     layers,
@@ -49,6 +50,8 @@
     player: 1 | 2;
     onTech: () => void;
     onMenu: () => void;
+    /** The share of the map that wins now (live matches, D-175). */
+    victory?: number | null;
     layers: Record<Layer, boolean>;
     toggle: (l: Layer) => void;
     quality: Quality;
@@ -102,9 +105,22 @@
 <header class="bar">
   <div class="resources panel p{player}" data-tour="resources">
     <!-- Tug of war (D-134): P1 from the left, P2 from the right, free land between, 50 % marked. -->
-    <span class="tug" title="Land: P1 (left) vs P2 (right)" aria-hidden="true" data-tour="land">
+    <span
+      class="tug"
+      title={victory
+        ? `Land: P1 (left) vs P2 (right) · win at ${Math.round(victory * 100)} %`
+        : "Land: P1 (left) vs P2 (right)"}
+      aria-hidden="true"
+      data-tour="land"
+    >
       <span class="t1" style:width="{(land[0] ?? 0) * 100}%"></span>
       <span class="t2" style:width="{(land[1] ?? 0) * 100}%"></span>
+      {#if victory}
+        <!-- Victory marks (D-175): where you win (green, from your side) and where the enemy
+             would (red, from theirs), moving as the threshold decays. -->
+        <span class="mark win" style:left="{(player === 1 ? victory : 1 - victory) * 100}%"></span>
+        <span class="mark lose" style:left="{(player === 1 ? 1 - victory : victory) * 100}%"></span>
+      {/if}
     </span>
     <div class="res" title="Land: your share of the map">
       <Icon name="land" />
@@ -339,6 +355,19 @@
   .t2 {
     right: 0;
     background: var(--p2);
+  }
+  .tug .mark {
+    width: 2px;
+    margin-left: -1px;
+    z-index: 1;
+  }
+  .mark.win {
+    background: #7fdc6a;
+    box-shadow: 0 0 4px #7fdc6a;
+  }
+  .mark.lose {
+    background: #ff5a44;
+    box-shadow: 0 0 4px #ff5a44;
   }
   .actions {
     position: absolute;

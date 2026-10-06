@@ -122,6 +122,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     bank: [1000, 990],
     income: [4, 2],
     standing: [5000, 4000],
+    victory: 0.8,
   });
   const unlocked = [
     [1, 0, 1],

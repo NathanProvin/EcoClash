@@ -682,3 +682,18 @@
 
   Checked in the browser: menus, Options tabs, a contact sheet of all 45 icons (6 redrawn after the first look), the Grazers flyout.
 - **Next:** the user's review; push to deploy Alpha 2.
+
+## 2026-10-06 (3) · Alpha 2 round 3 (D-168…D-175)
+- **Done:**
+  - small-animal caps ×2, herb and undergrowth caps ×1.5, fewer lichen patches;
+  - unlock comes to hand with a pop;
+  - short red notices with the biomass icon;
+  - smooth strategic icons (projected every frame);
+  - locked cards name their plants;
+  - no drought dust, half the bushes in scattered stands, oak and chestnut swapped;
+  - a unit list;
+  - victory marks;
+  - a speed bar.
+
+  Checked in the browser: the speed bar, the tug marks, unlock-to-hand, a red notice, the unit list click.
+- **Seen:** with doubled swarm caps, the hard bot playing P1 fielded only swarms (grasshoppers, earthworms) at 10 min in one match. The bench agrees: units at 10 min fell from 14 to 6. Worth a look in the next balance pass (the bot's swarm-card counting).

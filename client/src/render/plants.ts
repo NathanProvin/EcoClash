@@ -5,6 +5,7 @@
 // clumps, reeds, trunks and blob crowns from primitives; a glTF style can bring per-species
 // meshes (and wind, in the growth position node) with no change here.
 
+import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import {
   cameraPosition,
   color,
@@ -476,7 +477,7 @@ export class PlantView {
         side: s.side === "double" ? THREE.DoubleSide : THREE.FrontSide,
       });
       material.emissiveNode = rim;
-      const g = new GrowingMesh<number>(s.geometry, capacity, material, now, SWAY);
+      const g = new GrowingMesh<number>(weld(s.geometry), capacity, material, now, SWAY);
       // Only shrubs and trees cast: clumps, reeds and pads are many and small (D-090).
       const shrub = STRATA.indexOf("shrub");
       const tree = STRATA.indexOf("tree");
@@ -683,4 +684,14 @@ export class DeadTrees {
     this.trunks.update(t);
     this.branches.update(t);
   }
+}
+
+/** A flat-shaded model with its corners shared (D-206): flat shading takes its normals from the
+ *  screen, so the per-face normals can go and each corner is shaded once, not once per face (the
+ *  icosahedra and merged parts came non-indexed: about 3x the vertex work). */
+function weld(g: THREE.BufferGeometry): THREE.BufferGeometry {
+  const w = g.clone();
+  w.deleteAttribute("normal");
+  w.deleteAttribute("uv");
+  return mergeVertices(w);
 }

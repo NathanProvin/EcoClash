@@ -2393,3 +2393,8 @@ Template:
 - **Status:** accepted (perf plan item 7)
 - **Decision:** `wind()` makes its gust field from two slow waves crossing the map (a few sines of the root and time) instead of a 3D Perlin noise (`mx_noise_float`). The noise ran for every vertex of every plant and grass blade, in the shadow pass too. Same range (0..1 gusts plus the sway), same prevailing direction.
 - **Not done:** packing the herbs' texture reads; to revisit if the perf panel shows a vertex-bound GPU.
+
+## D-206 · 2026-10-06 · Welded plant models (branch `optimization-v3`)
+- **Status:** accepted (perf plan item 8, first part)
+- **Decision:** shrub and tree geometries are welded at creation: normals and uvs dropped, then `mergeVertices`. They were non-indexed (three's icosahedra, merged parts), so each corner was shaded once per face, about 3× the vertex work in both the main and shadow passes. Flat shading takes its normals from screen-space derivatives (three's `isFlatShading`), so the look is unchanged.
+- **Not done:** a distance level of detail for plants (simpler far models or impostors). That needs a second instanced set per stratum; it belongs to the M5b art pass, to be revisited if forests show up as the main cost in the perf panel.

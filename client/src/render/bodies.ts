@@ -231,16 +231,25 @@ export const FINE_LENGTH = 0.4;
 let fine = false;
 /** Radial segments of cones and cylinders, coarse and fine. */
 const seg = (coarse: number) => (fine ? Math.max(8, coarse * 2) : coarse);
-/** A unit-diameter ball: a faceted icosahedron, or a smooth sphere on fine models. */
-const ball = () =>
-  fine ? new THREE.SphereGeometry(0.5, 16, 11) : new THREE.IcosahedronGeometry(0.5, 1);
+/** A unit-diameter ball: a faceted icosahedron, or a smooth sphere on fine models. Eyes are tiny
+ *  on screen: always the plainest icosahedron (D-201: they were 640 triangles a fine animal). */
+const ball = (tone?: Tone) =>
+  tone === "eye"
+    ? new THREE.IcosahedronGeometry(0.5, 0)
+    : fine
+      ? new THREE.SphereGeometry(0.5, 16, 11)
+      : new THREE.IcosahedronGeometry(0.5, 1);
+
+/** Whether species `form` has a fine model (D-150). */
+export const isFine = (form: { length?: number }) => (form.length ?? 0) >= FINE_LENGTH;
 
 /** The model of species `form`: merged parts with `color` and `gait` (leg, hip, wing, wag). */
 export function animalGeometry(
   form: Pick<AnimalForm, "body" | "color" | "tones"> & { length?: number },
+  coarse = false, // the far model of a fine species (D-201)
 ): THREE.BufferGeometry {
   const palette = paletteOf(form);
-  fine = (form.length ?? 0) >= FINE_LENGTH;
+  fine = !coarse && isFine(form);
   const parts = [...bodyParts(form.body), ...(fine ? fineParts(form.body) : [])];
   fine = false;
   const geos = parts.map((p) => {
@@ -273,7 +282,7 @@ const blob = (
   [x, y, z = 0]: [number, number, number?],
   rz = 0,
 ): Part => ({
-  g: ball().scale(sx, sy, sz).rotateZ(rz).translate(x, y, z),
+  g: ball(tone).scale(sx, sy, sz).rotateZ(rz).translate(x, y, z),
   tone,
 });
 /** A cone pointing along +x (`dir` = 1) or -x, centred at (x, y, z). */

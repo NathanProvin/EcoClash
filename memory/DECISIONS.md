@@ -2344,3 +2344,22 @@ Template:
   - **Medium pixel-ratio cap** 1.5 → 1. It rendered more pixels than High (1.25).
   - **Dynamic resolution** (`ResolutionGuard`): the render scale (times the preset cap) steps down by 0.1 to a floor of 0.7 after a second whose average frame time stays above 25 ms (under 40 fps), and back up after 4 s below 18 ms. It guards against the deep late-game drops without chasing 60 fps at a blurry scale. The perf panel shows `res`.
   - **Antialiasing:** MSAA is off on Low, on for Medium and High.
+
+## D-201 · 2026-10-06 · Animal level of detail and fewer per-frame allocations (branch `optimization-v3`)
+- **Status:** accepted (perf plan item 3)
+- **Decision:**
+  - **Two models per fine species** (rabbit size and up):
+    - within 45 m of the camera, the fine model, which casts a shadow;
+    - beyond, the coarse model (about a quarter of the triangles), with no shadow.
+  - **Eyes** are always the plainest icosahedron (20 triangles), not a 320-triangle sphere.
+  - **Fewer per-frame allocations:**
+    - the per-animal heading map is persistent, mutated in place, its dead entries dropped by a frame stamp;
+    - motion and colour writes are indexed, with no array literals;
+    - `interpolate` builds its id lookups once per pair of animal frames, not every frame;
+    - `OrderLines.update` returns at once with no order lines.
+- **Measured** (Mid, minute 10, 425 animals):
+
+  | View | Animal triangles | Shadow triangles |
+  |---|---|---|
+  | Overview | 45 k | 20 k |
+  | Close up | 82 k | 68 k |

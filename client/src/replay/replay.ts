@@ -266,15 +266,28 @@ export function clampTick(tick: number, ticks: number): number {
 /** Animal positions at a fractional tick: linear interpolation between the two surrounding ticks,
  *  matched by id. Newborns appear at their position, the dead vanish (INSTRUCTIONS §6). */
 export function interpolate(a: Animal[], b: Animal[], f: number): Animal[] {
-  const next = new Map(b.map((x) => [x.id, x]));
-  const prev = new Set(a.map((x) => x.id));
-  const moved = a.flatMap((x) => {
+  // The lookups change once a tick, not every frame (D-201): built once per pair of frames.
+  if (memo.a !== a || memo.b !== b) {
+    memo.a = a;
+    memo.b = b;
+    memo.next = new Map(b.map((x) => [x.id, x]));
+    memo.prev = new Set(a.map((x) => x.id));
+  }
+  const { next, prev } = memo;
+  const out: Animal[] = [];
+  for (const x of a) {
     const y = next.get(x.id);
-    if (!y) return f < 0.5 ? [x] : [];
-    return [{ ...x, y: x.y + (y.y - x.y) * f, x: x.x + (y.x - x.x) * f }];
-  });
-  return f < 0.5 ? moved : moved.concat(b.filter((y) => !prev.has(y.id)));
+    if (!y) {
+      if (f < 0.5) out.push(x);
+    } else out.push({ ...x, y: x.y + (y.y - x.y) * f, x: x.x + (y.x - x.x) * f });
+  }
+  if (f >= 0.5) for (const y of b) if (!prev.has(y.id)) out.push(y);
+  return out;
 }
+const memo: { a?: Animal[]; b?: Animal[]; next: Map<number, Animal>; prev: Set<number> } = {
+  next: new Map(),
+  prev: new Set(),
+};
 
 /** Fetch a replay folder (replay.json + frames.bin.gz). Some servers (Vite dev included) send
  *  .gz files with Content-Encoding: gzip, so the browser has already inflated them; otherwise

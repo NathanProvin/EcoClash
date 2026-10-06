@@ -123,6 +123,7 @@ export class OrderLines {
     animals: readonly Animal[],
     height: (x: number, z: number) => number,
   ): void {
+    if (!this.orders.length) return; // nothing to draw: no per-frame maps (D-201)
     const orderOf = new Map(animals.map((a) => [a.id, a.order]));
     const at = new Map(drawn.map((d) => [d.id, d]));
     for (const o of this.orders) {

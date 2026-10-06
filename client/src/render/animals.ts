@@ -22,7 +22,7 @@ import {
 } from "three/tsl";
 import { isSwarm } from "../game/species";
 import type { Animal, ReplayMeta } from "../replay/replay";
-import { animalGeometry, formOf, type AnimalForm } from "./bodies";
+import { animalGeometry, formOf, isFine, type AnimalForm } from "./bodies";
 import { writeMatrix } from "./growth";
 import { CELL } from "./layout";
 import { PLAYER, type PlayerId } from "./palette";
@@ -140,6 +140,12 @@ export class AnimalView {
   drawn: Drawn[] = [];
   private readonly bodies: (THREE.InstancedMesh | undefined)[];
   private readonly motions: (THREE.InstancedBufferAttribute | undefined)[];
+  /** Level of detail (D-201): the coarse model of fine species, drawn beyond LOD_NEAR m from the
+   *  camera, without a shadow; the fine one (casting) only up close. */
+  private readonly far: (THREE.InstancedMesh | undefined)[];
+  private readonly farMotions: (THREE.InstancedBufferAttribute | undefined)[];
+  /** The frame each heading entry was last touched, to drop the dead (no per-frame Map). */
+  private stamp = 0;
   private readonly rings: THREE.InstancedMesh;
   private readonly swarm: THREE.InstancedMesh;
   private readonly canopies: THREE.InstancedMesh;
@@ -160,7 +166,10 @@ export class AnimalView {
     2: new THREE.Color(PLAYER[2].animal),
   };
   /** Last drawn position, heading and gait per animal id. */
-  private heading = new Map<number, { x: number; z: number; a: number; p: number; amp: number }>();
+  private readonly heading = new Map<
+    number,
+    { x: number; z: number; a: number; p: number; amp: number; seen: number }
+  >();
   /** When the last frame was drawn (ms), for the turn rate. */
   private lastNow = 0;
   private readonly mediumOf: string[];
@@ -182,8 +191,20 @@ export class AnimalView {
       const g = animalGeometry(form);
       g.setAttribute("motion", motion);
       const mesh = instanced(scene, g, capacity, material);
-      mesh.castShadow = true; // D-086
+      mesh.castShadow = true; // D-086; up close only for fine species (D-201)
       return mesh;
+    });
+    this.farMotions = this.forms.map((form, i) =>
+      this.swarmOf[i] || !isFine(form)
+        ? undefined
+        : new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4),
+    );
+    this.far = this.forms.map((form, i) => {
+      const motion = this.farMotions[i];
+      if (!motion) return undefined;
+      const g = animalGeometry(form, true);
+      g.setAttribute("motion", motion);
+      return instanced(scene, g, capacity, material); // no shadow from afar
     });
     const faint = (opacity: number) =>
       new THREE.MeshBasicNodeMaterial({ transparent: true, opacity, depthWrite: false });
@@ -219,7 +240,7 @@ export class AnimalView {
 
   setVisible(on: boolean): void {
     const all = [this.rings, this.swarm, this.canopies, this.shadows, this.dusts];
-    for (const m of [...this.bodies, ...all]) {
+    for (const m of [...this.bodies, ...this.far, ...all]) {
       if (!m) continue;
       m.visible = on;
     }
@@ -239,8 +260,9 @@ export class AnimalView {
     camera?: THREE.Vector3,
   ): void {
     const counts = this.bodies.map(() => 0);
+    const farCounts = this.bodies.map(() => 0);
     let [swarms, rings, canopies, shadows, dusts] = [0, 0, 0, 0, 0];
-    const heading = new Map<number, { x: number; z: number; a: number; p: number; amp: number }>();
+    const stamp = ++this.stamp;
     const dt = Math.min(Math.max((now - this.lastNow) / 1000, 0), 0.1);
     this.lastNow = now;
     this.drawn = [];
@@ -294,7 +316,8 @@ export class AnimalView {
         size,
         body === "bird" || body === "fish",
       );
-      heading.set(a.id, { x, z, a: angle, ...g });
+      if (last) Object.assign(last, { x, z, a: angle, p: g.p, amp: g.amp, seen: stamp });
+      else this.heading.set(a.id, { x, z, a: angle, p: g.p, amp: g.amp, seen: stamp });
       // Where it stands: fish just under the water surface, floaters on it (D-087).
       const bed = height(x, z);
       const medium = this.mediumOf[a.species];
@@ -309,18 +332,24 @@ export class AnimalView {
       const bob = body === "bird" ? FLIGHT_Y + BOB * Math.sin(tick * 0.8 + a.id) : 0;
       const y = ground + bob + Math.abs(swing) * GAIT.bob * size + fall;
       const sway = left > 0 ? FALL.sway * left * Math.sin(age * 5 + a.id) : 0;
-      const mesh = this.bodies[a.species];
-      const motion = this.motions[a.species];
-      const i = counts[a.species] ?? 0;
+      // Up close the fine model, from afar the coarse one (D-201).
+      const away =
+        camera !== undefined &&
+        this.far[a.species] !== undefined &&
+        (camera.x - x) ** 2 + (camera.y - y) ** 2 + (camera.z - z) ** 2 > LOD_NEAR ** 2;
+      const mesh = away ? this.far[a.species] : this.bodies[a.species];
+      const motion = away ? this.farMotions[a.species] : this.motions[a.species];
+      const tally = away ? farCounts : counts;
+      const i = tally[a.species] ?? 0;
       if (mesh && motion) {
         put(mesh, i, x, y, z, size, size, angle + sway, HIGHLIGHT);
         const turned = angle + sway;
-        const flap = body === "bird" && fall > 0 ? 0 : Math.sin(g.p);
-        (motion.array as Float32Array).set(
-          [swing, flap, Math.cos(turned) * size, -Math.sin(turned) * size],
-          i * 4,
-        );
-        counts[a.species] = i + 1;
+        const m = motion.array as Float32Array;
+        m[i * 4] = swing;
+        m[i * 4 + 1] = body === "bird" && fall > 0 ? 0 : Math.sin(g.p);
+        m[i * 4 + 2] = Math.cos(turned) * size;
+        m[i * 4 + 3] = -Math.sin(turned) * size;
+        tally[a.species] = i + 1;
       }
       // The canopy, readable at any zoom; the shadow spot under it; the dust ring on landing.
       if (left > 0) {
@@ -342,18 +371,23 @@ export class AnimalView {
       put(this.rings, rings++, x, ground + 0.06, z, r, r, 0, ringColor);
       this.drawn.push({ id: a.id, owner: a.owner, x, y: y + size * 0.3, z });
     }
-    this.heading = heading;
-    this.bodies.forEach((mesh, s) => {
-      if (!mesh) return;
-      const count = counts[s] ?? 0;
-      finish(mesh, count);
-      const motion = this.motions[s];
-      if (motion) {
-        motion.clearUpdateRanges();
-        motion.addUpdateRange(0, Math.max(1, count) * 4);
-        motion.needsUpdate = true;
-      }
-    });
+    for (const [id, h] of this.heading) if (h.seen !== stamp) this.heading.delete(id);
+    for (const [meshes, motions, tally] of [
+      [this.bodies, this.motions, counts],
+      [this.far, this.farMotions, farCounts],
+    ] as const) {
+      meshes.forEach((mesh, s) => {
+        if (!mesh) return;
+        const count = tally[s] ?? 0;
+        finish(mesh, count);
+        const motion = motions[s];
+        if (motion) {
+          motion.clearUpdateRanges();
+          motion.addUpdateRange(0, Math.max(1, count) * 4);
+          motion.needsUpdate = true;
+        }
+      });
+    }
     finish(this.rings, rings);
     finish(this.swarm, swarms);
     finish(this.canopies, canopies);
@@ -361,6 +395,9 @@ export class AnimalView {
     finish(this.dusts, dusts);
   }
 }
+
+/** Within this many metres of the camera, fine species draw their fine model (D-201). */
+const LOD_NEAR = 45;
 
 function instanced(
   scene: THREE.Scene,
@@ -393,7 +430,8 @@ function put(
 ): void {
   const m = mesh.instanceMatrix.array as Float32Array;
   writeMatrix(m.subarray(i * 16, i * 16 + 16), { x, y, z, w, h, angle });
-  (mesh.instanceColor?.array as Float32Array | undefined)?.set([color.r, color.g, color.b], i * 3);
+  const c = mesh.instanceColor?.array as Float32Array | undefined;
+  if (c) [c[i * 3], c[i * 3 + 1], c[i * 3 + 2]] = [color.r, color.g, color.b];
 }
 
 /** A fixed pseudo-random value in [-0.5, 0.5) for animal `id` (multiplicative hash; `salt`

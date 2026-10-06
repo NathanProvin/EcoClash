@@ -137,4 +137,11 @@ describe("gait (D-116)", () => {
       expect(ratio, name).toBeLessThan(6);
     }
   });
+
+  it("draws a fine species' far model as the coarse one (D-201)", () => {
+    const tris = (g: ReturnType<typeof animalGeometry>) => g.getAttribute("position").count / 3;
+    const fox = ANIMAL_FORM.fox ?? formOf("fox", "predator");
+    expect(tris(animalGeometry(fox, true))).toBe(tris(animalGeometry({ ...fox, length: 0 })));
+    expect(tris(animalGeometry(fox, true)) * 3).toBeLessThan(tris(animalGeometry(fox)));
+  });
 });

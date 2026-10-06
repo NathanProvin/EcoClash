@@ -901,6 +901,21 @@ impl Fauna {
     fn hunt(&mut self, st: &mut FloraState, safe: &[bool], rng: &mut Pcg32) -> Vec<bool> {
         let (a, p, n) = (&mut self.agents, &self.p, st.n);
         let mut alive = vec![true; a.len()];
+        // Animals by cell, in index order (D-207): a hunter looks at the cells in its reach only.
+        let mut start = vec![0usize; n * n + 1];
+        for j in 0..a.len() {
+            start[a.cell(j, n) + 1] += 1;
+        }
+        for k in 0..n * n {
+            start[k + 1] += start[k];
+        }
+        let mut fill = start.clone();
+        let mut at = vec![0usize; a.len()];
+        for j in 0..a.len() {
+            let k = a.cell(j, n);
+            at[fill[k]] = j;
+            fill[k] += 1;
+        }
         for i in 0..a.len() {
             let s = usize::from(a.sp[i]);
             if p.role[s] != Role::Predator
@@ -913,15 +928,20 @@ impl Fauna {
             let k = a.cell(i, n);
             // The best-ranked prey in reach (D-123), the first in index order among equals.
             let mut prey: Option<(usize, usize)> = None; // (rank, agent)
-            for j in 0..a.len() {
-                if alive[j]
-                    && !safe[j]
-                    && a.owner[j] == 3 - a.owner[i]
-                    && Window::within(a.cell(j, n), k, p.strike, n)
-                    && let Some(r) = p.prey_rank(s, usize::from(a.sp[j]))
-                    && prey.is_none_or(|(pr, _)| r < pr)
-                {
-                    prey = Some((r, j));
+            let (row, col) = (k / n, k % n);
+            for y in row.saturating_sub(p.strike)..(row + p.strike + 1).min(n) {
+                for x in col.saturating_sub(p.strike)..(col + p.strike + 1).min(n) {
+                    let c = y * n + x;
+                    for &j in &at[start[c]..start[c + 1]] {
+                        if alive[j]
+                            && !safe[j]
+                            && a.owner[j] == 3 - a.owner[i]
+                            && let Some(r) = p.prey_rank(s, usize::from(a.sp[j]))
+                            && prey.is_none_or(|(pr, pj)| (r, j) < (pr, pj))
+                        {
+                            prey = Some((r, j));
+                        }
+                    }
                 }
             }
             if let Some((rank, j)) = prey
@@ -1006,10 +1026,7 @@ impl Fauna {
                 }
                 for k in 0..n2 {
                     food[k] += match p.role[s] {
-                        Role::Herbivore => (0..32)
-                            .filter(|j| p.eats_flora[s] >> j & 1 == 1)
-                            .map(|j| st.bio[j * n2 + k])
-                            .sum(),
+                        Role::Herbivore => bits(p.eats_flora[s]).map(|j| st.bio[j * n2 + k]).sum(),
                         Role::Decomposer => p.rot_stock(s, st, k),
                         Role::Predator => 0,
                     };
@@ -1143,8 +1160,7 @@ impl Fauna {
                     }
                     let stock = |k: usize| -> i64 {
                         if p.role[s] == Role::Herbivore {
-                            (0..32)
-                                .filter(|j| p.eats_flora[s] >> j & 1 == 1)
+                            bits(p.eats_flora[s])
                                 .map(|j| st.bio[j * n2 + k])
                                 .max()
                                 .unwrap_or(0)
@@ -1166,18 +1182,19 @@ impl Fauna {
                         // (D-061).
                         let mut masks = Vec::new();
                         for r in 0..DIET_RANKS {
-                            let food = |k: usize| {
-                                (0..32)
-                                    .filter(|&j| p.rank_flora[s][r] >> j & 1 == 1)
-                                    .map(|j| st.bio[j * n2 + k])
-                                    .max()
-                                    .unwrap_or(0)
-                                    >= p.bite[s] * crowd[k].max(1)
-                            };
+                            // Once per rank, over the diet's own species (D-207).
+                            let food: Vec<bool> = (0..n2)
+                                .map(|k| {
+                                    bits(p.rank_flora[s][r])
+                                        .map(|j| st.bio[j * n2 + k])
+                                        .max()
+                                        .unwrap_or(0)
+                                        >= p.bite[s] * crowd[k].max(1)
+                                        && stand(k)
+                                })
+                                .collect();
                             let on = |pred: &dyn Fn(u8) -> bool| -> Vec<bool> {
-                                (0..n2)
-                                    .map(|k| food(k) && stand(k) && pred(st.owner[k]))
-                                    .collect()
+                                (0..n2).map(|k| food[k] && pred(st.owner[k])).collect()
                             };
                             masks.push(on(&|o| o == 3 - pl));
                             masks.push(on(&|_| true));
@@ -1460,6 +1477,18 @@ fn closest(mask: &[bool], n: usize, to: usize) -> Option<usize> {
     (0..mask.len())
         .filter(|&k| mask[k])
         .min_by_key(|&k| (dist2(k, to, n), k))
+}
+
+/** The species of a diet mask, lowest first (D-207): only its set bits, not every slot. */
+fn bits(mut mask: u64) -> impl Iterator<Item = usize> {
+    std::iter::from_fn(move || {
+        if mask == 0 {
+            return None;
+        }
+        let j = usize::try_from(mask.trailing_zeros()).unwrap_or(0);
+        mask &= mask - 1;
+        Some(j)
+    })
 }
 
 #[cfg(test)]

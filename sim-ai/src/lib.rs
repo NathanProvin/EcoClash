@@ -222,6 +222,9 @@ struct View<'a> {
     intel: Intel,
     /// Threats the bot answers now, worst first: animal species (D-191).
     threats: Vec<usize>,
+    /// The bank above the savings, worked out once per decision (D-207): the bank cannot change
+    /// within one (commands apply at the next tick).
+    spare: i64,
 }
 
 impl Bot {
@@ -248,14 +251,16 @@ impl Bot {
         let n = w.state.n;
         let intel = self.intel(w);
         let threats = self.threats(w, &intel);
-        let view = View {
+        let mut view = View {
             w,
             n,
             home: centroid(w, self.player).unwrap_or((n / 2, n / 2)),
             enemy: centroid(w, 3 - self.player).unwrap_or((n / 2, n / 2)),
             intel,
             threats,
+            spare: 0,
         };
+        view.spare = self.savings(&view);
         if centroid(w, self.player).is_none() {
             if w.tick < self.level.found_after() {
                 return Vec::new(); // looking the map over first (D-101)
@@ -388,6 +393,10 @@ impl Bot {
     /// plan's next card) is held back only by its price, and that price is within
     /// SAVE_HORIZON_S of income, the bot saves for it instead of spending everything on planting.
     fn spare(&self, v: &View) -> i64 {
+        v.spare
+    }
+
+    fn savings(&self, v: &View) -> i64 {
         let w = v.w;
         let pi = usize::from(self.player - 1);
         let bank = w.economy.bank[pi];
@@ -829,15 +838,38 @@ impl Bot {
         let own: Vec<usize> = (0..n2)
             .filter(|&k| w.state.owner[k] == self.player)
             .collect();
+        // Cells within `r` of own land (D-207): one dilation, not every own cell for every enemy one.
+        let near_own = |r: usize| -> Vec<bool> {
+            let mut near = vec![false; n2];
+            let ri = isize::try_from(r).unwrap_or(0);
+            let ni = isize::try_from(n).unwrap_or(0);
+            for &o in &own {
+                let (or, oc) = (
+                    isize::try_from(o / n).unwrap_or(0),
+                    isize::try_from(o % n).unwrap_or(0),
+                );
+                for dy in -ri..=ri {
+                    for dx in -ri..=ri {
+                        let (y, x) = (or + dy, oc + dx);
+                        if (dy * dy + dx * dx) as usize <= r * r
+                            && (0..ni).contains(&y)
+                            && (0..ni).contains(&x)
+                        {
+                            near[usize::try_from(y * ni + x).unwrap_or(0)] = true;
+                        }
+                    }
+                }
+            }
+            near
+        };
         for k in 0..c.p.names.len() {
             if w.tick < c.ready[pi][k] || self.spare(v) < c.p.cost[k] {
                 continue;
             }
             // Only where the disc spares the bot's own land (D-148): cards hit both sides.
-            let r2 = u64::from(c.p.radius[k]).pow(2) as usize;
+            let near = near_own(usize::try_from(c.p.radius[k]).unwrap_or(0));
             let enemy: Vec<usize> = (0..n2)
-                .filter(|&e| w.state.owner[e] == 3 - self.player)
-                .filter(|&e| own.iter().all(|&o| dist2(o, n, (e / n, e % n)) > r2))
+                .filter(|&e| w.state.owner[e] == 3 - self.player && !near[e])
                 .collect();
             let at = match c.p.act(k) {
                 Act::KillTrees => enemy

@@ -2398,3 +2398,15 @@ Template:
 - **Status:** accepted (perf plan item 8, first part)
 - **Decision:** shrub and tree geometries are welded at creation: normals and uvs dropped, then `mergeVertices`. They were non-indexed (three's icosahedra, merged parts), so each corner was shaded once per face, about 3× the vertex work in both the main and shadow passes. Flat shading takes its normals from screen-space derivatives (three's `isFlatShading`), so the look is unchanged.
 - **Not done:** a distance level of detail for plants (simpler far models or impostors). That needs a second instanced set per stratum; it belongs to the M5b art pass, to be revisited if forests show up as the main cost in the perf panel.
+
+## D-207 · 2026-10-06 · Sim and bot hot spots (branch `optimization-v3`)
+- **Status:** accepted (perf plan item 9)
+- **Decision:**
+  - **Diet scans:** herbivore food scans (`decide`'s seek masks and stock, `reproduce`'s food windows) iterate the set bits of the diet mask (`bits`) instead of 32 plant slots. The seek masks compute their food test once per rank, not once per mask.
+  - **Hunting:** `hunt` buckets the animals by cell once per call and checks only the cells in strike reach. It was O(predators × animals). The pick is unchanged: the best rank, then the lowest index.
+  - **Bot:** `spare()` is worked out once per decision into the `View`; it was recomputed up to about 19 times. The bank cannot change within a decision. The hard bot's catastrophe check uses one dilated "near own land" mask instead of comparing every enemy cell with every own cell.
+- **Behaviour unchanged:**
+  - bench outputs are identical before and after (normal vs hard 6 × 15 min; hard vs hard on 56², 4 × 30 min);
+  - the native vs WASM hash is unchanged (`2aead5e9f5c7c145` at 1200 ticks).
+- **Measured:** one 30-min hard vs hard match on 56², single thread: 39.2 s → 19.2 s.
+- **Not done:** hashing agent arrays as raw bytes and reusing A*'s buffers. They are small; to revisit if the HUD's sim time climbs.

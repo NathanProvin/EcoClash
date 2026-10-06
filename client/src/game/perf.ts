@@ -60,6 +60,11 @@ export class ResolutionGuard {
     private readonly step = 0.1,
   ) {}
 
+  /** The lowest scale it goes to. */
+  get floorScale(): number {
+    return this.floor;
+  }
+
   /** One frame's interval (ms). True when the scale changed. */
   frame(ms: number): boolean {
     this.avg = this.avg ? this.avg * 0.9 + ms * 0.1 : ms;

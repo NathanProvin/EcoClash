@@ -725,6 +725,7 @@
         ambience.setLife(lifeOf(unlocked));
         animalLife(now);
         munching(now);
+        suggestLow(now);
         drumming(now);
         creaks(now);
       }
@@ -1035,6 +1036,30 @@
     } catch {
       replays = [LIVE];
     }
+  }
+
+  /** A weak GPU (D-208): when the render scale has sat at its floor for LOW_HINT_MS on Medium or
+   *  High, suggest the Low preset, once per browser. */
+  const LOW_HINT_MS = 30_000;
+  const LOW_HINT_KEY = "ecoclash.lowHint";
+  let floorSince = 0;
+  function suggestLow(now: number) {
+    const v = viewer;
+    if (!v || quality === "low" || perfBench) return;
+    if (v.res.scale > v.res.floorScale) {
+      floorSince = 0;
+      return;
+    }
+    floorSince ||= now;
+    if (now - floorSince < LOW_HINT_MS) return;
+    floorSince = Infinity; // once this match
+    try {
+      if (localStorage.getItem(LOW_HINT_KEY)) return;
+      localStorage.setItem(LOW_HINT_KEY, "1");
+    } catch {
+      // blocked site data: the hint shows each match
+    }
+    toast("Running slow: try the Low preset in Display → Quality", "tip");
   }
 
   /** The `?perf=1` bench (D-198): warm up at 8× to the target minute, then measure 10 s at 1×

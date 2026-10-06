@@ -2410,3 +2410,8 @@ Template:
   - the native vs WASM hash is unchanged (`2aead5e9f5c7c145` at 1200 ticks).
 - **Measured:** one 30-min hard vs hard match on 56², single thread: 39.2 s → 19.2 s.
 - **Not done:** hashing agent arrays as raw bytes and reusing A*'s buffers. They are small; to revisit if the HUD's sim time climbs.
+
+## D-208 · 2026-10-06 · A Low-preset hint for weak GPUs (branch `optimization-v3`)
+- **Status:** accepted (perf plan item 10, first part)
+- **Decision:** when dynamic resolution has sat at its floor (0.7) for 30 s on Medium or High, a tip suggests the Low preset, once per browser (`ecoclash.lowHint`).
+- **Waits for the laptop:** retuning the presets to the measured budget. `?perf=1` on the reference laptop, Mid/Medium and Large/High at minute 22, gives the figures.

@@ -772,3 +772,25 @@
 
   All checks green.
 - **Next:** the user listens and playtests raids against hunters; then push Alpha 1.1.
+
+## 2026-10-06 (10) · Performance pass, branch `optimization-v3` (D-198…D-208)
+- **Measured first:**
+  - a Large map at minute 22 had 1.16 M triangles (herbs 57 %) and 79 draws;
+  - the sim with two hard bots cost about 1 ms per tick (worker);
+  - the browser tool cannot read frame rates (background tab).
+- **Done**, in order of expected gain:
+  1. Perf panel and the `?perf=1` bench.
+  2. Herb level of detail (overview herbs −64 %).
+  3. Medium at 1× pixels, dynamic resolution, no MSAA on Low.
+  4. Animal level of detail (fine near, coarse far, no far shadows; light eyes) and fewer per-frame allocations.
+  5. HUD: no live blur in a match, transform-placed raw icons, a stable unlock set.
+  6. Partial plant uploads and an allocation-free herb paint.
+  7. Far shadows every 12 frames.
+  8. Cheap wind gusts.
+  9. Welded plant models.
+  10. Sim and bot hot spots (a 30-min Large hard match 39 → 19 s, identical matches).
+  11. A Low-preset hint.
+
+  All checks green.
+- **Not done:** plant distance level of detail (M5b), packing the herb textures, raw-byte agent hashing.
+- **Next:** the user runs `?perf=1&map=mid` (Medium) and `?perf=1` (Large, High) on the laptop and reports `window.ecoPerf`; then retune the presets, merge, and deploy Alpha 1.1.

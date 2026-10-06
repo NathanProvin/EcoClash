@@ -36,6 +36,25 @@ describe("growth", () => {
 });
 
 describe("GrowingMesh", () => {
+  it("uploads only the instances that changed (D-203)", () => {
+    const g = mesh();
+    for (const [k, x] of [
+      ["a", 1],
+      ["b", 2],
+      ["c", 3],
+      ["d", 4],
+    ] as const)
+      g.put(k, pose(x), 0);
+    g.update(0);
+    const grow = (g as unknown as { grow: THREE.InstancedInterleavedBuffer }).grow;
+    expect(grow.updateRanges).toEqual([{ start: 0, count: 12 }]); // all four, new
+    g.put("c", pose(3, 2), 1); // only c changes
+    g.update(1);
+    expect(grow.updateRanges).toEqual([{ start: 6, count: 3 }]);
+    g.update(2); // nothing changed: no new range
+    expect(grow.updateRanges).toEqual([{ start: 6, count: 3 }]);
+  });
+
   it("grows new keys from nothing and leaves unchanged ones alone", () => {
     const g = mesh();
     g.put("a", pose(1), 0);

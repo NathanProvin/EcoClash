@@ -2374,3 +2374,13 @@ Template:
     - the hover scale uses the `scale` property;
     - the viewer caches the canvas size on resize instead of reading it per icon.
   - **`unlocked`** keeps the same Set while nothing new is unlocked, so the effects and cards that read it stop rerunning every tick.
+
+## D-203 · 2026-10-06 · Field-frame spikes: partial plant uploads, an allocation-free paint (branch `optimization-v3`)
+- **Status:** accepted (perf plan item 5)
+- **Decision:**
+  - **Partial plant uploads:** `GrowingMesh` tracks the lowest and highest instance changed since its last upload and uploads only that range. It uploaded all 5 attributes of every live instance each frame while repaints ran: megabytes per frame on Large maps.
+  - **Allocation-free herb paint:** `paintFields` writes the herb colour and mix with index loops (no `flatMap`, no array literals per cell).
+  - **Repaint budget:** 3 ms per frame on High, 1.5 ms on Medium and Low.
+  - **Seeds:** `SeedBurst` skips its upload when no seed is in flight.
+- **Not done:** reusing decode buffers and capping the census series. Both are small; to revisit if the perf panel shows `fields` above 2 ms.
+- **Test:** after one changed key, only that instance's range is uploaded.

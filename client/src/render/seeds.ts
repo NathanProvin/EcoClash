@@ -97,6 +97,7 @@ export class SeedBurst {
 
   /** Draw the seeds in flight at `now`, sized for a camera `far` metres away. */
   update(now: number, far: number): void {
+    if (!this.seeds.length && this.mesh.count === 0) return; // nothing in flight: no upload (D-203)
     const grow = Math.max(1, (SEEDS.screen * far) / SEEDS.size);
     this.seeds = this.seeds.filter((s) => seedScale(s, now) > 0 || now < s.t0);
     this.seeds.forEach((s, i) => {

@@ -106,8 +106,6 @@ export interface CameraKeys {
   rotateRight: boolean;
 }
 
-type Covers = { species: number; cover: number }[];
-
 export class Viewer {
   readonly backend: string;
   private readonly renderer: THREE.WebGPURenderer;
@@ -890,7 +888,7 @@ export class Viewer {
     }
     lap("fields");
     this.blend.value = Math.min(1, (now - this.blendFrom) / this.blendS);
-    this.plants.frame(now);
+    this.plants.frame(now, this.quality === "high" ? 3 : 1.5); // repaint budget, ms (D-203)
     this.deadTrees.frame(now);
     lap("plants");
     this.weather.update(dt);
@@ -983,18 +981,13 @@ export class Viewer {
     const n = this.replay.meta.n;
     const tint = { 1: hexToRgb(PLAYER[1].base), 2: hexToRgb(PLAYER[2].base) };
     const herbs = this.herbs;
-    const present = (list: number[], c: number): Covers =>
-      list.flatMap((i) => {
-        const v = species[i]?.[c] ?? 0;
-        return v ? [{ species: i, cover: v / 255 }] : [];
-      });
     // Grass: the frame shown so far becomes the one to blend from.
     if (step) (this.floraPrev.image.data as Uint8Array).set(this.floraData);
     if (step) (this.mixPrev.image.data as Uint8Array).set(this.mixData);
     if (step) (this.frontierPrev.image.data as Uint8Array).set(this.frontierData);
     const names = this.replay.meta.flora.names;
-    const look = (i: number) =>
-      names[i] === "lichen_and_moss" ? 0 : names[i] === "wildflowers" ? 2 : 1;
+    // Each herb's look: 0 lichen and moss, 1 grasses, 2 wildflowers (once per paint, D-203).
+    const look = names.map((x) => (x === "lichen_and_moss" ? 0 : x === "wildflowers" ? 2 : 1));
     for (let c = 0; c < n * n; c++) {
       const soil = soilColor(soilDev[c] ?? 0);
       const o = owner[c] ?? 0;
@@ -1013,21 +1006,34 @@ export class Viewer {
       }
       // Grass texel (rows not flipped: the grass shader maps world z to rows itself): the
       // cover-weighted colour of the cell's herbs.
-      const rgb = [0, 0, 0];
-      const shares = [0, 0, 0];
-      let weight = 0;
-      for (const h of present(herbs, c)) {
-        const col = this.plantRgb[o][h.species] ?? [0, 0, 0];
-        for (let j = 0; j < 3; j++) rgb[j] = (rgb[j] ?? 0) + (col[j] ?? 0) * h.cover;
-        const k = look(h.species);
-        shares[k] = (shares[k] ?? 0) + h.cover;
-        weight += h.cover;
+      // No arrays per cell (D-203): this runs over every cell at each field frame.
+      let [r, g, b, s0, s1, s2, weight] = [0, 0, 0, 0, 0, 0, 0];
+      for (const i of herbs) {
+        const v = species[i]?.[c] ?? 0;
+        if (!v) continue;
+        const cover = v / 255;
+        const col = this.plantRgb[o][i];
+        if (col) {
+          r += (col[0] ?? 0) * cover;
+          g += (col[1] ?? 0) * cover;
+          b += (col[2] ?? 0) * cover;
+        }
+        const k = look[i];
+        if (k === 0) s0 += cover;
+        else if (k === 2) s2 += cover;
+        else s1 += cover;
+        weight += cover;
       }
       const w = weight || 1;
-      const [lichen = 0, grass = 0, flowers = 0] = shares.map((v) => Math.round((v / w) * 255));
-      this.mixData.set([lichen, grass, flowers, 255], c * 4);
-      const alpha = Math.min(255, Math.round(weight * 255)); // land herbs' cover
-      this.floraData.set([(rgb[0] ?? 0) / w, (rgb[1] ?? 0) / w, (rgb[2] ?? 0) / w, alpha], c * 4);
+      const m = c * 4;
+      this.mixData[m] = Math.round((s0 / w) * 255);
+      this.mixData[m + 1] = Math.round((s1 / w) * 255);
+      this.mixData[m + 2] = Math.round((s2 / w) * 255);
+      this.mixData[m + 3] = 255;
+      this.floraData[m] = r / w;
+      this.floraData[m + 1] = g / w;
+      this.floraData[m + 2] = b / w;
+      this.floraData[m + 3] = Math.min(255, Math.round(weight * 255)); // land herbs' cover
     }
     frontierField(owner, n, this.frontierData, fields.pressure);
     if (!step) (this.floraPrev.image.data as Uint8Array).set(this.floraData); // no blend

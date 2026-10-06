@@ -189,7 +189,7 @@ export class GrowingMesh<K> {
     g.set([t + FALL_S, shown, 0], i * 3);
     (this.fall.array as Float32Array).set([t, dir], i * 2);
     this.dying.set(key, t + FALL_S + GROW_S);
-    this.dirty = true;
+    this.touch(i);
   }
 
   /** Wither `key` away from `t`; `update` frees it once gone. */
@@ -200,7 +200,7 @@ export class GrowingMesh<K> {
     const shown = growth(g[i * 3] ?? 0, g[i * 3 + 1] ?? 0, g[i * 3 + 2] ?? 0, t);
     g.set([t, shown, 0], i * 3);
     this.dying.set(key, t + GROW_S);
-    this.dirty = true;
+    this.touch(i);
   }
 
   /** Free the models that have withered by `t`, then upload what changed. */
@@ -211,6 +211,12 @@ export class GrowingMesh<K> {
     if (!this.dirty) return;
     this.dirty = false;
     this.mesh.count = this.keys.length;
+    // Only the instances that changed (D-203): a repaint touches a few cells at a time, and the
+    // whole prefix of every attribute was uploaded each frame before.
+    const lo = this.lo;
+    const hi = Math.min(this.hi, this.keys.length - 1);
+    [this.lo, this.hi] = [Infinity, -1];
+    if (hi < lo) return; // only the count changed
     for (const [attr, size] of [
       [this.mesh.instanceMatrix, 16],
       [this.mesh.instanceColor, 3],
@@ -220,7 +226,7 @@ export class GrowingMesh<K> {
     ] as const) {
       if (!attr) continue;
       attr.clearUpdateRanges();
-      attr.addUpdateRange(0, Math.max(1, this.keys.length) * size);
+      attr.addUpdateRange(lo * size, (hi - lo + 1) * size);
       attr.needsUpdate = true;
     }
   }
@@ -232,15 +238,24 @@ export class GrowingMesh<K> {
     (this.fall.array as Float32Array).set([STANDING, 0], i * 2); // (re)placed: standing
     this.width[i] = pose.w;
     this.setColor(i, pose.color);
-    this.dirty = true;
+    this.touch(i);
   }
 
   private setColor(i: number, c: THREE.Color): void {
     const col = this.mesh.instanceColor?.array as Float32Array | undefined;
     if (!col || (col[i * 3] === c.r && col[i * 3 + 1] === c.g && col[i * 3 + 2] === c.b)) return;
     col.set([c.r, c.g, c.b], i * 3);
+    this.touch(i);
+  }
+
+  /** Mark instance `i` changed: `update` uploads the range of changed instances only (D-203). */
+  private touch(i: number): void {
+    if (i < this.lo) this.lo = i;
+    if (i > this.hi) this.hi = i;
     this.dirty = true;
   }
+  private lo = Infinity;
+  private hi = -1;
 
   /** Swap-remove: the last instance moves into the freed index. */
   private free(key: K): void {
@@ -262,6 +277,7 @@ export class GrowingMesh<K> {
       const moved = this.keys[last] as K;
       this.keys[i] = moved;
       this.at.set(moved, i);
+      this.touch(i);
     }
     this.keys.pop();
     this.at.delete(key);

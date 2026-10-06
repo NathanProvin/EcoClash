@@ -654,3 +654,21 @@
   - `models-v2` merged into `main` and pushed;
   - the Cloudflare Pages deploy: a CI step plus `npm run deploy`, the build badge and the feedback link.
 - **Next:** the user creates the Pages project and the API token, then sets the GitHub secrets and variable; the first deploy; share the URL with playtesters.
+
+## 2026-10-06 · Alpha 1 released; Alpha 2 (D-158…D-163)
+- Alpha 1 is live on Cloudflare Pages and was played by the user's friends.
+- **Alpha 2:**
+  - red enemy icon rings;
+  - a lighter aura;
+  - raids graze the area bare (sim), with fullness and order in the animal frame;
+  - click to select, and a unit card (also on icon hover);
+  - order lines;
+  - a bigger cell card.
+
+  Checked in the browser:
+  - the unit card on a rabbit;
+  - the red attack line and the grey move line;
+  - the new cell card and the thin aura.
+
+  The enemy icon ring isn't shown in a background tab (the HUD loop doesn't run there).
+- **Lesson:** order feedback must allow for the lockstep input delay: the sim reports the old order for a tick or two.

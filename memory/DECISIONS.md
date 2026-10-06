@@ -1925,3 +1925,14 @@ Template:
   - silvery grey (`#c9cdd2`) for a move, fire red (`#e2452b`) for an attack.
   - It shortens as the group goes, and disappears once no animal still follows the order (the animal frame's order byte) or they are all dead.
   - A newer order takes the animals off their older line.
+
+## D-163 · 2026-10-06 · A bigger cell card
+- **Status:** accepted (user, Alpha 2)
+- **Decision:** the cell card is 340 px wide (was 214; about 2.5× the area), with titles only:
+  - a header in the owner's colour: Yours / Enemy / Free land, the ground, a health word (Thriving / Pushed / Under attack), lock and dead-tree chips, zoom and close;
+  - one titled full-width bar with a percentage per layer (Herbs, Undergrowth, Shrubs, Trees, in green shades), then Soil and Enemy push;
+  - plant icons with their cover;
+  - your animals and the enemy's in separate rows.
+
+  The cell and unit cards stack in one right-hand column.
+- **Order lines, follow-up (D-162):** a new line ignores the animals' old order byte for 1 s, since the sim takes the order a tick or two later (lockstep delay).

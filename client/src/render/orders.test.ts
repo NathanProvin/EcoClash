@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import * as THREE from "three/webgpu";
 import { curve, OrderLines, ORDER_LINE, ribbon } from "./orders";
 
@@ -30,6 +30,7 @@ describe("order lines (D-162)", () => {
   });
 
   it("keeps a line while its animals follow the order, drops it after", () => {
+    vi.useFakeTimers();
     const scene = new THREE.Scene();
     const lines = new OrderLines(scene);
     lines.add([1, 2], new THREE.Vector3(8, 0, 8), "move");
@@ -38,6 +39,10 @@ describe("order lines (D-162)", () => {
       { id: 2, owner: 1, x: 2, y: 0, z: 0 },
     ];
     const moving = [1, 2].map((id) => ({ id, y: 0, x: 0, species: 0, owner: 1, order: 1 }));
+    const before = moving.map((a) => ({ ...a, order: 2 })); // the sim has not taken it yet
+    lines.update(drawn, before, () => 0);
+    expect(scene.children).toHaveLength(1);
+    vi.advanceTimersByTime(1500);
     lines.update(drawn, moving, () => 0);
     expect(scene.children).toHaveLength(1);
     lines.update(
@@ -46,6 +51,7 @@ describe("order lines (D-162)", () => {
       () => 0,
     ); // arrived
     expect(scene.children).toHaveLength(0);
+    vi.useRealTimers();
   });
 
   it("moves animals to their newest order's line", () => {

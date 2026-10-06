@@ -1,9 +1,9 @@
 <script lang="ts">
-  // Cell inspector (D-031, D-100): a compact card read at a glance. Icons and bars, names in
-  // tooltips: owner and ground, a health dot (thriving / pushed / attacked), the cover of each
-  // height stratum, soil, the enemy push, a lockout badge (D-098), then the plants and the
-  // animals on the cell as species icons with their cover or head count.
-  import { cellStatus, STATUS_TEXT } from "../game/cell";
+  // Cell card (D-031, D-100, D-163): the core facts of a cell at a glance, titles only. A header
+  // in the owner's colour (whose, ground, health, lock and dead-wood chips), one full-width bar
+  // per height layer, soil and enemy push, then the plants and the animals on the cell, yours
+  // and the enemy's apart. Details in tooltips.
+  import { cellStatus, STATUS_TEXT, type CellStatus } from "../game/cell";
   import { label } from "../game/species";
   import type { CellInfo, Species } from "../replay/replay";
   import Icon from "./Icon.svelte";
@@ -12,15 +12,23 @@
   let {
     info,
     species,
+    me,
     onZoom,
     onClose,
-  }: { info: CellInfo; species: Species[]; onZoom: () => void; onClose: () => void } = $props();
+  }: {
+    info: CellInfo;
+    species: Species[];
+    me: number;
+    onZoom: () => void;
+    onClose: () => void;
+  } = $props();
 
-  const STRATA = [
-    { glyph: "•", name: "Herbs" },
-    { glyph: "♣", name: "Undergrowth" },
-    { glyph: "▲", name: "Shrubs" },
-    { glyph: "■", name: "Trees" },
+  /** The height layers, low to high, with their bar colours. */
+  const LAYERS = [
+    { name: "Herbs", color: "#a9cf63" },
+    { name: "Undergrowth", color: "#76aa4c" },
+    { name: "Shrubs", color: "#4f8f3f" },
+    { name: "Trees", color: "#2f6e37" },
   ] as const;
   const GROUND = [
     { icon: "land", name: "Land" },
@@ -28,256 +36,261 @@
     { icon: "water", name: "Deep water" },
     { icon: "rock", name: "Rock" },
   ] as const;
+  const STATUS_WORD: Record<CellStatus, string> = {
+    none: "Free",
+    good: "Thriving",
+    warn: "Pushed",
+    danger: "Under attack",
+  };
 
-  const pct = (v: number) => `${Math.round(v * 100)} %`; // for reading
-  const css = (v: number) => `${Math.round(Math.min(Math.max(v, 0), 1) * 100)}%`; // for sizes
+  const pct = (v: number) => `${Math.round(v * 100)} %`;
+  const css = (v: number) => `${Math.round(Math.min(Math.max(v, 0), 1) * 100)}%`;
   const byName = $derived(new Map(species.map((s) => [s.name, s])));
   const status = $derived(cellStatus(info));
   const ground = $derived(GROUND[info.ground] ?? GROUND[0]);
-  const owner = $derived(info.owner ? `Held by P${info.owner}` : "Nobody holds it");
-  const animals = $derived(
-    [...info.animals].sort((a, b) => a.owner - b.owner || b.count - a.count),
+  const whose = $derived(!info.owner ? "Free land" : info.owner === me ? "Yours" : "Enemy");
+  const sides = $derived(
+    [
+      { title: "Your animals", list: info.animals.filter((a) => a.owner === me) },
+      { title: "Enemy animals", list: info.animals.filter((a) => a.owner !== me) },
+    ].filter((g) => g.list.length),
   );
 </script>
 
 <aside class="panel cell p{info.owner}" aria-label="Selected cell">
   <header>
-    <span class="dot p{info.owner}" title={owner}></span>
-    <span class="chip" title={ground.name}><Icon name={ground.icon} size={15} /></span>
-    <span class="chip {status}" title={STATUS_TEXT[status]}><Icon name="heart" size={15} /></span>
-    {#if info.lock}
-      <span
-        class="chip lock p{info.lock.player}"
-        title="P{info.lock.player} may not take this cell back for {info.lock.s} s"
-        ><Icon name="lock" size={13} />{info.lock.s}s</span
-      >
-    {/if}
-    {#if info.deadwood > 0}
-      <span
-        class="chip dead"
-        title="A dead tree stands here: no tree can grow until recyclers or rot clear it"
-        ><Icon name="deadtree" size={15} /></span
-      >
-    {/if}
-    <span class="gap"></span>
+    <div class="who">
+      <strong>{whose}</strong>
+      <span class="chips">
+        <span class="chip" title={ground.name}
+          ><Icon name={ground.icon} size={15} />{ground.name}</span
+        >
+        {#if info.owner}
+          <span class="chip {status}" title={STATUS_TEXT[status]}>
+            <Icon name="heart" size={14} />{STATUS_WORD[status]}
+          </span>
+        {/if}
+        {#if info.lock}
+          <span
+            class="chip lock p{info.lock.player}"
+            title="P{info.lock.player} may not take this cell back for {info.lock.s} s"
+            ><Icon name="lock" size={13} />{info.lock.s}s</span
+          >
+        {/if}
+        {#if info.deadwood > 0}
+          <span
+            class="chip dead"
+            title="A dead tree stands here: no tree can grow until recyclers or rot clear it"
+            ><Icon name="deadtree" size={14} />Dead tree</span
+          >
+        {/if}
+      </span>
+    </div>
     <button class="ib" onclick={onZoom} title="Zoom to plant scale" aria-label="Zoom">
-      <Icon name="zoom" size={15} />
+      <Icon name="zoom" size={17} />
     </button>
     <button class="ib" onclick={onClose} title="Close" aria-label="Close">
-      <Icon name="close" size={15} />
+      <Icon name="close" size={17} />
     </button>
   </header>
 
-  <div class="strata">
-    {#each STRATA as s, i (s.name)}
-      <span class="stratum" title="{s.name}: {pct(info.strata[i] ?? 0)}">
-        <span class="column"><span style:height={css(info.strata[i] ?? 0)}></span></span>
-        <span class="glyph">{s.glyph}</span>
-      </span>
+  <section>
+    <h4>Layers</h4>
+    {#each LAYERS as l, i (l.name)}
+      <div class="row">
+        <span class="name">{l.name}</span>
+        <span class="bar"
+          ><span style:width={css(info.strata[i] ?? 0)} style:background={l.color}></span></span
+        >
+        <span class="num">{pct(info.strata[i] ?? 0)}</span>
+      </div>
     {/each}
-    <span class="meters">
-      <span class="meter" title="Soil development: {pct(info.soil)}">
-        <Icon name="soil" size={14} />
-        <span class="bar soil"><span style:width={css(info.soil)}></span></span>
-      </span>
-      <span class="meter" title="Enemy push: {pct(info.push)}">
-        <Icon name="push" size={14} />
-        <span class="bar push"><span style:width={css(info.push)}></span></span>
-      </span>
-    </span>
-  </div>
+  </section>
+
+  <section>
+    <div class="row" title="Soil development: richer soil lets taller layers grow">
+      <span class="name">Soil</span>
+      <span class="bar soil"><span style:width={css(info.soil)}></span></span>
+      <span class="num">{pct(info.soil)}</span>
+    </div>
+    <div class="row" title="How hard the other side pushes into this cell">
+      <span class="name">Enemy push</span>
+      <span class="bar push"><span style:width={css(info.push)}></span></span>
+      <span class="num">{pct(info.push)}</span>
+    </div>
+  </section>
 
   {#if info.plants.length}
-    <div class="icons">
-      {#each info.plants as p (p.name)}
-        {@const s = byName.get(p.name)}
-        <span class="tile" title="{label(p.name)}: {pct(p.cover)}">
-          {#if s}<SpeciesIcon {s} size={26} />{/if}
-          <span class="fill"><span style:width={css(p.cover)}></span></span>
-        </span>
-      {/each}
-    </div>
+    <section>
+      <h4>Plants</h4>
+      <div class="icons">
+        {#each info.plants as p (p.name)}
+          {@const s = byName.get(p.name)}
+          <span class="tile" title="{label(p.name)}: {pct(p.cover)}">
+            {#if s}<SpeciesIcon {s} size={34} />{/if}
+            <span class="fill"><span style:width={css(p.cover)}></span></span>
+          </span>
+        {/each}
+      </div>
+    </section>
   {/if}
-  {#if animals.length}
-    <div class="icons">
-      {#each animals as a (`${a.name}:${a.owner}`)}
-        {@const s = byName.get(a.name)}
-        <span class="tile p{a.owner}" title="{label(a.name)} × {a.count} (P{a.owner})">
-          {#if s}<SpeciesIcon {s} size={26} />{/if}
-          <span class="count">{a.count}</span>
-        </span>
-      {/each}
-    </div>
-  {/if}
+  {#each sides as g (g.title)}
+    <section>
+      <h4>{g.title}</h4>
+      <div class="icons">
+        {#each g.list as a (`${a.name}:${a.owner}`)}
+          {@const s = byName.get(a.name)}
+          <span class="tile p{a.owner}" title="{label(a.name)} × {a.count}">
+            {#if s}<SpeciesIcon {s} size={34} />{/if}
+            <span class="count">{a.count}</span>
+          </span>
+        {/each}
+      </div>
+    </section>
+  {/each}
 </aside>
 
 <style>
   .cell {
-    width: 214px;
-    padding: 8px 10px;
-    font-size: 0.82em;
-    border-top: 2px solid var(--player, var(--gold));
+    width: 340px;
+    padding: 0 0 10px;
+    font-size: 0.9em;
+    overflow: hidden;
   }
   header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 10px 12px;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--player, #8a8a7a) 45%, transparent),
+      transparent
+    );
+    border-top: 3px solid var(--player, var(--gold));
+  }
+  .cell.p0 header {
+    --player: #9a9a86;
+  }
+  .who {
+    display: grid;
+    flex: 1;
     gap: 6px;
   }
-  .gap {
-    flex: 1;
+  .who strong {
+    font-size: 1.35em;
+    letter-spacing: 0.01em;
   }
-  .dot {
-    width: 11px;
-    height: 11px;
-    border-radius: 50%;
-    background: #777;
-  }
-  .dot.p1 {
-    background: var(--p1);
-  }
-  .dot.p2 {
-    background: var(--p2);
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
   }
   .chip {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
-    color: var(--ink-soft);
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
     font-weight: 700;
-    font-variant-numeric: tabular-nums;
+    font-size: 0.9em;
   }
   .chip.good {
-    color: var(--good);
+    background: rgba(127, 176, 79, 0.45);
   }
   .chip.warn {
-    color: var(--gold);
+    background: rgba(214, 170, 60, 0.5);
   }
   .chip.danger {
-    color: var(--alert, #ff7a5c);
+    background: rgba(216, 57, 43, 0.6);
   }
   .chip.dead {
-    color: #b8ab98;
-  }
-  .chip.lock.p1 {
-    color: var(--p1-glow);
-  }
-  .chip.lock.p2 {
-    color: var(--p2-glow);
+    background: rgba(168, 158, 144, 0.4);
   }
   .ib {
-    display: inline-flex;
-    padding: 2px;
+    padding: 4px;
     border: 0;
     background: none;
+    color: inherit;
     cursor: var(--cursor-pointer);
-    color: var(--ink-soft);
+    opacity: 0.8;
   }
-  .ib:hover {
-    color: var(--ink);
+  section {
+    padding: 8px 12px 0;
   }
-  .strata {
-    display: flex;
-    align-items: flex-end;
-    gap: 5px;
-    margin: 8px 0 4px;
+  h4 {
+    margin: 0 0 6px;
+    font-size: 0.78em;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.65;
   }
-  .stratum {
-    display: flex;
-    flex-direction: column;
+  .row {
+    display: grid;
+    grid-template-columns: 92px 1fr 44px;
     align-items: center;
-    gap: 1px;
+    gap: 8px;
+    margin: 5px 0;
   }
-  .column {
-    display: flex;
-    align-items: flex-end;
-    width: 9px;
-    height: 30px;
-    background: var(--well);
-    border-radius: 3px;
-    overflow: hidden;
-  }
-  .column span {
-    display: block;
-    width: 100%;
-    background: linear-gradient(0deg, #6f9f4e, var(--good));
-  }
-  .glyph {
-    font-size: 0.75em;
-    line-height: 1;
-    color: var(--ink-soft);
-  }
-  .meters {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    gap: 6px;
-    margin-left: 6px;
-    color: var(--ink-soft);
-  }
-  .meter {
-    display: flex;
-    align-items: center;
-    gap: 5px;
+  .name {
+    font-weight: 700;
   }
   .bar {
-    flex: 1;
-    height: 6px;
-    background: var(--well);
-    border-radius: 3px;
+    height: 12px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
     overflow: hidden;
   }
-  .bar span {
+  .bar > span {
     display: block;
     height: 100%;
+    border-radius: 6px;
   }
-  .bar.soil span {
-    background: #9b7a4f;
+  .bar.soil > span {
+    background: linear-gradient(90deg, #8b6a43, #c49a5c);
   }
-  .bar.push span {
-    background: var(--alert, #ff7a5c);
+  .bar.push > span {
+    background: linear-gradient(90deg, #b8402e, #e2452b);
+  }
+  .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.9;
   }
   .icons {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 6px;
+    gap: 8px;
   }
   .tile {
     position: relative;
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    border-radius: 8px;
-  }
-  .tile.p1 {
-    box-shadow: 0 0 0 2px var(--p1);
-  }
-  .tile.p2 {
-    box-shadow: 0 0 0 2px var(--p2);
+    display: grid;
+    justify-items: center;
+    gap: 3px;
   }
   .fill {
-    width: 26px;
-    height: 3px;
-    margin-top: 2px;
-    background: var(--well);
+    width: 34px;
+    height: 4px;
     border-radius: 2px;
+    background: rgba(255, 255, 255, 0.12);
     overflow: hidden;
   }
-  .fill span {
+  .fill > span {
     display: block;
     height: 100%;
-    background: var(--good);
+    background: #9cc65a;
   }
   .count {
     position: absolute;
-    right: -4px;
+    right: -6px;
     bottom: -4px;
-    min-width: 14px;
-    padding: 0 3px;
-    border-radius: 7px;
-    background: rgba(0, 0, 0, 0.7);
-    color: #fff;
-    font-size: 0.72em;
+    min-width: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: rgba(20, 24, 20, 0.85);
+    box-shadow: 0 0 0 1.5px var(--player);
+    font-size: 0.8em;
     font-weight: 800;
     text-align: center;
   }

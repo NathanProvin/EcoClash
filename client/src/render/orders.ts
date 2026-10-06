@@ -19,6 +19,8 @@ export const ORDER_LINE = {
 } as const;
 
 export type OrderKind = keyof typeof ORDER_LINE.colors;
+/** Milliseconds before an animal's order byte must match its line's order. */
+const GRACE_MS = 1000;
 /** The order byte of the animal frame for each kind. */
 const ORDER_BYTE: Record<OrderKind, number> = { move: 1, attack: 2 };
 
@@ -68,6 +70,9 @@ export function ribbon(
 interface Order {
   ids: Set<number>;
   kind: OrderKind;
+  /** When it was given (ms): the sim takes the order a tick or two later (lockstep delay), so
+   *  until GRACE_MS the old order byte does not count against it. */
+  at: number;
   target: THREE.Vector3;
   mesh: THREE.Mesh;
 }
@@ -107,7 +112,7 @@ export class OrderLines {
     mesh.frustumCulled = false; // rebuilt every frame
     mesh.renderOrder = 9;
     this.scene.add(mesh);
-    this.orders.push({ ids: set, kind, target: target.clone(), mesh });
+    this.orders.push({ ids: set, kind, at: performance.now(), target: target.clone(), mesh });
     this.prune();
   }
 
@@ -124,7 +129,8 @@ export class OrderLines {
       for (const id of o.ids) {
         if (!orderOf.has(id)) o.ids.delete(id); // gone
         const order = orderOf.get(id);
-        if (order !== undefined && order !== ORDER_BYTE[o.kind]) o.ids.delete(id); // replays have none
+        const settled = performance.now() - o.at > GRACE_MS;
+        if (settled && order !== undefined && order !== ORDER_BYTE[o.kind]) o.ids.delete(id); // replays have none
       }
       let [x, z, k] = [0, 0, 0];
       for (const id of o.ids) {

@@ -924,6 +924,7 @@
         <CellPanel
           info={cellInfo}
           species={replay?.meta.species ?? []}
+          me={live ? me : player}
           onZoom={() => cell && viewer?.zoomToCell(cell)}
           onClose={() => inspect(null)}
         />

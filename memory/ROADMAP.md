@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-05: models v2 merged (D-150…D-156); Cloudflare Pages deploy wired (D-157), waiting for the account setup. Next: the first live deploy and outside playtests; then online multiplayer (M6a).
+- **Now:** 2026-10-06: Alpha 2 in progress: red enemy icons, lighter aura, raids that clear an area, unit selection and card, order lines, bigger cell card (D-158…D-163). Next: push to deploy Alpha 2 when the user agrees; then online multiplayer (M6a).
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-10-05
@@ -99,7 +99,7 @@ Goal: a build strangers can play against the bot and understand at a glance. One
   - "Play again" on the end screen.
 - [x] **8a. First-match tips** (D-082): contextual, once each, through the notification stack; switch in Options.
 - [x] **8b. Tutorial** (D-117): a "Tutorial" entry next to Play: the easy bot on a small meadows map (seed 2), six objectives in order (found with lichen, spread to 5 %, unlock grasses, call rabbits, raid with A + click, hold 55 %; D-120), progress dots, a "Tutorial complete" panel.
-- [ ] **9. Static deploy** (Cloudflare Pages, D-157): CI deploy step, `npm run deploy`, build badge and feedback link done; waiting for the Cloudflare project, token and secrets (user).
+- [x] **9. Static deploy** (Cloudflare Pages, D-157): live; **Alpha 1** released and played by outside testers (2026-10-05).
 
 ## World overhaul (before M5a 8b and 9; user, 2026-09-30)
 In this order:

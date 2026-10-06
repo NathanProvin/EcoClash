@@ -91,6 +91,8 @@
   // The human's side: P1 against the bot (D-060); in a relayed match, the seat the relay gave.
   const me = $derived<1 | 2>(live?.me ?? 1);
   let joining = $state(false); // relayed: waiting for the other player to join
+  /** The players' names, P1 then P2 (D-215): on the tug-of-war bar. */
+  let names = $state<[string, string]>(["Player 1", "Player 2"]);
   let stalled = $state(false); // relayed: waiting for the other player's turn
   const mine = $derived(!!live && player === me); // viewing own side: orders allowed
   let techOpen = $state(false);
@@ -285,13 +287,13 @@
   /** Each toast kind's cue (D-177). */
   const TOAST_SOUND: Record<Toast["kind"], string> = {
     notice: "ui.error",
-    alert: "ui.alert",
+    alert: "", // D-215: silent (it rang at every enemy sighting); weather keeps its rumble
     info: "ui.info",
     tip: "ui.tip",
   };
   function toast(text: string, kind: Toast["kind"], cell?: Toast["cell"], severity?: Severity) {
     toasts = [...toasts, { id: toastId++, text, kind, at: performance.now(), cell, severity }];
-    audio.play(TOAST_SOUND[kind]);
+    if (TOAST_SOUND[kind]) audio.play(TOAST_SOUND[kind]);
   }
 
   /** A world sound's place on screen, for panning (D-177). */
@@ -817,10 +819,17 @@
         live = await Live.start(s.seed, size, s.sandbox, s.bot, relay, tutorial);
         joining = false;
         player = live.me; // view your own side
+        const other = relay
+          ? "Opponent"
+          : s.bot === "none"
+            ? "Empty side"
+            : `${s.bot[0]?.toUpperCase() ?? ""}${s.bot.slice(1)} bot`;
+        names = live.me === 1 ? ["You", other] : [other, "You"];
         replay = live;
         speed = 1; // a match starts in real time (D-069)
       } else {
         replay = await loadReplay(`replays/${name}`);
+        names = ["Player 1", "Player 2"];
         speed = 4; // replays: fast playback
       }
       viewer = await Viewer.create(canvas, replay, quality, !!perfBench);
@@ -1225,6 +1234,7 @@
       onChoose={open}
       weather={live ? { now: weather, kinds: live.weatherKinds } : undefined}
       bind:overlay
+      {names}
     />
     <Timeline
       {replay}
@@ -1236,6 +1246,7 @@
       bind:playing
       bind:speed
       {result}
+      weather={live ? { now: weather, kinds: live.weatherKinds } : undefined}
     />
     <BottomBar
       {replay}

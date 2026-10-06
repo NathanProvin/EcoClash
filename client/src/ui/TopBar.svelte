@@ -10,7 +10,6 @@
   import { OVERLAY_RAMPS } from "../render/palette";
   import FamilyIcon from "./FamilyIcon.svelte";
   import Icon from "./Icon.svelte";
-  import WeatherBadge from "./WeatherBadge.svelte";
 
   // Full screen (D-156): the browser's own; Esc or the button leaves it.
   let fullscreen = $state(!!document.fullscreenElement);
@@ -42,8 +41,9 @@
     replays,
     chosen = $bindable(),
     onChoose,
-    weather,
     overlay = $bindable(),
+    names = ["Player 1", "Player 2"],
+    weather,
   }: {
     replay: Source;
     tick: number;
@@ -61,8 +61,10 @@
     replays: string[];
     chosen: string;
     onChoose: (name: string) => void;
-    /** Live matches: the weather now and its kinds (D-132), shown in the icon row. */
+    /** Live matches: the weather now and its kinds (D-132; its badge is by the clock, D-215). */
     weather?: { now: WeatherNow; kinds: WeatherKind[] } | undefined;
+    /** The players' names, P1 then P2 (D-215). */
+    names?: [string, string];
     /** The map overlay shown (D-135), or none. */
     overlay: OverlayId | null;
   } = $props();
@@ -102,7 +104,16 @@
   <span class="legend-ends"><span>low</span><span>{o.high}</span></span>
 {/snippet}
 
+{#snippet side(p: 1 | 2)}
+  <!-- A player's name in its colour, a rating under it (D-215: a placeholder until ranked play). -->
+  <div class="side s{p}" title="Rating: coming with ranked play">
+    <span class="who">{names[p - 1]}</span>
+    <span class="elo num">1000</span>
+  </div>
+{/snippet}
+
 <header class="bar">
+  {@render side(1)}
   <div class="resources panel p{player}" data-tour="resources">
     <!-- Tug of war (D-134): P1 from the left, P2 from the right, free land between, 50 % marked. -->
     <span
@@ -137,8 +148,9 @@
     </div>
   </div>
 
+  {@render side(2)}
+
   <div class="actions">
-    {#if weather}<WeatherBadge now={weather.now} kinds={weather.kinds} />{/if}
     <button
       class="icon"
       onclick={onTech}
@@ -299,6 +311,36 @@
   }
   .bar > * {
     pointer-events: auto;
+  }
+  /* The players on each side of the tug of war (D-215). */
+  .side {
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 76px;
+    margin: 0 6px;
+    padding: 5px 12px;
+    border-radius: 12px;
+    color: #fff;
+    line-height: 1.15;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  }
+  .s1 {
+    background: color-mix(in srgb, var(--p1) 82%, transparent);
+  }
+  .s2 {
+    background: color-mix(in srgb, var(--p2) 82%, transparent);
+  }
+  .who {
+    font-weight: 700;
+    font-size: 0.85em;
+    white-space: nowrap;
+  }
+  .elo {
+    font-size: 0.68em;
+    opacity: 0.85;
   }
   .resources {
     position: relative;

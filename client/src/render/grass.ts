@@ -33,8 +33,8 @@ const TUFT_SPREAD = 0.1; // metres between a tuft's blades
 /** Lichen and moss patches (D-151): disc radius (m), dome height and lift off the ground (m),
  *  tufts per grass tuft, and the patch (m) whose tufts share one colour. */
 export const LICHEN = {
-  radius: [0.18, 0.35],
-  dome: 0.035,
+  radius: [0.09, 0.175], // D-215: half (was 0.18..0.35)
+  dome: 0.02,
   lift: 0.015,
   share: 0.125, // D-154, D-168: a quarter of the patches of 0.5
   patch: 2,

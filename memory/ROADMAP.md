@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-06: performance pass on branch `optimization-v3` (D-198…D-208), done and checked; waits for the user's `?perf=1` figures on the reference laptop, then preset retune, merge to main, and the Alpha 1.1 deploy.
+- **Now:** 2026-10-06: performance and visual pass on branch `optimization-v3` (D-198…D-215) done: Mid/Medium 60 fps, Large/High about 45 fps late game (user). Next: merge to main and deploy Alpha 1.1 on the user's go; then online multiplayer (M6a).
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-10-06

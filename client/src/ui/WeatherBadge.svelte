@@ -7,7 +7,11 @@
   import { change, WEATHER_LOOK, type WeatherKind, type WeatherNow } from "../game/weather";
   import Icon from "./Icon.svelte";
 
-  let { now, kinds }: { now: WeatherNow; kinds: WeatherKind[] } = $props();
+  let {
+    now,
+    kinds,
+    compact = false,
+  }: { now: WeatherNow; kinds: WeatherKind[]; compact?: boolean } = $props();
 
   let hover = $state(false);
   const look = $derived(WEATHER_LOOK[now.kind ?? "clear"] ?? WEATHER_LOOK["clear"]);
@@ -29,6 +33,7 @@
 
 <div
   class="wx {now.phase} {now.kind ?? 'clear'}"
+  class:compact
   role="status"
   aria-label={now.phase === "clear"
     ? "Clear sky"
@@ -109,6 +114,19 @@
   }
   .alert .left {
     color: var(--bad);
+  }
+  /* In the clock strip (D-215): smaller, its pill and tooltip below, opening to the right. */
+  .compact .icon {
+    width: 30px;
+    height: 30px;
+  }
+  .compact .left {
+    top: 34px;
+  }
+  .compact .tip {
+    left: 0;
+    right: auto;
+    top: 44px;
   }
   @keyframes pulse {
     50% {

@@ -2496,3 +2496,20 @@ Template:
   - **Water:** one drifting ripple layer instead of two (it also drives the light ribbons).
   - **Mesh:** ground mesh back to 4 subdivisions per cell; height texture 4 texels per cell. The smooth heights keep the banks curved.
 - **Result:** High at game start goes from 17.2 to 7.3 GPU ms a frame (−58 %). The GPU time is now resolved every 8 frames in `?perf=1`.
+
+## D-215 · 2026-10-06 · Names on the tug of war, the weather by the clock, smaller lichen, silent alerts (branch `optimization-v3`)
+- **Status:** accepted (user)
+- **Decision:**
+  - **Names on the tug of war:** a cell on each side of the bar, in the player's colour, with the name and a placeholder rating ("1000", until ranked play) below.
+    - your side is "You";
+    - a bot is "Easy bot", "Normal bot" or "Hard bot";
+    - a relayed match shows "Opponent";
+    - replays show "Player 1" and "Player 2".
+  - **Weather badge:** in the clock strip, right after the clock and before the perf readout. Compact (30 px), with its tooltip opening to the right.
+  - **Lichen and moss:** patches at half the radius (0.09–0.175 m), with a flatter dome.
+  - **Alerts:** alert toasts (enemy spotted, raids, lost ground) play no sound. Weather keeps its rumble (D-185); notices, infos and tips keep their cues.
+- **Performance:** a late-game regression on Large/High (back to 30 fps) was investigated:
+  - GPU time measured 8.5 ms a frame, nearly insensitive to resolution, so the frame was CPU-bound near the 16.7 ms vsync step;
+  - `Heightfield.at` (D-212) adds about 0.3 ms with about 1 100 animals.
+
+  Before an A/B against D-208 ran, the user re-measured 45 fps late game on Large/High. No change was made; the leads are noted here if it comes back.

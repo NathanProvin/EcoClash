@@ -794,3 +794,19 @@
   All checks green.
 - **Not done:** plant distance level of detail (M5b), packing the herb textures, raw-byte agent hashing.
 - **Next:** the user runs `?perf=1&map=mid` (Medium) and `?perf=1` (Large, High) on the laptop and reports `window.ecoPerf`; then retune the presets, merge, and deploy Alpha 1.1.
+
+## 2026-10-06 (11) · Visual fixes and the High budget (D-209…D-215)
+- **Done:**
+  - sharp image back (the guard is for emergencies only);
+  - crisp, winding shores;
+  - no plants in the water;
+  - a baked, softly lit ground patchwork;
+  - living water (one ripple layer);
+  - leaf-green grass;
+  - High drops the tilt-shift blur: game-start GPU time 17.2 → 7.3 ms, measured with timestamp queries per variant (`?gfx=`);
+  - names and placeholder ratings on the tug of war;
+  - the weather badge by the clock;
+  - smaller lichen;
+  - silent alert toasts.
+- **Measured:** late-game GPU time on Large/High is 8.5 ms (CPU-bound near the vsync step). The user re-measured 45 fps late game; the A/B was dropped.
+- **Next:** merge `optimization-v3` and deploy Alpha 1.1 when the user says so.

@@ -2,6 +2,8 @@
   // Time controls (D-064). A live match: a small clock pill at the top left (play / pause with
   // Space, speed), with a quiet "slowed" mark when the sim cannot keep 10 Hz (INSTRUCTIONS §6).
   // A replay: a slim scrubber above the build card. Performance numbers only on request.
+  import type { WeatherKind, WeatherNow } from "../game/weather";
+  import WeatherBadge from "./WeatherBadge.svelte";
   import type { Source } from "../replay/replay";
 
   let {
@@ -10,6 +12,7 @@
     simMs,
     perf,
     showPerf,
+    weather,
     tick = $bindable(),
     playing = $bindable(),
     speed = $bindable(),
@@ -20,6 +23,8 @@
     simMs: number;
     perf: string;
     showPerf: boolean;
+    /** The weather now and its kinds (live matches; D-215: next to the clock). */
+    weather?: { now: WeatherNow; kinds: WeatherKind[] };
     tick: number;
     playing: boolean;
     speed: number;
@@ -46,6 +51,7 @@
     {playing ? "❚❚" : "▶"}
   </button>
   <span class="clock num">{clock(tick * replay.meta.dt)}</span>
+  {#if weather}<WeatherBadge now={weather.now} kinds={weather.kinds} compact />{/if}
   {#if !live}
     <input
       type="range"

@@ -1882,3 +1882,7 @@ Template:
   - The main menu shows the build and a "Send feedback" link (hidden without a URL).
   - `.env.example` documents both variables (INSTRUCTIONS §14); `src/env.d.ts` types them.
   - The cross-origin headers ship in `public/_headers`. The bundle is 4.5 MB (WASM 1.4 MB), under the 30 MB budget.
+
+## D-158 · 2026-10-06 · Enemy group icons in solid red
+- **Status:** accepted (user, Alpha 2)
+- **Decision:** enemy strategic icons get a solid red ring (`--threat: #d8392b`), not the dashed one in the enemy's colour (D-146).

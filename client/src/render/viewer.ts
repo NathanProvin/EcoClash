@@ -46,6 +46,8 @@ import {
   Heightfield,
   NOISE,
   noiseTexture,
+  DETAIL_TILE,
+  groundDetailTexture,
   RELIEF,
   reliefTexture,
   drape,
@@ -335,13 +337,37 @@ export class Viewer {
         : smoothstep(this.field.water - 0.05, this.field.water + 0.02, positionWorld.y);
     const lineA = l1.max(l2).mul(this.showFrontier).mul(dryLine);
     const soilColour = mix(earth, humus, mottle).mul(grain);
-    // Soft relief (D-213): broad undulations and a finer, fainter layer tilt the normal, so the
-    // sun models gentle hollows and rises; hollows also take a touch of ambient shade.
-    const broad = this.relief(0.18, 0.6);
-    const fine = this.relief(0.9, 1.9);
-    groundMat.normalNode = this.tilted(broad.slope.mul(0.32).add(fine.slope.mul(0.1)));
-    const hollow = mix(float(0.9), float(1.04), broad.height.mul(0.7).add(fine.height.mul(0.3)));
-    groundMat.colorNode = mix(this.terrainTint(soilColour.mul(hollow), grain), lineRgb, lineA);
+    const gfx = graphics();
+    if (gfx.ground === "full") {
+      // Soft relief (D-213): broad undulations and a finer, fainter layer tilt the normal, so
+      // the sun models gentle hollows and rises; hollows also take a touch of ambient shade.
+      const broad = this.relief(0.18, 0.6);
+      const fine = this.relief(0.9, 1.9);
+      groundMat.normalNode = this.tilted(broad.slope.mul(0.32).add(fine.slope.mul(0.1)));
+      const hollow = mix(float(0.9), float(1.04), broad.height.mul(0.7).add(fine.height.mul(0.3)));
+      groundMat.colorNode = mix(this.terrainTint(soilColour.mul(hollow), grain), lineRgb, lineA);
+    } else {
+      // The baked look (D-214): the patchwork, mottle, relief light and hollows in one tileable
+      // texture, read at two turned scales (no tile repeats), and the soil colour in one tap
+      // through the detail's warp. About 5 reads a pixel instead of about 13, no tilted normal.
+      const toSun = sun.position.clone().setY(0).normalize();
+      const detailTex = groundDetailTexture([toSun.x, toSun.z]);
+      const detail = (metres: number, angle: number) => {
+        const [c, sn] = [Math.cos(angle), Math.sin(angle)];
+        const p = positionWorld.xz;
+        const turned = vec2(p.x.mul(c).sub(p.y.mul(sn)), p.x.mul(sn).add(p.y.mul(c)));
+        return texture(detailTex, turned.div(metres).add(angle * 0.31));
+      };
+      const big = detail(DETAIL_TILE, 0.4);
+      const small = detail(DETAIL_TILE / 3.7, 1.7);
+      const shade = big.rgb.add(0.5).mul(small.rgb.add(0.5).sub(1).mul(0.2).add(1));
+      const warpUv = vec2(big.a, small.a)
+        .sub(0.5)
+        .mul(0.9 / n);
+      const soil = texture(this.groundTex, uv().add(warpUv)).rgb;
+      const base = gfx.ground === "lite" ? soil.mul(shade) : texture(this.groundTex, uv()).rgb;
+      groundMat.colorNode = mix(this.terrainTint(base, float(1)), lineRgb, lineA);
+    }
     groundMat.emissiveNode = lineRgb.mul(lineA.mul(0.35));
     this.ground = new THREE.Mesh(groundGeometry(this.field), groundMat);
     this.ground.receiveShadow = true;
@@ -517,13 +543,14 @@ export class Viewer {
     const scene = pass(this.scene, this.camera);
     const colour = scene.getTextureNode("output");
     const sharp = this.focus.mul(POST.range);
-    const tilted = dof(colour, scene.getViewZNode(), this.focus, sharp, POST.bokeh);
+    const mode = graphics().post;
     const glow = bloom(colour, POST.bloom, POST.bloomRadius, POST.bloomThreshold);
+    if (mode === "bloom") return new THREE.RenderPipeline(this.renderer, glow.add(colour));
+    const tilted = dof(colour, scene.getViewZNode(), this.focus, sharp, POST.bokeh);
     // DepthOfFieldNode is typed without the node operators.
-    return new THREE.RenderPipeline(
-      this.renderer,
-      glow.add(tilted as unknown as THREE.Node<"color">),
-    );
+    const blurred = tilted as unknown as THREE.Node<"color">;
+    if (mode === "dof") return new THREE.RenderPipeline(this.renderer, blurred);
+    return new THREE.RenderPipeline(this.renderer, glow.add(blurred));
   }
 
   /** Switch the quality preset: rebuild the grass at its density, apply its resolution. */
@@ -665,11 +692,16 @@ export class Viewer {
     const at = positionWorld.xz.add(size / 2).div(size); // world x/z -> height texel
     const bed = texture(this.heights, at).r;
     const depth = float(level).sub(bed);
-    // Two slow ripple layers drifting against each other (D-213).
+    // Slow ripples drifting (D-213): two layers in "full", one in "lite" (D-214), none in "flat".
     const drift = (k: number) => vec2(time.mul(k), time.mul(k * 0.6));
     const a = this.relief(0.35, 0.3, drift(0.012));
-    const b = this.relief(0.8, 2.2, drift(-0.018));
-    material.normalNode = this.tilted(a.slope.mul(0.08).add(b.slope.mul(0.03)));
+    const mode = graphics().water;
+    if (mode === "full") {
+      const b = this.relief(0.8, 2.2, drift(-0.018));
+      material.normalNode = this.tilted(a.slope.mul(0.08).add(b.slope.mul(0.03)));
+    } else if (mode === "lite") {
+      material.normalNode = this.tilted(a.slope.mul(0.09));
+    }
     // Shallows, mid and deep tones; light ribbons over a near bed; the sky at grazing angles.
     const tone = mix(
       mix(color(WORLD.shallows), color(WORLD.midWater), smoothstep(0.1, 0.9, depth)),
@@ -684,7 +716,11 @@ export class Viewer {
     );
     const view = cameraPosition.sub(positionWorld).normalize();
     const grazing = float(1).sub(view.y.max(0)).pow(3);
-    material.colorNode = mix(tone.mul(ribbons), color(WORLD.sky), grazing.mul(0.35));
+    material.colorNode = mix(
+      mode === "flat" ? tone : tone.mul(ribbons),
+      color(WORLD.sky),
+      grazing.mul(0.35),
+    );
     // A crisp edge (D-210): full within 8 cm of depth. The old 35 cm fade spread over metres on
     // flat shores and blurred where land ends; the bed darkens under the water instead.
     material.opacityNode = smoothstep(0.0, 0.08, depth).mul(float(0.8).add(grazing.mul(0.15)));
@@ -1031,7 +1067,7 @@ export class Viewer {
     }
     lap("submit");
     const backend = this.renderer.backend as { trackTimestamp?: boolean };
-    if (backend.trackTimestamp && !this.gpuPending && this.frames % 30 === 0) {
+    if (backend.trackTimestamp && !this.gpuPending && this.frames % 8 === 0) {
       this.gpuPending = true;
       void this.renderer
         .resolveTimestampsAsync()
@@ -1298,3 +1334,22 @@ function animateAura(
 
 /** The aura's three fog layers float this far above the ground (m). */
 const AURA_LIFT = [0.15, 0.9] as const; // two layers (D-159: was three)
+
+/** Shader variants (D-214), for measuring: `?gfx=ground:full,water:lite` (dev). "lite" ships;
+ *  "full" is D-213's per-pixel look, "flat" the plainest. */
+type Variant = "full" | "lite" | "flat";
+function graphics(): { ground: Variant; water: Variant; post: "full" | "bloom" | "dof" } {
+  const out: { ground: Variant; water: Variant; post: "full" | "bloom" | "dof" } = {
+    ground: "lite",
+    water: "lite",
+    post: "bloom", // D-214: the tilt-shift blur cost ~7.4 ms a frame on the reference laptop
+  };
+  const q = new URLSearchParams(globalThis.location?.search ?? "").get("gfx") ?? "";
+  for (const part of q.split(",")) {
+    const [k, v] = part.split(":");
+    if ((k === "ground" || k === "water") && (v === "full" || v === "lite" || v === "flat"))
+      out[k] = v;
+    if (k === "post" && (v === "full" || v === "bloom" || v === "dof")) out.post = v;
+  }
+  return out;
+}

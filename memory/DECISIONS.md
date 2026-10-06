@@ -2475,3 +2475,24 @@ Template:
     - ground mesh 5 subdivisions per cell (was 4);
     - height texture 6 texels per cell side.
 - **Cost:** ground and water each take 2 more texture reads per pixel. The Mid ground mesh grows from 47k to 74k triangles; Large from about 100k to about 157k.
+
+## D-214 · 2026-10-06 · High at game start: baked ground, one ripple layer, bloom without tilt-shift (branch `optimization-v3`)
+- **Status:** accepted (user: High fell to 30 fps at game start after D-209…D-213; keep the water movement and the ground look)
+- **Measured:** GPU timestamps on the reference laptop (Intel UHD), Large map, High, game start, overview, render scale pinned to 1, 1879 × 991 canvas. The `?gfx=` dev switch selects the variants.
+
+  | Variant | GPU ms per frame |
+  |---|---|
+  | D-213: per-pixel ground relief + 2 ripple layers, bloom + tilt-shift | 17.2 |
+  | Baked ground + 1 ripple layer, bloom + tilt-shift | 14.0 |
+  | Plainest ground and water, bloom + tilt-shift | 13.8 |
+  | Baked + 1 ripple, no post-processing | 6.0 |
+  | Baked + 1 ripple, bloom only (**shipped**) | 7.3 |
+  | Baked + 1 ripple, tilt-shift only | 13.4 |
+
+- **Conclusion:** the tilt-shift depth of field (`DepthOfFieldNode`) cost about 7.4 ms a frame on its own, more than the whole scene. The new surfaces, once baked, cost about the same as the plainest ones.
+- **Decision:**
+  - **High:** bloom only; the tilt-shift blur is dropped (still reachable in dev with `?gfx=post:full`).
+  - **Ground:** the patchwork tints, humus mottle, relief light and shade (fixed sun) and hollows are baked once into one tileable texture (`groundDetailTexture`). It is read at two turned scales (48 m and 13 m), and the soil colour in one tap through its warp: about 5 reads a pixel instead of about 13, with no tilted normal. The relief shading and the small layer are softened.
+  - **Water:** one drifting ripple layer instead of two (it also drives the light ribbons).
+  - **Mesh:** ground mesh back to 4 subdivisions per cell; height texture 4 texels per cell. The smooth heights keep the banks curved.
+- **Result:** High at game start goes from 17.2 to 7.3 GPU ms a frame (−58 %). The GPU time is now resolved every 8 frames in `?perf=1`.

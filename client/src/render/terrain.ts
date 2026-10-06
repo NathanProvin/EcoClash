@@ -31,7 +31,7 @@ const SMOOTH = 1; // one pass: cliffs stay steep (D-096)
 const MEANDER = { amp: 0.12, wave: 4.5 } as const; // D-213: smoother, same flow
 /** Height texels per cell side: the shaders (water depth, grass roots) follow the smooth
  *  heights, not a per-cell bilinear version of them (D-212). */
-const HEIGHT_TEXELS = 6;
+const HEIGHT_TEXELS = 4; // D-214: was 6
 
 /** Heights of an `n x n` map (m): per cell centre, smooth in between (D-212). */
 export class Heightfield {
@@ -151,7 +151,7 @@ function blur(h: Float32Array, n: number): void {
 }
 
 /** Ground mesh subdivisions per cell (4 since D-150: about 1.8x the triangles of 3). */
-const SUBDIV = 5; // D-213: finer banks (was 4)
+const SUBDIV = 4; // D-214: back from 5 (D-213), the smooth heights keep the banks curved
 
 /** The ground: a plane over the map, its vertices raised to the heightfield. UVs as before. */
 export function groundGeometry(field: Heightfield): THREE.BufferGeometry {
@@ -352,6 +352,64 @@ export function noiseTexture(): THREE.DataTexture {
     }
   }
   for (let k = 3; k < data.length; k += 4) data[k] = 255;
+  const t = new THREE.DataTexture(data, size, size);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  t.needsUpdate = true;
+  return t;
+}
+
+/** Metres across one tile of the baked ground detail (D-214). */
+export const DETAIL_TILE = 48;
+
+/** The ground's look, baked once (D-214): the soft patchwork tints, the humus mottle, the relief's
+ *  light and shade for the fixed sun (`sun`: its x / z direction) and the hollows, as one
+ *  tileable texture. RGB = a colour multiplier (value 0.5 + m - 1, so m in 0.5..1.5), A = a warp
+ *  for the soil colour. One read replaces about ten per ground pixel. */
+export function groundDetailTexture(sun: [number, number]): THREE.DataTexture {
+  const size = 256;
+  const tile = DETAIL_TILE;
+  // Features in metres, as before: patches ~12 m, zones ~24 m, spots ~16 m, relief ~6 m.
+  const patches = fbm(Math.round(tile / 12), 3, 9300);
+  const zones = fbm(Math.round(tile / 24), 3, 9400);
+  const spots = fbm(Math.round(tile / 16), 3, 9500);
+  const height = fbm(Math.round(tile / 6), 3, 9600);
+  const warp = fbm(Math.round(tile / 9), 2, 9700);
+  const soft = (v: number) => {
+    const t = Math.min(Math.max((v - 0.3) / 0.4, 0), 1);
+    return t * t * (3 - 2 * t);
+  };
+  const mix3 = (a: number[], b: number[], t: number) => a.map((x, i) => x + ((b[i] ?? 0) - x) * t);
+  const data = new Uint8Array(size * size * 4);
+  const step = 1 / size;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const [u, v] = [x / size, y / size];
+      const tint = mix3(
+        mix3([1.04, 0.99, 0.9], [0.93, 0.97, 0.9], soft(zones(u, v))),
+        [0.97, 0.92, 0.88],
+        soft(spots(u, v)) * 0.55,
+      );
+      const p = patches(u, v) * 2 - 1;
+      const t = Math.min(Math.max((p - 0.1) / 0.8, 0), 1);
+      const mottle = t * t * (3 - 2 * t) * 0.35;
+      const humus = mix3([1, 1, 1], [0.82, 0.78, 0.72], mottle);
+      const h = height(u, v);
+      // Slopes per metre, lit by the sun along x / z: hollows facing away go a little darker.
+      const sx = (height(u + step, v) - height(u - step, v)) / ((2 * tile) / size);
+      const sz = (height(u, v + step) - height(u, v - step)) / ((2 * tile) / size);
+      const shade = 1 - (sx * sun[0] + sz * sun[1]) * 0.8;
+      const hollow = 0.9 + 0.14 * h;
+      const m = tint.map((c, i) => c * (humus[i] ?? 1) * hollow * shade * (1 + p * 0.04));
+      const i = (y * size + x) * 4;
+      for (let c = 0; c < 3; c++) {
+        data[i + c] = Math.round(Math.min(Math.max((m[c] ?? 1) - 0.5, 0), 1) * 255);
+      }
+      data[i + 3] = Math.round(warp(u, v) * 255);
+    }
+  }
   const t = new THREE.DataTexture(data, size, size);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.magFilter = THREE.LinearFilter;

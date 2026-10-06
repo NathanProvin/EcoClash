@@ -45,6 +45,11 @@
 html {
   cursor: var(--cursor);
 }
+/* The camera controls write an inline cursor: auto on the canvas (three MapControls); without
+   this the map showed the system arrow (D-184). */
+canvas {
+  cursor: var(--cursor) !important;
+}
 
 html,
 body,

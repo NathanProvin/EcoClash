@@ -33,6 +33,10 @@
   import UnitPanel from "./ui/UnitPanel.svelte";
   import UnitList from "./ui/UnitList.svelte";
   import { shortNotice } from "./game/notices";
+  import { audio } from "./audio/engine";
+  import { ambience, moodOf } from "./audio/ambience";
+  import { voiceOf } from "./audio/sounds";
+  import { formOf as bodyOf } from "./render/bodies";
   import { unitCard } from "./game/units";
   import MainMenu from "./ui/MainMenu.svelte";
   import EndScreen from "./ui/EndScreen.svelte";
@@ -260,8 +264,44 @@
     if (!s) dropTag = null;
   });
 
+  /** Each toast kind's cue (D-177). */
+  const TOAST_SOUND: Record<Toast["kind"], string> = {
+    notice: "ui.error",
+    alert: "ui.alert",
+    info: "ui.info",
+    tip: "ui.tip",
+  };
   function toast(text: string, kind: Toast["kind"], cell?: Toast["cell"], severity?: Severity) {
     toasts = [...toasts, { id: toastId++, text, kind, at: performance.now(), cell, severity }];
+    audio.play(TOAST_SOUND[kind]);
+  }
+
+  /** A world sound's place on screen, for panning (D-177). */
+  function placeOf(cell: { row: number; col: number } | null) {
+    const v = viewer;
+    if (!v || !cell) return null;
+    const p = v.screenPoint(cell);
+    return { x: p.x, inView: p.inView, width: canvas.clientWidth };
+  }
+  /** The call of an animal species (D-177), if it has one. */
+  function callOf(name: string): string | null {
+    const s = replay?.meta.species.find((x) => x.name === name);
+    return s ? voiceOf(name, bodyOf(name, s.role as never).body) : null;
+  }
+  /** Now and then, an animal on screen calls (D-177): the map feels alive, rarely enough not to
+   *  tire. Closer views hear more. */
+  let lastLife = 0;
+  function animalLife(now: number) {
+    const v = viewer;
+    if (!v || !replay || now - lastLife < 2500) return;
+    lastLife = now;
+    if (Math.random() > 0.25 + 0.5 * v.closeness()) return;
+    const all = v.visibleAnimals();
+    const a = all[Math.floor(Math.random() * all.length)];
+    if (!a) return;
+    const call = callOf(replay.meta.fauna.names[a.species] ?? "");
+    const place = placeOf({ row: Math.floor(a.y), col: Math.floor(a.x) });
+    if (call && place?.inView) audio.play(call, { at: place, gain: 0.55 });
   }
 
   /** Raids on your land, and species newly within reach (live matches). */
@@ -432,6 +472,7 @@
     pendingArm = null;
     planting = name;
     popped = name;
+    audio.play("ui.unlock");
     setTimeout(() => {
       if (popped === name) popped = null;
     }, 900);
@@ -536,6 +577,10 @@
       if (now - lastIcons > ICONS_MS) {
         lastIcons = now;
         placeIcons();
+        ambience.set(moodOf(weather.kind, weather.phase), weather.phase === "alert" ? 0.35 : 1);
+        ambience.setPaused(!playing);
+        if (viewer) ambience.setNear(viewer.closeness());
+        animalLife(now);
       }
       const showing = fresh(toasts, now);
       if (showing.length !== toasts.length) toasts = showing;
@@ -555,6 +600,10 @@
           const at = { row: e.row, col: e.col };
           const look = CATASTROPHE_LOOK[c.act];
           viewer.catastropheFx(c.act, at, c.radius, c.duration_s, look?.color ?? WORLD.alert);
+          const cue = { kill_trees: "fx.caterpillars", storm: "fx.storm", spill: "fx.spill" }[
+            c.act
+          ];
+          if (cue) audio.play(cue, { at: placeOf(at) });
           if (e.player !== me) toast(`Enemy ${label(c.name).toLowerCase()}!`, "alert", at, 2);
         }
       }
@@ -656,6 +705,7 @@
   function order(kind: "move" | "attack" | "stop", at?: { row: number; col: number } | null) {
     if (!live || !selection.size) return;
     live.order(me, [...selection], kind, at?.row ?? 0, at?.col ?? 0);
+    audio.play("fx.order");
     if (kind !== "stop" && at) viewer?.addOrder([...selection], at, kind); // its line (D-162)
     if (kind !== "stop" && at && enemyAt(at)) raidOrdered = true; // for the tutorial
   }
@@ -719,7 +769,14 @@
         live.plant(me, planting, at.row, at.col);
         const s = live.meta.species.find((x) => x.name === planting);
         viewer.plantFeedback(at, live.plantRadius, plantColor(planting, s?.level ?? 1, me));
-      } else live.spawn(me, planting, at.row, at.col);
+        audio.play("fx.plant", { at: placeOf(at) });
+      } else {
+        live.spawn(me, planting, at.row, at.col);
+        const place = placeOf(at);
+        audio.play("fx.drop", { at: place });
+        const call = callOf(planting);
+        if (call) setTimeout(() => audio.play(call, { at: place }), 450);
+      }
       if (!e.shiftKey) planting = null;
     } else if (click) {
       // A click on an animal (anyone's) shows its card, and selects it when it is yours
@@ -828,6 +885,8 @@
 
   /** Back to the main menu: the match and its worker end. */
   function toMenu() {
+    ambience.set("menu"); // the quiet menu bed (D-177)
+    ambience.setPaused(false);
     viewer?.dispose();
     viewer = undefined;
     live?.dispose();
@@ -840,13 +899,30 @@
     confirmLeave = false;
   }
 
+  /** Audio (D-177): browsers start silent, so the first gesture starts it; any button ticks. */
+  function wakeAudio() {
+    audio.start();
+  }
+  function clickSound(e: MouseEvent) {
+    const el = e.target instanceof Element ? e.target : null;
+    if (el?.closest("button, label.choice, [role=tab], [role=switch]")) audio.play("ui.click");
+  }
+
   onMount(() => {
+    window.addEventListener("pointerdown", wakeAudio, true);
+    window.addEventListener("keydown", wakeAudio, true);
+    window.addEventListener("click", clickSound, true);
     window.addEventListener("resize", resize);
+    // Dev only: lets a browser check read the audio state (window.ecoAudio, ecoAmbience).
+    if (import.meta.env.DEV) Object.assign(window, { ecoAudio: audio, ecoAmbience: ambience });
     raf = requestAnimationFrame(frame);
     void start();
   });
 
   onDestroy(() => {
+    window.removeEventListener("pointerdown", wakeAudio, true);
+    window.removeEventListener("keydown", wakeAudio, true);
+    window.removeEventListener("click", clickSound, true);
     window.removeEventListener("resize", resize);
     cancelAnimationFrame(raf);
     viewer?.dispose();

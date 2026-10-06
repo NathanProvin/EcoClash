@@ -491,6 +491,13 @@ export class Viewer {
   }
 
   /** Show the aura over a cell, or hide it (null). */
+  /** How close the camera is (0 the whole map .. 1 at plant scale), for the ambience (D-177). */
+  closeness(): number {
+    const d = this.camera.position.distanceTo(this.controls.target);
+    const far = this.replay.meta.n * CELL * 1.4;
+    return Math.max(0, Math.min(1, 1 - d / far));
+  }
+
   /** Animals `ids` were ordered to `cell`: draw their order line (D-162). */
   addOrder(ids: readonly number[], cell: { row: number; col: number }, kind: OrderKind): void {
     this.orders.add(ids, this.centre(cell), kind);

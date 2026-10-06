@@ -2192,3 +2192,16 @@ Template:
   - `[bots] income` for hard 2.0 → 1.5: hard beats normal 25 of 28 (89 %), median end 20:57.
   - Normal beats easy 18 of 18.
 - **Open:** match length vs hard (about 21 min) is shorter than the mirror; watch it in playtests.
+
+## D-190 · 2026-10-06 · Bench markers for situational play
+- **Status:** accepted (user: the bench must show the bots unlock and use units adapted to the situation, the whole roster, water included)
+- **Decision** (`sim-cli bench`), new summary lines:
+  - **Animals called / never called;** species never unlocked.
+  - **Raids answered:** a raid is 3 or more enemy grazers on own land; it closes after 30 s without them. A raid is answered by the first own call of a hunter that eats one of the raiders. Reported as a share, a median latency, and the share answered within 60 s.
+  - **Hunter calls with prey within the drop radius:** primary prey, any prey.
+  - **On water maps:** sides that unlocked W / HW / PW species; HW and PW calls per match.
+- **Baseline** (old bot, normal mirror, 30 seeds):
+  - 12 of 33 animals ever called;
+  - raids answered 719 / 868 (median 8 s);
+  - primary prey in reach 48 %;
+  - water maps 26 / 30, with no water species ever unlocked.

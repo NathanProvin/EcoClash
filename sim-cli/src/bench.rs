@@ -53,7 +53,26 @@ pub struct Markers {
     /// Winner (0 draw), reason, end (s); None: still running at the end.
     pub end: Option<(u8, Reason, u64)>,
     pub minutes: u64,
+    /// Names on the stat sheet: plants, animals (D-190).
+    pub flora_names: Vec<String>,
+    pub fauna_names: Vec<String>,
+    /// Sides that had unlocked each species by the end (D-190).
+    pub unlocked: std::collections::BTreeMap<String, u64>,
+    /// Raids on own land (RAID_SIZE enemy grazers or more) answered by a call of a hunter that
+    /// eats one of the raiders: seconds from the raid's onset; raids never answered (D-190).
+    pub answers: Vec<u64>,
+    pub unanswered: u64,
+    /// Hunter calls; of them, with primary prey within the drop radius; with any prey (D-190).
+    pub fit: [u64; 3],
+    /// The map has water; per side, a W, HW and PW species unlocked; HW and PW calls (D-190).
+    pub water: bool,
+    pub aquatic: [[bool; 3]; 2],
+    pub water_calls: u64,
 }
+
+/// Enemy grazers on own land that make a raid (D-190), and seconds without them that end it.
+const RAID_SIZE: usize = 3;
+const RAID_GONE_S: u64 = 30;
 
 /// Play one bot-vs-bot match on a generated map of `size`, for at most `minutes`.
 #[must_use]
@@ -88,8 +107,19 @@ pub fn play(b: &Balance, seed: u64, size: usize, levels: [Level; 2], minutes: u6
     let (n2, species) = (size * size, w.flora.p.species());
     let mut m = Markers {
         minutes,
+        flora_names: b.flora_species.iter().map(|(n, _)| n.clone()).collect(),
+        fauna_names: b.fauna_species.iter().map(|(n, _)| n.clone()).collect(),
+        water: w
+            .state
+            .ground
+            .iter()
+            .any(|&g| g == sim_core::terrain::SHALLOW || g == sim_core::terrain::DEEP),
         ..Markers::default()
     };
+    let family = |s: usize| b.fauna_species[s].1.family.as_str();
+    let reach2 = u64::from(b.fauna.drop_radius).pow(2);
+    // An open raid per side: (onset, species of the raiders as a mask, last second seen).
+    let mut raids: [Option<(u64, u64, u64)>; 2] = [None; 2];
     let mut seq = [0u32; 2];
     let mut last_standing = [0i64; 2];
     let mut best_growth = [0i64; 2];
@@ -113,9 +143,43 @@ pub fn play(b: &Balance, seed: u64, size: usize, levels: [Level; 2], minutes: u6
                 if let Payload::Catastrophe { kind, .. } = &payload {
                     *m.called.entry(format!("cast {kind}")).or_insert(0) += 1;
                 }
-                if let Payload::Spawn { species, .. } = &payload {
+                if let Payload::Spawn { species, row, col } = &payload {
                     m.calls[usize::from(p - 1)] += 1;
                     *m.called.entry(species.clone()).or_insert(0) += 1;
+                    if let Some(s) = w.fauna.p.index(species) {
+                        if matches!(family(s), "HW" | "PW") {
+                            m.water_calls += 1;
+                        }
+                        if w.fauna.p.role[s] == Role::Predator {
+                            let (row, col) = (*row as usize, *col as usize);
+                            let a = &w.fauna.agents;
+                            let (mut primary, mut any) = (false, false);
+                            for j in (0..a.len()).filter(|&j| a.owner[j] == 3 - p) {
+                                let k = a.cell(j, size);
+                                let d = (k / size).abs_diff(row).pow(2)
+                                    + (k % size).abs_diff(col).pow(2);
+                                if d as u64 <= reach2 {
+                                    match w.fauna.p.prey_rank(s, usize::from(a.sp[j])) {
+                                        Some(0) => (primary, any) = (true, true),
+                                        Some(_) => any = true,
+                                        None => {}
+                                    }
+                                }
+                            }
+                            m.fit[0] += 1;
+                            m.fit[1] += u64::from(primary);
+                            m.fit[2] += u64::from(any);
+                            let pi = usize::from(p - 1);
+                            if let Some((onset, mask, _)) = raids[pi]
+                                && (0..64).any(|q| {
+                                    mask >> q & 1 == 1 && w.fauna.p.prey_rank(s, q).is_some()
+                                })
+                            {
+                                m.answers.push(w.tick / HZ - onset);
+                                raids[pi] = None;
+                            }
+                        }
+                    }
                 }
                 let s = &mut seq[usize::from(p - 1)];
                 w.submit(Command {
@@ -133,6 +197,28 @@ pub fn play(b: &Balance, seed: u64, size: usize, levels: [Level; 2], minutes: u6
             for p in 0..2 {
                 let player = u8::try_from(p + 1).unwrap_or(1);
                 let census = w.fauna.census(player);
+                // Raids on this side's land (D-190): open, extend, or close unanswered.
+                let a = &w.fauna.agents;
+                let (mut count, mut mask) = (0usize, 0u64);
+                for j in 0..a.len() {
+                    let s = usize::from(a.sp[j]);
+                    if a.owner[j] == 3 - player
+                        && w.fauna.p.role[s] == Role::Herbivore
+                        && w.state.owner[a.cell(j, size)] == player
+                    {
+                        count += 1;
+                        mask |= 1 << s;
+                    }
+                }
+                raids[p] = match raids[p] {
+                    Some((onset, m0, _)) if count >= RAID_SIZE => Some((onset, m0 | mask, now)),
+                    Some((_, _, last)) if now - last > RAID_GONE_S => {
+                        m.unanswered += 1;
+                        None
+                    }
+                    None if count >= RAID_SIZE => Some((now, mask, now)),
+                    open => open,
+                };
                 set(&mut m.animal[p], now, census.iter().any(|&c| c > 0));
                 let hunters = census
                     .iter()
@@ -235,6 +321,27 @@ pub fn play(b: &Balance, seed: u64, size: usize, levels: [Level; 2], minutes: u6
         }
     }
     m.land = w.territory();
+    m.unanswered += raids.iter().flatten().count() as u64;
+    for p in 0..2 {
+        for (i, &u) in w.economy.unlocked[p].iter().enumerate() {
+            if !u {
+                continue;
+            }
+            let pl = b.flora_species.len();
+            let (name, fam) = if i < pl {
+                (&b.flora_species[i].0, b.flora_species[i].1.family.as_str())
+            } else {
+                (
+                    &b.fauna_species[i - pl].0,
+                    b.fauna_species[i - pl].1.family.as_str(),
+                )
+            };
+            *m.unlocked.entry(name.clone()).or_insert(0) += 1;
+            if let Some(f) = ["W", "HW", "PW"].iter().position(|&x| x == fam) {
+                m.aquatic[p][f] = true;
+            }
+        }
+    }
     m
 }
 
@@ -377,6 +484,82 @@ pub fn summary(ms: &[Markers], levels: [Level; 2]) -> String {
         .map(|(k, v)| format!("{k} {v}"))
         .collect();
     let _ = writeln!(t, "top calls: {}", top.join(", "));
+    // D-190: does the bot use the whole roster, answer raids, call fitting hunters, use water?
+    let fauna = ms
+        .first()
+        .map(|m| m.fauna_names.clone())
+        .unwrap_or_default();
+    let flora = ms
+        .first()
+        .map(|m| m.flora_names.clone())
+        .unwrap_or_default();
+    let called = |name: &str| {
+        ms.iter()
+            .any(|m| m.called.get(name).is_some_and(|&c| c > 0))
+    };
+    let never: Vec<&str> = fauna
+        .iter()
+        .map(String::as_str)
+        .filter(|n| !called(n))
+        .collect();
+    let _ = writeln!(
+        t,
+        "animals called {}/{}; never: {}",
+        fauna.len() - never.len(),
+        fauna.len(),
+        never.join(", ")
+    );
+    let unlocked = |name: &str| ms.iter().any(|m| m.unlocked.contains_key(name));
+    let locked: Vec<&str> = flora
+        .iter()
+        .chain(fauna.iter())
+        .map(String::as_str)
+        .filter(|n| !unlocked(n))
+        .collect();
+    let _ = writeln!(
+        t,
+        "never unlocked: {}",
+        if locked.is_empty() {
+            "none".into()
+        } else {
+            locked.join(", ")
+        }
+    );
+    let mut answers: Vec<u64> = ms.iter().flat_map(|m| m.answers.iter().copied()).collect();
+    answers.sort_unstable();
+    let unanswered: u64 = ms.iter().map(|m| m.unanswered).sum();
+    let raids = answers.len() as u64 + unanswered;
+    let quick = answers.iter().filter(|&&s| s <= 60).count() as u64;
+    let _ = writeln!(
+        t,
+        "raids answered {}/{raids} (median {} s; within 60 s {} %)",
+        answers.len(),
+        answers.get(answers.len() / 2).copied().unwrap_or(0),
+        100 * quick / raids.max(1)
+    );
+    let fit = ms.iter().fold([0u64; 3], |f, m| {
+        [f[0] + m.fit[0], f[1] + m.fit[1], f[2] + m.fit[2]]
+    });
+    let _ = writeln!(
+        t,
+        "hunter calls {}: primary prey in reach {} %, any prey {} %",
+        fit[0],
+        100 * fit[1] / fit[0].max(1),
+        100 * fit[2] / fit[0].max(1)
+    );
+    let wet: Vec<&Markers> = ms.iter().filter(|m| m.water).collect();
+    let sides = 2 * wet.len().max(1);
+    let fam = |f: usize| 100 * wet.iter().flat_map(|m| m.aquatic).filter(|a| a[f]).count() / sides;
+    let _ = writeln!(
+        t,
+        "water maps {}/{}: sides with W {} %, HW {} %, PW {} %; water calls per match {:.1}",
+        wet.len(),
+        ms.len(),
+        fam(0),
+        fam(1),
+        fam(2),
+        wet.iter().map(|m| m.water_calls).sum::<u64>() as f64 / wet.len().max(1) as f64
+    );
     let casts: u64 = ms
         .iter()
         .flat_map(|m| m.called.iter())

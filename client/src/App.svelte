@@ -181,10 +181,14 @@
     }
   });
 
-  /** Icons over your sizeable groups, placed on screen. */
+  /** The groups the icons stand for (map cells), regrouped ~10 times a second. */
+  let iconGroups: (Omit<(typeof icons)[number], "x" | "y"> & { row: number; col: number })[] = [];
+
+  /** Icons over sizeable groups: regroup the animals (10 Hz, in `frame`). */
   function placeIcons() {
     const v = viewer;
     if (!v || !showIcons) {
+      iconGroups = [];
       if (icons.length) icons = [];
       return;
     }
@@ -192,17 +196,27 @@
     // Yours, then the enemy's (D-146): see where the threat is; theirs only show.
     const mine = live ? me : player;
     const animals = v.visibleAnimals();
-    icons = [mine, 3 - mine].flatMap((owner) =>
+    iconGroups = [mine, 3 - mine].flatMap((owner) =>
       strategicGroups(animals, owner, swarm).flatMap((g) => {
         const s = fauna[g.species];
-        const at = v.screenPoint({ row: g.row, col: g.col });
-        if (!s || !at.inView) return [];
+        if (!s) return [];
         const key = `${owner}:${g.species}:${g.ids[0] ?? 0}`;
         const enemy = owner !== mine;
         const order = !enemy && !swarm[g.species];
-        return [{ key, x: at.x, y: at.y, s, count: g.count, ids: g.ids, order, enemy }];
+        return [{ key, row: g.row, col: g.col, s, count: g.count, ids: g.ids, order, enemy }];
       }),
     );
+  }
+
+  /** Every frame (D-171): the icons follow the camera smoothly; regrouping alone at 10 Hz made
+   *  them jump behind the map while panning. */
+  function projectIcons() {
+    const v = viewer;
+    if (!v || !iconGroups.length) return;
+    icons = iconGroups.flatMap((g) => {
+      const at = v.screenPoint({ row: g.row, col: g.col });
+      return at.inView ? [{ ...g, x: at.x, y: at.y }] : [];
+    });
   }
 
   /** Seconds before each catastrophe card is ready again for you (D-129). */
@@ -535,6 +549,7 @@
       }
       if (Math.floor(frameTick) !== tick) tick = Math.floor(frameTick);
       viewer.render(frameTick);
+      projectIcons(); // after the camera moved this frame
     }
     perfFrames++;
     perfWorst = Math.max(perfWorst, now - last);

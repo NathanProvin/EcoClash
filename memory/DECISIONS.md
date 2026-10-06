@@ -2002,3 +2002,8 @@ Template:
 - **Decision:**
   - Orders that did nothing show as red toasts in a few words (`game/notices.ts` `shortNotice`): "Elder: need more [biomass icon]" (the biomass icon in green), and "Oak: nothing took root".
   - Unlock infos read "Elder: available".
+
+## D-171 · 2026-10-06 · Smooth strategic icons
+- **Status:** accepted (user: icons stuttered and froze while panning)
+- **Cause:** grouping and screen placement both ran every 100 ms, so while the camera panned at 60 fps the icons jumped 10 times a second behind the map.
+- **Decision:** grouping stays at 10 Hz (cell positions); the icons are projected to the screen every frame, after the camera moved.

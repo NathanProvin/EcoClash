@@ -2322,3 +2322,18 @@ Template:
   - **`?perf=1[&map=mid|large][&minute=22]`:** a Large map, both sides played by the hard bot at 8× until the minute, then 10 s measured at 1× from the overview. Fps, median, 90th percentile, JS sections, GPU and census go to the console and `window.ecoPerf`.
 - **First reading:** on an empty Mid map, the herbs already submit 393 k triangles, because every tuft of every cell is drawn, scaled to zero when hidden. Measured at minute 22 on a Large map: 1.16 M triangles, 79 draw calls, herbs 57 %.
 - **Limit:** a background browser tab gets no animation frames and a throttled GPU, so frame rates must be read on the reference laptop.
+
+## D-199 · 2026-10-06 · Herb level of detail (branch `optimization-v3`)
+- **Status:** accepted (perf plan item 1)
+- **Decision:**
+  - **Rank-major tufts:** every cell's first tuft comes before any second, with a `rank` attribute.
+  - **Per-chunk draw range:** each frame, a herb chunk draws only the tufts its nearest point can show (`herbBudget`): all within `near` m of the camera, falling to the share `min` by `far` m. The vertex work of far tufts is skipped.
+  - **Shader:** the vertex shader applies the same budget per tuft and widens the kept tufts by 1/√share, so the meadow keeps its cover from afar.
+  - **Presets** (`quality.ts` `herbLod`):
+
+    | Preset | `near` | `far` | `min` |
+    |---|---|---|---|
+    | Low | 20 m | 70 m | 0.3 |
+    | Medium | 25 m | 90 m | 0.35 |
+    | High | 30 m | 110 m | 0.4 |
+- **Measured** (Mid, Medium): herb triangles at the overview 393 k → 143 k (−64 %). Close up, full density.

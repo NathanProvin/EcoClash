@@ -8,6 +8,8 @@
 
 import {
   attribute,
+  cameraPosition,
+  clamp,
   float,
   mix,
   positionLocal,
@@ -56,6 +58,22 @@ const all = (n: number) => Array.from({ length: n * n }, (_, c) => c);
  *  its bounds, so the GPU skips chunks off screen (a whole-map mesh is always drawn). */
 export const HERB_CHUNKS = 4;
 
+/** Herb level of detail (D-199): within `near` metres of the camera every tuft shows; by `far`
+ *  only the share `min` does, each one wider so the meadow keeps its cover. Tufts are stored
+ *  rank-major (every cell's first tuft, then every cell's second...), so a chunk draws its first
+ *  tufts only: the vertex work of far tufts is skipped too. */
+export interface HerbLod {
+  near: number;
+  far: number;
+  min: number;
+}
+
+/** The share of tufts shown at `d` metres from the camera (D-199): 1 near, `min` far. */
+export function herbBudget(d: number, lod: HerbLod): number {
+  const t = Math.min(1, Math.max(0, (d - lod.near) / (lod.far - lod.near)));
+  return 1 - t * (1 - lod.min);
+}
+
 /** Vertex data of every blade: one triangle each (base left, base right, tip). */
 export interface Blades {
   /** Blade-local positions (x, y, z), before the shader scales and moves them. */
@@ -64,6 +82,8 @@ export interface Blades {
   root: Float32Array;
   /** The L1 cover above which the blade shows (0..1), per vertex: density follows cover. */
   seed: Float32Array;
+  /** The tuft's rank in its cell, as a share ((k + ½) / perCell), per vertex (D-199). */
+  rank: Float32Array;
 }
 
 /** Tufts of `TUFT` blades for an `n x n` map, `perCell` tufts per cell, jittered inside their cell
@@ -73,15 +93,17 @@ export function grassBlades(n: number, perCell: number, cells: readonly number[]
   const position = new Float32Array(count * 9);
   const root = new Float32Array(count * 6);
   const seed = new Float32Array(count * 3);
-  for (const [idx, c] of cells.entries()) {
-    const x0 = ((c % n) - n / 2) * CELL;
-    const z0 = (Math.floor(c / n) - n / 2) * CELL;
-    for (let k = 0; k < perCell; k++) {
+  const rank = new Float32Array(count * 3);
+  // Rank-major (D-199): every cell's tuft k before any cell's tuft k + 1.
+  for (let k = 0; k < perCell; k++) {
+    for (const [idx, c] of cells.entries()) {
+      const x0 = ((c % n) - n / 2) * CELL;
+      const z0 = (Math.floor(c / n) - n / 2) * CELL;
       const salt = 5000 + 8 * k;
       const [rx, rz] = [x0 + rand(c, salt) * CELL, z0 + rand(c, salt + 1) * CELL];
       const tuftSeed = rand(c, salt + 4);
       for (let t = 0; t < TUFT; t++) {
-        const b = (idx * perCell + k) * TUFT + t;
+        const b = (k * cells.length + idx) * TUFT + t;
         const angle = rand(c, salt + 2) * Math.PI + (t * Math.PI) / TUFT;
         const h = BLADE_HEIGHT[0] + (BLADE_HEIGHT[1] - BLADE_HEIGHT[0]) * rand(c, salt + 3 + t);
         const [cx, cz] = [Math.cos(angle), Math.sin(angle)];
@@ -90,10 +112,11 @@ export function grassBlades(n: number, perCell: number, cells: readonly number[]
         position.set([ox - dx, 0, oz - dz, ox + dx, 0, oz + dz, ox, h, oz], b * 9);
         root.set([rx, rz, rx, rz, rx, rz], b * 6);
         seed.fill(tuftSeed, b * 3, b * 3 + 3);
+        rank.fill((k + 0.5) / perCell, b * 3, b * 3 + 3);
       }
     }
   }
-  return { position, root, seed };
+  return { position, root, seed, rank };
 }
 
 /** One tuft's local geometry: positions, normals, triangle indices, and per vertex the colour
@@ -186,10 +209,11 @@ export function tuftGeometry(
   const hues: number[] = [];
   const root: number[] = [];
   const seed: number[] = [];
-  for (const c of cells) {
-    const x0 = ((c % n) - n / 2) * CELL;
-    const z0 = (Math.floor(c / n) - n / 2) * CELL;
-    for (let k = 0; k < perCell; k++) {
+  const rank: number[] = [];
+  for (let k = 0; k < perCell; k++) {
+    for (const c of cells) {
+      const x0 = ((c % n) - n / 2) * CELL;
+      const z0 = (Math.floor(c / n) - n / 2) * CELL;
       const s = salt + 64 * k;
       const [rx, rz] = [x0 + rand(c, s) * CELL, z0 + rand(c, s + 1) * CELL];
       const tuftSeed = rand(c, s + 2);
@@ -204,6 +228,7 @@ export function tuftGeometry(
       for (let v = 0; v < shape.position.length / 3; v++) {
         root.push(rx, rz);
         seed.push(tuftSeed);
+        rank.push((k + 0.5) / perCell);
       }
     }
   }
@@ -213,6 +238,7 @@ export function tuftGeometry(
   g.setAttribute("hue", new THREE.Float32BufferAttribute(hues, 1));
   g.setAttribute("root", new THREE.Float32BufferAttribute(root, 2));
   g.setAttribute("seed", new THREE.Float32BufferAttribute(seed, 1));
+  g.setAttribute("rank", new THREE.Float32BufferAttribute(rank, 1));
   g.setIndex(idx);
   return g;
 }
@@ -239,7 +265,8 @@ export function makeGrass(
   heights?: THREE.Texture,
   herbMix?: { now: THREE.Texture; prev: THREE.Texture },
   relief = 0,
-): THREE.Group {
+  lod: HerbLod = { near: 1e9, far: 2e9, min: 1 },
+): HerbGroup {
   /** The highest a herb reaches above the map's base (m): the relief plus the tallest herb. */
   const ceiling = relief + Math.max(BLADE_HEIGHT[1], FLOWER.height[1]) + 1;
   const size = n * CELL;
@@ -256,9 +283,21 @@ export function makeGrass(
     : vec3(0, 1, 0);
   // Roots on the relief (D-085): the ground's height at the root, from the height texture.
   const y = heights ? texture(heights, at).level(float(0)).r : float(0);
-  /** 0: the tuft is hidden (collapsed), 1: shown; by its herb's cover against its seed. */
+  // Level of detail (D-199): the share of tufts kept at this tuft's distance (as `herbBudget`),
+  // and how much wider the kept ones grow to cover for the rest.
+  const rank = attribute("rank", "float");
+  const dist = vec3(root.x, y, root.y).sub(cameraPosition).length();
+  const budget = float(1).sub(
+    clamp(dist.sub(lod.near).div(lod.far - lod.near), 0, 1).mul(1 - lod.min),
+  );
+  const keep = step(rank, budget);
+  const widen = budget.max(lod.min).pow(-0.5);
+  /** 0: the tuft is hidden (collapsed), 1: shown; by its herb's cover against its seed, and by
+   *  the level of detail. */
   const shown = (herb: "r" | "g" | "b") =>
-    smoothstep(seed.sub(0.05), seed.add(0.05), texel.a.mul(shares[herb]));
+    smoothstep(seed.sub(0.05), seed.add(0.05), texel.a.mul(shares[herb])).mul(keep);
+  /** A tuft's shape, wider (not taller) where fewer tufts show. */
+  const spread = (v: typeof positionLocal) => vec3(v.x.mul(widen), v.y, v.z.mul(widen));
 
   // Grasses: blades.
   const bladeGeometry = (cells: readonly number[]) => {
@@ -267,6 +306,7 @@ export function makeGrass(
     blades.setAttribute("position", new THREE.BufferAttribute(b.position, 3));
     blades.setAttribute("root", new THREE.BufferAttribute(b.root, 2));
     blades.setAttribute("seed", new THREE.BufferAttribute(b.seed, 1));
+    blades.setAttribute("rank", new THREE.BufferAttribute(b.rank, 1));
     // Normals point up: grass lights like the ground under it, not like thin tilted cards.
     const up = new Float32Array(b.position.length);
     for (let i = 1; i < up.length; i += 3) up[i] = 1;
@@ -283,7 +323,9 @@ export function makeGrass(
   const grass = new THREE.MeshStandardNodeMaterial({ roughness: 0.9 });
   const tip = positionLocal.y.div(BLADE_HEIGHT[1]);
   const push = wind(root, time).mul(tip.mul(tip).mul(BEND));
-  const blade = positionLocal.add(vec3(push.x, 0, push.y)).mul(shown("g"));
+  const blade = spread(positionLocal)
+    .add(vec3(push.x, 0, push.y))
+    .mul(shown("g"));
   grass.positionNode = vec3(root.x, y, root.y).add(blade);
   const shade = mix(float(0.7), float(1.15), tip); // dark base
   grass.colorNode = texel.rgb.mul(shade);
@@ -303,7 +345,9 @@ export function makeGrass(
     );
   const lichen = new THREE.MeshStandardNodeMaterial({ roughness: 1 });
   const hue = attribute("hue", "float");
-  lichen.positionNode = vec3(root.x, y.add(LICHEN.lift), root.y).add(positionLocal.mul(shown("r")));
+  lichen.positionNode = vec3(root.x, y.add(LICHEN.lift), root.y).add(
+    spread(positionLocal).mul(shown("r")),
+  );
   lichen.colorNode = pickColour(LICHENS).mul(mix(float(0.85), float(1.05), seed));
 
   // Wildflowers: round heads on stems, one colour per patch.
@@ -320,14 +364,23 @@ export function makeGrass(
   const flower = new THREE.MeshStandardNodeMaterial({ roughness: 0.75 });
   const top = positionLocal.y.div(FLOWER.height[1]);
   const sway = wind(root, time).mul(top.mul(top).mul(FLOWER.bend));
-  const swayed = positionLocal.add(vec3(sway.x, 0, sway.y)).mul(shown("b"));
+  const swayed = spread(positionLocal)
+    .add(vec3(sway.x, 0, sway.y))
+    .mul(shown("b"));
   flower.positionNode = vec3(root.x, y, root.y).add(swayed);
   const isHead = step(0, hue); // stems carry -1
   flower.colorNode = mix(texel.rgb.mul(0.8), pickColour(FLOWERS), isHead);
 
   // One mesh per herb and chunk. Positions are made in the shader, so each chunk gets its
   // bounds by hand: its square, plus the relief and the tallest herb (`ceiling` m).
-  const group = new THREE.Group();
+  const group = new THREE.Group() as HerbGroup;
+  const chunks: {
+    mesh: THREE.Mesh;
+    box: THREE.Box3;
+    perTuft: number;
+    cells: number;
+    per: number;
+  }[] = [];
   const side = Math.ceil(n / HERB_CHUNKS);
   for (let r0 = 0; r0 < n; r0 += side) {
     for (let c0 = 0; c0 < n; c0 += side) {
@@ -342,18 +395,49 @@ export function makeGrass(
         r0 * CELL - size / 2 + h / 2,
       );
       const bounds = new THREE.Sphere(centre, Math.hypot(w / 2, h / 2, ceiling / 2) + 1);
-      for (const [make, material] of [
-        [bladeGeometry, grass],
-        [lichenGeometry, lichen],
-        [flowerGeometry, flower],
-      ] as const) {
+      const box = new THREE.Box3(
+        new THREE.Vector3(c0 * CELL - size / 2, 0, r0 * CELL - size / 2),
+        new THREE.Vector3(c0 * CELL - size / 2 + w, ceiling, r0 * CELL - size / 2 + h),
+      );
+      const counts = [
+        perCell,
+        Math.max(1, Math.round(perCell * LICHEN.share)),
+        Math.max(1, Math.round(perCell * FLOWER.share)),
+      ];
+      for (const [i, [make, material]] of (
+        [
+          [bladeGeometry, grass],
+          [lichenGeometry, lichen],
+          [flowerGeometry, flower],
+        ] as const
+      ).entries()) {
         const g = make(cells);
         g.boundingSphere = bounds;
         const mesh = new THREE.Mesh(g, material);
         mesh.receiveShadow = true;
         group.add(mesh);
+        const per = counts[i] ?? 1;
+        const indices = g.index?.count ?? 0;
+        chunks.push({
+          mesh,
+          box,
+          perTuft: indices / (per * cells.length),
+          cells: cells.length,
+          per,
+        });
       }
     }
   }
+  // Each frame: a chunk draws only the tufts the nearest point of its square can show.
+  group.lod = (eye: THREE.Vector3) => {
+    for (const c of chunks) {
+      const share = herbBudget(c.box.distanceToPoint(eye), lod);
+      const tufts = Math.min(c.per, Math.ceil(share * c.per));
+      c.mesh.geometry.setDrawRange(0, tufts * c.cells * c.perTuft);
+    }
+  };
   return group;
 }
+
+/** The herbs' group, with its per-frame level of detail (D-199). */
+export type HerbGroup = THREE.Group & { lod?: (eye: THREE.Vector3) => void };

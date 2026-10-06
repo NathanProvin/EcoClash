@@ -2,15 +2,37 @@
 // (map size, 0 = off) and post-processing (bloom and tilt-shift). The choice is a per-viewer
 // convenience kept in the browser.
 
+import type { HerbLod } from "./grass";
+
 export type Quality = "low" | "medium" | "high";
 
 export const QUALITY: Record<
   Quality,
-  { grass: number; pixelRatio: number; shadow: number; post: boolean }
+  { grass: number; pixelRatio: number; shadow: number; post: boolean; herbLod: HerbLod }
 > = {
-  low: { grass: 6, pixelRatio: 1, shadow: 0, post: false }, // tufts per cell; device pixel cap
-  medium: { grass: 12, pixelRatio: 1.5, shadow: 1024, post: false },
-  high: { grass: 14, pixelRatio: 1.25, shadow: 2048, post: true }, // D-090, D-155: lighter than 24 / 2
+  // tufts per cell; device pixel cap; herb level of detail (D-199): full within `near` m, the
+  // share `min` by `far` m
+  low: {
+    grass: 6,
+    pixelRatio: 1,
+    shadow: 0,
+    post: false,
+    herbLod: { near: 20, far: 70, min: 0.3 },
+  },
+  medium: {
+    grass: 12,
+    pixelRatio: 1.5,
+    shadow: 1024,
+    post: false,
+    herbLod: { near: 25, far: 90, min: 0.35 },
+  },
+  high: {
+    grass: 14,
+    pixelRatio: 1.25,
+    shadow: 2048,
+    post: true,
+    herbLod: { near: 30, far: 110, min: 0.4 },
+  }, // D-090, D-155: lighter than 24 / 2
 };
 const KEY = "ecoclash.quality";
 

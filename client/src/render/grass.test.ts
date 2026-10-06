@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { grassBlades, LICHEN, TUFT, tuftGeometry } from "./grass";
+import { grassBlades, herbBudget, LICHEN, TUFT, tuftGeometry } from "./grass";
 import { CELL } from "./layout";
 
 describe("grassBlades", () => {
@@ -17,7 +17,7 @@ describe("grassBlades", () => {
 
   it("roots every blade inside its own cell, the same for its three vertices", () => {
     for (let blade = 0; blade < blades; blade++) {
-      const c = Math.floor(blade / (per * TUFT));
+      const c = Math.floor(blade / TUFT) % (n * n); // rank-major (D-199)
       const x0 = ((c % n) - n / 2) * CELL;
       const z0 = (Math.floor(c / n) - n / 2) * CELL;
       const [x, z] = [b.root[blade * 6] ?? NaN, b.root[blade * 6 + 1] ?? NaN];
@@ -34,6 +34,22 @@ describe("grassBlades", () => {
     const again = grassBlades(n, per);
     expect(again.position).toEqual(b.position);
     expect(again.seed).toEqual(b.seed);
+  });
+
+  it("stores tufts rank-major: every cell's first tuft before any second (D-199)", () => {
+    const ranks = b.rank.filter((_, i) => i % 3 === 0);
+    for (let i = 1; i < ranks.length; i++) {
+      expect(ranks[i] ?? 0).toBeGreaterThanOrEqual(ranks[i - 1] ?? 0);
+    }
+    expect(b.rank[0]).toBeCloseTo(0.5 / per);
+  });
+
+  it("keeps every tuft near the camera and the min share far away (D-199)", () => {
+    const lod = { near: 25, far: 90, min: 0.35 };
+    expect(herbBudget(0, lod)).toBe(1);
+    expect(herbBudget(25, lod)).toBe(1);
+    expect(herbBudget(57.5, lod)).toBeCloseTo(0.675);
+    expect(herbBudget(500, lod)).toBeCloseTo(0.35);
   });
 
   it("builds lichen and flower tufts with one colour per patch (D-151)", () => {

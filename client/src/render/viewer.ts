@@ -47,7 +47,7 @@ import {
   slabGeometry,
   stoneGeometry,
 } from "./terrain";
-import { makeGrass } from "./grass";
+import { makeGrass, type HerbGroup } from "./grass";
 import { CELL, rand, SLAB_DEPTH, STRATA, stratumOf } from "./layout";
 import {
   hexToRgb,
@@ -158,7 +158,7 @@ export class Viewer {
   private readonly blend = uniform(1);
   private blendFrom = 0;
   private blendS: number = BLEND_S.max;
-  private grass: THREE.Group;
+  private grass: HerbGroup;
   private readonly plants: PlantView;
   private readonly deadTrees: DeadTrees; // D-127
   private readonly animals: AnimalView;
@@ -387,7 +387,7 @@ export class Viewer {
     return new Viewer(canvas, replay, renderer, quality);
   }
 
-  private makeGrass(): THREE.Group {
+  private makeGrass(): HerbGroup {
     const perCell = QUALITY[this.quality].grass;
     const n = this.replay.meta.n;
     const mix = { now: this.mixTex, prev: this.mixPrev };
@@ -400,6 +400,7 @@ export class Viewer {
       this.heights,
       mix,
       Math.max(0, ...this.field.cell),
+      QUALITY[this.quality].herbLod,
     );
     grass.userData.family = "herbs"; // the perf census (D-198)
     return grass;
@@ -846,7 +847,8 @@ export class Viewer {
       const m = o as THREE.Mesh & { count?: number; isInstancedMesh?: boolean };
       if (!m.isMesh) return;
       const g = m.geometry;
-      const per = (g.index ? g.index.count : (g.attributes.position?.count ?? 0)) / 3;
+      const all = g.index ? g.index.count : (g.attributes.position?.count ?? 0);
+      const per = Math.min(all, g.drawRange.count) / 3; // a draw range draws fewer (D-199)
       const copies = m.isInstancedMesh ? (m.count ?? 0) : 1;
       if (!copies || !per) return;
       let family: string | undefined;
@@ -914,6 +916,7 @@ export class Viewer {
     const far = THREE.MathUtils.smoothstep(dist, TILT.near, this.replay.meta.n * CELL * TILT.far);
     this.controls.maxPolarAngle = THREE.MathUtils.lerp(TILT.low, TILT.high, far);
     this.controls.update();
+    this.grass.lod?.(this.camera.position); // herb level of detail (D-199)
     this.sun.shadow.needsUpdate = this.frames++ % SHADOW_EVERY === 0;
     lap("scene");
     if (this.post && this.postOn) {

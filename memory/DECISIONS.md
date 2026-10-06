@@ -2384,3 +2384,12 @@ Template:
   - **Seeds:** `SeedBurst` skips its upload when no seed is in flight.
 - **Not done:** reusing decode buffers and capping the census series. Both are small; to revisit if the perf panel shows `fields` above 2 ms.
 - **Test:** after one changed key, only that instance's range is uploaded.
+
+## D-204 · 2026-10-06 · Far shadows redrawn less often (branch `optimization-v3`)
+- **Status:** accepted (perf plan item 6)
+- **Decision:** with the camera more than 60 m from its target, the sun's shadow map is redrawn every 12 frames instead of 4. From afar only plants cast shadows (animals cast up close only, D-201), and plants grow slowly. Casters were already narrowed by D-201. The Medium map size (1024) stays until the perf panel shows the shadow pass is heavy.
+
+## D-205 · 2026-10-06 · Cheap wind gusts (branch `optimization-v3`)
+- **Status:** accepted (perf plan item 7)
+- **Decision:** `wind()` makes its gust field from two slow waves crossing the map (a few sines of the root and time) instead of a 3D Perlin noise (`mx_noise_float`). The noise ran for every vertex of every plant and grass blade, in the shadow pass too. Same range (0..1 gusts plus the sway), same prevailing direction.
+- **Not done:** packing the herbs' texture reads; to revisit if the perf panel shows a vertex-bound GPU.

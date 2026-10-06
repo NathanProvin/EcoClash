@@ -14,7 +14,6 @@ import {
   dot,
   instancedBufferAttribute,
   mix,
-  mx_noise_float,
   positionLocal,
   sin,
   smoothstep,
@@ -55,7 +54,11 @@ type Vec2Node = THREE.Node<"vec2">;
 type FloatNode = THREE.Node<"float">;
 
 export function wind(root: Vec2Node, t: FloatNode): Vec2Node {
-  const gust = mx_noise_float(vec3(root.mul(WIND.gustScale), t.mul(WIND.gustSpeed)))
+  // Gusts (D-205): two slow waves crossing the map, not a 3D Perlin noise. The noise ran for
+  // every vertex of every plant and grass blade, in the shadow pass too; this is a few sines.
+  const g = root.mul(WIND.gustScale);
+  const gust = sin(g.x.mul(6.1).add(t.mul(WIND.gustSpeed * 3.1)))
+    .mul(cos(g.y.mul(4.7).sub(t.mul(WIND.gustSpeed * 2.3))))
     .mul(0.5)
     .add(0.5);
   const sway = sin(

@@ -28,3 +28,18 @@ describe("perf figures (D-198)", () => {
     expect(t).toBe("herbs 658k/48 · ground 100k/3 · shadow 304k");
   });
 });
+
+describe("resolution guard (D-200)", () => {
+  it("steps down after a slow second, to its floor, and back up when fast again", async () => {
+    const { ResolutionGuard } = await import("./perf");
+    const g = new ResolutionGuard();
+    for (let i = 0; i < 60; i++) g.frame(16.7);
+    expect(g.scale).toBe(1); // fine at 60 fps
+    let changes = 0;
+    for (let i = 0; i < 400; i++) if (g.frame(40)) changes++; // 25 fps for 16 s
+    expect(g.scale).toBe(0.7);
+    expect(changes).toBe(3);
+    for (let i = 0; i < 300; i++) g.frame(16.7); // 5 s fast
+    expect(g.scale).toBeCloseTo(0.8);
+  });
+});

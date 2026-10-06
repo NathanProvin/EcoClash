@@ -7,7 +7,7 @@
 // ground tinted by slope, wetness and height, bloom and tilt-shift on High. 1 cell = CELL world
 // units (4 m, D-047).
 
-import { Sections, type Census } from "../game/perf";
+import { ResolutionGuard, Sections, type Census } from "../game/perf";
 import { MapControls } from "three/addons/controls/MapControls.js";
 import { bloom } from "three/addons/tsl/display/BloomNode.js";
 import { dof } from "three/addons/tsl/display/DepthOfFieldNode.js";
@@ -376,7 +376,7 @@ export class Viewer {
     // bench, D-198) asks for GPU timestamp queries where the browser offers them.
     const renderer = new THREE.WebGPURenderer({
       canvas,
-      antialias: true,
+      antialias: quality !== "low", // MSAA off on Low (D-200)
       trackTimestamp: gpuTiming,
     });
     renderer.shadowMap.enabled = true; // the presets switch the sun's shadow on and off
@@ -417,7 +417,7 @@ export class Viewer {
   resize(): void {
     const { clientWidth: w, clientHeight: h } = this.canvas;
     this.renderer.setPixelRatio(
-      Math.min(window.devicePixelRatio, QUALITY[this.quality].pixelRatio),
+      Math.min(window.devicePixelRatio, QUALITY[this.quality].pixelRatio) * this.res.scale,
     );
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / Math.max(h, 1);
@@ -834,6 +834,8 @@ export class Viewer {
   }
 
   /** Draw the replay at a fractional tick. */
+  /** Dynamic resolution (D-200): the render scale drops when frames run long, and recovers. */
+  readonly res = new ResolutionGuard();
   /** Smoothed JS time per render section (ms per frame), for the perf panel (D-198). */
   readonly timing = new Sections();
   /** GPU time of the render pass (ms), when timestamp queries run (D-198). */
@@ -871,6 +873,7 @@ export class Viewer {
       mark = t;
     };
     const now = performance.now() / 1000;
+    if (this.lastTime && this.res.frame((now - this.lastTime) * 1000)) this.resize(); // D-200
     const dt = Math.min(now - (this.lastTime || now), 0.1);
     this.lastTime = now;
     this.now.value = now;

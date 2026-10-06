@@ -21,7 +21,8 @@ export const QUALITY: Record<
   },
   medium: {
     grass: 12,
-    pixelRatio: 1.5,
+    pixelRatio: 1, // D-200: was 1.5, more pixels than High
+
     shadow: 1024,
     post: false,
     herbLod: { near: 25, far: 90, min: 0.35 },

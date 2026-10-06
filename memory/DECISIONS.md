@@ -2337,3 +2337,10 @@ Template:
     | Medium | 25 m | 90 m | 0.35 |
     | High | 30 m | 110 m | 0.4 |
 - **Measured** (Mid, Medium): herb triangles at the overview 393 k → 143 k (−64 %). Close up, full density.
+
+## D-200 · 2026-10-06 · Pixel cost: Medium at 1×, dynamic resolution, no MSAA on Low (branch `optimization-v3`)
+- **Status:** accepted (perf plan item 2)
+- **Decision:**
+  - **Medium pixel-ratio cap** 1.5 → 1. It rendered more pixels than High (1.25).
+  - **Dynamic resolution** (`ResolutionGuard`): the render scale (times the preset cap) steps down by 0.1 to a floor of 0.7 after a second whose average frame time stays above 25 ms (under 40 fps), and back up after 4 s below 18 ms. It guards against the deep late-game drops without chasing 60 fps at a blurry scale. The perf panel shows `res`.
+  - **Antialiasing:** MSAA is off on Low, on for Medium and High.

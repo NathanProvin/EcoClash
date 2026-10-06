@@ -43,3 +43,43 @@ export function censusText(c: Census): string {
     .map(([f, r]) => `${f} ${k(r.tris)}/${r.draws}`);
   return `${rows.join(" · ")} · shadow ${k(c.shadowTris)}`;
 }
+
+/** Dynamic resolution (D-200): the render scale steps down by `step` (to `floor`) after a second
+ *  whose average frame time stays above `slowMs`, and back up after 4 s below `fastMs`. It guards
+ *  against deep drops without chasing 60 fps at a blurry scale. */
+export class ResolutionGuard {
+  scale = 1;
+  private avg = 0;
+  private over = 0;
+  private under = 0;
+
+  constructor(
+    private readonly slowMs = 25,
+    private readonly fastMs = 18,
+    private readonly floor = 0.7,
+    private readonly step = 0.1,
+  ) {}
+
+  /** One frame's interval (ms). True when the scale changed. */
+  frame(ms: number): boolean {
+    this.avg = this.avg ? this.avg * 0.9 + ms * 0.1 : ms;
+    if (this.avg > this.slowMs) {
+      this.under = 0;
+      this.over += ms;
+      if (this.over < 1000 || this.scale <= this.floor) return false;
+      this.scale = Math.max(this.floor, +(this.scale - this.step).toFixed(2));
+      [this.over, this.avg] = [0, this.slowMs]; // give the new scale a fresh second
+      return true;
+    }
+    this.over = 0;
+    if (this.avg < this.fastMs && this.scale < 1) {
+      this.under += ms;
+      if (this.under < 4000) return false;
+      this.scale = Math.min(1, +(this.scale + this.step).toFixed(2));
+      this.under = 0;
+      return true;
+    }
+    this.under = 0;
+    return false;
+  }
+}

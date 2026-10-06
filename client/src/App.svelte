@@ -763,7 +763,8 @@
           censusLine = censusText(viewer.census());
         }
         const gpu = viewer.gpuMs ? ` · gpu ${viewer.gpuMs.toFixed(1)} ms` : "";
-        perfDetail = `js: ${appTiming.text()} · ${viewer.timing.text()}${gpu}\ntris/draws: ${censusLine}`;
+        const res = ` · res ${viewer.res.scale.toFixed(1)}`; // dynamic resolution (D-200)
+        perfDetail = `js: ${appTiming.text()} · ${viewer.timing.text()}${gpu}${res}\ntris/draws: ${censusLine}`;
       }
       [perfFrames, perfStart, perfWorst] = [0, now, 0];
     }

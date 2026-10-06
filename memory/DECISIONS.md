@@ -2269,3 +2269,14 @@ Template:
   - **Pick:** among the best 4, a map fingerprint (elevation and ground) chooses. Deterministic, no RNG.
   - **Fallback:** the old clearing rule when no site qualifies.
 - **Test:** over 10 seeds, at least 5 distinct sites, all on the bot's half.
+
+## D-195 · 2026-10-06 · Menu raindrop, trunk click, quieter defaults, map-wide animal calls, softer rain
+- **Status:** accepted (user playtest)
+- **Decision:**
+  - **Hover:** `ui.hover`, a soft wet raindrop (a quiet rising bloop and a faint splash), when the pointer reaches a new main-menu button.
+  - **Click:** `ui.click` is a knock on a thick trunk: brown noise lowpassed 260 → 110 Hz, a 95 Hz body, a short 190 Hz mode. The tap colours narrow to ×0.9 / 1 / 1.1.
+  - **Default volumes:** master 0.75, interface 0.9, effects 0.5, ambience 0.4, music 0.4. The storage key moves to `ecoclash.audio.v2`, so the new defaults reach everyone once.
+  - **Animal calls:** every 3–8 s, with a chance that grows with the animals on the map, a random animal anywhere calls. On screen it calls from its place; off screen, a distant call at 0.2 from its side.
+  - **Rain:**
+    - the bed is lowpassed at 1 600 Hz (it was a 2 600 Hz bandpass), at gain 0.1 (was 0.18);
+    - the drops are quieter (0.03) and lower (1.2–3.5 kHz).

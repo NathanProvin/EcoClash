@@ -122,7 +122,7 @@ function plop(ctx: AudioContext, out: AudioNode, t: number, f: number, gain: num
 const midi = (m: number) => 440 * 2 ** ((m - 69) / 12);
 
 /** The click's three tap colours (D-183): a pitch factor drawn per press. */
-const CLICK_COLOURS = [0.86, 1, 1.19];
+const CLICK_COLOURS = [0.9, 1, 1.1];
 
 /** Each tech family's unlock motif (D-185): grasses airy and high, trees low and woody, water
  *  gliding, recyclers earthy, grazers bright, hunters sly and minor. Notes are MIDI; `glide`
@@ -186,15 +186,27 @@ export const RECIPES: Record<string, Recipe> = {
     vary: 0.14, // D-183: wider pitch, plus one of three tap colours per press
     play: (c, o, t, p0, n) => {
       const p = p0 * (CLICK_COLOURS[Math.floor(Math.random() * CLICK_COLOURS.length)] ?? 1);
+      // D-195: a knock on a thick trunk: deep brown noise, a low wooden body, a short mode.
       hiss(c, o, t, n, {
         type: "lowpass",
-        f0: 420 * p,
-        f1: 220 * p,
-        q: 0.9,
-        dur: 0.07,
-        gain: 0.55,
+        f0: 260 * p,
+        f1: 110 * p,
+        q: 1.1,
+        dur: 0.12,
+        gain: 0.7,
       });
-      tone(c, o, t, { f0: 150 * p, f1: 110 * p, dur: 0.05, gain: 0.12 });
+      tone(c, o, t, { f0: 95 * p, f1: 80 * p, dur: 0.2, gain: 0.2, attack: 0.003 });
+      tone(c, o, t, { type: "triangle", f0: 190 * p, f1: 170 * p, dur: 0.06, gain: 0.06 });
+    },
+  },
+  // D-195: hovering a menu button: a soft, wet raindrop.
+  "ui.hover": {
+    bus: "ui",
+    ms: 120,
+    vary: 0.1,
+    play: (c, o, t, p, n) => {
+      tone(c, o, t, { f0: 650 * p, f1: 1300 * p, dur: 0.06, gain: 0.05 });
+      hiss(c, o, t + 0.01, n, { type: "lowpass", f0: 1800, f1: 600, dur: 0.05, gain: 0.03 });
     },
   },
   "ui.open": {

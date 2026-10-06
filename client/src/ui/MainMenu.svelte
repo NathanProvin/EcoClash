@@ -17,6 +17,7 @@
   } from "../game/setup";
   import type { Quality } from "../render/quality";
   import OptionsMenu from "./OptionsMenu.svelte";
+  import { audio } from "../audio/engine";
 
   // The build badge and feedback link (M5a 9, D-157): set by the deploy (VITE_BUILD) and in
   // .env (VITE_FEEDBACK_URL); a dev server shows "dev" and no link.
@@ -93,9 +94,18 @@
     ["Space", "Pause"],
     ["Esc", "Cancel / close"],
   ];
+
+  /** A soft raindrop when the pointer reaches a new button (D-195). */
+  let hovered: Element | null = null;
+  function hover(e: PointerEvent) {
+    const b = (e.target as Element | null)?.closest("button") ?? null;
+    if (b === hovered) return;
+    hovered = b;
+    if (b && !(b as HTMLButtonElement).disabled) audio.play("ui.hover");
+  }
 </script>
 
-<div class="menu">
+<div class="menu" onpointerover={hover} role="presentation">
   <!-- The out-of-focus landscape, drifting like a slow camera move (D-164). -->
   <div class="scene" aria-hidden="true">
     <div class="sky"></div>

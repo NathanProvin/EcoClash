@@ -386,20 +386,26 @@
     const s = replay?.meta.species.find((x) => x.name === name);
     return s ? voiceOf(name, bodyOf(name, s.role as never).body) : null;
   }
-  /** Now and then, an animal on screen calls (D-177): the map feels alive, rarely enough not to
-   *  tire. Closer views hear more. */
-  let lastLife = 0;
+  /** Now and then, an animal somewhere on the map calls (D-177, D-195): every 3–8 s, more often
+   *  the more animals there are. On screen it calls from its place; off screen, a quiet,
+   *  distant call from its side. */
+  let nextLife = 0;
   function animalLife(now: number) {
     const v = viewer;
-    if (!v || !replay || now - lastLife < 2500) return;
-    lastLife = now;
-    if (Math.random() > 0.25 + 0.5 * v.closeness()) return;
+    if (!v || !replay || now < nextLife) return;
+    nextLife = now + 3000 + Math.random() * 5000;
     const all = v.visibleAnimals();
+    if (Math.random() > Math.min(1, 0.3 + all.length / 60)) return;
     const a = all[Math.floor(Math.random() * all.length)];
     if (!a) return;
     const call = callOf(replay.meta.fauna.names[a.species] ?? "");
     const place = placeOf({ row: Math.floor(a.y), col: Math.floor(a.x) });
-    if (call && place?.inView) audio.play(call, { at: place, gain: 0.55 });
+    if (!call || !place) return;
+    if (place.inView) audio.play(call, { at: place, gain: 0.55 });
+    else {
+      const x = Math.min(Math.max(place.x, 0), place.width); // from its side of the screen
+      audio.play(call, { at: { ...place, x, inView: true }, gain: 0.2 });
+    }
   }
 
   /** Raids on your land, and species newly within reach (live matches). */

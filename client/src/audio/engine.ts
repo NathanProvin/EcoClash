@@ -20,14 +20,14 @@ export interface Volumes {
   muted: boolean;
 }
 export const DEFAULT_VOLUMES: Volumes = {
-  master: 0.8,
-  ui: 0.55,
-  fx: 0.7,
-  ambience: 0.5,
-  music: 0.5,
+  master: 0.75,
+  ui: 0.9,
+  fx: 0.5,
+  ambience: 0.4,
+  music: 0.4,
   muted: false,
 };
-const KEY = "ecoclash.audio";
+const KEY = "ecoclash.audio.v2";
 
 /** Voices playing at once per bus at most, and the shortest gap between two plays of one id. */
 export const LIMITS: Record<Bus, number> = { ui: 4, fx: 6, ambience: 8, music: 2 };

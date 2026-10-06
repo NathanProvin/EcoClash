@@ -166,7 +166,7 @@ class Ambience {
     this.winds = [breeze, gust, whistle];
     this.beds = {
       wind: breeze,
-      rain: bed("bandpass", 2600, 0.5, 0.13, 500),
+      rain: bed("lowpass", 1600, 0.5, 0.13, 300), // softer (D-195)
       dry: bed("bandpass", 900, 1.4, 0.05, 300),
       water: bed("lowpass", 520, 0.8, 0.21, 180),
     };
@@ -211,7 +211,7 @@ class Ambience {
 }
 
 /** Bed loudness at full level (the noise beds are much louder than the events). */
-const BED_GAIN = { wind: 0.22, rain: 0.18, dry: 0.12, water: 0.12 } as const;
+const BED_GAIN = { wind: 0.22, rain: 0.1, dry: 0.12, water: 0.12 } as const;
 /** Each wind voice's trim, so the three sound about as loud (brown noise is quieter, and so is
  *  the whistle's narrow band). */
 const WIND_TRIM = [1, 1.8, 0.7];
@@ -335,11 +335,11 @@ function drop(ctx: AudioContext, bus: AudioNode, t: number, noise: AudioBuffer):
   src.buffer = noise;
   const f = ctx.createBiquadFilter();
   f.type = "bandpass";
-  f.frequency.value = 2000 + Math.random() * 4000;
+  f.frequency.value = 1200 + Math.random() * 2300;
   f.Q.value = 10;
   const g = ctx.createGain();
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(0.06, t + 0.002);
+  g.gain.exponentialRampToValueAtTime(0.03, t + 0.002);
   g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
   src.connect(f).connect(g).connect(bus);
   src.start(t, Math.random());

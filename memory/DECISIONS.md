@@ -1989,3 +1989,10 @@ Template:
   - median end 27:20 (was 25:30), 5 unfinished;
   - swarm members at 10 min 280 (were 140);
   - units 6 at 10 min and 17 at 20 min: swarms now share the food.
+
+## D-169 · 2026-10-06 · Unlock feedback: armed in hand, and a pop
+- **Status:** accepted (user, Alpha 2)
+- **Decision:**
+  - Once the worker confirms an unlock, the species is armed at once (the next map click plants or drops it).
+  - Its card and family tile play a 0.6 s pop (a swell and a fading gold ring).
+  - The tutorial's Grasses step says so.

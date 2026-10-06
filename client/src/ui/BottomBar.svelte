@@ -38,6 +38,7 @@
     waits = [],
     castArmed = null,
     onCast = () => {},
+    popped = null,
   }: {
     replay: Source;
     tick: number;
@@ -54,6 +55,8 @@
     waits?: number[];
     castArmed?: string | null;
     onCast?: (name: string) => void;
+    /** The species just unlocked: its card and family tile pop (D-169). */
+    popped?: string | null;
   } = $props();
 
   const TIERS = [1, 2, 3] as const;
@@ -164,6 +167,7 @@
           class="item"
           class:open={open === g.name}
           class:armed={g.species.some((s) => s.name === planting)}
+          class:pop={g.species.some((s) => s.name === popped)}
           aria-expanded={open === g.name}
           aria-label={g.name}
           title={g.name}
@@ -191,6 +195,7 @@
                       <button
                         class="tile {state} {MEDAL[s.tier - 1] ?? 'bronze'}"
                         class:armed={planting === s.name}
+                        class:pop={popped === s.name}
                         class:none={count(s) === 0 && state === "unlocked"}
                         role="menuitem"
                         aria-label={label(s.name)}
@@ -282,6 +287,24 @@
 </footer>
 
 <style>
+  /* Unlock pop (D-169): a quick swell with a gold ring that fades. */
+  .pop {
+    animation: pop 0.6s ease-out;
+  }
+  @keyframes pop {
+    0% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(216, 180, 92, 0.9);
+    }
+    35% {
+      transform: scale(1.18);
+      box-shadow: 0 0 0 6px rgba(216, 180, 92, 0.55);
+    }
+    100% {
+      transform: scale(1);
+      box-shadow: 0 0 0 14px rgba(216, 180, 92, 0);
+    }
+  }
   .dock {
     position: absolute;
     left: 50%;

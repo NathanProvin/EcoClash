@@ -108,7 +108,7 @@ export const OBJECTIVES: Objective[] = [
   {
     title: "Plant Grasses",
     need: 500, // unlock 200 + a planting
-    text: "Open Herbs: the Grasses card fills with colour as you save up. Click it when its padlock turns gold to unlock it, click it again, then plant grasses on your land.",
+    text: "Open Herbs: the Grasses card fills with colour as you save up. Click it when its padlock turns gold: it unlocks and comes to hand, then plant grasses on your land.",
     tip: "Grasses spread faster than lichen, and feed most grazers.",
     point: ["family-L1"],
     done: (s) => s.plants.has("grasses"),

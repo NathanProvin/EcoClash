@@ -402,7 +402,25 @@
     void tick; // live unlocks arrive with the ticks
     return replay ? unlockedNow(replay, player, tick) : new Set<string>();
   });
-  const unlock = (name: string) => live?.unlock(me, name);
+  // Unlock feedback (D-169): once the worker confirms an unlock, the species is armed in hand
+  // (one click saved) and its card pops.
+  let pendingArm: string | null = null;
+  let popped = $state<string | null>(null);
+  const unlock = (name: string) => {
+    live?.unlock(me, name);
+    pendingArm = name;
+  };
+  $effect(() => {
+    const now = unlocked;
+    const name = pendingArm;
+    if (!name || !now.has(name)) return;
+    pendingArm = null;
+    planting = name;
+    popped = name;
+    setTimeout(() => {
+      if (popped === name) popped = null;
+    }, 900);
+  });
   const armedKind = $derived(
     replay?.meta.species.find((s) => s.name === planting)?.kind ?? "flora",
   );
@@ -880,6 +898,7 @@
       bind:planting
       {unlocked}
       onUnlock={unlock}
+      {popped}
       onPickSpecies={pickSpecies}
       onClear={() => select([])}
       catastrophes={live?.catastrophes ?? []}

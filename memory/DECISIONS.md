@@ -1917,3 +1917,11 @@ Template:
     - "Eats" and "Hunted by" icons (`related`).
   - It follows the animals every tick (`game/units.ts` `unitCard`), and shows the group under the pointer while a strategic icon (own or enemy) is hovered.
   - The animal frame carries fullness and order (D-160). The species table carries `speed`.
+
+## D-162 · 2026-10-06 · Order lines
+- **Status:** accepted (user, Alpha 2)
+- **Decision:** a move or attack order draws a faint curved ribbon on the ground, from the ordered group's centre to the goal (`render/orders.ts`):
+  - 0.22 m wide, bent sideways by 18 % of its length, draped on the relief, opacity 0.4;
+  - silvery grey (`#c9cdd2`) for a move, fire red (`#e2452b`) for an attack.
+  - It shortens as the group goes, and disappears once no animal still follows the order (the animal frame's order byte) or they are all dead.
+  - A newer order takes the animals off their older line.

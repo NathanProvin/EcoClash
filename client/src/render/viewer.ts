@@ -32,6 +32,7 @@ import {
 import { interpolate, type Animal, type Fields, type Source } from "../replay/replay";
 import { OVERLAYS, overlayValues, paintOverlay, type OverlayId } from "../game/overlays";
 import { AnimalView } from "./animals";
+import { OrderLines, type OrderKind } from "./orders";
 import { Ghost, type GhostSpec } from "./ghost";
 import { SeedBurst, SEEDS } from "./seeds";
 import { BAND, frontierField } from "./frontier";
@@ -168,6 +169,7 @@ export class Viewer {
   private readonly plantRgb: Record<PlayerId, [number, number, number][]>;
   private readonly plantLinear: Record<PlayerId, THREE.Color[]>;
   private readonly aura: THREE.Group; // smoky ring over the selected cell
+  private readonly orders: OrderLines; // lines from ordered groups to their goals (D-162)
   private readonly raycaster = new THREE.Raycaster();
   private flight: { from: THREE.Vector3[]; to: THREE.Vector3[]; t: number } | undefined;
   private pings: { mesh: THREE.Mesh; start: number; r0: number; r1: number; waves: number }[] = [];
@@ -354,6 +356,7 @@ export class Viewer {
 
     this.aura = makeAura();
     this.scene.add(this.aura);
+    this.orders = new OrderLines(this.scene);
     this.ghost = new Ghost(this.scene, this.surface);
     this.applyLight();
   }
@@ -488,6 +491,11 @@ export class Viewer {
   }
 
   /** Show the aura over a cell, or hide it (null). */
+  /** Animals `ids` were ordered to `cell`: draw their order line (D-162). */
+  addOrder(ids: readonly number[], cell: { row: number; col: number }, kind: OrderKind): void {
+    this.orders.add(ids, this.centre(cell), kind);
+  }
+
   setCell(cell: { row: number; col: number } | null): void {
     this.aura.visible = cell !== null;
     if (cell) this.aura.position.copy(this.centre(cell));
@@ -823,6 +831,7 @@ export class Viewer {
     const { n } = this.replay.meta;
     const eye = this.camera.position;
     this.animals.update(this.shown, this.selected, tick, n, ms, dropped, h, this.field.water, eye);
+    this.orders.update(this.animals.drawn, this.shown, h);
     animateAura(this.aura, now, this.surface);
     this.animatePings(now);
     this.seeds.update(now, this.camera.position.distanceTo(this.controls.target));

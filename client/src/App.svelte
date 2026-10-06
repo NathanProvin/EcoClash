@@ -612,6 +612,7 @@
   function order(kind: "move" | "attack" | "stop", at?: { row: number; col: number } | null) {
     if (!live || !selection.size) return;
     live.order(me, [...selection], kind, at?.row ?? 0, at?.col ?? 0);
+    if (kind !== "stop" && at) viewer?.addOrder([...selection], at, kind); // its line (D-162)
     if (kind !== "stop" && at && enemyAt(at)) raidOrdered = true; // for the tutorial
   }
 

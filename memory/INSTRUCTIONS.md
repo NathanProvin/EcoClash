@@ -48,7 +48,7 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 | Trees (L4) | **Field** (models drawn per cell) | Anchor territory, large biomass |
 | Aquatic flora (W: algae, reeds, cattails; D-125) | **Field**, in the stratum of its height | Holds the shallows and banks (D-087) |
 | Herbivores (H1–H4, HW: insects to large mammals, fish) | **Agent** | Eat enemy flora; without orders and with no enemy flora nearby, graze own flora slowly for bonus biomass (D-018) |
-| Predators | **Agent** | Hunt enemy prey. Kept in check by their own predators (food web), the hunter hunters (S: hawk, wildcat, eagle-owl; D-187) and by shrub refuges (D-023) |
+| Predators | **Agent** | Hunt enemy prey. Kept in check by their own predators (food web), the superpredators (S: hawk, wildcat, eagle-owl; D-187, D-197) and by shrub refuges (D-023) |
 | Recyclers (decomposers) | **Agent** (earthworms, fungi, black woodpecker; D-018, D-092) | Turn dead biomass into nutrients |
 
 ### 2.2 Environment layers (fields)

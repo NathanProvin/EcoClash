@@ -2307,3 +2307,7 @@ Template:
   | Hard | 1.5 | 2.0 |
 
   Hard beats normal 19 of 27; normal beats easy 12 of 16.
+
+## D-197 · 2026-10-06 · "Superpredators"
+- **Status:** accepted (user)
+- **Decision:** family S (hawk, wildcat, eagle-owl) is named "Superpredators" in the UI and the docs (it was "Hunter hunters").

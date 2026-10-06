@@ -120,7 +120,7 @@ const FAMILY: Record<string, string> = {
   P1: "Insect eaters",
   P2: "Small hunters",
   P3: "Big hunters",
-  S: "Hunter hunters",
+  S: "Superpredators",
   W: "Water plants",
   HW: "Water grazers",
   PW: "Water hunters",

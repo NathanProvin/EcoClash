@@ -191,7 +191,7 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
 | **P2** Small-mammal eaters | Weasel | Red fox | Pine marten |
 | **P3** Large-mammal eaters | Eurasian lynx | Wolf | Brown bear |
 | **PW** Aquatic hunters | Pike | Grey heron | Eurasian otter |
-| **S** Hunter hunters (D-187) | Hawk (kestrel, hobby, sparrowhawk) | Wildcat | Eurasian eagle-owl |
+| **S** Superpredators (D-187, D-197) | Hawk (kestrel, hobby, sparrowhawk) | Wildcat | Eurasian eagle-owl |
 
 ### 4.3 Diets, habitats and media [Proposed defaults, D-087]
 
@@ -215,7 +215,7 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
     | Apex hunters (unlock 6 000 or more) | 0–1 |
 
     Plants follow the same rule: tier-1 and tier-2 plants are eaten by 2–3 grazers, tier-3 plants by 1–2.
-  - **Hunter hunters (S):** the hunter hunters eat the hunters below them, so a defence can be answered: the hawk eats tits, the wildcat eats weasels and hawks, the eagle-owl eats foxes, hawks and herons.
+  - **Superpredators (S, D-197):** they eat the hunters below them, so a defence can be answered: the hawk eats tits, the wildcat eats weasels and hawks, the eagle-owl eats foxes, hawks and herons.
   - **Guard test:** `sim-core/tests/food_web.rs` checks the tier rule and the eater counts.
 - **Swarms (D-065):** earthworms, fungi, grasshoppers, slugs & snails, caterpillars, bark beetles and larvae are drawn as swarms, not units.
 - **Movement (author's direction, D-088):** insects keep a Brownian flutter; small herbivores are calm and slow and graze stop-and-go; large herbivores move slowly and steadily; hunters are fast when they hunt and calm when idle; birds drift lightly.

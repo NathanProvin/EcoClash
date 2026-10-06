@@ -14,7 +14,7 @@
 #   needs a card of the previous tier of its family. Plant families: L1 herbaceous, L2 intermediate,
 #   L3 shrubs, L4 trees, W aquatic. Animal families: D detritivores, H1..H4 eaters of L1..L4,
 #   HW aquatic grazers, P1 insect eaters, P2 small-mammal eaters, P3 large-mammal eaters,
-#   PW aquatic hunters, S hunter hunters (D-187). Habitat entries are species or family names (L1..L4, W). Diets (`eats`)
+#   PW aquatic hunters, S superpredators (D-187, D-197). Habitat entries are species or family names (L1..L4, W). Diets (`eats`)
 #   are species in rank order, primary first, at most three (D-122); recyclers eat "dead".
 #   Within a layer, tier n animals eat the tier n plant first (D-126); tier-1 insects live a layer
 #   below their food.
@@ -1018,7 +1018,7 @@ wobble = 0.08
 wobble_keep = 0.9
 rest = 0.4
 
-# Hunter hunters (S, D-187): each eats the hunters below it, so a defence can be answered.
+# Superpredators (S, D-187, D-197): each eats the hunters below it, so a defence can be answered.
 [fauna.hawk]
 growth = 90
 spawn_cost = 400

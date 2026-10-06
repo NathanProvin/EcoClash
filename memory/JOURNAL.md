@@ -761,3 +761,14 @@
   Bench: 24 of 33 animals used (was 12), raids answered in 8 s median, 80 % primary-prey drops, water plants on every water-map side.
 - **Open:** HW/PW use is about 50 %; late-tier hunters are rarely called in 25-min matches.
 - **Next:** the user's playtest vs the bots; then push Alpha 1.1.
+
+## 2026-10-06 (9) · Playtest fixes (D-194…D-197)
+- **Done:**
+  - the bot founds in varied places on its half (it always took the lower-right clearing);
+  - a raindrop hover in the main menu, a deep trunk click, quieter default volumes (a new storage key), map-wide random animal calls, softer rain;
+  - hunters eat 15 s after a kill, so two foxes no longer erase a rabbit raid;
+  - bot incomes 0.8 / 1.3 / 2.0 keep the ladder;
+  - "Superpredators".
+
+  All checks green.
+- **Next:** the user listens and playtests raids against hunters; then push Alpha 1.1.

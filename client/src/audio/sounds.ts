@@ -118,13 +118,73 @@ function plop(ctx: AudioContext, out: AudioNode, t: number, f: number, gain: num
   tone(ctx, out, t, { f0: f, f1: f * 2.2, dur: 0.09, gain });
 }
 
+/** A MIDI note's frequency. */
+const midi = (m: number) => 440 * 2 ** ((m - 69) / 12);
+
+/** The click's three tap colours (D-183): a pitch factor drawn per press. */
+const CLICK_COLOURS = [0.86, 1, 1.19];
+
+/** Each tech family's unlock motif (D-185): grasses airy and high, trees low and woody, water
+ *  gliding, recyclers earthy, grazers bright, hunters sly and minor. Notes are MIDI; `glide`
+ *  bends each note a little. */
+const MOTIFS: Record<
+  string,
+  { notes: number[]; type: OscillatorType; gap: number; lp?: number; glide?: number }
+> = {
+  L1: { notes: [79, 83, 86], type: "sine", gap: 0.08 },
+  L2: { notes: [74, 79, 81], type: "sine", gap: 0.1 },
+  L3: { notes: [67, 71, 74], type: "triangle", gap: 0.12, lp: 1800 },
+  L4: { notes: [55, 62, 67], type: "triangle", gap: 0.15, lp: 900 },
+  W: { notes: [72, 76, 79], type: "sine", gap: 0.11, glide: 1.04 },
+  D: { notes: [48, 55, 53], type: "triangle", gap: 0.14, lp: 600 },
+  H1: { notes: [76, 74, 79], type: "triangle", gap: 0.07, lp: 3000 },
+  H2: { notes: [72, 77, 81], type: "triangle", gap: 0.09, lp: 2600 },
+  H3: { notes: [67, 72, 76], type: "triangle", gap: 0.11, lp: 2000 },
+  H4: { notes: [55, 60, 64], type: "triangle", gap: 0.14, lp: 1000 },
+  HW: { notes: [69, 74, 72], type: "sine", gap: 0.11, glide: 1.03 },
+  P1: { notes: [69, 68, 64], type: "square", gap: 0.1, lp: 1400 },
+  P2: { notes: [64, 63, 59], type: "square", gap: 0.12, lp: 1200 },
+  P3: { notes: [57, 56, 52], type: "sawtooth", gap: 0.14, lp: 900 },
+  PW: { notes: [62, 61, 57], type: "sine", gap: 0.12, glide: 0.97 },
+};
+
+function unlockMotifs(): Record<string, Recipe> {
+  return Object.fromEntries(
+    Object.entries(MOTIFS).map(([fam, m]) => [
+      `ui.unlock.${fam}`,
+      {
+        bus: "ui",
+        ms: 800,
+        vary: 0.01,
+        play: (c, o, t, p) =>
+          m.notes.forEach((n, i) => {
+            const f = midi(n) * p;
+            const at = t + i * m.gap;
+            const last = i === m.notes.length - 1;
+            tone(c, o, at, {
+              type: m.type,
+              f0: f,
+              f1: m.glide ? f * m.glide : undefined,
+              dur: last ? 0.6 : 0.3,
+              gain: 0.13,
+              lp: m.lp,
+            });
+            tone(c, o, at, { f0: f * 2, dur: 0.2, gain: 0.025 });
+          }),
+      } satisfies Recipe,
+    ]),
+  );
+}
+
 export const RECIPES: Record<string, Recipe> = {
   // Interface.
   // A soft, low brown-noise tap (D-179), like a press on felt.
   "ui.click": {
     bus: "ui",
     ms: 80,
-    play: (c, o, t, p, n) => {
+    vary: 0.14, // D-183: wider pitch, plus one of three tap colours per press
+    play: (c, o, t, p0, n) => {
+      const p = p0 * (CLICK_COLOURS[Math.floor(Math.random() * CLICK_COLOURS.length)] ?? 1);
       hiss(c, o, t, n, {
         type: "lowpass",
         f0: 420 * p,
@@ -479,6 +539,157 @@ export const RECIPES: Record<string, Recipe> = {
       vib.stop(t + 1.95);
     },
   },
+  // D-182: the kestrel's "kee-kee", the mustelids' and squirrel's chitter, the bear's growl.
+  "animal.raptor": {
+    bus: "fx",
+    ms: 520,
+    vary: 0.05,
+    play: (c, o, t, p) => {
+      for (let i = 0; i < 4; i++)
+        tone(c, o, t + i * 0.12, {
+          type: "triangle",
+          f0: 2300 * p,
+          f1: 1900 * p,
+          dur: 0.09,
+          gain: 0.08,
+        });
+    },
+  },
+  "animal.chatter": {
+    bus: "fx",
+    ms: 420,
+    vary: 0.1,
+    play: (c, o, t, p, n) => {
+      for (let i = 0; i < 6; i++)
+        hiss(c, o, t + i * 0.055 + Math.random() * 0.015, n, {
+          type: "bandpass",
+          f0: (2600 + Math.random() * 900) * p,
+          q: 7,
+          dur: 0.035,
+          gain: 0.16,
+        });
+      tone(c, o, t, { type: "square", f0: 900 * p, f1: 700 * p, dur: 0.12, gain: 0.025, lp: 1800 });
+    },
+  },
+  "animal.growl": {
+    bus: "fx",
+    ms: 700,
+    vary: 0.06,
+    play: (c, o, t, p, n) => {
+      tone(c, o, t, {
+        type: "sawtooth",
+        f0: 70 * p,
+        f1: 52 * p,
+        dur: 0.6,
+        gain: 0.2,
+        lp: 300,
+        attack: 0.08,
+      });
+      tone(c, o, t, {
+        type: "sawtooth",
+        f0: 73 * p,
+        f1: 54 * p,
+        dur: 0.55,
+        gain: 0.1,
+        lp: 260,
+        attack: 0.1,
+      });
+      hiss(c, o, t, n, { type: "lowpass", f0: 450, dur: 0.6, gain: 0.08, attack: 0.1 });
+    },
+  },
+  // Victory and defeat stingers (D-185), on the music bus: a warm rising cadence, a hollow fall.
+  "ui.victory": {
+    bus: "music",
+    ms: 3200,
+    vary: 0,
+    play: (c, o, t) => {
+      [60, 64, 67, 72].forEach((m, i) =>
+        tone(c, o, t + i * 0.16, { f0: midi(m), dur: 2.6 - i * 0.2, gain: 0.12, attack: 0.02 }),
+      );
+      [48, 55].forEach((m) =>
+        tone(c, o, t + 0.64, { type: "triangle", f0: midi(m), dur: 2.4, gain: 0.08, attack: 0.3 }),
+      );
+    },
+  },
+  "ui.defeat": {
+    bus: "music",
+    ms: 3200,
+    vary: 0,
+    play: (c, o, t) => {
+      [69, 65, 62, 57].forEach((m, i) =>
+        tone(c, o, t + i * 0.28, {
+          type: "triangle",
+          f0: midi(m),
+          f1: midi(m) * 0.985,
+          dur: 2.2,
+          gain: 0.09,
+          attack: 0.05,
+          lp: 1400,
+        }),
+      );
+      tone(c, o, t + 1.1, {
+        type: "triangle",
+        f0: midi(45),
+        dur: 2.8,
+        gain: 0.08,
+        attack: 0.4,
+        lp: 600,
+      });
+    },
+  },
+  // A low swell before weather hits, under an enemy catastrophe (D-185).
+  "fx.rumble": {
+    bus: "fx",
+    ms: 2600,
+    vary: 0.05,
+    play: (c, o, t, p, n) => {
+      hiss(c, o, t, n, {
+        type: "lowpass",
+        f0: 90 * p,
+        f1: 160 * p,
+        q: 0.7,
+        dur: 2.4,
+        gain: 0.5,
+        attack: 1.2,
+      });
+      tone(c, o, t, { type: "sine", f0: 42 * p, f1: 36 * p, dur: 2.4, gain: 0.14, attack: 1.1 });
+    },
+  },
+  // A tree reaching full size near the camera (D-185): a slow wooden creak.
+  "fx.creak": {
+    bus: "fx",
+    ms: 900,
+    vary: 0.12,
+    play: (c, o, t, p) => {
+      for (let i = 0; i < 9; i++)
+        tone(c, o, t + i * 0.07 + Math.random() * 0.02, {
+          type: "sawtooth",
+          f0: (190 + i * 6) * p,
+          dur: 0.05,
+          gain: 0.05,
+          lp: 900,
+        });
+    },
+  },
+  // A woodpecker drumming on dead wood (D-185): a fast roll that slows and fades.
+  "fx.drum": {
+    bus: "fx",
+    ms: 900,
+    vary: 0.08,
+    play: (c, o, t, p, n) => {
+      let at = t;
+      for (let i = 0; i < 14; i++) {
+        hiss(c, o, at, n, {
+          type: "bandpass",
+          f0: 900 * p,
+          q: 6,
+          dur: 0.025,
+          gain: 0.2 * (1 - i / 18),
+        });
+        at += 0.04 + i * 0.0035;
+      }
+    },
+  },
   "animal.frog": {
     bus: "fx",
     ms: 340,
@@ -493,7 +704,12 @@ export const RECIPES: Record<string, Recipe> = {
     play: (c, o, t, _p, n) =>
       hiss(c, o, t, n, { type: "lowpass", f0: 2400, f1: 300, dur: 0.3, gain: 0.16 }),
   },
+  ...unlockMotifs(),
 };
+
+/** The unlock motif of a tech family (D-185), or the plain chime for an unknown one. */
+export const unlockSound = (family: string | undefined) =>
+  family && RECIPES[`ui.unlock.${family}`] ? `ui.unlock.${family}` : "ui.unlock";
 
 /** The voice of an animal species (by name and body type), or null for the silent ones (slugs,
  *  worms, fungi). */
@@ -502,6 +718,7 @@ export function voiceOf(name: string, body: string | undefined): string | null {
     return "animal.insect";
   if (["slugs", "earthworms", "fungi"].includes(name)) return null;
   if (name === "black_woodpecker") return "animal.woodpecker";
+  if (name === "kestrel") return "animal.raptor";
   switch (body) {
     case "bird":
       return "animal.bird";
@@ -517,11 +734,15 @@ export function voiceOf(name: string, body: string | undefined): string | null {
       return name === "wolf" ? "animal.howl" : "animal.hunter";
     case "cat":
       return "animal.hunter";
+    case "mustelid":
+    case "squirrel":
+      return "animal.chatter";
+    case "bear":
+      return "animal.growl";
     case "deer":
     case "stag":
     case "boar":
     case "bison":
-    case "bear":
     case "beaver":
       return "animal.large";
     default:

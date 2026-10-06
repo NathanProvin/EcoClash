@@ -16,6 +16,16 @@ export const CHORDS: number[][] = [
   [41, 53, 57, 60, 64, 71],
   [43, 50, 57, 62, 64, 69],
 ];
+/** Under attack (D-185): the same voices over minor chords (Am9, Fmaj7, Dm9, Esus), with a low
+ *  pulse, for TENSION_S after the last raid alert. */
+export const TENSE: number[][] = [
+  [45, 52, 59, 60, 64, 71],
+  [41, 48, 57, 60, 64, 69],
+  [38, 50, 57, 60, 64, 65],
+  [40, 52, 57, 59, 64, 71],
+];
+const TENSION_S = 45;
+const PULSE_S = 1.6;
 /** Seconds per chord; a match's pieces last PIECE_S, with GAP_S of silence between. */
 const CHORD_S = 9;
 const PIECE_S = [120, 170] as const;
@@ -42,6 +52,8 @@ class Music {
   private pieceEnd = 0;
   private pieceStart = 0;
   private track: AudioBufferSourceNode | null = null;
+  private tenseUntil = 0;
+  private nextPulse = 0;
 
   constructor() {
     audio.whenStarted(() => this.build());
@@ -59,6 +71,20 @@ class Music {
     this.pieceStart = scene === "game" ? t + 40 : t;
     this.pieceEnd = scene === "game" ? this.pieceStart + span(PIECE_S) : Infinity;
     this.fade(scene === "menu" ? 1 : 0, 2);
+  }
+
+  /** A raid on your land (D-185): in a match, the music turns tense, starting a piece if none
+   *  plays. */
+  alarm(): void {
+    const ctx = audio.context;
+    if (!ctx || this.scene !== "game") return;
+    const t = ctx.currentTime;
+    this.tenseUntil = t + TENSION_S;
+    if (t < this.pieceStart || t >= this.pieceEnd) {
+      this.pieceStart = t;
+      this.chordAt = t; // a new chord at once, from the tense set
+    }
+    this.pieceEnd = Math.max(this.pieceEnd, this.tenseUntil + 20);
   }
 
   private build(): void {
@@ -114,15 +140,21 @@ class Music {
       this.playTrack(file);
       return;
     }
+    const tense = this.scene === "game" && t < this.tenseUntil;
+    const set = tense ? TENSE : CHORDS;
+    if (tense && t >= this.nextPulse) {
+      this.nextPulse = t + PULSE_S;
+      this.note(hz((set[this.chord]?.[0] ?? 45) - 12), t + 0.05, 0.1, 1.2);
+    }
     if (t >= this.chordAt) {
-      this.chord = (this.chord + 1) % CHORDS.length;
+      this.chord = (this.chord + 1) % set.length;
       this.chordAt = t + CHORD_S;
-      const chord = CHORDS[this.chord] ?? [];
+      const chord = set[this.chord] ?? [];
       this.note(hz((chord[0] ?? 48) - 12), t + 0.05, 0.11, 6);
       this.pad(chord, t + 0.05, CHORD_S + 2);
     }
     if (t >= this.nextNote) {
-      const notes = melodyOf(CHORDS[this.chord] ?? []);
+      const notes = melodyOf(set[this.chord] ?? []);
       const pick = notes[Math.floor(Math.random() * notes.length)];
       if (pick && Math.random() > 0.25) this.note(hz(pick), t + 0.05, 0.09, 4.5);
       if (pick && Math.random() < 0.18)

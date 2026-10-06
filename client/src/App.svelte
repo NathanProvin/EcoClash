@@ -35,7 +35,7 @@
   import { shortNotice } from "./game/notices";
   import { audio } from "./audio/engine";
   import { ambience, moodOf } from "./audio/ambience";
-  import { voiceOf } from "./audio/sounds";
+  import { unlockSound, voiceOf } from "./audio/sounds";
   import { music } from "./audio/music";
   import { formOf as bodyOf } from "./render/bodies";
   import { unitCard } from "./game/units";
@@ -289,8 +289,65 @@
     music.setScene(replay ? "game" : "menu");
   });
 
-  /** The chance that a dropped animal calls as it lands (D-179). */
+  /** The chance that a dropped animal calls as it lands (D-179), or one of yours answers a
+   *  selection or an order (D-182). */
   const DROP_CALL = 0.6;
+  const SELECT_CALL = 0.5;
+  const ORDER_CALL = 0.35;
+  /** One of these animals (yours, on screen) calls, with chance `chance` (D-182). The cooldown
+   *  keeps a box drag or spam clicks from stacking calls. */
+  function speak(ids: Iterable<number>, chance: number, delay = 0) {
+    const v = viewer;
+    if (!v || !replay || Math.random() > chance) return;
+    const want = new Set(ids);
+    const mine = v.visibleAnimals().filter((a) => want.has(a.id) && a.owner === me);
+    const a = mine[Math.floor(Math.random() * mine.length)];
+    if (!a) return;
+    const call = callOf(replay.meta.fauna.names[a.species] ?? "");
+    const place = placeOf({ row: Math.floor(a.y), col: Math.floor(a.x) });
+    if (call && place?.inView)
+      setTimeout(() => audio.play(call, { at: place, cooldown: 1200 }), delay);
+  }
+  /** A woodpecker drums on dead wood on screen now and then (D-185). */
+  let lastDrum = 0;
+  function drumming(now: number) {
+    const [l, v] = [live, viewer];
+    if (!l || !v || now - lastDrum < 4000) return;
+    lastDrum = now;
+    const dead = l.fields().deadwood;
+    if (!dead || Math.random() > 0.2 + 0.5 * v.closeness()) return;
+    const n = l.meta.n;
+    const cells: number[] = [];
+    for (let c = 0; c < dead.length; c++) if ((dead[c] ?? 0) > 0) cells.push(c);
+    const c = cells[Math.floor(Math.random() * cells.length)];
+    if (c === undefined) return;
+    const place = placeOf({ row: Math.floor(c / n), col: c % n });
+    if (place?.inView) audio.play("fx.drum", { at: place, gain: 0.8 });
+  }
+  /** A tree reaching full size near the camera creaks (D-185): the canopy cover of a cell on
+   *  screen crosses GROWN between two field frames. */
+  const GROWN = 200;
+  let lastCanopy: Uint8Array | null = null;
+  let lastCreak = 0;
+  function creaks(now: number) {
+    const [l, v] = [live, viewer];
+    if (!l || !v) return;
+    const canopy = l.fields().cover[3];
+    if (!canopy || canopy === lastCanopy) return;
+    const before = lastCanopy;
+    lastCanopy = canopy;
+    if (!before || before.length !== canopy.length || v.closeness() < 0.4) return;
+    if (now - lastCreak < 3000) return;
+    const n = l.meta.n;
+    for (let c = 0; c < canopy.length; c++) {
+      if ((before[c] ?? 0) >= GROWN || (canopy[c] ?? 0) < GROWN) continue;
+      const place = placeOf({ row: Math.floor(c / n), col: c % n });
+      if (!place?.inView) continue;
+      lastCreak = now;
+      audio.play("fx.creak", { at: place });
+      return;
+    }
+  }
   /** A planting's sound by plant group (D-179): herbs light, shrubs fuller, trees deep, water
    *  plants watery. */
   function plantSound(s: Species | undefined): string {
@@ -355,6 +412,7 @@
     if (lost) found.push(lost);
     for (const a of found) {
       raided ||= a.text.startsWith("Enemy");
+      if (a.text.startsWith("Enemy")) music.alarm(); // the music turns tense (D-185)
       const at = { row: a.row, col: a.col };
       toast(a.text, "alert", at, a.severity);
       v.ping(at, WORLD.alert);
@@ -498,6 +556,13 @@
     void tick; // live unlocks arrive with the ticks
     return replay ? unlockedNow(replay, player, tick) : new Set<string>();
   });
+  // A victory or defeat stinger as the end screen opens (D-185).
+  let stung: Outcome | null = null;
+  $effect(() => {
+    if (!outcome || outcome === stung) return;
+    stung = outcome;
+    audio.play(outcome.winner === me ? "ui.victory" : "ui.defeat");
+  });
   // Unlock feedback (D-169): once the worker confirms an unlock, the species is armed in hand
   // (one click saved) and its card pops.
   let pendingArm: string | null = null;
@@ -513,7 +578,7 @@
     pendingArm = null;
     planting = name;
     popped = name;
-    audio.play("ui.unlock");
+    audio.play(unlockSound(replay?.meta.species.find((x) => x.name === name)?.family)); // D-185
     setTimeout(() => {
       if (popped === name) popped = null;
     }, 900);
@@ -612,6 +677,7 @@
       aim(now);
       if (live.weather !== weather) {
         for (const text of weatherToasts(weather, live.weather)) toast(text, "alert", undefined, 1);
+        if (live.weather.phase === "alert" && weather.phase !== "alert") audio.play("fx.rumble"); // D-185
         viewer?.setWeather(live.weather.kind, live.weather.phase);
         weather = live.weather;
       }
@@ -627,6 +693,8 @@
         ambience.setLife(lifeOf(unlocked));
         animalLife(now);
         munching(now);
+        drumming(now);
+        creaks(now);
       }
       const showing = fresh(toasts, now);
       if (showing.length !== toasts.length) toasts = showing;
@@ -650,7 +718,10 @@
             c.act
           ];
           if (cue) audio.play(cue, { at: placeOf(at) });
-          if (e.player !== me) toast(`Enemy ${label(c.name).toLowerCase()}!`, "alert", at, 2);
+          if (e.player !== me) {
+            toast(`Enemy ${label(c.name).toLowerCase()}!`, "alert", at, 2);
+            audio.play("fx.rumble", { gain: 0.8 }); // D-185
+          }
         }
       }
       if (Math.floor(frameTick) !== tick) tick = Math.floor(frameTick);
@@ -733,6 +804,7 @@
   function select(ids: number[]) {
     selection = new Set(ids);
     viewer?.setSelection(selection);
+    if (ids.length) speak(ids, SELECT_CALL); // D-182
   }
 
   /** Select all the viewed player's animals of one species on screen (from the unit bar). */
@@ -752,6 +824,7 @@
     if (!live || !selection.size) return;
     live.order(me, [...selection], kind, at?.row ?? 0, at?.col ?? 0);
     audio.play("fx.order");
+    if (kind !== "stop") speak(selection, ORDER_CALL, 150); // D-182
     if (kind !== "stop" && at) viewer?.addOrder([...selection], at, kind); // its line (D-162)
     if (kind !== "stop" && at && enemyAt(at)) raidOrdered = true; // for the tutorial
   }
@@ -966,7 +1039,8 @@
     window.addEventListener("click", clickSound, true);
     window.addEventListener("resize", resize);
     // Dev only: lets a browser check read the audio state (window.ecoAudio, ecoAmbience).
-    if (import.meta.env.DEV) Object.assign(window, { ecoAudio: audio, ecoAmbience: ambience, ecoMusic: music });
+    if (import.meta.env.DEV)
+      Object.assign(window, { ecoAudio: audio, ecoAmbience: ambience, ecoMusic: music });
     raf = requestAnimationFrame(frame);
     void start();
   });
@@ -1221,10 +1295,10 @@
     pointer-events: auto;
   }
   canvas.planting {
-    cursor: crosshair;
+    cursor: crosshair !important;
   }
   canvas.dropping {
-    cursor: none; /* the ghost model is the cursor (D-079) */
+    cursor: none !important; /* the ghost model is the cursor (D-079) */
   }
   .drop-tag {
     position: absolute;

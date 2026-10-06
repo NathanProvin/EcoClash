@@ -722,3 +722,14 @@
 
   Checked in the browser: the menu music runs (scheduled notes, faded in).
 - **Next:** the user listens; then the gameplay balance pass for Alpha 1.1.
+
+## 2026-10-06 (6) · Wind voices, animal answers, click variety, cursor fix, sound pack (D-181…D-185)
+- **Done:**
+  - three wind voices taking turns;
+  - animals call on selection and orders, with new raptor, chatter and growl voices;
+  - wider click pitch;
+  - the leaf cursor over the map (MapControls' inline cursor);
+  - tense music on raids, family unlock motifs, victory and defeat stingers, a macro layer up close, woodpecker drumming on dead wood, a pre-rumble for weather and enemy catastrophes, tree creaks.
+
+  Checks green (check, lint, 123 tests). Browser: the leaf cursor is computed on the map canvas; the wind shares rotate.
+- **Next:** the user listens; then the gameplay balance pass for Alpha 1.1.

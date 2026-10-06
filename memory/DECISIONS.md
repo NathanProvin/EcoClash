@@ -2083,3 +2083,41 @@ Template:
   - **When:** the main menu plays it all the time. A match starts with 40 s of silence, then 2–3 min pieces separated by 6–11 min of silence.
   - **Recorded track:** list `music.menu` or `music.game` in `public/audio/manifest.json` and add `public/audio/music.menu.ogg` / `music.game.ogg`; the file replaces the generated music.
   - A Music slider in Options → Audio.
+
+## D-181 · 2026-10-06 · Three wind voices
+- **Status:** accepted (user: two more wind variations in pitch, brown-like noise and rhythm)
+- **Decision** (`ambience.ts`): the wind bed is three voices under the same `wind` level:
+  - the breeze (lowpass 380 Hz, as before);
+  - a low gust on true brown noise (a seamless 4 s random-walk buffer, lowpass 200 Hz, two unrelated filter swells at 0.031 and 0.113 Hz, so the rhythm never repeats);
+  - a high whistle (bandpass 1100 Hz, Q 2.5, its centre drifting at 0.02 Hz).
+
+  Every 25–45 s one voice takes the lead (`windWeights`) and the others stay low, crossfading over 8 s.
+
+## D-182 · 2026-10-06 · Animals answer selection and orders
+- **Status:** accepted (user: every selectable animal has a sound, with a chance on drop, selection or move)
+- **Decision:** one of your selected animals on screen calls with a chance of 0.5 on any selection (click, box, unit list, strategic icon, control group) and 0.35 on a move or attack order; drops keep 0.6. A 1.2 s cooldown per voice. New voices replace generic ones:
+  - the kestrel gets a raptor "kee-kee";
+  - the badger, pine marten, otter and red squirrel get a chitter;
+  - the brown bear gets a low growl.
+
+  A test checks every non-swarm species against a recipe.
+
+## D-183 · 2026-10-06 · Click pitch variety
+- **Status:** accepted (user)
+- **Decision:** `ui.click` varies its pitch by 14 % (6 % before) and draws one of three tap colours (×0.86 / ×1 / ×1.19) per press.
+
+## D-184 · 2026-10-06 · Leaf cursor over the map
+- **Status:** accepted (user bug report)
+- **Cause:** three's `MapControls` writes an inline `cursor: auto` on the canvas (in `disconnect()`, run by `connect()`). The inline style beat the inherited leaf cursor, so the map showed the system arrow.
+- **Fix:** `canvas { cursor: var(--cursor) !important; }` in `app.css`; the planting crosshair and the hidden drop cursor are `!important` too. Checked in the browser: inline `auto`, computed leaf.
+
+## D-185 · 2026-10-06 · Sound design pack
+- **Status:** accepted (user picked ideas 2, 3, 4, 5, 6, 7 and 9 of the proposal)
+- **Decision:**
+  - **Adaptive music:** a raid alert on your land turns the music tense for 45 s: minor chords (Am9, Fmaj7, Dm9, Esus) and a low pulse every 1.6 s. A piece starts at once if none is playing (`music.alarm()`).
+  - **Family motifs:** each tech family unlocks with its own 3-note motif (`ui.unlock.<family>`): grasses airy and high, trees low and woody, water gliding, recyclers earthy, grazers bright, hunters minor and sly.
+  - **Stingers:** victory gets a warm rising cadence, defeat a hollow falling one, both on the music bus.
+  - **Macro layer:** zoomed in close (closeness > 0.65) on living land, a wingbeat flies across now and then and leaves rustle.
+  - **Woodpecker drumming:** a roll every few seconds on dead wood on screen.
+  - **Pre-rumble:** a low swell when a weather alert begins, and under an enemy catastrophe.
+  - **Growth creaks:** a wood creak when a cell's canopy cover on screen crosses 200/255 (camera close).

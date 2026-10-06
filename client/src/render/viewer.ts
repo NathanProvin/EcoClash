@@ -241,32 +241,31 @@ export class Viewer {
     this.groundTex.colorSpace = THREE.SRGBColorSpace;
     const groundMat = new THREE.MeshStandardNodeMaterial({ roughness: 1 });
     // Baked noise (D-151): one texture fetch per scale instead of a Perlin noise per pixel.
-    const patches = this.noise(0.16, "r", undefined, 0.5); // broad damp / dry patches
-    // An organic ground (D-211): scales turned against each other, soil hues that drift over
-    // the map, and an emboss (each scale against itself a little toward the sun) for depth.
-    const clods = this.noise(0.8, "g", undefined, 1.3);
-    const grit = this.noise(4.2, "b", undefined, 2.1);
-    const toSun = sun.position.clone().setY(0).normalize();
-    const lean = (m: number) => vec2(toSun.x * m, toSun.z * m);
-    const emboss = clods
-      .sub(this.noise(0.8, "g", undefined, 1.3, lean(0.35)))
-      .mul(0.4)
-      .add(grit.sub(this.noise(4.2, "b", undefined, 2.1, lean(0.06))).mul(0.22));
-    const grain = float(1)
-      .add(patches.mul(0.1))
-      .add(clods.mul(0.08))
-      .add(grit.mul(0.07))
-      .add(emboss);
-    const drift = this.noise(0.045, "g", undefined, 0.9).mul(0.5).add(0.5); // map-wide hue zones
-    const loam = this.noise(0.07, "b", undefined, 2.6).mul(0.5).add(0.5);
-    const cellEarth = texture(this.groundTex, uv()).rgb;
-    // Ochre, grey-brown and red loam zones over the soil colour (D-211).
-    const hue = mix(vec3(1.1, 0.99, 0.82), vec3(0.86, 0.9, 0.96), drift).mul(
-      mix(vec3(1, 1, 1), vec3(1.12, 0.92, 0.84), smoothstep(0.5, 0.85, loam)),
+    // A soft patchwork (D-212): broad, smooth patches of a few quiet natural tints (warm ochre,
+    // sage, umber) over the soil colour, which is warped and softened so the cell grid never
+    // shows. No fine grain: close up it read as a pixelated print.
+    const patches = this.noise(0.12, "r", undefined, 0.5); // -1..1, damp and dry patches
+    const zones = this.noise(0.05, "g", undefined, 0.9).mul(0.5).add(0.5);
+    const spots = this.noise(0.09, "b", undefined, 2.6).mul(0.5).add(0.5);
+    const soft = (v: THREE.Node<"float">) => smoothstep(0.3, 0.7, v);
+    const tint = mix(
+      mix(vec3(1.04, 0.99, 0.9), vec3(0.93, 0.97, 0.9), soft(zones)),
+      vec3(0.97, 0.92, 0.88),
+      soft(spots).mul(0.55),
     );
-    const earth = cellEarth.mul(hue);
-    const humus = earth.mul(vec3(0.74, 0.68, 0.62)); // darker, warmer patches
-    const mottle = smoothstep(0.05, 0.8, patches).mul(0.6);
+    const grain = float(1).add(patches.mul(0.04));
+    // The per-cell soil colour, sampled through a gentle warp and four taps half a cell apart.
+    const warp = vec2(
+      this.noise(0.11, "g", undefined, 1.7),
+      this.noise(0.11, "b", undefined, 0.3),
+    ).mul(0.45 / n);
+    const at = uv().add(warp);
+    const d = 0.5 / n;
+    const tap = (dx: number, dz: number) => texture(this.groundTex, at.add(vec2(dx, dz))).rgb;
+    const cellEarth = tap(-d, -d).add(tap(d, -d)).add(tap(-d, d)).add(tap(d, d)).mul(0.25);
+    const earth = cellEarth.mul(tint);
+    const humus = earth.mul(vec3(0.82, 0.78, 0.72)); // darker, warmer patches
+    const mottle = smoothstep(0.1, 0.9, patches).mul(0.35);
     this.field = new Heightfield(n, replay.terrain);
     const ground = (x: number, z: number) => this.field.at(x, z);
     this.heights = this.field.texture();
@@ -296,7 +295,12 @@ export class Viewer {
     };
     const [l1, l2] = [band(front.r, front.b), band(front.g, front.a)];
     const lineRgb = mix(color(PLAYER[2].base), color(PLAYER[1].base), l1.div(l1.add(l2).add(1e-4)));
-    const lineA = l1.max(l2).mul(this.showFrontier);
+    // No front line under the water (D-212): it showed through as a square around water cells.
+    const dryLine =
+      this.field.water === null
+        ? float(1)
+        : smoothstep(this.field.water - 0.05, this.field.water + 0.02, positionWorld.y);
+    const lineA = l1.max(l2).mul(this.showFrontier).mul(dryLine);
     const soilColour = mix(earth, humus, mottle).mul(grain);
     groundMat.colorNode = mix(this.terrainTint(soilColour, grain), lineRgb, lineA);
     groundMat.emissiveNode = lineRgb.mul(lineA.mul(0.35));

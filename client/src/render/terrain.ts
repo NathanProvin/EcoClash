@@ -25,7 +25,15 @@ export interface TerrainFrame {
  *  instead of following the cell grid. */
 const SMOOTH = 1; // one pass: cliffs stay steep (D-096)
 
-/** Heights of an `n x n` map (m): per cell centre, bilinear in between. */
+/** Banks that curve and meander (D-212): heights pass smoothly (Catmull-Rom) through the cell
+ *  centres instead of in straight lines, and a gentle ripple (`amp` m, `wave` m across) breaks
+ *  the grid's period, so shores wind instead of repeating one cell-sized kink. */
+const MEANDER = { amp: 0.22, wave: 2.6 } as const;
+/** Height texels per cell side: the shaders (water depth, grass roots) follow the smooth
+ *  heights, not a per-cell bilinear version of them (D-212). */
+const HEIGHT_TEXELS = 4;
+
+/** Heights of an `n x n` map (m): per cell centre, smooth in between (D-212). */
 export class Heightfield {
   /** Height of each cell centre (m), row-major. */
   readonly cell: Float32Array;
@@ -62,30 +70,65 @@ export class Heightfield {
     this.water = bed === null ? null : bed + WATER.surface;
   }
 
-  /** Height (m) at world point (x, z), bilinear between cell centres, clamped at the edges. */
+  /** Height (m) at world point (x, z): Catmull-Rom through the cell centres (it passes through
+   *  each, C1 in between), clamped at the edges, plus the meander ripple (D-212). A flat map
+   *  stays flat. */
   at(x: number, z: number): number {
     const n = this.n;
     const fx = Math.min(Math.max(x / CELL + n / 2 - 0.5, 0), n - 1);
     const fz = Math.min(Math.max(z / CELL + n / 2 - 0.5, 0), n - 1);
     const [x0, z0] = [Math.floor(fx), Math.floor(fz)];
-    const [x1, z1] = [Math.min(x0 + 1, n - 1), Math.min(z0 + 1, n - 1)];
     const [tx, tz] = [fx - x0, fz - z0];
-    const h = (r: number, c: number) => this.cell[r * n + c] ?? 0;
-    const top = h(z0, x0) * (1 - tx) + h(z0, x1) * tx;
-    const bottom = h(z1, x0) * (1 - tx) + h(z1, x1) * tx;
-    return top * (1 - tz) + bottom * tz;
+    const clampN = (v: number) => Math.min(Math.max(v, 0), n - 1);
+    const h = (r: number, c: number) => this.cell[clampN(r) * n + clampN(c)] ?? 0;
+    const row = (r: number) => catmullRom(h(r, x0 - 1), h(r, x0), h(r, x0 + 1), h(r, x0 + 2), tx);
+    const smooth = catmullRom(row(z0 - 1), row(z0), row(z0 + 1), row(z0 + 2), tz);
+    return this.terrain
+      ? smooth + MEANDER.amp * ripple(x / MEANDER.wave, z / MEANDER.wave)
+      : smooth;
   }
 
   /** The heights as a half-float texture (rows = grid rows; 32-bit floats are not filterable in
    *  WebGPU), for shaders: grass roots, water depth. */
   texture(): THREE.DataTexture {
-    const half = Uint16Array.from(this.cell, (v) => THREE.DataUtils.toHalfFloat(v));
-    const t = new THREE.DataTexture(half, this.n, this.n, THREE.RedFormat, THREE.HalfFloatType);
+    const m = this.n * HEIGHT_TEXELS;
+    const size = this.n * CELL;
+    const half = new Uint16Array(m * m);
+    for (let j = 0; j < m; j++) {
+      for (let i = 0; i < m; i++) {
+        const [x, z] = [((i + 0.5) / m - 0.5) * size, ((j + 0.5) / m - 0.5) * size];
+        half[j * m + i] = THREE.DataUtils.toHalfFloat(this.at(x, z));
+      }
+    }
+    const t = new THREE.DataTexture(half, m, m, THREE.RedFormat, THREE.HalfFloatType);
     t.magFilter = THREE.LinearFilter;
     t.minFilter = THREE.LinearFilter;
     t.needsUpdate = true;
     return t;
   }
+}
+
+/** Catmull-Rom between `b` (t = 0) and `c` (t = 1), with neighbours `a` and `d`. */
+function catmullRom(a: number, b: number, c: number, d: number, t: number): number {
+  return (
+    0.5 *
+    (2 * b +
+      (c - a) * t +
+      (2 * a - 5 * b + 4 * c - d) * t * t +
+      (3 * b - a - 3 * c + d) * t * t * t)
+  );
+}
+
+/** A smooth value noise in -1..1 over the plane (lattice step 1), deterministic. */
+function ripple(x: number, z: number): number {
+  const [i, j] = [Math.floor(x), Math.floor(z)];
+  const ease = (t: number) => t * t * (3 - 2 * t);
+  const [u, v] = [ease(x - i), ease(z - j)];
+  const at = (a: number, b: number) =>
+    rand(((a % 4096) + 4096) * 4099 + ((b % 4096) + 4096), 7700) * 2 - 1;
+  const top = at(i, j) * (1 - u) + at(i + 1, j) * u;
+  const bottom = at(i, j + 1) * (1 - u) + at(i + 1, j + 1) * u;
+  return top * (1 - v) + bottom * v;
 }
 
 /** One 3 x 3 box blur of an `n x n` grid, in place (edges use the cells that exist). */

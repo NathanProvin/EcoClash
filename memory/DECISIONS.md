@@ -2439,3 +2439,21 @@ Template:
     - two broad noises drift the soil hue between ochre, grey-brown and red loam;
     - an emboss gives depth: each of the clod and grit scales against itself a little toward the sun. That costs 2 extra texture reads per ground pixel.
   - **Grass:** `#3f692b` (was `#8bb356`), with a softer tip highlight (0.62–1.02, was 0.7–1.15).
+
+## D-212 · 2026-10-06 · Winding shores and a soft ground patchwork (branch `optimization-v3`)
+- **Status:** accepted (user: banks in regular periodic shapes; a pixelated, ugly ground texture)
+- **Decision:**
+  - **Banks:**
+    - heights pass through the cell centres by Catmull-Rom (smooth) instead of bilinear (straight segments kinked at each cell);
+    - a gentle deterministic ripple (`MEANDER`: 0.22 m, 2.6 m wave) breaks the grid's period, so shores wind and flat ones gain bays;
+    - the height texture has 4 texels per cell side, so the water's edge on the GPU follows the same smooth heights.
+
+    Everything that stands on the ground reads them through `Heightfield.at`.
+  - **Front lines** fade out under the water; they showed through as squares around water cells.
+  - **Ground:**
+    - no emboss and no fine grain; they read as a pixelated print;
+    - soft patches of three quiet tints (warm ochre, sage, umber) drift over broad noises;
+    - the per-cell soil colour is sampled through a gentle warp and four taps half a cell apart, so the cell grid never shows.
+
+    That is 6 texture reads per ground pixel (was 7).
+  - **Blade colour:** lichen and wildflowers tint the grass blades they share a cell with, so their palette colours are leafy greens now (`#5a6e40`, `#4e7432`). Lichen patches and flower heads keep their own colours.

@@ -114,10 +114,10 @@ export const OVERLAY_RAMPS = {
 
 /** Natural colour of each plant species (D-067); unknown species fall back per stratum. */
 export const FLORA: Record<string, string> = {
-  lichen_and_moss: "#8f9c6c", // grey-green
+  lichen_and_moss: "#5a6e40", // moss green: it tints the grass blades it shares a cell with (D-212)
   grasses: "#3f692b", // D-211: a darker leaf green (was lime #8bb356)
   ferns: "#5d8f3e",
-  wildflowers: "#b6b765", // meadow green, warmed by the flowers
+  wildflowers: "#4e7432", // meadow green: the heads carry the colour, stems and blades stay leafy (D-212)
   nettle: "#4f7b39",
   bramble: "#5d6b3b",
   elder: "#6f9148",

@@ -86,6 +86,10 @@ const OVERLAY_LIFT = 0.1;
 /** The sun's shadow map is redrawn every this many frames: shadows lag one frame behind the wind,
  *  invisibly, for half the shadow-pass cost (D-090). */
 const SHADOW_EVERY = 4; // D-151 (was 2): the sun barely moves
+/** From afar only plants cast (animals cast up close only, D-201) and they grow slowly: the shadow
+ *  map is redrawn every SHADOW_EVERY_FAR frames beyond SHADOW_NEAR m from the target (D-204). */
+const SHADOW_EVERY_FAR = 12;
+const SHADOW_NEAR = 60;
 /** Share of rain and dust particles drawn below the High preset (D-151). */
 const RAIN_LIGHT = 0.6;
 
@@ -922,7 +926,8 @@ export class Viewer {
     this.controls.maxPolarAngle = THREE.MathUtils.lerp(TILT.low, TILT.high, far);
     this.controls.update();
     this.grass.lod?.(this.camera.position); // herb level of detail (D-199)
-    this.sun.shadow.needsUpdate = this.frames++ % SHADOW_EVERY === 0;
+    const every = dist > SHADOW_NEAR ? SHADOW_EVERY_FAR : SHADOW_EVERY;
+    this.sun.shadow.needsUpdate = this.frames++ % every === 0;
     lap("scene");
     if (this.post && this.postOn) {
       this.focus.value = this.camera.position.distanceTo(this.controls.target);

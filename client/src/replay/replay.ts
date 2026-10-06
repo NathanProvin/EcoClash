@@ -92,6 +92,9 @@ export interface Animal {
   x: number;
   species: number;
   owner: number;
+  /** Live matches (D-161): how full it is (0..1), and its order (0 free, 1 move, 2 attack). */
+  full?: number;
+  order?: number;
 }
 
 /** What the renderer and HUD read, from a replay file or from the live worker. */

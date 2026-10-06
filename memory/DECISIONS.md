@@ -1894,3 +1894,13 @@ Template:
   - two layers (were three), opacities 0.6 / 0.3;
   - ring alpha 0.28 / 0.16 (was 0.5 / 0.32);
   - a band of radii 88–116 of 256 (was 64–120).
+
+## D-160 · 2026-10-06 · Raids graze the area bare
+- **Status:** accepted (user, Alpha 2)
+- **Decision:**
+  - An attack order no longer ends on arrival. Attack-movers keep seeking enemy food they eat (hunters: enemy prey) within their sight. With nothing in sight they head to the goal, and once there (within one cell) with nothing left, the order ends and they go free.
+  - Move orders still end on arrival.
+- **Frame (D-161):** `Fauna::frame` adds fullness (energy over body, 0..255) and the order per animal, 12 bytes (`FRAME_BYTES`). The client decoder, the relay test and the fixtures follow.
+- **Bench** (30 seeds):
+  - normal mirror: median end 25:30 (unchanged);
+  - hard vs normal: hard wins 23 of 27 decided (was 46 of 52), 3 unfinished.

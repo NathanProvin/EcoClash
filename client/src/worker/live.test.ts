@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { decodeAgents, Live, type ToMain, type ToWorker } from "./live";
+import { AGENT_BYTES, decodeAgents, Live, type ToMain, type ToWorker } from "./live";
 
 /** Stands in for the sim worker: answers "start" with "ready", and lets the test post frames. */
 class FakeWorker {
@@ -62,17 +62,29 @@ class FakeWorker {
 }
 
 /** Animal records, as sim-core's `Fauna::frame` writes them. */
-function agents(list: [id: number, y: number, x: number, sp: number, owner: number][]) {
-  const buf = new ArrayBuffer(4 + 10 * list.length);
+function agents(
+  list: [
+    id: number,
+    y: number,
+    x: number,
+    sp: number,
+    owner: number,
+    full?: number,
+    order?: number,
+  ][],
+) {
+  const buf = new ArrayBuffer(4 + AGENT_BYTES * list.length);
   const v = new DataView(buf);
   v.setUint32(0, list.length, true);
-  list.forEach(([id, y, x, sp, owner], k) => {
-    const p = 4 + 10 * k;
+  list.forEach(([id, y, x, sp, owner, full = 0, order = 0], k) => {
+    const p = 4 + AGENT_BYTES * k;
     v.setUint32(p, id, true);
     v.setUint16(p + 4, y * 256, true);
     v.setUint16(p + 6, x * 256, true);
     v.setUint8(p + 8, sp);
     v.setUint8(p + 9, owner);
+    v.setUint8(p + 10, full);
+    v.setUint8(p + 11, order);
   });
   return buf;
 }
@@ -80,8 +92,8 @@ function agents(list: [id: number, y: number, x: number, sp: number, owner: numb
 afterEach(() => vi.unstubAllGlobals());
 
 test("decodes the animal frame, sub-cell positions included", () => {
-  expect(decodeAgents(agents([[7, 1.25, 0.5, 0, 2]]))).toEqual([
-    { id: 7, y: 1.25, x: 0.5, species: 0, owner: 2 },
+  expect(decodeAgents(agents([[7, 1.25, 0.5, 0, 2, 255, 2]]))).toEqual([
+    { id: 7, y: 1.25, x: 0.5, species: 0, owner: 2, full: 1, order: 2 },
   ]);
 });
 

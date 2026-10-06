@@ -28,6 +28,9 @@ const ONE_I: i64 = ONE as i64;
 const HALF: i64 = ONE_I / 2;
 const PLAYERS: [u8; 2] = [1, 2];
 /// Standing orders (`Agents::order`).
+/// Bytes per animal in `Fauna::frame`: id, y, x, species, owner, fullness, order (D-161).
+pub const FRAME_BYTES: usize = 12;
+
 const FREE: u8 = 0;
 const MOVE: u8 = 1;
 const ATTACK: u8 = 2;
@@ -1036,12 +1039,13 @@ impl Fauna {
         species.sort_unstable();
         species.dedup();
         let a = &mut self.agents;
-        // 0. Player orders: a move order holds until the goal cell is reached; an attack-move
-        //    also ends there (it looks for enemy food on the way, in step 2).
+        // 0. Player orders: a move order holds until the goal cell is reached. An attack order
+        //    holds until the area around the goal is bare (D-160, step 3): it looks for enemy
+        //    food on the way and around the goal in step 2.
         for i in 0..len {
             let arrived =
                 cell_of(a.y[i]) == cell_of(a.gy[i]) && cell_of(a.x[i]) == cell_of(a.gx[i]);
-            if a.order[i] != FREE && arrived {
+            if a.order[i] == MOVE && arrived {
                 a.order[i] = FREE;
             }
             if a.order[i] == MOVE {
@@ -1204,14 +1208,20 @@ impl Fauna {
             }
         }
 
-        // 3. Attack-moves with nothing in sight head on; everyone else strolls to a random point
+        // 3. Attack-moves with nothing in sight head on to their goal; there, with nothing left to
+        //    eat in sight, the raid is over (D-160) and they go free. Everyone else strolls to a random point
         //    within `wander` cells (D-065), centred one flora period ahead along its velocity so
         //    strolls meander on instead of turning back (D-111), or rests where it is, by its
         //    species' `rest` chance (stop-and-go grazing, D-088).
         let a = &mut self.agents;
         for i in 0..len {
             if target[i].is_none() && a.order[i] == ATTACK {
-                target[i] = Some((a.gy[i], a.gx[i]));
+                let near = |v: i64, g: i64| cell_of(v).abs_diff(cell_of(g)) <= 1;
+                if near(a.y[i], a.gy[i]) && near(a.x[i], a.gx[i]) {
+                    a.order[i] = FREE; // the area is bare
+                } else {
+                    target[i] = Some((a.gy[i], a.gx[i]));
+                }
             }
             let rest = self.p.rest[usize::from(a.sp[i])];
             if target[i].is_none() && rest > 0 && i64::from(rng.below(1 << 16)) < rest {
@@ -1352,7 +1362,7 @@ impl Fauna {
     #[must_use]
     pub fn frame(&self) -> Vec<u8> {
         let a = &self.agents;
-        let mut out = Vec::with_capacity(4 + 10 * a.len());
+        let mut out = Vec::with_capacity(4 + FRAME_BYTES * a.len());
         out.extend_from_slice(&u32::try_from(a.len()).unwrap_or(u32::MAX).to_le_bytes());
         let q8 = |v: i64| u16::try_from(((v - HALF).max(0)) >> 8).unwrap_or(u16::MAX);
         for i in 0..a.len() {
@@ -1361,6 +1371,10 @@ impl Fauna {
             out.extend_from_slice(&q8(a.x[i]).to_le_bytes());
             out.push(a.sp[i]);
             out.push(a.owner[i]);
+            // How full it is (energy over its body, 0..=255) and its order (D-161).
+            let body = self.p.body[usize::from(a.sp[i])].max(1) * ONE_I;
+            out.push(u8::try_from((a.energy[i].max(0) * 255 / body).min(255)).unwrap_or(255));
+            out.push(a.order[i]);
         }
         out
     }
@@ -2075,6 +2089,55 @@ mod tests {
 
     /// D-123: a grazer eats its primary food first, even where another food is more plentiful,
     /// and a secondary food feeds it 75 % as well.
+    /// D-160: an attack order holds while the raiders find enemy food around the goal, and ends
+    /// once the area is bare; a move order still ends on arrival.
+    #[test]
+    fn raids_graze_the_area_bare_before_the_attack_order_ends() {
+        let (fl, mut fa, mut st, mut rng) = setup(8);
+        meadow(&fl, &mut st, "grasses");
+        let rabbits = fa.p.index("rabbits").unwrap();
+        // P2's meadow is on the right half (see `meadow`); a P1 rabbit raids cell (3, 6).
+        fa.agents
+            .push(rabbits, 1, centre(3), centre(6), ONE_I / 2, 0);
+        let id = fa.agents.id[0];
+        assert_eq!(fa.order(1, &[id], OrderKind::Attack, (3, 6)), 1);
+        fa.decide(&fl.p, &st, &mut rng);
+        assert_eq!(
+            fa.agents.order[0], ATTACK,
+            "enemy food in sight: the raid goes on"
+        );
+        for k in 0..64 {
+            if st.owner[k] == 2 {
+                for s in 0..fl.p.species() {
+                    st.bio[s * 64 + k] = 0;
+                }
+            }
+        }
+        fa.decide(&fl.p, &st, &mut rng);
+        assert_eq!(
+            fa.agents.order[0], FREE,
+            "the area is bare: the raid is over"
+        );
+        assert_eq!(fa.order(1, &[id], OrderKind::Move, (3, 6)), 1);
+        fa.decide(&fl.p, &st, &mut rng);
+        assert_eq!(fa.agents.order[0], FREE, "a move order ends on arrival");
+    }
+
+    /// D-161: the frame carries fullness and the order of each animal.
+    #[test]
+    fn the_frame_carries_fullness_and_order() {
+        let (_, mut fa, _, _) = setup(4);
+        let rabbits = fa.p.index("rabbits").unwrap();
+        let body = fa.p.body[rabbits] * ONE_I;
+        fa.agents
+            .push(rabbits, 2, centre(1), centre(1), body / 2, 0);
+        let f = fa.frame();
+        assert_eq!(f.len(), 4 + FRAME_BYTES);
+        assert_eq!(f[4 + 9], 2, "owner");
+        assert_eq!(f[4 + 10], 127, "half full");
+        assert_eq!(f[4 + 11], FREE);
+    }
+
     #[test]
     fn enemy_plants_lose_graze_damage_times_the_bite_but_the_grazer_eats_one_bite() {
         let (f, mut fa, mut st, _) = setup(4);
@@ -2192,7 +2255,7 @@ mod tests {
         fa.agents
             .push(2, 2, centre(3), centre(5) + ONE_I / 4, ONE_I, 0);
         let f = fa.frame();
-        assert_eq!(f.len(), 4 + 10);
+        assert_eq!(f.len(), 4 + FRAME_BYTES);
         assert_eq!(u32::from_le_bytes(f[0..4].try_into().unwrap()), 1);
         assert_eq!(u16::from_le_bytes([f[8], f[9]]), 3 * 256);
         assert_eq!(u16::from_le_bytes([f[10], f[11]]), 5 * 256 + 64);

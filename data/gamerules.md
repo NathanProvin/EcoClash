@@ -301,6 +301,7 @@ A species can be spawned only when **all** of the following hold:
   - The per-player and per-species caps stay only as safety ceilings. Populations then rise and fall with their food: prey with the plants, predators with the prey, in the manner of Lotka–Volterra cycles.
 - **Hunting (D-066):** a hungry predator (below full energy; a sated one does not hunt) with huntable prey within `strike_radius` cells kills one per flora tick with chance `catch_chance`.
 - **Grazing at home (D-066):** herbivores bite their owner's plants at `own_graze` of a full bite, but gain the energy of a full bite, so they live and breed at home without eating their owner's economy.
+- **Raids (D-160):** an attack order holds until the area around its goal is bare: the raiders graze every enemy plant they eat in sight, and only then go free. A move order ends on arrival.
 - **Trampling (D-152):** on enemy land, plants lose `graze_damage` (4) times what a grazer eats; the extra is trampled to litter. Raids break fronts faster, but the raiders are not fed more.
 - Every animal has an energy value. It regains energy by eating and loses it over time. At zero energy it dies and becomes dead biomass.
 - **Trophic transfer:** eating converts ~10 % of the consumed biomass into the eater's energy, and ~10 % into biomass points for its owner. This follows the ecological 10 % rule and keeps consumer armies expensive.

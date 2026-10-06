@@ -95,17 +95,21 @@ export interface Notice {
 }
 
 /** The animal record of `Fauna::frame` (sim-core): u32 count, then u32 id, u16 y, u16 x (1/256
- *  cell), u8 species, u8 owner per animal, little endian. */
+ *  cell), u8 species, u8 owner, u8 fullness (0..255), u8 order (0 free, 1 move, 2 attack) per
+ *  animal, little endian (D-161). */
+export const AGENT_BYTES = 12;
 export function decodeAgents(buf: ArrayBuffer): Animal[] {
   const v = new DataView(buf);
   const out: Animal[] = [];
-  for (let k = 0, p = 4; k < v.getUint32(0, true); k++, p += 10) {
+  for (let k = 0, p = 4; k < v.getUint32(0, true); k++, p += AGENT_BYTES) {
     out.push({
       id: v.getUint32(p, true),
       y: v.getUint16(p + 4, true) / 256,
       x: v.getUint16(p + 6, true) / 256,
       species: v.getUint8(p + 8),
       owner: v.getUint8(p + 9),
+      full: v.getUint8(p + 10) / 255,
+      order: v.getUint8(p + 11),
     });
   }
   return out;

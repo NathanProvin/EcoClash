@@ -36,7 +36,7 @@ function script(player, tick, ids) {
 function animalsOf(sim, player) {
   const v = new DataView(sim.agentFrame().buffer);
   const ids = [];
-  for (let k = 0, p = 4; k < v.getUint32(0, true); k++, p += 10) {
+  for (let k = 0, p = 4; k < v.getUint32(0, true); k++, p += 12) { // AGENT_BYTES (D-161)
     if (v.getUint8(p + 9) === player) ids.push(v.getUint32(p, true));
   }
   return ids;

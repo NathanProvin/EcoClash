@@ -89,6 +89,7 @@
     ["Home", "Reset the view"],
     ["T", "Tech tree"],
     ["I", "Strategic icons"],
+    ["M", "Mute / unmute"],
     ["Space", "Pause"],
     ["Esc", "Cancel / close"],
   ];

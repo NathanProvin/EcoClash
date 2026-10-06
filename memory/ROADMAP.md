@@ -121,7 +121,7 @@ In this order:
 - [ ] The three biomes of gamerules §2.2 and their species (Q-014, Q-016); the bot learns them; the balance loop re-tunes.
 
 ## M5b · Art pass
-- [ ] Sound: ambient loops, UI clicks, animal and event cues, volume setting; CC0 sources in `ASSETS_LICENSES.md` (moved from M5a, D-075).
+- [x] Sound v1 (D-176…D-178): procedural UI, world, animal and weather sounds, ambience beds, volume options; recorded CC0 drop-ins via `public/audio/manifest.json` later.
 - [ ] Git LFS for `assets-src/`. Blender `bpy` pipeline (`tools/assets/build.py`) → glTF → `gltf-transform`.
 - [ ] glTF plants through `PlantStyle`; animals through `AnimalView` with vertex-animation textures (animated at 1,000+ instances).
 - [ ] Shader priorities 1–5 (wind, translucency, terrain blending, territory glow, post-processing), quality presets.

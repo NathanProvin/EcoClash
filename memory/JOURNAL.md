@@ -697,3 +697,15 @@
 
   Checked in the browser: the speed bar, the tug marks, unlock-to-hand, a red notice, the unit list click.
 - **Seen:** with doubled swarm caps, the hard bot playing P1 fielded only swarms (grasshoppers, earthworms) at 10 min in one match. The bench agrees: units at 10 min fell from 14 to 6. Worth a look in the next balance pass (the bot's swarm-card counting).
+
+## 2026-10-06 (4) · Sound v1 (D-176…D-178)
+- **Done:**
+  - a procedural Web Audio engine (buses, compressor, variation, cooldowns, voice limits, panning);
+  - ~25 synthesised cues;
+  - weather ambience beds;
+  - wiring to clicks, toasts, unlocks, planting, drops, orders, catastrophes and animals on screen;
+  - an Audio options tab and the M mute.
+
+  Checked in the browser: the context starts on the first click, the buses take their volumes, the menu wind bed fades in, the sliders save.
+- **Lesson:** the browser tool's clicks only reach the page after a screenshot brings the tab forward (no gesture before that).
+- **Next:** the user listens and tunes; then the gameplay balance pass for Alpha 1.1.

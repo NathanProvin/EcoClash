@@ -831,6 +831,10 @@
       playing = !playing;
     } else if (key === "i") {
       showIcons = !showIcons;
+    } else if (key === "m") {
+      const muted = !audio.volumes.muted; // D-178
+      audio.setVolumes({ muted });
+      toast(muted ? "Sound off (M)" : "Sound on (M)", "info");
     } else if (key === "t") {
       techOpen = !techOpen;
     } else if (key === "Escape") {

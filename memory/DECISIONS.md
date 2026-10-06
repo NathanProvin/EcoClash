@@ -2036,3 +2036,32 @@ Template:
     - the tug bar shows a green mark where your bar wins and a red one where the enemy's would, from each side, moving as the threshold decays.
   - **Speed bar:** under the clock, four buttons with one to four stacked chevrons for ×1, ×2, ×4, ×8 (the active one in mustard), instead of the dropdown (×16 and ×32 dropped).
   - **Layout:** the armed card's prompt moves above the build bar; the tutorial objectives move below the speed bar.
+
+## D-176 · 2026-10-06 · Procedural audio, with a seam for recorded sounds
+- **Status:** accepted (user, Alpha 1.1: "small sound effects"; new to game audio, asked for best practices)
+- **Decision:**
+  - **Graph:** one Web Audio graph (`client/src/audio/`): buses (ui, fx, ambience, music) into a master gain and a soft compressor. It starts on the first gesture and sleeps while the tab is hidden; the volumes are saved per browser.
+  - **Sounds:** every sound is a procedural recipe (`sounds.ts`: enveloped tones and filtered noise).
+    - Interface: click, open, unlock chime, error, info, tip, alert.
+    - World: plant patter, drop thump, order click, storm, spill and caterpillar cues.
+    - Animal voices by body: bird, woodpecker, heron, duck, insect, small mammal, large mammal, hunter, frog, fish. Slugs, worms and fungi stay silent.
+  - **Repetition:** each play varies pitch and volume; cooldowns and voice limits per bus.
+  - **Space:** world sounds pan by screen position and stay silent off screen.
+  - **Ambience** (`ambience.ts`): wind, rain, dry-wind and water beds with birds, cicadas and drops, crossfaded by weather. Birds come closer as the camera does; a quieter menu bed; hushed while paused.
+- **Seam:** `public/audio/manifest.json` (an array of sound ids) lists recorded `public/audio/<id>.ogg` files that replace their recipe. One request, no probing; CC0 or royalty-free files, logged in `ASSETS_LICENSES.md`.
+- **No dependency.** The download grows by code only.
+
+## D-177 · 2026-10-06 · Where sounds play
+- **Status:** accepted
+- **Decision:**
+  - any button or choice clicks;
+  - each toast kind has its cue;
+  - an unlock chimes with its pop;
+  - planting patters, a call or drop thumps then the species calls, an order clicks;
+  - catastrophes have their cue;
+  - the weather sets the ambience (an alert fades it in part way);
+  - every 2.5 s an animal on screen may call (more often when zoomed in).
+
+## D-178 · 2026-10-06 · Audio options
+- **Status:** accepted
+- **Decision:** an Audio tab in Options (master, interface, effects and ambience sliders with a preview, a mute switch); M mutes in game.

@@ -3,6 +3,7 @@
   // quality presets as cards, the interface switches as sliding toggles, the shortcuts as
   // keycaps. Selected things wear the menu's mustard.
   import type { Quality } from "../render/quality";
+  import { audio, type Volumes } from "../audio/engine";
 
   let {
     quality,
@@ -25,12 +26,31 @@
     onBack: () => void;
   } = $props();
 
-  type Tab = "graphics" | "interface" | "controls";
+  type Tab = "graphics" | "audio" | "interface" | "controls";
   const TABS: { id: Tab; name: string }[] = [
     { id: "graphics", name: "Graphics" },
+    { id: "audio", name: "Audio" },
     { id: "interface", name: "Interface" },
     { id: "controls", name: "Controls" },
   ];
+
+  /** The audio volumes (D-178), saved by the engine; a preview plays at the new level. */
+  let vol: Volumes = $state({ ...audio.volumes });
+  const SLIDERS: { key: "master" | "ui" | "fx" | "ambience"; name: string; preview?: string }[] = [
+    { key: "master", name: "Master", preview: "ui.click" },
+    { key: "ui", name: "Interface", preview: "ui.click" },
+    { key: "fx", name: "Effects", preview: "animal.bird" },
+    { key: "ambience", name: "Ambience" },
+  ];
+  function setVolume(key: (typeof SLIDERS)[number]["key"], value: number, preview?: string) {
+    vol = { ...vol, [key]: value };
+    audio.setVolumes({ [key]: value });
+    if (preview) audio.play(preview, { cooldown: 120 });
+  }
+  function setMuted(muted: boolean) {
+    vol = { ...vol, muted };
+    audio.setVolumes({ muted });
+  }
   let tab: Tab = $state("graphics");
 
   const PRESETS: { id: Quality; name: string; hint: string; bars: number }[] = [
@@ -92,6 +112,31 @@
         {/each}
       </div>
       <p class="note">Shadow quality applies from the next match.</p>
+    {:else if tab === "audio"}
+      {#each SLIDERS as sl (sl.key)}
+        <label class="slider">
+          <span class="name">{sl.name}</span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={vol[sl.key]}
+            style:--fill="{vol[sl.key] * 100}%"
+            oninput={(e) => setVolume(sl.key, +e.currentTarget.value, sl.preview)}
+          />
+          <span class="pct">{Math.round(vol[sl.key] * 100)}</span>
+        </label>
+      {/each}
+      <button
+        class="toggle"
+        role="switch"
+        aria-checked={vol.muted}
+        onclick={() => setMuted(!vol.muted)}
+      >
+        <span class="text"><strong>Mute</strong><small>Silence every sound</small></span>
+        <span class="track" class:on={vol.muted}><span class="knob"></span></span>
+      </button>
     {:else if tab === "interface"}
       {#each switches as row (row.label)}
         <button class="toggle" role="switch" aria-checked={row.on} onclick={() => row.set(!row.on)}>
@@ -226,6 +271,45 @@
     font-size: 0.8em;
     color: var(--ink-soft);
     text-align: center;
+  }
+  /* Volume sliders (D-178): a mustard fill on a dark track, a round knob. */
+  .slider {
+    display: grid;
+    grid-template-columns: 96px 1fr 36px;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 12px;
+  }
+  .slider .name {
+    font-weight: 700;
+  }
+  .pct {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-soft);
+  }
+  input[type="range"] {
+    appearance: none;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #d8b45c var(--fill), rgba(255, 255, 255, 0.14) var(--fill));
+    cursor: var(--cursor-pointer);
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #f3eedb;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border: 0;
+    border-radius: 50%;
+    background: #f3eedb;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
   }
   .toggle {
     display: flex;

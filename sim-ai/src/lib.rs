@@ -171,6 +171,10 @@ const SPREADERS: &[&str] = &[
     "algae_and_lilies",
 ];
 
+/// Founding (D-194): one candidate site per block of this many cells, a choice among the best few.
+const FOUND_BLOCK: usize = 6;
+const FOUND_CHOICES: usize = 4;
+
 /// Hunter cards the bot keeps for hunting and for answering raids (D-191).
 const HUNT_CARDS: i64 = 2;
 const DEFEND_CARDS: i64 = 4;
@@ -538,20 +542,72 @@ impl Bot {
         Some(Payload::Unlock { species: name })
     }
 
-    /// No land yet (D-095): found the colony with the first unlocked spreader, on the free cell
-    /// that suits it nearest the bot's side of the map (the generator's home clearing).
+    /// No land yet (D-095): found the colony with the first unlocked spreader (D-194). The sites
+    /// are free cells it suits on the bot's half of the map (the map is 180° symmetric across the
+    /// anti-diagonal), a third of the map or more from any enemy land; one per FOUND_BLOCK block,
+    /// scored by suitability and water nearby. Among the best FOUND_CHOICES, a fingerprint of the
+    /// map picks one: it varies from map to map, deterministically. With no such site: the free
+    /// suited cell nearest the generator's home clearing.
     fn found(&self, v: &View) -> Option<Payload> {
         let (w, n) = (v.w, v.n);
         let name = SPREADERS.iter().find(|name| {
             Bot::sheet(w, name).is_some_and(|i| w.economy.is_unlocked(self.player, i))
         })?;
         let s = w.flora.p.index(name)?;
-        let home = sim_core::terrain::homes(n)[usize::from(self.player - 1)];
-        let k = (0..n * n)
-            .filter(|&k| {
-                w.state.owner[k] == 0 && w.flora.suitability(&w.state, s, k) >= i64::from(ONE) / 2
+        let half = i64::from(ONE) / 2;
+        let suits = |k: usize| w.state.owner[k] == 0 && w.flora.suitability(&w.state, s, k) >= half;
+        let mine = |k: usize| {
+            let d = k / n + k % n;
+            if self.player == 1 {
+                d < n - 1
+            } else {
+                d > n - 1
+            }
+        };
+        let enemy: Vec<usize> = (0..n * n)
+            .filter(|&k| w.state.owner[k] == 3 - self.player)
+            .collect();
+        let far = (n / 3).pow(2);
+        let wet = |k: usize| {
+            let (r, c) = (k / n, k % n);
+            (r.saturating_sub(2)..(r + 3).min(n)).any(|y| {
+                (c.saturating_sub(2)..(c + 3).min(n)).any(|x| w.state.ground[y * n + x] == SHALLOW)
             })
-            .min_by_key(|&k| (dist2(k, n, (home / n, home % n)), k))?;
+        };
+        let mut best: std::collections::BTreeMap<(usize, usize), (i64, usize)> = Default::default();
+        for k in (0..n * n).filter(|&k| suits(k) && mine(k)) {
+            if enemy.iter().any(|&e| dist2(e, n, (k / n, k % n)) < far) {
+                continue;
+            }
+            let score = w.flora.suitability(&w.state, s, k) + if wet(k) { half / 2 } else { 0 };
+            let block = (k / n / FOUND_BLOCK, k % n / FOUND_BLOCK);
+            let slot = best.entry(block).or_insert((score, k));
+            if (score, std::cmp::Reverse(k)) > (slot.0, std::cmp::Reverse(slot.1)) {
+                *slot = (score, k);
+            }
+        }
+        let mut sites: Vec<(i64, usize)> = best.into_values().collect();
+        sites.sort_by_key(|&(score, k)| (std::cmp::Reverse(score), k));
+        sites.truncate(FOUND_CHOICES);
+        let print = w
+            .state
+            .elevation
+            .iter()
+            .zip(&w.state.ground)
+            .fold(0u64, |h, (e, &g)| {
+                h.wrapping_mul(31)
+                    .wrapping_add(e.unsigned_abs())
+                    .wrapping_add(u64::from(g))
+            });
+        let k = match sites.len() {
+            0 => {
+                let home = sim_core::terrain::homes(n)[usize::from(self.player - 1)];
+                (0..n * n)
+                    .filter(|&k| suits(k))
+                    .min_by_key(|&k| (dist2(k, n, (home / n, home % n)), k))?
+            }
+            len => sites[usize::try_from(print % len as u64).unwrap_or(0)].1,
+        };
         Some(self.plant(name, k, n))
     }
 
@@ -1285,6 +1341,32 @@ mod tests {
             w.state.ground[k] == SHALLOW && w.state.owner[k] == 2 && w.state.bio[algae * n2 + k] > 0
         });
         assert!(wet, "the bot holds shallows with algae");
+    }
+
+    /// D-194: the bot founds in varied places from map to map, always on its own half.
+    #[test]
+    fn the_bot_founds_in_varied_places_on_its_half() {
+        let b = balance();
+        let n = usize::try_from(b.sim.grid_size).unwrap();
+        let tp = sim_core::terrain::TerrainParams::from_balance(&b);
+        let mut sites = std::collections::BTreeSet::new();
+        for seed in 1..=10 {
+            let mut w = World::new(&b, seed, n);
+            w.generate_terrain(&tp, seed);
+            let mut bot = Bot::new(2, Level::Hard, b.flora.plant_radius);
+            let at = (0..400).find_map(|_| {
+                let first = bot.think(&w).into_iter().find_map(|p| match p {
+                    Payload::Plant { row, col, .. } => Some((row as usize, col as usize)),
+                    _ => None,
+                });
+                w.step();
+                first
+            });
+            let (r, c) = at.expect("the bot founds");
+            assert!(r + c > n - 1, "seed {seed}: ({r}, {c}) is on its half");
+            sites.insert((r, c));
+        }
+        assert!(sites.len() >= 5, "varied sites: {sites:?}");
     }
 
     /// How a full match goes, for tuning by hand:

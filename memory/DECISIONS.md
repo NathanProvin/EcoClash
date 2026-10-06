@@ -2259,3 +2259,13 @@ Template:
 - **Tried and reverted:**
   - extra card slots for species not yet out: more calls, slower tiers, 11 unfinished;
   - waiting for the best unit instead of a cheaper swarm: no gain.
+
+## D-194 · 2026-10-06 · The bot founds in varied places
+- **Status:** accepted (user: the bot always started in the lower-right corner)
+- **Cause:** `Bot::found` aimed at `terrain::homes(n)`, a fixed point at (n/4, n/4) and its mirror.
+- **Decision:**
+  - **Candidates:** free cells its spreader suits, on the bot's half (across the anti-diagonal), at least a third of the map from enemy land.
+  - **Scoring:** the best cell per 6 × 6 block, by suitability plus a bonus for shallows within 2 cells.
+  - **Pick:** among the best 4, a map fingerprint (elevation and ground) chooses. Deterministic, no RNG.
+  - **Fallback:** the old clearing rule when no site qualifies.
+- **Test:** over 10 seeds, at least 5 distinct sites, all on the bot's half.

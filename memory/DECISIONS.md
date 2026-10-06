@@ -2280,3 +2280,30 @@ Template:
   - **Rain:**
     - the bed is lowpassed at 1 600 Hz (it was a 2 600 Hz bandpass), at gain 0.1 (was 0.18);
     - the drops are quieter (0.03) and lower (1.2–3.5 kHz).
+
+## D-196 · 2026-10-06 · Hunters eat before they strike again
+- **Status:** accepted (user: two weasels or foxes must not repel a prepared rabbit raid)
+- **Cause:** a meal is tiny next to a hunter's body (a rabbit gives a fox 60 energy of its 3 000), so it never felt full. It struck every flora tick at 0.5 chance: two foxes erased 12 rabbits in about 10 s.
+- **Decision:**
+  - `[fauna] handling_s = 15`: after a kill, a hunter eats for 15 ecology seconds (about 20 real seconds) before it strikes again.
+  - It is a new per-animal clock, `Agents::digest` (hashed), separate from the breeding cooldown. `serde(default)` gives 0 (no handling) for older balance files such as the parity fixture.
+  - Balance hash version 20.
+  - The Python prototype's fauna is not parity-checked (D-034 covers flora) and keeps the old rule.
+- **Test:** two foxes among 12 rabbits, every strike landing, kill 2–4 in 30 real seconds.
+- **Bench** (30 seeds):
+
+  | Marker | Before | After |
+  |---|---|---|
+  | Units at 20 min | 2 | 23 |
+  | Hunter calls with primary prey in reach | 80 % | 98 % |
+  | Median end | 25:43 | 25:38 |
+
+- **Ladder:** hunting had been what set the levels apart, so the bot incomes move:
+
+  | `[bots] income` | Before | After |
+  |---|---|---|
+  | Easy | 1.0 | 0.8 |
+  | Normal | 1.3 | 1.3 |
+  | Hard | 1.5 | 2.0 |
+
+  Hard beats normal 19 of 27; normal beats easy 12 of 16.

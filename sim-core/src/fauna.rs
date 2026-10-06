@@ -95,6 +95,8 @@ pub struct FaunaParams {
     strike: usize,
     /// Chance of a kill per flora tick (Q16).
     catch: i64,
+    /// Flora ticks a predator eats after a kill before it can strike again (D-196).
+    handling: i64,
     /// Organic movement (D-065, D-088), per species: drift kick per tick (Q16 share of speed),
     /// drift kept per tick (Q16), chance to rest at an idle decision (Q16); then the target scatter
     /// and stroll radius (Q16 cells).
@@ -241,6 +243,7 @@ impl FaunaParams {
             prey_per: i64::from(fa.prey_per_predator),
             strike: usize::try_from(fa.strike_radius).unwrap_or(0),
             catch: round(fa.catch_chance * one),
+            handling: round(fa.handling_s / dt).max(0),
             wobble: sp
                 .iter()
                 .map(|s| round(s.wobble.unwrap_or(fa.wobble) * one))
@@ -353,6 +356,7 @@ impl FaunaParams {
             self.prey_per,
             i64::try_from(self.strike).unwrap_or(0),
             self.catch,
+            self.handling,
             self.scatter,
             self.wander,
             self.steer,
@@ -381,6 +385,8 @@ pub struct Agents {
     pub energy: Vec<i64>,
     /// Flora ticks before this animal may give birth again.
     pub cooldown: Vec<i64>,
+    /// Flora ticks before this hunter may strike again: it is eating (D-196).
+    pub digest: Vec<i64>,
     /// Standing player order: 0 none, 1 move, 2 attack-move (gamerules §9; D-053).
     pub order: Vec<u8>,
     /// Destination of the order (Q16 cells).
@@ -436,6 +442,7 @@ impl Agents {
         self.tx.push(x);
         self.energy.push(energy);
         self.cooldown.push(cooldown);
+        self.digest.push(0);
         self.order.push(FREE);
         self.gy.push(y);
         self.gx.push(x);
@@ -461,6 +468,7 @@ impl Agents {
         filter(&mut self.tx, keep);
         filter(&mut self.energy, keep);
         filter(&mut self.cooldown, keep);
+        filter(&mut self.digest, keep);
         filter(&mut self.order, keep);
         filter(&mut self.gy, keep);
         filter(&mut self.gx, keep);
@@ -487,6 +495,7 @@ impl Agents {
             &self.tx,
             &self.energy,
             &self.cooldown,
+            &self.digest,
             &self.gy,
             &self.gx,
             &self.wy,
@@ -762,6 +771,7 @@ impl Fauna {
             let s = usize::from(a.sp[i]);
             a.energy[i] -= self.p.upkeep[s];
             a.cooldown[i] = (a.cooldown[i] - 1).max(0);
+            a.digest[i] = (a.digest[i] - 1).max(0);
         }
         let safe = self.safe(fl, st);
         self.graze(st);
@@ -886,13 +896,18 @@ impl Fauna {
 
     /// Predators kill one huntable enemy prey in reach (`strike` cells on each axis), in index order. A
     /// predator at full energy is sated and does not hunt (a handling limit, D-066). With prey in reach, a kill succeeds
-    /// with chance `catch` (one draw per predator that has prey in reach). Returns who lives.
+    /// with chance `catch` (one draw per predator that has prey in reach). After a kill it eats for
+    /// `handling` flora ticks and does not strike (D-196). Returns who lives.
     fn hunt(&mut self, st: &mut FloraState, safe: &[bool], rng: &mut Pcg32) -> Vec<bool> {
         let (a, p, n) = (&mut self.agents, &self.p, st.n);
         let mut alive = vec![true; a.len()];
         for i in 0..a.len() {
             let s = usize::from(a.sp[i]);
-            if p.role[s] != Role::Predator || !alive[i] || a.energy[i] >= p.body[s] * ONE_I {
+            if p.role[s] != Role::Predator
+                || !alive[i]
+                || a.energy[i] >= p.body[s] * ONE_I
+                || a.digest[i] > 0
+            {
                 continue;
             }
             let k = a.cell(i, n);
@@ -913,6 +928,7 @@ impl Fauna {
                 && i64::from(rng.below(1 << 16)) < p.catch
             {
                 alive[j] = false;
+                a.digest[i] = p.handling;
                 let body = p.body[usize::from(a.sp[j])];
                 a.energy[i] += p.fed(body, rank);
                 st.dead[k] += body - div_round(body * p.transfer, ONE_I);
@@ -1713,6 +1729,28 @@ mod tests {
         assert_eq!(run("bramble", hungry, ONE_I), 1, "hidden in the refuge");
         let full = ONE_I * 3100; // above the fox's body after its upkeep
         assert_eq!(run("grasses", full, ONE_I), 1, "a sated fox does not hunt");
+    }
+
+    /// D-196: after a kill a hunter eats before it strikes again, so two foxes can't erase a
+    /// 12-rabbit raid at once: over 30 real seconds (37 flora ticks) they kill 2 to 4.
+    #[test]
+    fn hunters_eat_before_they_strike_again() {
+        let (fl, mut fa, mut st, mut rng) = setup(8);
+        let (fox, rabbits) = (fa.p.index("fox").unwrap(), fa.p.index("rabbits").unwrap());
+        fa.p.catch = ONE_I; // every strike lands: only the handling time limits the kills
+        for _ in 0..2 {
+            fa.agents.push(fox, 1, centre(4), centre(4), ONE_I * 100, 0);
+        }
+        for _ in 0..12 {
+            // No food on the bare map: they neither breed nor run off to graze.
+            fa.agents
+                .push(rabbits, 2, centre(4), centre(4), ONE_I * 300, 0);
+        }
+        for _ in 0..37 {
+            fa.act(&fl.p, &mut st, &mut rng);
+        }
+        let killed = 12 - fa.census(2)[rabbits];
+        assert!((2..=4).contains(&killed), "{killed} rabbits killed in 30 s");
     }
 
     /// D-125: cattails are a refuge in the water: a small roach in its owner's dense cattails

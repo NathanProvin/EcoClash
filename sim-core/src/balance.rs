@@ -209,6 +209,10 @@ pub struct FaunaRules {
     pub strike_radius: u32,
     /// Chance of a kill per flora tick when prey is in reach (D-066).
     pub catch_chance: f64,
+    /// Ecology seconds a predator eats after a kill before it can strike again (D-196); 0 (older
+    /// files): none.
+    #[serde(default)]
+    pub handling_s: f64,
     /// Organic movement (D-065): drift kick (share of speed), drift kept per tick, target scatter
     /// around cell centres (cells), idle stroll radius (cells).
     pub wobble: f64,
@@ -685,13 +689,14 @@ impl Balance {
             fa.food_reserve >= 0.0
                 && fa.lockout_s >= 0.0
                 && (0.0..=1.0).contains(&fa.catch_chance)
+                && fa.handling_s >= 0.0
                 && fa.wobble >= 0.0
                 && (0.0..1.0).contains(&fa.wobble_keep)
                 && (0.0..0.5).contains(&fa.scatter)
                 && fa.wander_radius >= 0.0
                 && fa.steer > 0.0
                 && fa.steer <= 1.0,
-            "[fauna] food_reserve >= 0, catch_chance in [0, 1], wobble >= 0, wobble_keep in [0, 1), scatter in [0, 0.5), wander_radius >= 0, steer in (0, 1]"
+            "[fauna] food_reserve >= 0, catch_chance in [0, 1], handling_s >= 0, wobble >= 0, wobble_keep in [0, 1), scatter in [0, 0.5), wander_radius >= 0, steer in (0, 1]"
                 .into(),
         )?;
         let y = &self.fauna.diet_yield;

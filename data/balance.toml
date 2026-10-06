@@ -24,7 +24,7 @@ decay_to_s = 2700        # ... and ends at 45 min (D-148)
 # Bot difficulty (D-143): the bots' income factor by level (easy, normal, hard); humans earn 1.
 # With play quality (easy plays at home, hard adds drops and catastrophes) it makes the ladder.
 [bots]
-income = [1.0, 1.3, 1.5]
+income = [0.8, 1.3, 2.0]
 
 [agents]
 max_agents = 2000        # §5.4 budget; per player: half
@@ -276,6 +276,7 @@ food_reserve = 300      # grazers, decomposers: seconds of bites the food in sig
 prey_per_predator = 4   # predators: huntable enemy prey in sight per predator
 strike_radius = 1       # a predator catches prey up to this many cells away (each axis), once per flora tick
 catch_chance = 0.5      # chance that a hunting predator with prey in reach makes its kill, per flora tick
+handling_s = 15.0       # ecology seconds a predator spends eating after a kill before it can strike again (D-196)
 # Organic movement (D-065): steering at any angle, plus a Brownian drift and scattered targets.
 wobble = 0.35           # random kick to an animal's drift each tick, as a share of its speed
 wobble_keep = 0.8       # share of the drift kept from one tick to the next (0 = white noise)

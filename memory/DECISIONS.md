@@ -2023,3 +2023,7 @@ Template:
 
     Stands come and go instead of lining up.
   - **Trees:** the oak and the chestnut wear each other's model.
+
+## D-174 · 2026-10-06 · Unit list on the left
+- **Status:** accepted (user, Alpha 2)
+- **Decision:** a titleless list at the left edge (`ui/UnitList.svelte`) of your controllable animals on the map, by species in the build bar's order, each an icon with its head count. A click selects every animal of that species. Swarms are not listed (they cannot be ordered).

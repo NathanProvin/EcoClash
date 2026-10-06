@@ -31,6 +31,7 @@
   import BottomBar from "./ui/BottomBar.svelte";
   import CellPanel from "./ui/CellPanel.svelte";
   import UnitPanel from "./ui/UnitPanel.svelte";
+  import UnitList from "./ui/UnitList.svelte";
   import { shortNotice } from "./game/notices";
   import { unitCard } from "./game/units";
   import MainMenu from "./ui/MainMenu.svelte";
@@ -443,6 +444,11 @@
   // The unit card (D-161): the clicked or box-selected animals, or the strategic icon under the
   // pointer while hovered; it follows them every tick and goes when they are gone.
   let unitIds = $state<number[]>([]);
+  /** The animals drawn now, refreshed with the HUD tick (the unit list, D-174). */
+  const listAnimals = $derived.by(() => {
+    void tick;
+    return viewer?.visibleAnimals() ?? [];
+  });
   let hoverIds = $state<number[] | null>(null);
   const unit = $derived.by(() => {
     void tick;
@@ -953,6 +959,15 @@
       </p>
     {/if}
     <Toasts {toasts} {arrows} onGo={(t) => t.cell && viewer?.lookAt(t.cell)} />
+    {#if live}
+      <UnitList
+        animals={listAnimals}
+        species={replay?.meta.species ?? []}
+        fauna={replay?.meta.fauna.names ?? []}
+        {me}
+        onPick={(name) => pickSpecies(name)}
+      />
+    {/if}
     <div class="cards">
       {#if cellInfo && cell}
         <CellPanel

@@ -2075,3 +2075,11 @@ Template:
   - **Water:** maps with water get plops and trickles now and then.
   - **Drops:** a dropped animal calls in 60 % of drops; the wolf howls.
   - **Munching:** enemy swarms on your land (3 or more on screen) munch, at most every 2.2 s.
+
+## D-180 · 2026-10-06 · Generated ambient music
+- **Status:** accepted (user: soft, atmospheric, liquid, Minecraft-like ambient music)
+- **Decision** (`client/src/audio/music.ts`, on the music bus):
+  - **Instruments:** a felt-piano voice (a sine with soft octave and twelfth harmonics, a 4–6 s decay) wandering over slow major-seventh chords (Cmaj7, Am9, Fmaj7, G6sus; 9 s each), with a low note at each chord, a quiet detuned pad, rests, and a long generated stereo reverb.
+  - **When:** the main menu plays it all the time. A match starts with 40 s of silence, then 2–3 min pieces separated by 6–11 min of silence.
+  - **Recorded track:** list `music.menu` or `music.game` in `public/audio/manifest.json` and add `public/audio/music.menu.ogg` / `music.game.ogg`; the file replaces the generated music.
+  - A Music slider in Options → Audio.

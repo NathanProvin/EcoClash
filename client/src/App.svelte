@@ -36,6 +36,7 @@
   import { audio } from "./audio/engine";
   import { ambience, moodOf } from "./audio/ambience";
   import { voiceOf } from "./audio/sounds";
+  import { music } from "./audio/music";
   import { formOf as bodyOf } from "./render/bodies";
   import { unitCard } from "./game/units";
   import MainMenu from "./ui/MainMenu.svelte";
@@ -283,6 +284,11 @@
     const p = v.screenPoint(cell);
     return { x: p.x, inView: p.inView, width: canvas.clientWidth };
   }
+  // Music (D-180): always on the main menu, now and then in a match.
+  $effect(() => {
+    music.setScene(replay ? "game" : "menu");
+  });
+
   /** The chance that a dropped animal calls as it lands (D-179). */
   const DROP_CALL = 0.6;
   /** A planting's sound by plant group (D-179): herbs light, shrubs fuller, trees deep, water
@@ -960,7 +966,7 @@
     window.addEventListener("click", clickSound, true);
     window.addEventListener("resize", resize);
     // Dev only: lets a browser check read the audio state (window.ecoAudio, ecoAmbience).
-    if (import.meta.env.DEV) Object.assign(window, { ecoAudio: audio, ecoAmbience: ambience });
+    if (import.meta.env.DEV) Object.assign(window, { ecoAudio: audio, ecoAmbience: ambience, ecoMusic: music });
     raf = requestAnimationFrame(frame);
     void start();
   });

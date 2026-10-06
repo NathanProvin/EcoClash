@@ -36,11 +36,16 @@
 
   /** The audio volumes (D-178), saved by the engine; a preview plays at the new level. */
   let vol: Volumes = $state({ ...audio.volumes });
-  const SLIDERS: { key: "master" | "ui" | "fx" | "ambience"; name: string; preview?: string }[] = [
+  const SLIDERS: {
+    key: "master" | "ui" | "fx" | "ambience" | "music";
+    name: string;
+    preview?: string;
+  }[] = [
     { key: "master", name: "Master", preview: "ui.click" },
     { key: "ui", name: "Interface", preview: "ui.click" },
     { key: "fx", name: "Effects", preview: "animal.bird" },
     { key: "ambience", name: "Ambience" },
+    { key: "music", name: "Music" },
   ];
   function setVolume(key: (typeof SLIDERS)[number]["key"], value: number, preview?: string) {
     vol = { ...vol, [key]: value };

@@ -67,3 +67,19 @@ describe("sounds and ambience (D-176)", () => {
     expect(MIX.flood.rain).toBeGreaterThan(MIX.rain.rain);
   });
 });
+
+describe("music (D-180)", () => {
+  it("tunes notes and keeps the melody in a soft middle range", async () => {
+    const { CHORDS, hz, melodyOf } = await import("./music");
+    expect(hz(69)).toBeCloseTo(440);
+    expect(hz(60)).toBeCloseTo(261.63, 1);
+    for (const chord of CHORDS) {
+      const notes = melodyOf(chord);
+      expect(notes.length).toBeGreaterThan(2);
+      for (const n of notes) {
+        expect(n).toBeGreaterThanOrEqual(60);
+        expect(n).toBeLessThanOrEqual(84);
+      }
+    }
+  });
+});

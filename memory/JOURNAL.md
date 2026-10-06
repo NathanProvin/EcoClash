@@ -709,3 +709,16 @@
   Checked in the browser: the context starts on the first click, the buses take their volumes, the menu wind bed fades in, the sliders save.
 - **Lesson:** the browser tool's clicks only reach the page after a screenshot brings the tab forward (no gesture before that).
 - **Next:** the user listens and tunes; then the gameplay balance pass for Alpha 1.1.
+
+## 2026-10-06 (5) · Sound tweaks and generated music (D-179, D-180)
+- **Done:**
+  - plant-group sprinkles;
+  - a brown-noise click;
+  - birds and insects gated by your shrub and tree unlocks;
+  - water plops and trickles;
+  - a 60 % call chance on drops; a wolf howl;
+  - munching under enemy swarms;
+  - generated ambient music (menu always, pieces now and then in a match), with a recorded-track drop-in and a Music slider.
+
+  Checked in the browser: the menu music runs (scheduled notes, faded in).
+- **Next:** the user listens; then the gameplay balance pass for Alpha 1.1.

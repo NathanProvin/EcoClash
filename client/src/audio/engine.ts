@@ -192,6 +192,11 @@ class AudioEngine {
     setTimeout(() => tail.disconnect(), recipe.ms + 300);
   }
 
+  /** A recorded file by id, once loaded (music tracks, D-180). */
+  fileFor(id: string): AudioBuffer | null {
+    return this.file(id);
+  }
+
   /** The recorded file for `id`, once loaded (only ids the manifest lists). */
   private file(id: string): AudioBuffer | null {
     const got = this.files.get(id);
@@ -205,7 +210,7 @@ class AudioEngine {
       .then((ids) => {
         if (!Array.isArray(ids)) return;
         for (const id of ids) {
-          if (typeof id !== "string" || !RECIPES[id]) continue;
+          if (typeof id !== "string" || !(RECIPES[id] || id.startsWith("music."))) continue;
           this.files.set(id, "loading");
           fetch(`audio/${id}.ogg`)
             .then((r) => r.arrayBuffer())

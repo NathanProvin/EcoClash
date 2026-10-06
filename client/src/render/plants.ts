@@ -299,8 +299,10 @@ export class LowPolyPlants implements PlantStyle {
   /** A tree of a species with a silhouette (D-150): trunk, limbs and a lumpy crown, varied by
    *  the model's slot seed (lean, limb count, lump layout and sizes). */
   private tree(name: keyof typeof SILHOUETTE, m: Placement, x: number, z: number): Part[] {
-    const sil = SILHOUETTE[name];
-    const form = formOf(name);
+    // The oak and the chestnut wear each other's model (D-173, the user's choice).
+    const model = name === "oak" ? "chestnut" : name === "chestnut" ? "oak" : name;
+    const sil = SILHOUETTE[model];
+    const form = formOf(model);
     const r = m.size;
     const salt = Math.floor(m.seed * 1e6);
     const grown = (r - TREE.min) / (TREE.max - TREE.min);

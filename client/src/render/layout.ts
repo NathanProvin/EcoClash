@@ -28,15 +28,17 @@ const TWO_TREES = 0.15;
 
 /** Patchy stands (D-151): per model stratum, the density multiplier's range over the patch
  *  noise (null: no patches). Shrubs average 0.85 (15 % fewer, in clumps); undergrowth 1. */
-export const DENSITY = [[0.4, 1.6], [0.3, 1.4], null, null] as const;
+export const DENSITY = [[0.4, 1.6], [0, 0.9], null, null] as const; // shrubs halved (D-173)
+/** Cells per step of each stratum's patch noise: shrubs in smaller, more scattered stands. */
+const PATCHES = [3, 2, 3, 3] as const;
 /** Cells per step of the patch noise lattice. */
 const PATCH = 3;
 
 /** Smooth value noise over the map (D-151), in 0..1: hashed lattice corners every PATCH cells,
  *  blended with a smoothstep, so neighbouring cells get close values (dense clumps, sparse
  *  edges). */
-export function patchiness(cell: number, n: number, salt: number): number {
-  const [fr, fc] = [Math.floor(cell / n) / PATCH, (cell % n) / PATCH];
+export function patchiness(cell: number, n: number, salt: number, step: number = PATCH): number {
+  const [fr, fc] = [Math.floor(cell / n) / step, (cell % n) / step];
   const [r0, c0] = [Math.floor(fr), Math.floor(fc)];
   const ease = (t: number) => t * t * (3 - 2 * t);
   const [tr, tc] = [ease(fr - r0), ease(fc - c0)];
@@ -49,7 +51,7 @@ export function patchiness(cell: number, n: number, salt: number): number {
 /** The density multipliers of a cell, per model stratum (D-151). */
 export function densityAt(cell: number, n: number): number[] {
   return DENSITY.map((range, s) =>
-    range ? range[0] + (range[1] - range[0]) * patchiness(cell, n, 4100 + 97 * s) : 1,
+    range ? range[0] + (range[1] - range[0]) * patchiness(cell, n, 4100 + 97 * s, PATCHES[s]) : 1,
   );
 }
 
@@ -231,7 +233,9 @@ export function plantLayout(
     const free = slots[s] ?? [];
     const base = STRATA[s] === "tree" ? treesIn(cell) : (BASE_MODELS[s] ?? 0);
     const most = STRATA[s] === "tree" ? base : (MAX_MODELS[s] ?? 0);
-    const want = v < 0.05 ? 0 : Math.max(1, Math.round(v * base * (density[s] ?? 1)));
+    // Shrubs may skip a cell where their patch thins out (D-173): stands, not one bush per cell.
+    const floor = STRATA[s] === "shrub" ? 0 : 1;
+    const want = v < 0.05 ? 0 : Math.max(floor, Math.round(v * base * (density[s] ?? 1)));
     const count = Math.min(most, want, free.length);
     const { min: lo, max: hi } = SIZE[s] ?? LOW;
     return assign(count, plants, prev[s]).map((species, slot) => {

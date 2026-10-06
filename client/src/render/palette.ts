@@ -85,7 +85,7 @@ export const SKY: Record<string, Sky> = {
     hemi: 1.15,
     fog: "#b59d72",
     tint: "#efcf98",
-    particles: "dust",
+    particles: null, // D-173: the drought shows in the light and colours only
     amount: 0.5,
     mote: "#fbeecb",
   },

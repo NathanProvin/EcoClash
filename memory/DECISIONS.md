@@ -2011,3 +2011,15 @@ Template:
 ## D-172 · 2026-10-06 · Locked cards name their habitat plants
 - **Status:** accepted (user, Alpha 2)
 - **Decision:** a locked animal card reads, for example, "tier 1 + Elder, Hawthorn or Hazel first" (`lockText`, `habitatPlants`, `orList` in `game/species.ts`), not "+ habitat plant". The tech tree uses the same names. A tier-1 animal locked only by its habitat no longer says "tier 0".
+
+## D-173 · 2026-10-06 · No drought dust; half the bushes, scattered; oak and chestnut swapped
+- **Status:** accepted (user, Alpha 2)
+- **Decision:**
+  - **Drought:** shows in the light, haze and tint only (no dust particles).
+  - **Bushes (shrub stratum, cattails included):**
+    - patch density 0–0.9 (mean about 0.45, half of D-151);
+    - a cell may have none where the patch thins (no one-bush-per-cell floor);
+    - a finer patch noise (2-cell lattice).
+
+    Stands come and go instead of lining up.
+  - **Trees:** the oak and the chestnut wear each other's model.

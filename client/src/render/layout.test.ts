@@ -133,14 +133,14 @@ describe("patchiness (D-151)", () => {
     expect(hi).toBeGreaterThan(0.8);
   });
 
-  it("thins shrubs by about 15 % on average, in patches, and keeps undergrowth even", () => {
+  it("halves shrubs on average, in patches, and keeps undergrowth even (D-173)", () => {
     let [shrub, low] = [0, 0];
     for (let c = 0; c < n * n; c++) {
       const d = densityAt(c, n);
       shrub += d[1] ?? 1;
       low += d[0] ?? 1;
     }
-    expect(shrub / (n * n)).toBeCloseTo(0.85, 1);
+    expect(shrub / (n * n)).toBeCloseTo(0.45, 1);
     expect(low / (n * n)).toBeCloseTo(1, 1);
   });
 

@@ -1936,3 +1936,15 @@ Template:
 
   The cell and unit cards stack in one right-hand column.
 - **Order lines, follow-up (D-162):** a new line ignores the animals' old order byte for 1 s, since the sim takes the order a tick or two later (lockstep delay).
+
+## D-164 · 2026-10-06 · Main menu title, tagline and a moving background
+- **Status:** accepted (user, Alpha 2 polish)
+- **Decision:**
+  - **Title:** "ECO" in moss green `#7fa650`, "CLASH" gold, a dark outline (`-webkit-text-stroke`) and a layered shadow.
+  - **Tagline:** "Grow your ecosystem. Outgrow your opponent."
+  - **Background** (CSS only):
+    - the blurred sky drifts (Ken Burns, 60 s);
+    - three hill planes slide at their own pace (parallax, 40 / 55 / 80 s);
+    - soft light motes rise.
+
+    Still under `prefers-reduced-motion`.

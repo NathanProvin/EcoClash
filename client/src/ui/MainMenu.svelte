@@ -65,6 +65,13 @@
     view = mode;
   }
   const MAP_NAMES: Record<MapSize, string> = { small: "Small", mid: "Mid", large: "Large" };
+  /** Soft out-of-focus light motes rising through the background (D-164): fixed, not random. */
+  const MOTES = Array.from({ length: 14 }, (_, i) => ({
+    x: (i * 37 + 11) % 100,
+    size: 6 + ((i * 7) % 5) * 4,
+    rise: 26 + ((i * 13) % 9) * 3,
+    delay: (i * 5.3) % 30,
+  }));
   /** Shortcuts (letters follow the printed key, D-075). */
   const KEYS: [string, string][] = [
     ["Left-click / drag", "Inspect a cell / select your animals"],
@@ -86,11 +93,27 @@
 </script>
 
 <div class="menu">
-  <div class="hills" aria-hidden="true"></div>
+  <!-- The out-of-focus landscape, drifting like a slow camera move (D-164). -->
+  <div class="scene" aria-hidden="true">
+    <div class="sky"></div>
+    <div class="hills far"></div>
+    <div class="hills mid"></div>
+    <div class="hills near"></div>
+    <div class="motes">
+      {#each MOTES as m, i (i)}
+        <span
+          style:left="{m.x}%"
+          style:--size="{m.size}px"
+          style:--rise="{m.rise}s"
+          style:animation-delay="-{m.delay}s"
+        ></span>
+      {/each}
+    </div>
+  </div>
   <div class="content">
     <h1>ECO<span>CLASH</span></h1>
     {#if view === "home"}
-      <p class="tagline">Grow a food web. Outgrow your rival.</p>
+      <p class="tagline">Grow your ecosystem. Outgrow your opponent.</p>
       <nav aria-label="Main menu">
         <button class="primary" onclick={() => (view = "modes")}>Play</button>
         <button onclick={onTutorial} title="A short guided match against the easy bot">
@@ -208,24 +231,104 @@
     display: grid;
     place-items: center;
     overflow: hidden;
+    background: #2b3d4a;
+  }
+  /* The landscape (D-164): a blurred sky on a slow Ken-Burns drift, three hill planes sliding at
+     their own pace (parallax), and light motes rising. Reduced motion: all still. */
+  .scene,
+  .sky {
+    position: absolute;
+    inset: 0;
+  }
+  .sky {
+    inset: -8%;
     /* An image dropped at public/menu/background.webp covers the painted placeholder below. */
     background:
       url("/menu/background.webp") center / cover no-repeat,
       radial-gradient(ellipse at 70% 18%, rgba(255, 214, 140, 0.55), transparent 45%),
       linear-gradient(180deg, #2b3d4a 0%, #6f7f6a 48%, #c9a86a 70%, #3c4a2c 100%);
+    filter: blur(6px);
+    animation: drift 60s ease-in-out infinite alternate;
   }
-  /* Placeholder landscape: three rolling hill layers of meadow and forest. */
+  @keyframes drift {
+    from {
+      transform: scale(1.04) translate(-1.5%, 0);
+    }
+    to {
+      transform: scale(1.12) translate(2%, -1.5%);
+    }
+  }
   .hills {
     position: absolute;
-    inset: auto -10% 0 -10%;
-    height: 55%;
+    inset: auto -14% 0 -14%;
+    filter: blur(3px);
+    animation: slide var(--pace) ease-in-out infinite alternate;
+  }
+  .hills.far {
+    --pace: 80s;
+    --shift: 2%;
+    height: 58%;
+    opacity: 0.75;
     background:
-      radial-gradient(ellipse 40% 60% at 20% 100%, #1f2d1c 60%, transparent 61%),
-      radial-gradient(ellipse 45% 55% at 75% 100%, #273a22 60%, transparent 61%),
-      radial-gradient(ellipse 60% 45% at 45% 100%, #3d5530 60%, transparent 61%),
-      radial-gradient(ellipse 70% 38% at 90% 100%, #56713f 60%, transparent 61%),
-      radial-gradient(ellipse 70% 30% at 10% 100%, #6b8a47 60%, transparent 61%);
+      radial-gradient(ellipse 45% 55% at 75% 100%, #3a4f34 60%, transparent 61%),
+      radial-gradient(ellipse 40% 60% at 20% 100%, #33462e 60%, transparent 61%);
+    filter: blur(6px);
+  }
+  .hills.mid {
+    --pace: 55s;
+    --shift: 4%;
+    height: 48%;
     opacity: 0.9;
+    background:
+      radial-gradient(ellipse 60% 45% at 45% 100%, #3d5530 60%, transparent 61%),
+      radial-gradient(ellipse 70% 38% at 90% 100%, #4d6a39 60%, transparent 61%);
+  }
+  .hills.near {
+    --pace: 40s;
+    --shift: 7%;
+    height: 34%;
+    background:
+      radial-gradient(ellipse 70% 30% at 10% 100%, #5f7d42 60%, transparent 61%),
+      radial-gradient(ellipse 50% 40% at 70% 100%, #1f2d1c 60%, transparent 61%);
+    filter: blur(2px);
+  }
+  @keyframes slide {
+    from {
+      transform: translateX(calc(var(--shift) * -1));
+    }
+    to {
+      transform: translateX(var(--shift));
+    }
+  }
+  .motes span {
+    position: absolute;
+    bottom: -20px;
+    width: var(--size);
+    height: var(--size);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 236, 190, 0.55), transparent 70%);
+    filter: blur(2px);
+    animation: rise var(--rise) linear infinite;
+  }
+  @keyframes rise {
+    from {
+      transform: translate(0, 0);
+      opacity: 0;
+    }
+    15% {
+      opacity: 0.8;
+    }
+    to {
+      transform: translate(6vw, -105vh);
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sky,
+    .hills,
+    .motes span {
+      animation: none;
+    }
   }
   /* The chosen mode, over its setup (D-137). */
   .mode {
@@ -254,13 +357,18 @@
     box-shadow: var(--trim);
     backdrop-filter: blur(4px);
   }
+  /* The title (D-164): moss green ECO, gold CLASH, a dark outline and a shadow behind. */
   h1 {
     margin: 0;
     font-size: clamp(2.6rem, 7vw, 4.6rem);
     font-weight: 900;
     letter-spacing: 0.08em;
-    color: var(--ink);
-    text-shadow: 0 4px 18px rgba(0, 0, 0, 0.6);
+    color: #7fa650;
+    -webkit-text-stroke: 2px #1c2116;
+    paint-order: stroke fill;
+    text-shadow:
+      0 5px 0 rgba(0, 0, 0, 0.35),
+      0 10px 28px rgba(0, 0, 0, 0.55);
   }
   h1 span {
     color: var(--gold);

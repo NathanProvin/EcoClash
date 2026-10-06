@@ -22,6 +22,8 @@
   // The build badge and feedback link (M5a 9, D-157): set by the deploy (VITE_BUILD) and in
   // .env (VITE_FEEDBACK_URL); a dev server shows "dev" and no link.
   const BUILD: string = import.meta.env.VITE_BUILD ?? "dev";
+  /** The release shown on the main menu (D-217). */
+  const VERSION = "Alpha 1.1";
   const FEEDBACK: string | undefined = import.meta.env.VITE_FEEDBACK_URL || undefined;
 
   let {
@@ -215,7 +217,7 @@
     {/if}
   </div>
   <p class="foot">
-    Prototype build {BUILD} · placeholder art{#if FEEDBACK}
+    {VERSION} · build {BUILD} · placeholder art{#if FEEDBACK}
       · <a href={FEEDBACK} target="_blank" rel="noopener">Send feedback</a>{/if}
   </p>
 </div>

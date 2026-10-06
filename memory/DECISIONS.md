@@ -2529,3 +2529,10 @@ Template:
   - the D-209 resolution guard and Medium 1.25;
   - grass and herb colours;
   - D-215: names, weather badge, lichen, silent alerts.
+
+## D-217 · 2026-10-06 · One player bar; Alpha 1.1 on the menu
+- **Status:** accepted (user)
+- **Decision:**
+  - **Player cells:** they keep the HUD's design language: the translucent panel, with the player's colour only on the outline.
+  - **One bar:** the two cells and the resources pill are joined edge to edge (`.versus`): rounded outer ends, square inner joins, no gap.
+  - **Version line:** the main menu reads "Alpha 1.1 · build <commit · date>" (the deploy sets the build).

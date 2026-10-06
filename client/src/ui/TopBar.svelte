@@ -106,49 +106,54 @@
 
 {#snippet side(p: 1 | 2)}
   <!-- A player's name in its colour, a rating under it (D-215: a placeholder until ranked play). -->
-  <div class="side s{p}" title="Rating: coming with ranked play">
+  <div class="side panel s{p}" title="Rating: coming with ranked play">
     <span class="who">{names[p - 1]}</span>
     <span class="elo num">1000</span>
   </div>
 {/snippet}
 
 <header class="bar">
-  {@render side(1)}
-  <div class="resources panel p{player}" data-tour="resources">
-    <!-- Tug of war (D-134): P1 from the left, P2 from the right, free land between, 50 % marked. -->
-    <span
-      class="tug"
-      title={victory
-        ? `Land: P1 (left) vs P2 (right) · win at ${Math.round(victory * 100)} %`
-        : "Land: P1 (left) vs P2 (right)"}
-      aria-hidden="true"
-      data-tour="land"
-    >
-      <span class="t1" style:width="{(land[0] ?? 0) * 100}%"></span>
-      <span class="t2" style:width="{(land[1] ?? 0) * 100}%"></span>
-      {#if victory}
-        <!-- Victory marks (D-175): where you win (green, from your side) and where the enemy
+  <!-- One bar (D-217): you, the land and resources, the enemy, joined edge to edge. -->
+  <div class="versus">
+    {@render side(1)}
+    <div class="resources panel p{player}" data-tour="resources">
+      <!-- Tug of war (D-134): P1 from the left, P2 from the right, free land between, 50 % marked. -->
+      <span
+        class="tug"
+        title={victory
+          ? `Land: P1 (left) vs P2 (right) · win at ${Math.round(victory * 100)} %`
+          : "Land: P1 (left) vs P2 (right)"}
+        aria-hidden="true"
+        data-tour="land"
+      >
+        <span class="t1" style:width="{(land[0] ?? 0) * 100}%"></span>
+        <span class="t2" style:width="{(land[1] ?? 0) * 100}%"></span>
+        {#if victory}
+          <!-- Victory marks (D-175): where you win (green, from your side) and where the enemy
              would (red, from theirs), moving as the threshold decays. -->
-        <span class="mark win" style:left="{(player === 1 ? victory : 1 - victory) * 100}%"></span>
-        <span class="mark lose" style:left="{(player === 1 ? 1 - victory : victory) * 100}%"></span>
-      {/if}
-    </span>
-    <div class="res" title="Land: your share of the map">
-      <Icon name="land" />
-      <span class="value num">{((land[player - 1] ?? 0) * 100).toFixed(0)}%</span>
+          <span class="mark win" style:left="{(player === 1 ? victory : 1 - victory) * 100}%"
+          ></span>
+          <span class="mark lose" style:left="{(player === 1 ? 1 - victory : victory) * 100}%"
+          ></span>
+        {/if}
+      </span>
+      <div class="res" title="Land: your share of the map">
+        <Icon name="land" />
+        <span class="value num">{((land[player - 1] ?? 0) * 100).toFixed(0)}%</span>
+      </div>
+      <div class="res" title="Species alive">
+        <Icon name="species" />
+        <span class="value num">{value(`species_p${player}`)}</span>
+      </div>
+      <div class="res" title="Biomass banked, and earned per second">
+        <Icon name="biomass" />
+        <span class="value num">{compact.format(value(`bank_p${player}`))}</span>
+        <span class="rate num">+{compact.format(Math.max(rate, 0))}</span>
+      </div>
     </div>
-    <div class="res" title="Species alive">
-      <Icon name="species" />
-      <span class="value num">{value(`species_p${player}`)}</span>
-    </div>
-    <div class="res" title="Biomass banked, and earned per second">
-      <Icon name="biomass" />
-      <span class="value num">{compact.format(value(`bank_p${player}`))}</span>
-      <span class="rate num">+{compact.format(Math.max(rate, 0))}</span>
-    </div>
-  </div>
 
-  {@render side(2)}
+    {@render side(2)}
+  </div>
 
   <div class="actions">
     <button
@@ -312,26 +317,34 @@
   .bar > * {
     pointer-events: auto;
   }
-  /* The players on each side of the tug of war (D-215). */
+  /* The players on each side of the tug of war (D-215), joined to it as one bar (D-217): the
+     HUD's translucent panel, the player's colour on the outline only, rounded outer ends. */
+  .versus {
+    display: flex;
+    align-items: stretch;
+  }
   .side {
-    align-self: flex-start;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-width: 76px;
-    margin: 0 6px;
-    padding: 5px 12px;
-    border-radius: 12px;
-    color: #fff;
+    min-width: 84px;
+    padding: 4px 14px;
+    color: var(--ink);
     line-height: 1.15;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   }
   .s1 {
-    background: color-mix(in srgb, var(--p1) 82%, transparent);
+    border: 1.5px solid var(--p1);
+    border-radius: 999px 0 0 999px;
   }
   .s2 {
-    background: color-mix(in srgb, var(--p2) 82%, transparent);
+    border: 1.5px solid var(--p2);
+    border-radius: 0 999px 999px 0;
+  }
+  .versus .resources {
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
   }
   .who {
     font-weight: 700;

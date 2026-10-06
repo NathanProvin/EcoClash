@@ -30,6 +30,11 @@
     sans-serif;
   color: var(--ink);
 }
+/* In a match (D-202): no live blur over the moving scene; a denser panel instead. */
+:root.in-match {
+  --blur: none;
+  --panel: var(--panel-flat);
+}
 
 * {
   box-sizing: border-box;

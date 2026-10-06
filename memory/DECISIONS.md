@@ -2363,3 +2363,14 @@ Template:
   |---|---|---|
   | Overview | 45 k | 20 k |
   | Close up | 82 k | 68 k |
+
+## D-202 · 2026-10-06 · HUD: no live blur in a match, transform-placed icons, a stable unlock set (branch `optimization-v3`)
+- **Status:** accepted (perf plan item 4)
+- **Decision:**
+  - **No live blur:** in a match (`:root.in-match`), HUD panels drop `backdrop-filter` and use the denser `--panel-flat`. The blur was recomputed over the moving scene every frame, costly on integrated GPUs. Menus keep it.
+  - **Strategic icons:**
+    - `$state.raw`, so they are not deep-proxied every frame;
+    - placed by `transform` through `--x` / `--y`, so no layout runs;
+    - the hover scale uses the `scale` property;
+    - the viewer caches the canvas size on resize instead of reading it per icon.
+  - **`unlocked`** keeps the same Set while nothing new is unlocked, so the effects and cards that read it stop rerunning every tick.

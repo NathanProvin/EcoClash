@@ -414,8 +414,12 @@ export class Viewer {
     this.controls.update();
   }
 
+  /** The canvas size in CSS pixels, read on resize only (D-202). */
+  private size: [number, number] = [1, 1];
+
   resize(): void {
     const { clientWidth: w, clientHeight: h } = this.canvas;
+    this.size = [w, h];
     this.renderer.setPixelRatio(
       Math.min(window.devicePixelRatio, QUALITY[this.quality].pixelRatio) * this.res.scale,
     );
@@ -759,7 +763,7 @@ export class Viewer {
   /** Where a cell's centre is on screen (CSS pixels of the canvas), and whether it is in view. */
   screenPoint(cell: { row: number; col: number }): { x: number; y: number; inView: boolean } {
     const v = this.centre(cell).project(this.camera);
-    const { clientWidth: w, clientHeight: h } = this.canvas;
+    const [w, h] = this.size; // cached on resize (D-202): no layout read per icon
     const behind = v.z > 1;
     const [x, y] = [((v.x + 1) / 2) * w, ((1 - v.y) / 2) * h];
     const inView = !behind && x >= 0 && x <= w && y >= 0 && y <= h;

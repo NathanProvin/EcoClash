@@ -33,8 +33,8 @@
     class="icon"
     class:swarm={!i.order}
     class:enemy={i.enemy}
-    style:left="{i.x}px"
-    style:top="{i.y}px"
+    style:--x="{i.x}px"
+    style:--y="{i.y}px"
     title="{i.enemy ? 'Enemy ' : ''}{label(i.s.name)} ×{i.count}{i.enemy
       ? ''
       : i.order
@@ -54,7 +54,10 @@
     position: absolute;
     z-index: 3;
     padding: 0;
-    transform: translate(-50%, -120%);
+    left: 0;
+    top: 0;
+    /* Placed by transform (D-202): moving it every frame needs no layout. */
+    transform: translate(var(--x), var(--y)) translate(-50%, -120%);
     border: 0;
     border-radius: 9px;
     background: none;
@@ -62,7 +65,7 @@
       0 0 0 2px var(--player),
       0 3px 10px rgba(0, 0, 0, 0.35);
     cursor: var(--cursor-pointer);
-    transition: transform 0.12s;
+    transition: scale 0.12s;
   }
   .icon.enemy {
     --player: var(--threat);
@@ -71,7 +74,7 @@
     cursor: var(--cursor);
   }
   .icon:hover {
-    transform: translate(-50%, -120%) scale(1.1);
+    scale: 1.1;
   }
   .icon > :global(.icon) {
     display: grid;

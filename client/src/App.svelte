@@ -180,7 +180,7 @@
     ids: number[];
     order: boolean;
     enemy: boolean;
-  }[] = $state([]);
+  }[] = $state.raw([]); // replaced every frame: no deep proxies (D-202)
   let lastIcons = 0;
   const fauna = $derived((replay?.meta.species ?? []).filter((s) => s.kind === "fauna"));
 
@@ -191,6 +191,11 @@
       return true;
     }
   }
+  // No live blur behind the HUD in a match (D-202): it was recomputed over the moving scene every
+  // frame. Menus keep it.
+  $effect(() => {
+    document.documentElement.classList.toggle("in-match", !!replay && !inMenu);
+  });
   $effect(() => {
     try {
       localStorage.setItem(ICONS_KEY, showIcons ? "on" : "off");
@@ -570,9 +575,17 @@
       return [{ x: w / 2 + cos * k, y: h / 2 + sin * k, angle }];
     });
   }
+  // The same Set while nothing new is unlocked (D-202): the effects and cards that read it don't
+  // rerun on every tick.
+  let lastUnlocked = new Set<string>();
   const unlocked = $derived.by(() => {
     void tick; // live unlocks arrive with the ticks
-    return replay ? unlockedNow(replay, player, tick) : new Set<string>();
+    const now = replay ? unlockedNow(replay, player, tick) : new Set<string>();
+    if (now.size === lastUnlocked.size && [...now].every((x) => lastUnlocked.has(x))) {
+      return lastUnlocked;
+    }
+    lastUnlocked = now;
+    return now;
   });
   // A victory or defeat stinger as the end screen opens (D-185).
   let stung: Outcome | null = null;

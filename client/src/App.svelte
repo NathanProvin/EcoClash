@@ -31,6 +31,7 @@
   import BottomBar from "./ui/BottomBar.svelte";
   import CellPanel from "./ui/CellPanel.svelte";
   import UnitPanel from "./ui/UnitPanel.svelte";
+  import { shortNotice } from "./game/notices";
   import { unitCard } from "./game/units";
   import MainMenu from "./ui/MainMenu.svelte";
   import EndScreen from "./ui/EndScreen.svelte";
@@ -277,8 +278,7 @@
       toast(text, "info");
     }
     if (available) {
-      for (const name of can)
-        if (!available.has(name)) toast(`${label(name)} can be unlocked`, "info");
+      for (const name of can) if (!available.has(name)) toast(`${label(name)}: available`, "info");
     }
     available = can;
     const animalsUnlocked = kinds.filter((_, i) => {
@@ -496,7 +496,7 @@
       for (const n of live.notices) {
         if (n.player !== me || n.at <= seenNotice) continue;
         seenNotice = n.at;
-        toast(label(n.text), "notice");
+        toast(shortNotice(label(n.text)), "notice"); // short and red (D-170)
       }
       if (now - lastScan > SCAN_MS) {
         lastScan = now;

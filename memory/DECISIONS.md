@@ -1996,3 +1996,9 @@ Template:
   - Once the worker confirms an unlock, the species is armed at once (the next map click plants or drops it).
   - Its card and family tile play a 0.6 s pop (a swell and a fading gold ring).
   - The tutorial's Grasses step says so.
+
+## D-170 · 2026-10-06 · Short red notices
+- **Status:** accepted (user, Alpha 2)
+- **Decision:**
+  - Orders that did nothing show as red toasts in a few words (`game/notices.ts` `shortNotice`): "Elder: need more [biomass icon]" (the biomass icon in green), and "Oak: nothing took root".
+  - Unlock infos read "Elder: available".

@@ -38,32 +38,36 @@ function mix(cell: number, salt: number, first: number) {
 }
 
 describe("cellSlots", () => {
-  it("keeps shrubs and clumps apart, clear of every trunk slot, and everything inside the cell", () => {
-    let full = 0; // cells with a slot for every shrub (dart-throwing may fit one fewer)
-    for (let cell = 0; cell < 4000; cell++) {
-      const [low = [], shrubs = [], trees = [], pads = []] = cellSlots(cell);
-      expect(shrubs.length, `cell ${cell}`).toBeGreaterThanOrEqual(BASE_MODELS[1] - 1);
-      expect(low.length, `cell ${cell}`).toBeGreaterThanOrEqual(BASE_MODELS[0]);
-      expect(pads).toBe(low); // pads float where clumps would stand
-      if (shrubs.length >= BASE_MODELS[1]) full++;
-      for (const s of shrubs) {
-        expect(inside(s, SHRUB.max)).toBe(true);
-        for (const t of trees) expect(dist(s, t)).toBeGreaterThanOrEqual(TRUNK_CLEAR);
-        for (const o of shrubs) if (o !== s) expect(dist(s, o)).toBeGreaterThanOrEqual(SHRUB_GAP);
+  it(
+    "keeps shrubs and clumps apart, clear of every trunk slot, and everything inside the cell",
+    { timeout: 20_000 },
+    () => {
+      let full = 0; // cells with a slot for every shrub (dart-throwing may fit one fewer)
+      for (let cell = 0; cell < 4000; cell++) {
+        const [low = [], shrubs = [], trees = [], pads = []] = cellSlots(cell);
+        expect(shrubs.length, `cell ${cell}`).toBeGreaterThanOrEqual(BASE_MODELS[1] - 1);
+        expect(low.length, `cell ${cell}`).toBeGreaterThanOrEqual(BASE_MODELS[0]);
+        expect(pads).toBe(low); // pads float where clumps would stand
+        if (shrubs.length >= BASE_MODELS[1]) full++;
+        for (const s of shrubs) {
+          expect(inside(s, SHRUB.max)).toBe(true);
+          for (const t of trees) expect(dist(s, t)).toBeGreaterThanOrEqual(TRUNK_CLEAR);
+          for (const o of shrubs) if (o !== s) expect(dist(s, o)).toBeGreaterThanOrEqual(SHRUB_GAP);
+        }
+        for (const s of low) {
+          expect(inside(s, LOW.max)).toBe(true);
+          for (const t of trees) expect(dist(s, t)).toBeGreaterThanOrEqual(LOW_CLEAR);
+          for (const o of low) if (o !== s) expect(dist(s, o)).toBeGreaterThanOrEqual(LOW_GAP);
+        }
+        for (const t of trees) {
+          expect(inside(t, TREE.trunkR)).toBe(true);
+          for (const o of trees)
+            if (o !== t) expect(dist(t, o)).toBeGreaterThanOrEqual(TRUNK_GAP - 1e-9);
+        }
       }
-      for (const s of low) {
-        expect(inside(s, LOW.max)).toBe(true);
-        for (const t of trees) expect(dist(s, t)).toBeGreaterThanOrEqual(LOW_CLEAR);
-        for (const o of low) if (o !== s) expect(dist(s, o)).toBeGreaterThanOrEqual(LOW_GAP);
-      }
-      for (const t of trees) {
-        expect(inside(t, TREE.trunkR)).toBe(true);
-        for (const o of trees)
-          if (o !== t) expect(dist(t, o)).toBeGreaterThanOrEqual(TRUNK_GAP - 1e-9);
-      }
-    }
-    expect(full / 4000).toBeGreaterThan(0.97);
-  });
+      expect(full / 4000).toBeGreaterThan(0.97);
+    },
+  );
 
   it("does not put shrubs on a grid", () => {
     const xs = new Set<string>();

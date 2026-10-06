@@ -3,6 +3,7 @@
   // place: clicking one flies the camera there, and while its ping lasts an arrow at the screen
   // edge points to it when it is out of view. Info and order notices just fade.
   import type { Toast } from "../game/alerts";
+  import Icon from "./Icon.svelte";
 
   let {
     toasts,
@@ -15,15 +16,22 @@
   } = $props();
 </script>
 
+<!-- A toast's text, with "{biomass}" drawn as the green biomass icon (D-170). -->
+{#snippet words(text: string)}
+  {#each text.split("{biomass}") as part, i (i)}{#if i}<span class="bio"
+        ><Icon name="biomass" size={15} /></span
+      >{/if}{part}{/each}
+{/snippet}
+
 {#if toasts.length}
   <div class="stack" role="status" aria-live="polite">
     {#each toasts as t (t.id)}
       {#if t.cell}
         <button class="toast panel {t.kind} s{t.severity ?? 0}" onclick={() => onGo(t)}>
-          <span class="dot" aria-hidden="true"></span>{t.text}
+          <span class="dot" aria-hidden="true"></span>{@render words(t.text)}
         </button>
       {:else}
-        <p class="toast panel {t.kind}">{t.text}</p>
+        <p class="toast panel {t.kind}">{@render words(t.text)}</p>
       {/if}
     {/each}
   </div>
@@ -80,9 +88,21 @@
     background: #ff7a5c;
     box-shadow: 0 0 8px #ff7a5c;
   }
-  .notice,
   .info {
     color: var(--ink-soft);
+  }
+  /* Orders that did nothing (D-170): red, short. */
+  .notice {
+    border-color: rgba(216, 57, 43, 0.75);
+    background: linear-gradient(180deg, rgba(150, 40, 30, 0.55), rgba(90, 24, 18, 0.55));
+    color: #ffe9e4;
+    font-weight: 600;
+  }
+  .bio {
+    display: inline-flex;
+    vertical-align: -3px;
+    margin-left: 3px;
+    color: #8fd16a;
   }
   .tip {
     max-width: min(560px, 90vw);

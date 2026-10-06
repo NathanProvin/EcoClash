@@ -1948,3 +1948,10 @@ Template:
     - soft light motes rise.
 
     Still under `prefers-reduced-motion`.
+
+## D-165 · 2026-10-06 · Match setup polish
+- **Status:** accepted (user, Alpha 2 polish)
+- **Decision:**
+  - The AI opponent setup has no heading; Sandbox keeps its short one.
+  - START and BACK are centred.
+  - The selected difficulty and map size wear the primary buttons' mustard (gold border and gradient); the choices glow gold on hover.

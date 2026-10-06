@@ -147,11 +147,9 @@
           onStart();
         }}
       >
-        <p class="mode">
-          {view === "ai" ? "AI opponent" : "Sandbox"}
-          <small>{view === "ai" ? "a match against the bot" : "everything unlocked and free"}</small
-          >
-        </p>
+        {#if view === "sandbox"}
+          <p class="mode">Sandbox <small>everything unlocked and free</small></p>
+        {/if}
         {#if view === "ai"}
           <fieldset>
             <legend>Difficulty</legend>
@@ -185,7 +183,7 @@
             </button>
           </span>
         </label>
-        <nav>
+        <nav class="actions">
           <button class="primary" type="submit">Start</button>
           <button type="button" onclick={() => (view = "modes")}>Back</button>
         </nav>
@@ -452,9 +450,26 @@
     color: var(--ink);
     cursor: var(--cursor-pointer);
   }
+  .choice {
+    text-align: center;
+    transition:
+      border-color 0.12s,
+      box-shadow 0.12s;
+  }
+  .choice:hover {
+    border-color: var(--gold);
+  }
+  /* The selected choice wears the primary button's mustard (D-165). */
   .choice.on {
     border-color: var(--gold);
-    box-shadow: 0 0 10px var(--gold-soft);
+    background: linear-gradient(180deg, rgba(216, 180, 92, 0.45), rgba(216, 180, 92, 0.15));
+    box-shadow: 0 0 12px rgba(216, 180, 92, 0.35);
+    font-weight: 800;
+  }
+  /* START and BACK, centred under the setup (D-165). */
+  .actions {
+    align-self: center;
+    margin-top: 6px;
   }
   .choice input {
     display: none;

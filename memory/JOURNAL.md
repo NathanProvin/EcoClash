@@ -745,3 +745,19 @@
 
   Bench: first hunter 6:10, 26 units at 10 min, mirror end 25:20, ladder 89 % / 100 %.
 - **Next:** the user's playtest (new species in the tech tree; Large maps' fps on High), then push Alpha 1.1.
+
+## 2026-10-06 (8) · Situational bots (D-190…D-193)
+- **Done:**
+  - bench markers for roster use, raid answers, hunter fit and water;
+  - the bot reads the map (raiders, stalkers, sightings, plants, water);
+  - it unlocks and calls the best eater of each threat, by level reaction;
+  - grazers are chosen by enemy food;
+  - a raid fund;
+  - algae fronts and water cards on water maps;
+  - five scenario tests.
+
+  All checks green.
+
+  Bench: 24 of 33 animals used (was 12), raids answered in 8 s median, 80 % primary-prey drops, water plants on every water-map side.
+- **Open:** HW/PW use is about 50 %; late-tier hunters are rarely called in 25-min matches.
+- **Next:** the user's playtest vs the bots; then push Alpha 1.1.

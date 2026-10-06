@@ -160,6 +160,19 @@ impl Economy {
         self.plants + s
     }
 
+    /// Card `i`'s place in the tech tree (bots, D-191): (is an animal, family, tier).
+    #[must_use]
+    pub fn card(&self, i: usize) -> (bool, &str, u8) {
+        let (animal, family, tier) = &self.tree[i];
+        (*animal, family.as_str(), *tier)
+    }
+
+    /// Animal species `s`'s habitat plants, a mask over plant species (bots, D-191).
+    #[must_use]
+    pub fn habitat_of(&self, s: usize) -> u32 {
+        self.habitat[s]
+    }
+
     #[must_use]
     pub fn is_unlocked(&self, player: u8, i: usize) -> bool {
         self.sandbox || self.unlocked[usize::from(player - 1)].get(i) == Some(&true)

@@ -2205,3 +2205,57 @@ Template:
   - raids answered 719 / 868 (median 8 s);
   - primary prey in reach 48 %;
   - water maps 26 / 30, with no water species ever unlocked.
+
+## D-191 · 2026-10-06 · Bots read the map and answer what they see
+- **Status:** accepted (user: unlock and use units adapted to the situation, not a fixed script)
+- **Decision** (`sim-ai`):
+  - **Intel** per decision, from the map only, never the enemy's cards:
+    - enemy animals on the bot's land (raiders), near its animals that they eat (stalkers), anywhere;
+    - plant cells per side;
+    - water.
+  - **Threats,** weighted by call cost, each lasting the level's reaction time before an answer:
+
+    | Level | Answers | Reaction time |
+    |---|---|---|
+    | Easy | raids | 60 s |
+    | Normal | raids and stalkers | 15 s |
+    | Hard | everything it sees, including anticipation | 0 s |
+
+    Recyclers threaten nothing.
+  - **Unlock goal:** the next step on the cheapest-path eater of the worst threat (diet rank first, then the path cost: price plus the missing lower tier and habitat plant); otherwise the backbone plan. The plan now lists every land card; savings follow the goal.
+  - **Hunters** (`defend`): the hunter with the best diet rank for the threat, dropped where most of those animals are. Then normal and hard hunt the best-ranked prey nearest home. Easy now answers raids too.
+  - `Economy::card` / `habitat_of`: read-only accessors.
+- **Data fix:** the pine marten's habitat becomes shrubs or trees (L3, L4), as D-187 planned.
+
+## D-192 · 2026-10-06 · Food-aware grazers, a raid fund, water play
+- **Status:** accepted
+- **Decision:**
+  - **Food scores:** grazers are scored by their food on a side's land (primary 4, secondary 2, tertiary 1, times plant height squared), less the enemy hunters that eat them. The score is spread over the cards already out, so the herd diversifies; units still come before swarms.
+  - **Raid fund:** `spare` keeps the next raid drop's price when it is within 120 s of income. A drop then needs only its own price (it needed 3 drops spare, which kept big grazers out of reach).
+  - **Recycler cards:** up to 3.
+  - **Water:** on maps with shallows, the water cards join the plan by phase, and `expand` puts algae on shallow border cells (each border cell takes the first spreader that suits it).
+- **Tests** (`sim-ai`):
+  - a grasshopper raid → great tit;
+  - a rabbit raid → weasel, then fox;
+  - hard takes the tit ahead of its plan on seeing grasshoppers, easy does not;
+  - a stalking weasel → wildcat, not the marten;
+  - a water map → algae held in the shallows.
+
+## D-193 · 2026-10-06 · Bench after the bot rework
+- **Status:** accepted, with open gaps
+- **Bench** (normal mirror, 30 seeds, 38²):
+
+  | Marker | Before | After |
+  |---|---|---|
+  | Animals called | 12 / 33 | 24 / 33 |
+  | Species never unlocked | 20 | 0 |
+  | Raids answered | 83 %, median 8 s | 94 %, median 8 s (91 % within 60 s) |
+  | Hunter calls with primary prey in reach | 48 % | 80 % |
+  | Water-map sides using W / HW / PW | 0 % | 100 / 57 / 46 % |
+  | Median end | 25:20 | 25:43 |
+
+  Ladder: hard beats normal 25 of 28; normal beats easy 17 of 18.
+- **Still unused:** roe deer, caterpillars, bark beetles (swarms lose to units), mallard, heron, otter (water hunters only meet enemy water prey), pine marten, wolf, brown bear (late tiers that 25-min matches rarely reach).
+- **Tried and reverted:**
+  - extra card slots for species not yet out: more calls, slower tiers, 11 unfinished;
+  - waiting for the best unit instead of a cheaper swarm: no gain.

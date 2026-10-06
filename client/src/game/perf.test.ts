@@ -36,10 +36,12 @@ describe("resolution guard (D-200)", () => {
     for (let i = 0; i < 60; i++) g.frame(16.7);
     expect(g.scale).toBe(1); // fine at 60 fps
     let changes = 0;
-    for (let i = 0; i < 400; i++) if (g.frame(40)) changes++; // 25 fps for 16 s
-    expect(g.scale).toBe(0.7);
-    expect(changes).toBe(3);
+    for (let i = 0; i < 300; i++) g.frame(22); // 45 fps: sharp, no step (D-209)
+    expect(g.scale).toBe(1);
+    for (let i = 0; i < 400; i++) if (g.frame(50)) changes++; // 20 fps for 20 s
+    expect(g.scale).toBe(0.85);
+    expect(changes).toBe(2);
     for (let i = 0; i < 300; i++) g.frame(16.7); // 5 s fast
-    expect(g.scale).toBeCloseTo(0.8);
+    expect(g.scale).toBeCloseTo(0.95);
   });
 });

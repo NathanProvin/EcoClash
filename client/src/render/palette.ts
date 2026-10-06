@@ -115,7 +115,7 @@ export const OVERLAY_RAMPS = {
 /** Natural colour of each plant species (D-067); unknown species fall back per stratum. */
 export const FLORA: Record<string, string> = {
   lichen_and_moss: "#8f9c6c", // grey-green
-  grasses: "#8bb356",
+  grasses: "#3f692b", // D-211: a darker leaf green (was lime #8bb356)
   ferns: "#5d8f3e",
   wildflowers: "#b6b765", // meadow green, warmed by the flowers
   nettle: "#4f7b39",
@@ -128,7 +128,7 @@ export const FLORA: Record<string, string> = {
   chestnut: "#4c6a2d",
   cattails: "#7d9a4a", // reed green; the seed heads are drawn brown (D-125)
 };
-const FLORA_BY_LEVEL = ["#8bb356", "#6f9148", "#5b7936"] as const;
+const FLORA_BY_LEVEL = ["#3f692b", "#6f9148", "#5b7936"] as const;
 
 /** Share of the owner's hue mixed into a plant's natural colour. */
 export const PLAYER_TINT = 0.15;

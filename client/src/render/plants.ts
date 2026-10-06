@@ -421,6 +421,9 @@ const KEY_MESHES = 16;
  *  spread over the next frames instead of one long hitch. */
 const PAINT_BUDGET_MS = 3;
 
+/** Metres above the water a land plant's spot must stand (D-210). */
+const WET_MARGIN = 0.05;
+
 /** What PlantView paints cells from: see `update`. */
 interface PaintInput {
   cover: (c: number) => CellCover | null;
@@ -436,6 +439,8 @@ interface PaintInput {
 export type CellCover = { species: number; cover: number }[][];
 
 export class PlantView {
+  /** Water plants by name (W family): they may stand in the water, land plants may not (D-210). */
+  aquatic: ReadonlySet<string> = new Set();
   private readonly meshes: GrowingMesh<number>[];
   /** Per cell: its fixed slots, the species by slot of each stratum, the part keys shown. */
   private readonly slots: Slot[][][] = [];
@@ -572,6 +577,10 @@ export class PlantView {
       for (const m of list) {
         const [x, z] = [x0 + m.x, z0 + m.z];
         const ground = height(x, z);
+        // A land plant whose spot is under water is left out (D-210): a bank cell dips into the
+        // river, and half-sunk shrubs clipped through its surface.
+        const aquatic = stratum === "pad" || this.aquatic.has(names[m.species] ?? "");
+        if (water !== null && !aquatic && ground < water + WET_MARGIN) continue;
         const y0 = stratum === "pad" ? Math.max(ground, water ?? ground) : ground;
         const base = colors[o as 1 | 2][m.species];
         this.style.parts(stratum, m, x, z, names[m.species] ?? "").forEach((p, i) => {

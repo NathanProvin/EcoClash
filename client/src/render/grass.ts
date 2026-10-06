@@ -266,6 +266,7 @@ export function makeGrass(
   herbMix?: { now: THREE.Texture; prev: THREE.Texture },
   relief = 0,
   lod: HerbLod = { near: 1e9, far: 2e9, min: 1 },
+  water: number | null = null,
 ): HerbGroup {
   /** The highest a herb reaches above the map's base (m): the relief plus the tallest herb. */
   const ceiling = relief + Math.max(BLADE_HEIGHT[1], FLOWER.height[1]) + 1;
@@ -294,8 +295,10 @@ export function makeGrass(
   const widen = budget.max(lod.min).pow(-0.5);
   /** 0: the tuft is hidden (collapsed), 1: shown; by its herb's cover against its seed, and by
    *  the level of detail. */
+  // No herb grows where its root is under water (D-210): bank cells dip into the river.
+  const dry = water === null ? float(1) : step(water + 0.03, y);
   const shown = (herb: "r" | "g" | "b") =>
-    smoothstep(seed.sub(0.05), seed.add(0.05), texel.a.mul(shares[herb])).mul(keep);
+    smoothstep(seed.sub(0.05), seed.add(0.05), texel.a.mul(shares[herb])).mul(keep).mul(dry);
   /** A tuft's shape, wider (not taller) where fewer tufts show. */
   const spread = (v: typeof positionLocal) => vec3(v.x.mul(widen), v.y, v.z.mul(widen));
 
@@ -327,7 +330,7 @@ export function makeGrass(
     .add(vec3(push.x, 0, push.y))
     .mul(shown("g"));
   grass.positionNode = vec3(root.x, y, root.y).add(blade);
-  const shade = mix(float(0.7), float(1.15), tip); // dark base
+  const shade = mix(float(0.62), float(1.02), tip); // dark base, no lime tip (D-211)
   grass.colorNode = texel.rgb.mul(shade);
 
   // Lichen and moss: flat round patches in their own colours.

@@ -21,7 +21,7 @@ export const QUALITY: Record<
   },
   medium: {
     grass: 12,
-    pixelRatio: 1, // D-200: was 1.5, more pixels than High
+    pixelRatio: 1.25, // D-209: 1 blurred the shores and ground; 1.5 was more than High
 
     shadow: 1024,
     post: false,

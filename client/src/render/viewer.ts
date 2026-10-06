@@ -27,6 +27,7 @@ import {
   time,
   uniform,
   uv,
+  vec2,
   vec3,
   vec4,
 } from "three/tsl";
@@ -240,12 +241,30 @@ export class Viewer {
     this.groundTex.colorSpace = THREE.SRGBColorSpace;
     const groundMat = new THREE.MeshStandardNodeMaterial({ roughness: 1 });
     // Baked noise (D-151): one texture fetch per scale instead of a Perlin noise per pixel.
-    const patches = this.noise(0.16, "r"); // broad damp / dry patches
+    const patches = this.noise(0.16, "r", undefined, 0.5); // broad damp / dry patches
+    // An organic ground (D-211): scales turned against each other, soil hues that drift over
+    // the map, and an emboss (each scale against itself a little toward the sun) for depth.
+    const clods = this.noise(0.8, "g", undefined, 1.3);
+    const grit = this.noise(4.2, "b", undefined, 2.1);
+    const toSun = sun.position.clone().setY(0).normalize();
+    const lean = (m: number) => vec2(toSun.x * m, toSun.z * m);
+    const emboss = clods
+      .sub(this.noise(0.8, "g", undefined, 1.3, lean(0.35)))
+      .mul(0.4)
+      .add(grit.sub(this.noise(4.2, "b", undefined, 2.1, lean(0.06))).mul(0.22));
     const grain = float(1)
       .add(patches.mul(0.1))
-      .add(this.noise(0.8, "g").mul(0.08))
-      .add(this.noise(4.2, "b").mul(0.07)); // grit
-    const earth = texture(this.groundTex, uv()).rgb;
+      .add(clods.mul(0.08))
+      .add(grit.mul(0.07))
+      .add(emboss);
+    const drift = this.noise(0.045, "g", undefined, 0.9).mul(0.5).add(0.5); // map-wide hue zones
+    const loam = this.noise(0.07, "b", undefined, 2.6).mul(0.5).add(0.5);
+    const cellEarth = texture(this.groundTex, uv()).rgb;
+    // Ochre, grey-brown and red loam zones over the soil colour (D-211).
+    const hue = mix(vec3(1.1, 0.99, 0.82), vec3(0.86, 0.9, 0.96), drift).mul(
+      mix(vec3(1, 1, 1), vec3(1.12, 0.92, 0.84), smoothstep(0.5, 0.85, loam)),
+    );
+    const earth = cellEarth.mul(hue);
     const humus = earth.mul(vec3(0.74, 0.68, 0.62)); // darker, warmer patches
     const mottle = smoothstep(0.05, 0.8, patches).mul(0.6);
     this.field = new Heightfield(n, replay.terrain);
@@ -358,6 +377,9 @@ export class Viewer {
       );
     this.plantLinear = { 1: linear(1), 2: linear(2) };
     this.plants = new PlantView(this.scene, n, new LowPolyPlants(), this.now, sun.position);
+    this.plants.aquatic = new Set(
+      replay.meta.species.filter((s) => s.kind === "flora" && s.family === "W").map((s) => s.name),
+    );
     this.deadTrees = new DeadTrees(this.scene, n, this.now);
     this.animals = new AnimalView(this.scene, replay.meta, replay.maxAnimals());
 
@@ -403,6 +425,7 @@ export class Viewer {
       mix,
       Math.max(0, ...this.field.cell),
       QUALITY[this.quality].herbLod,
+      this.field.water,
     );
     grass.userData.family = "herbs"; // the perf census (D-198)
     return grass;
@@ -548,8 +571,16 @@ export class Viewer {
     frequency: number,
     channel: "r" | "g" | "b",
     shift?: THREE.Node<"float">,
+    angle = 0,
+    offset?: THREE.Node<"vec2">,
   ): THREE.Node<"float"> {
-    const uvw = positionWorld.xz.mul(frequency / NOISE.period);
+    // Each scale turned by its own `angle` (D-211): the tiles of different scales never line up,
+    // so the ground does not read as one pattern copied across the map. `offset` (m) samples a
+    // little aside, for the emboss.
+    const [c, s] = [Math.cos(angle), Math.sin(angle)];
+    const p = offset ? positionWorld.xz.add(offset) : positionWorld.xz;
+    const turned = vec2(p.x.mul(c).sub(p.y.mul(s)), p.x.mul(s).add(p.y.mul(c)));
+    const uvw = turned.mul(frequency / NOISE.period).add(angle * 0.37);
     const at = shift ? uvw.add(shift) : uvw;
     return texture(this.noiseTex, at)[channel].mul(2).sub(1);
   }
@@ -563,6 +594,10 @@ export class Viewer {
     if (water !== null) {
       const wet = smoothstep(water, water + TINT.wet, y).oneMinus();
       out = mix(out, out.mul(vec3(0.62, 0.7, 0.56)), wet);
+      // The shore (D-210), from the ground's own height, so it is crisp at any resolution: the
+      // bed darkens and cools under the water (the wet margin above it is the tint above).
+      const under = smoothstep(water + 0.02, water - 0.4, y);
+      out = mix(out, out.mul(vec3(0.42, 0.52, 0.55)), under.mul(0.75));
     }
     const relief = this.replay.terrain?.reliefM ?? 0;
     if (relief > 0) {
@@ -593,7 +628,9 @@ export class Viewer {
       color(WORLD.deepWater),
       smoothstep(0.2, 2.2, depth),
     ).mul(shimmer);
-    material.opacityNode = smoothstep(0.02, 0.35, depth).mul(0.82);
+    // A crisp edge (D-210): full within 8 cm of depth. The old 35 cm fade spread over metres on
+    // flat shores and blurred where land ends; the bed darkens under the water instead.
+    material.opacityNode = smoothstep(0.0, 0.08, depth).mul(0.82);
     const water = new THREE.Mesh(
       new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2),
       material,

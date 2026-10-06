@@ -44,9 +44,10 @@ export function censusText(c: Census): string {
   return `${rows.join(" · ")} · shadow ${k(c.shadowTris)}`;
 }
 
-/** Dynamic resolution (D-200): the render scale steps down by `step` (to `floor`) after a second
- *  whose average frame time stays above `slowMs`, and back up after 4 s below `fastMs`. It guards
- *  against deep drops without chasing 60 fps at a blurry scale. */
+/** Dynamic resolution (D-200, D-209): the render scale steps down by `step` (to `floor`) after a
+ *  second whose average frame time stays above `slowMs` (under 30 fps), and back up after 4 s
+ *  below `fastMs`. An emergency guard only: at 40-60 fps the image stays sharp (the first
+ *  thresholds, 25 / 18 ms, held Large/High at 45 fps at the floor for good). */
 export class ResolutionGuard {
   scale = 1;
   private avg = 0;
@@ -54,9 +55,9 @@ export class ResolutionGuard {
   private under = 0;
 
   constructor(
-    private readonly slowMs = 25,
-    private readonly fastMs = 18,
-    private readonly floor = 0.7,
+    private readonly slowMs = 34,
+    private readonly fastMs = 24,
+    private readonly floor = 0.85,
     private readonly step = 0.1,
   ) {}
 

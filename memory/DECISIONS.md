@@ -2415,3 +2415,27 @@ Template:
 - **Status:** accepted (perf plan item 10, first part)
 - **Decision:** when dynamic resolution has sat at its floor (0.7) for 30 s on Medium or High, a tip suggests the Low preset, once per browser (`ecoclash.lowHint`).
 - **Waits for the laptop:** retuning the presets to the measured budget. `?perf=1` on the reference laptop, Mid/Medium and Large/High at minute 22, gives the figures.
+
+## D-209 · 2026-10-06 · Sharp image back: resolution guard for emergencies only (branch `optimization-v3`)
+- **Status:** accepted (user: water, shores and ground looked degraded after the perf pass)
+- **Cause:** the D-200 guard stepped down under 40 fps but only recovered above 55 fps. At 45 fps on Large/High it sat at 0.7 for good. Medium had also been cut to 1× pixels.
+- **Decision:**
+  - The guard steps down only under 30 fps (34 ms), to a floor of 0.85, and recovers under 24 ms. At 40–60 fps the image stays at full resolution.
+  - Medium's pixel-ratio cap is 1.25 (it was 1.5 before D-200, and 1 after it).
+
+## D-210 · 2026-10-06 · Crisp shores, no plants in the water (branch `optimization-v3`)
+- **Status:** accepted (user: confused shores, plants clipping through the water)
+- **Decision:**
+  - **Water edge:** water opacity is full within 8 cm of depth (it faded over 35 cm, which spread over metres on flat shores).
+  - **Bed:** the ground shader darkens and cools the bed under the water from its own height, crisp at any resolution. A pale waterline was tried and dropped: on gentle beaches it read as a path.
+  - **Herbs:** no tuft shows where its root is under water (+3 cm).
+  - **Land plants:** a plant whose spot is under water (+5 cm) is left out. Bank cells dip into the river, and half-sunk shrubs clipped through the surface. Water plants (W family) and lily pads keep their place.
+
+## D-211 · 2026-10-06 · An organic ground and leaf-green grass (branch `optimization-v3`)
+- **Status:** accepted (user: a flat, copy-pasted ground texture; lime grass)
+- **Decision:**
+  - **Ground:**
+    - each noise scale is sampled turned by its own angle, so the tiles never line up;
+    - two broad noises drift the soil hue between ochre, grey-brown and red loam;
+    - an emboss gives depth: each of the clod and grit scales against itself a little toward the sun. That costs 2 extra texture reads per ground pixel.
+  - **Grass:** `#3f692b` (was `#8bb356`), with a softer tip highlight (0.62–1.02, was 0.7–1.15).

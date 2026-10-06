@@ -34,7 +34,7 @@ export const LICHEN = {
   radius: [0.18, 0.35],
   dome: 0.035,
   lift: 0.015,
-  share: 0.25, // D-154: half the lichen and moss patches (was 0.5)
+  share: 0.125, // D-154, D-168: a quarter of the patches of 0.5
   patch: 2,
 } as const;
 /** Wildflowers (D-151): heads per tuft, head radius and height (m), how far heads stand from

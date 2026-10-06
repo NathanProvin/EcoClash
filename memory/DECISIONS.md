@@ -1978,3 +1978,14 @@ Template:
   - the build bar's family tiles keep the family pictograms;
   - a dropped `.webp` still takes precedence (D-048).
 - **Test:** every species of the stat sheet has a glyph inside its box.
+
+## D-168 · 2026-10-06 · Bigger small-animal caps, wider herbs, fewer lichen patches
+- **Status:** accepted (user, Alpha 2)
+- **Decision:**
+  - Caps of the 12 small animals ×2: earthworms and fungi 160; grasshoppers, slugs, caterpillars, bark beetles, larvae and frog 120; rabbits, bank vole, red squirrel and roach 80.
+  - Expansion caps of herbs and undergrowth ×1.5: lichen and grasses 0.75, wildflowers, nettle and bramble 0.3, ferns 0.45.
+  - Lichen and moss patches at 0.125 of the grass tufts (render).
+- **Bench** (normal mirror, 30 seeds):
+  - median end 27:20 (was 25:30), 5 unfinished;
+  - swarm members at 10 min 280 (were 140);
+  - units 6 at 10 min and 17 at 20 min: swarms now share the food.

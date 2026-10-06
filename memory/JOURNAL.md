@@ -733,3 +733,15 @@
 
   Checks green (check, lint, 123 tests). Browser: the leaf cursor is computed on the map canvas; the wind shares rotate.
 - **Next:** the user listens; then the gameplay balance pass for Alpha 1.1.
+
+## 2026-10-06 (7) · Bigger maps and the food-web rework (D-186…D-189)
+- **Done:**
+  - Mid 38 and Large 56 maps;
+  - the food-web deep dive and rework: hunter hunters (hawk, wildcat, eagle-owl), the weasel, cheap counters, diets on tier bands, tier fixes, and a harmony test;
+  - bot plan and tutorial updated;
+  - hard bot income 1.5.
+
+  All checks green: Rust, WASM hash, relay, `cli:check`, Python, client.
+
+  Bench: first hunter 6:10, 26 units at 10 min, mirror end 25:20, ladder 89 % / 100 %.
+- **Next:** the user's playtest (new species in the tech tree; Large maps' fps on High), then push Alpha 1.1.

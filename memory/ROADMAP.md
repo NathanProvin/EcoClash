@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-06: Alpha 2 polish and Alpha 1.1 sound (D-158…D-185) done locally, not pushed. Next: the user listens, then the gameplay balance pass, then push Alpha 1.1; then online multiplayer (M6a).
+- **Now:** 2026-10-06: Alpha 2 polish, Alpha 1.1 sound, bigger maps and the food-web rework (D-158…D-189) done locally, not pushed. Next: the user playtests, then push Alpha 1.1; then online multiplayer (M6a).
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-10-06

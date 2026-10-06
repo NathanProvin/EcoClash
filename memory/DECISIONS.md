@@ -2139,3 +2139,56 @@ Template:
 
   The roster rework (D-187) follows.
 - **Risk:** 56² has 1.6× the cells of 44²; Large on High needs a check on the reference laptop.
+
+## D-187 · 2026-10-06 · Food-web rework: cheap counters, hunter hunters, tier harmony
+- **Status:** accepted (user: harmony between cheap early raids and affordable defence; predators of predators; no tier weaker than the one below; eaters inversely proportional to tier and cost)
+- **Flaws found:**
+  - Counters cost 5–15× the raids they answered: the great tit's path was 5 500 against grasshoppers' 600, the fox's 16 500 against rabbits' 1 600.
+  - The fox sat behind the kestrel, which didn't eat rabbits.
+  - Late grazers (beaver, bison, red deer, boar) had a single eater that a 25-min match never reached.
+  - No land hunter had a predator.
+  - Five cheap species had one eater.
+  - The P2 marten (t3) was weaker than the fox (t2); the chestnut (t2) yielded less than the oak (t1).
+- **Decision** (`data/species.toml`):
+  - **New family S, "Hunter hunters":**
+    - hawk (the kestrel, renamed; covers kestrel, hobby and sparrowhawk): tits, voles, grasshoppers;
+    - wildcat: weasels, hawks, squirrels;
+    - eagle-owl: foxes, hawks, herons.
+  - **Weasel** replaces the kestrel as P2 tier 1: voles, rabbits, tits.
+  - **Cheaper hunters:**
+    - great tit 800 (lives on meadows too);
+    - fox 4 000 (meadows too);
+    - lynx, wolf and bear 6 000 / 9 000 / 14 000;
+    - water hunters 2 500 / 4 500 / 8 000.
+  - **Diets rebalanced** so the eater counts follow the tier bands (gamerules §4.3).
+  - **Rule-2 fixes:** marten body 3 500; chestnut yield 0.85, k_max 62 000.
+  - **Sim:** predator diets are `u64` masks (the hash is unchanged), and the fauna limit is 64.
+  - **Guard test:** `sim-core/tests/food_web.rs` checks both rules.
+  - **Client:**
+    - family name, pictogram (an owl face) and food-web slot;
+    - forms and silhouettes for the weasel, wildcat and eagle-owl;
+    - voices: hawk "kee-kee", eagle-owl hoot, wildcat yowl, weasel chitter;
+    - an S unlock motif.
+
+## D-188 · 2026-10-06 · Bot plan and tutorial follow the roster
+- **Status:** accepted
+- **Decision:**
+  - The bot unlocks the great tit and weasel right after the first grazers, the hawk in the shrub phase, then the fox, wildcat, lynx, marten, eagle-owl and wolf.
+  - The tutorial's defence step asks only for the great tit (need 1 500, was 7 000 with Elder).
+
+## D-189 · 2026-10-06 · Bench after the rework; hard bot income 1.5
+- **Status:** accepted
+- **Bench** (38², 30 seeds):
+
+  | Marker | Old roster | New roster |
+  |---|---|---|
+  | First hunter | 11:34 (never 3) | 6:10 (never 0) |
+  | Units at 10 min | 15 | 26 |
+  | Median end, normal mirror | 27:52 (10 unfinished) | 25:20 (1 unfinished) |
+
+  Top calls: rabbits, grasshoppers, earthworms, great tit, weasel.
+- **Ladder:**
+  - With cheap counters, hard (income 2.0) beat normal 27 of 28 (96 %); 1.8 still gave 96 %.
+  - `[bots] income` for hard 2.0 → 1.5: hard beats normal 25 of 28 (89 %), median end 20:57.
+  - Normal beats easy 18 of 18.
+- **Open:** match length vs hard (about 21 min) is shorter than the mirror; watch it in playtests.

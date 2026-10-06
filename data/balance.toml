@@ -24,7 +24,7 @@ decay_to_s = 2700        # ... and ends at 45 min (D-148)
 # Bot difficulty (D-143): the bots' income factor by level (easy, normal, hard); humans earn 1.
 # With play quality (easy plays at home, hard adds drops and catastrophes) it makes the ladder.
 [bots]
-income = [1.0, 1.3, 2.0]
+income = [1.0, 1.3, 1.5]
 
 [agents]
 max_agents = 2000        # §5.4 budget; per player: half

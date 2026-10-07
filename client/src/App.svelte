@@ -80,7 +80,10 @@
   let perfWorst = 0;
   const LIVE = "live match";
   /** The online relay (D-219): VITE_RELAY_URL in a deploy; the local relay (`npm run relay`) else. */
-  const RELAY: string = import.meta.env.VITE_RELAY_URL || "ws://localhost:8787";
+  // Tolerates a pasted https:// address or a trailing slash (else the room path becomes "//CODE").
+  const RELAY: string = (import.meta.env.VITE_RELAY_URL || "ws://localhost:8787")
+    .replace(/\/+$/, "")
+    .replace(/^http/, "ws");
   let viewer: Viewer | undefined;
   let error = $state("");
   // The HUD's tick: whole ticks only, so the bars re-render at the sim's 10 Hz, not every frame

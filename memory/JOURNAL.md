@@ -856,3 +856,12 @@
   - `alpha-1.2-multiplayer-foodweb` merged into main (`d782deb`);
   - CI is green, and both deploys ran: Cloudflare Pages and the relay Worker.
 - **Next:** playtest feedback; M6 leftovers (replays, pause, state dumps, a sim-side resign).
+
+## 2026-10-07 (4) · Relay URL fix
+- **Done:**
+  - Hosting failed with "cannot reach the relay at https://…workers.dev//BKLJA".
+  - Cause: `RELAY_URL` ended with `/`. The room path became `//CODE`, and the Worker answered 400 "bad room code" (checked with curl: 400 with two slashes, 101 with one).
+  - The client now strips trailing slashes and maps `http(s)` to `ws(s)` (`App.svelte`). The README troubleshooting table has a new row.
+
+  Client check and lint green.
+- **Next (user):** set `RELAY_URL` to `wss://ecoclash-relay.nanonathcry2.workers.dev` (optional now) and let CI redeploy.

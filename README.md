@@ -137,6 +137,7 @@ Open a pull request on GitHub, wait for CI to pass, then merge into `main` (or a
 |---|---|
 | "cannot reach the relay at ws://localhost:8787/…" on the live site | The site was built without `VITE_RELAY_URL`: set the `RELAY_URL` variable (step 4) and push or rerun the workflow. |
 | "cannot reach the relay at wss://…" | Typo in `RELAY_URL`, or the relay is not deployed: open its `https://` address (step 3). |
+| "cannot reach the relay at …workers.dev//CODE" (two slashes) | `RELAY_URL` ends with `/`: set it to `wss://ecoclash-relay.<name>.workers.dev` with no trailing slash. Builds since this fix strip the slash themselves. |
 | "refused: a different game version from the host" | The two players run different deploys: both reload the page (Ctrl+F5) on the same URL. |
 | "room full" | That code already has two players, or its match is over: host a new match. |
 | CI step "Deploy the relay…" skipped | `RELAY_URL` is not set (step 4). |

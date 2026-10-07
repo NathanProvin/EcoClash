@@ -25,7 +25,7 @@
   // .env (VITE_FEEDBACK_URL); a dev server shows "dev" and no link.
   const BUILD: string = import.meta.env.VITE_BUILD ?? "dev";
   /** The release shown on the main menu (D-217). */
-  const VERSION = "Alpha 1.1";
+  const VERSION = "Alpha 1.2";
   const FEEDBACK: string | undefined = import.meta.env.VITE_FEEDBACK_URL || undefined;
 
   let {

@@ -343,6 +343,7 @@ Quality presets (low / medium / high; shadows apply from the next match, D-133):
   - Disconnect: the missing player loses (v1). Resign is a command.
   - Pause: a command that both players must confirm.
 - **Desync:** the hash mismatches are logged with the tick, and the match ends. A debug build dumps both states for diffing.
+- **Built (Alpha 1.2, D-219…D-221):** `relay/room.mjs` (one room logic), wrapped by `relay/server.mjs` (local) and `relay/worker.mjs` (Cloudflare Worker, a Durable Object per room code); the `hello` handshake (build, balance hash; the host sets seed and size); the Multiplayer menu (host, join by code or `?join=` link); a leaver forfeits, a peer silent past `stall_timeout_s` is dropped, a desync voids the match.
 - **Built (M3.5, D-062):** `relay/server.mjs` (one room of two, turns → bundles, hash compare), `client/src/net/lockstep.ts` (shared by the worker and the headless test), `?relay=` in the client, and `npm run relay:test` in CI. Still M6: deployment, lobby and handshake, the stall timeout and disconnect rules, replays, state dumps.
 - **Handshake:** peers exchange build version + balance hash + seed before the match. A mismatch refuses to start.
 - **Cheating:** lockstep gives every client the full state (maphack is possible). This is accepted for v1.

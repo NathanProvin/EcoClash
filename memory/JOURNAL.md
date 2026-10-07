@@ -819,3 +819,23 @@
 
   Checks green; the overview looked right in the browser.
 - **Next:** the user's fps check, then merge and deploy Alpha 1.1.
+
+## 2026-10-07 · Alpha 1.2: the food pyramid and online 1v1, branch `alpha-1.2-multiplayer-foodweb` (D-218…D-221)
+- **Measured first:**
+  - the new pyramid harness (grasses → rabbits → foxes → eagle-owls, one player, 128 cells) showed every hunter starving within 3 min;
+  - a kill fed 10 % of the prey's body: 60 energy for a fox against an upkeep of 9 per second.
+- **Done:**
+  1. Home hunting from the surplus, enemy prey first (sated hunters still take raiders), meals per hunter body (`kill_meal` 0.9), 3 prey per superpredator, `food_reserve` 150. Pyramid: 8/8 seeds hold 66 : 19 : 6 on 128 cells (32 : 16.5 : 4.7 : 1.5), ±5–15 %. Bench: hunters stay alive (61–91 units at 20 min, from 0–9), far fewer hunter calls, win splits unchanged.
+  2. Relay rooms by code on Cloudflare Durable Objects (`relay/room.mjs` shared with the local server), `hello` handshake.
+  3. Multiplayer menu: host, join by code or invite link. Checked in two browser tabs.
+  4. Leaver forfeits, stall timeout, desync voids.
+  5. CI deploys the relay once `RELAY_URL` is set. "Alpha 1.2" on the menu.
+
+  All checks green (Rust, WASM hash, Python, client, relay; `wrangler dev` with two clients).
+- **Open:**
+  - the bench's "raids answered" now undercounts (standing hunters answer without a call);
+  - the pyramid fluctuates around its equilibrium rather than in wide Lotka–Volterra cycles;
+  - replays, pause and state dumps wait.
+- **Next (user):**
+  - Cloudflare: the API token needs Workers Scripts edit; then `npm run relay:deploy` (or CI) and set the repo variable `RELAY_URL` (wss://ecoclash-relay.<account>.workers.dev);
+  - a two-machine playtest, then merge to main and deploy.

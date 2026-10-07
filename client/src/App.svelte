@@ -814,8 +814,8 @@
         joining = !!relay;
         // The menu's setup (URL parameters win), or the tutorial's fixed match.
         const s = tutorial ? TUTORIAL_SETUP : withUrl(setup, location.search);
-        // ?size=N wins (tools); a lockstep match uses the balance grid, the same for both peers.
-        const size = relay ? 0 : Number(q.get("size") ?? MAP_SIZES[s.map]);
+        // ?size=N wins (tools); in a lockstep match the host's seed and size win (D-219).
+        const size = Number(q.get("size") ?? MAP_SIZES[s.map]);
         live = await Live.start(s.seed, size, s.sandbox, s.bot, relay, tutorial);
         joining = false;
         player = live.me; // view your own side

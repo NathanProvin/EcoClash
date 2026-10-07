@@ -45,7 +45,7 @@ function animalsOf(sim, player) {
 
 /** One headless player. With `cheat`, it also submits a command straight to its own sim at
  *  tick 1000, bypassing the relay: the kind of divergence lockstep must catch. */
-function player(url, { cheat = false } = {}) {
+function player(url, { cheat = false, build = "test" } = {}) {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url);
     const hashes = [];
@@ -75,10 +75,17 @@ function player(url, { cheat = false } = {}) {
       finish();
     };
     ws.onerror = reject;
+    ws.onopen = () => {
+      const balance = new Sim(BALANCE, SPECIES, 1n, N).balanceHash;
+      ws.send(JSON.stringify({ type: "hello", build, balance, seed: 7, size: N }));
+    };
+    ws.onclose = (e) => {
+      if (e.code === 4000) resolve({ refused: e.reason });
+    };
     ws.onmessage = (e) => {
       const m = JSON.parse(String(e.data));
       if (m.type === "start") {
-        sim = new Sim(BALANCE, SPECIES, BigInt(m.seed), N);
+        sim = new Sim(BALANCE, SPECIES, BigInt(m.seed), m.size);
         sim.setupPlant(1, "grasses", 8, 8, 3); // the same opening on every client
         sim.setupPlant(2, "grasses", 23, 23, 3);
         ls = new Lockstep(sim, m, (x) => ws.send(JSON.stringify(x)));
@@ -94,14 +101,15 @@ function player(url, { cheat = false } = {}) {
 }
 
 test("two players stay in sync for 5 minutes through the relay", async () => {
-  const relay = await startRelay({ seed: 7 });
-  const url = `ws://localhost:${relay.port}`;
+  const relay = await startRelay();
+  const url = `ws://localhost:${relay.port}/ABCDE`;
   const [a, b] = await Promise.all([player(url), player(url)]);
   await relay.close();
+  const st = relay.status("ABCDE");
   assert.equal(a.hashes.length, TICKS);
   assert.deepEqual(a.hashes, b.hashes, "identical hash at every tick");
-  assert.equal(relay.status.desync, null);
-  assert.ok(relay.status.checked >= TICKS / 10 - 1, `hash checks: ${relay.status.checked}`);
+  assert.equal(st.desync, null);
+  assert.ok(st.checked >= TICKS / 10 - 1, `hash checks: ${st.checked}`);
   assert.deepEqual([a.player, b.player].sort(), [1, 2]);
   // The orders really played: both players called animals and bought four cards.
   const fresh = [...new Sim(BALANCE, SPECIES, 1n, N).unlocked(1)].filter(Boolean).length;
@@ -112,11 +120,35 @@ test("two players stay in sync for 5 minutes through the relay", async () => {
 });
 
 test("a divergence is caught at the next hash check", async () => {
-  const relay = await startRelay({ seed: 7 });
+  const relay = await startRelay();
   const url = `ws://localhost:${relay.port}`;
   const [a, b] = await Promise.all([player(url, { cheat: true }), player(url)]);
   await relay.close();
-  const at = relay.status.desync?.tick;
+  const st = relay.status();
+  const at = st.desync?.tick;
   assert.ok(at > 1000 && at <= 1010, `desync reported at tick ${at}`);
   assert.equal(a.desync ?? b.desync, at, "the players were told");
+});
+
+test("a guest on another build is refused; the room stays open for the next", async () => {
+  const relay = await startRelay();
+  const url = `ws://localhost:${relay.port}/ROOM2`;
+  const host = new WebSocket(url);
+  await new Promise((ok) => (host.onopen = ok));
+  host.send(JSON.stringify({ type: "hello", build: "a", balance: "x", seed: 3, size: 24 }));
+  const odd = await player(url, { build: "b" });
+  assert.match(odd.refused, /game version/);
+  const started = new Promise((ok) => {
+    host.onmessage = (e) => {
+      const m = JSON.parse(String(e.data));
+      if (m.type === "start") ok(m); // after the refused guest's "left"
+    };
+  });
+  const guest = new WebSocket(url);
+  guest.onopen = () => guest.send(JSON.stringify({ type: "hello", build: "a", balance: "x" }));
+  const start = await started;
+  assert.deepEqual([start.type, start.player, start.seed, start.size], ["start", 1, 3, 24]);
+  host.close();
+  guest.close();
+  await relay.close();
 });

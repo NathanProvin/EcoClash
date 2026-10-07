@@ -2548,3 +2548,12 @@ Template:
   - **Grazer capacity:** `food_reserve` 300 → 150, so a grazer needs about 2 cells of its food.
   - **Measure:** `the_food_pyramid_holds_without_a_crash` (grasses → rabbits → foxes → eagle-owls, one player, 128 cells, 30 min, 8 seeds) and the `pyramid_report` (`PYRAMID=r,f,o` sets the start).
 - **Result:** every seed keeps every level, means 66 rabbits : 19 foxes : 6 owls on 128 cells (32 : 16.5 : 4.7 : 1.5), fluctuating ±5–15 % around the equilibrium. Bots: about 10× more hunters alive at 20 min and far fewer hunter calls; the bench's "raids answered" counts new hunter calls only, so it falls (85 → 60 %) when standing hunters do the job; win splits unchanged.
+
+## D-219 · 2026-10-07 · Online relay: rooms by code on Cloudflare Durable Objects, a handshake (M6, Alpha 1.2)
+- **Status:** accepted (user: Durable Objects, room code or invite link)
+- **Decision:**
+  - **One room logic:** `relay/room.mjs`, pure: seats, handshake, turns → bundles, hash compare. `server.mjs` (local Node, `npm run relay`, the tests) and `worker.mjs` (Cloudflare) both wrap it.
+  - **Rooms by code:** `wss://<relay>/<CODE>` (4–8 letters or digits). The Worker routes each code to its own Durable Object (`idFromName`); SQLite-backed class, free plan. Plain WebSockets, no hibernation: a room lives for its match.
+  - **Handshake:** each player's first message is `hello` {build, balance hash, seed, size}. The first in is the host: its seed and map size make the match (`start` carries both). A guest on another build or balance hash is refused (close code 4000, with the reason) and the seat frees up.
+  - `npm run relay:deploy` (wrangler, `relay/wrangler.toml`); `balance.toml` is bundled as text for the `[net]` rules.
+- **Checked:** `relay:test` (5-min sync, divergence caught, refusal); `wrangler dev` with two clients (start, bundles, a third client gets "room full").

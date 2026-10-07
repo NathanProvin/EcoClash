@@ -14,13 +14,16 @@ export interface SimLike {
   step(): string;
 }
 
-/** Client -> relay. */
+/** Client -> relay. The first message is `hello` (D-219): the host's sets the seed and map size;
+ *  a guest with another build or balance hash is refused (the socket closes with code 4000). */
 export type ToRelay =
-  { type: "turn"; tick: number; payloads: object[] } | { type: "hash"; tick: number; hash: string };
+  | { type: "hello"; build: string; balance: string; seed?: number; size?: number }
+  | { type: "turn"; tick: number; payloads: object[] }
+  | { type: "hash"; tick: number; hash: string };
 
 /** Relay -> client. */
 export type FromRelay =
-  | { type: "start"; seed: number; player: number; delay: number; hashEvery: number }
+  | { type: "start"; seed: number; size: number; player: number; delay: number; hashEvery: number }
   | { type: "bundle"; tick: number; turns: { player: number; payloads: object[] }[] }
   | { type: "desync"; tick: number }
   | { type: "left"; player: number };

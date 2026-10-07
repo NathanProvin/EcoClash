@@ -849,3 +849,10 @@
 
   Checks green.
 - **Next (user):** follow the README guide; then merge.
+
+## 2026-10-07 (3) · Alpha 1.2 released
+- **Done:**
+  - the user played several online matches between two machines without a problem;
+  - `alpha-1.2-multiplayer-foodweb` merged into main (`d782deb`);
+  - CI is green, and both deploys ran: Cloudflare Pages and the relay Worker.
+- **Next:** playtest feedback; M6 leftovers (replays, pause, state dumps, a sim-side resign).

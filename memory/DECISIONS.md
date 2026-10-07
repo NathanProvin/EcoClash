@@ -2588,3 +2588,17 @@ Template:
 - **Stall timeout:** `[net] stall_timeout_s` 10 → 30 s.
 - **End stinger:** `outcome` in `App.svelte` is now `$state.raw`. A proxied copy never equalled `live.result`, so it was reassigned every frame and the victory or defeat stinger replayed every 3.2 s. Checked in the browser: one play in over 8 s.
 - **Go-live guide:** README, "Going live: online multiplayer".
+
+## D-223 · 2026-10-07 · Beta art goal: a photorealistic diorama, as an experimental track
+- **Status:** accepted (user: photoreal diorama and realistic animated animals for the beta; leave low-poly; experimental, in parallel)
+- **Decision:**
+  - The beta targets a photorealistic macro diorama with realistic, animated animals, still in the browser (no install).
+  - It is built on its own track (branch `exp/photoreal`, behind a switch). It replaces low-poly as the default only after its gate: an oak and a rabbit, photoreal and animated, at 60 fps mid game and 45+ late game on the reference laptop, Medium preset.
+  - Low-poly stays the Low preset (integrated GPUs, mobile).
+  - Budgets, pipeline and tasks: ROADMAP "Experimental · Photoreal diorama".
+- **Why it can work in a browser:** the RTS camera shows most models at 20–40 px, so full detail is needed only close up. LODs and impostors carry the distance; KTX2 and meshopt keep the GPU memory and the downloads small; species stream after the menu; WebGPU is in every major desktop browser.
+- **Risks:**
+  - rigging quadrupeds, birds and insects (the hardest part);
+  - alpha-leaf overdraw on integrated GPUs;
+  - licences that forbid web redistribution;
+  - the late-game frame is CPU-bound today (D-214), which the extra per-instance animation work adds to.

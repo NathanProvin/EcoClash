@@ -29,6 +29,7 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 
 - **Platform:** runs in the browser (primary). Packaged later for Steam (Electron) and possibly Android (Capacitor).
 - **Visual identity:** "stylized realism", with a **macro diorama / nature documentary** look. It is not pixel art. Low-poly models, strong shaders, one dominant light.
+  - **Beta target (D-223, experimental, in parallel):** a **photorealistic diorama** with realistic, animated animals. It replaces low-poly once it passes its performance gate on the reference laptop. Until then, low-poly stays the default and the fallback (the Low preset). See ROADMAP "Experimental · Photoreal diorama".
 - **Core fantasy:** you do not command an army, you *cultivate a food web* and steer it.
 
 ---
@@ -248,7 +249,7 @@ Reference machine: the dev laptop, **Lenovo 83EQ: Intel i5-12450H (8 cores / 12 
 |---|---|
 | Sim tick at 32², 2 players, 1,500 agents | ≤ 8 ms on a single thread (in the Worker), on average; flora ticks (every 8 ticks) may spike, but must stay well below the 100 ms tick period |
 | Render | 60 fps on the "medium" preset, 30 fps floor on "low" |
-| Initial download (web) | ≤ 30 MB |
+| Initial download (web) | ≤ 30 MB (photoreal track, D-223: ≤ 15 MB before the menu; species assets stream afterwards) |
 | WASM memory | ≤ 512 MB |
 
 Optimisations, in order: algorithmic → multi-rate → chunk sleeping → WASM SIMD → multithreading (SharedArrayBuffer, which requires COOP/COEP headers; itch.io supports this via an option).
@@ -372,6 +373,7 @@ Each milestone ends with a playable or testable result and passing CI. The detai
 | M7-lite | Balance loop (D-073) | Bot-vs-bot batch runs and a report; pace, costs and victory thresholds tuned with playtest feedback |
 | Content | Terrain and species (D-073) | Seeded map generator, three biomes and their species, bot and balance updated |
 | M5b | Art pass | Art direction applied, glTF plants and animated animals, shader priorities 1–5, quality presets |
+| Exp-PR | Photoreal diorama (experimental, parallel; D-223) | One plant and one animal pass the gate on the reference laptop; then every species photoreal, streamed, with low-poly as the Low fallback |
 | M6 | Multiplayer | Deployed relay, lobby, desync detection, replays |
 
 ---

@@ -127,6 +127,36 @@ In this order:
 - [ ] Shader priorities 1–5 (wind, translucency, terrain blending, territory glow, post-processing), quality presets.
 - [ ] Brand and store art after the name (Q-011). `ASSETS_LICENSES.md` complete.
 
+## Experimental · Photoreal diorama (beta goal, in parallel; D-223)
+Branch `exp/photoreal`, behind a switch (Options, `?art=real`). Low-poly stays the default until the E3 gate passes.
+
+**Budgets.** Reference laptop (Intel UHD), Medium preset, 1,000+ animals.
+- **Frame targets:** scene ≤ 1.5 M triangles at most; 60 fps mid game, 45 fps or more late game.
+
+| Asset | LOD0 (≤ 15 m) | LOD1 (15–40 m) | Far | Textures (KTX2) | Download |
+|---|---|---|---|---|---|
+| Large mammal (deer, boar, bear) | 8–12 k tris | ~25 % | ~5 % (300–600 tris) | 1 atlas 1024² (2048² on High): colour + alpha, normal, ORM | ≤ 1.5 MB |
+| Small mammal, bird | 2–4 k | ~25 % | 150–300 | 512–1024² | ≤ 0.8 MB |
+| Insect, swarm | 300–800 | — | billboard | 256–512² | ≤ 0.3 MB |
+| Tree | 8–20 k (leaf cards) | 2–4 k | octahedral impostor beyond ~30 m | 1024–2048² | ≤ 2 MB |
+| Shrub, fern, nettle | 3–8 k | ~25 % | impostor | 1024² | ≤ 1 MB |
+| Herbs (grass, lichen, flowers) | textured alpha cards, instanced, density by LOD as now | | | atlas 1024² | ≤ 0.5 MB |
+| Ground | 4–6 tiling CC0 PBR sets blended by the fields | | | 1024² each | ≤ 6 MB |
+| Sky, light | HDRI 2k (or generated) | | | | ≤ 3 MB |
+
+- **Totals:** roster about 45–70 MB, streamed. Before the menu: ≤ 15 MB (code, WASM, ground, sky, tier-1 species).
+- **Animation:** baked skeletal animation textures (bone matrices per frame), one clip set per species (idle, walk, run, eat, plus a fall for drops), clip and phase per instance from the sim's state. Fallback: vertex-animation textures for LOD1 and beyond. The E3 prototype decides.
+
+**Tasks**, in order:
+- [ ] **E0 · Art bible and licences.** Macro-documentary references; scale, palette and light rules; a licence policy. A browser game ships its assets downloadable, so only CC0, CC-BY or licences that allow web redistribution. No Megascans: their free licence covers Unreal only. Every asset in `ASSETS_LICENSES.md`.
+- [ ] **E1 · Pipeline.** Git LFS for `assets-src/`, then `tools/assets/build.py`. In Blender (`bpy`): clean up, make the LODs, bake the atlas and the impostor, export glTF. Then `gltf-transform` (meshopt, KTX2). A manifest with the sizes; CI fails a species over its budget.
+- [ ] **E2 · Runtime.** An asset manifest and per-species lazy loading, prefetched in tech-tree order. The current low-poly model shows until the asset arrives. `GltfPlants` behind `PlantStyle` and `GltfAnimals` behind `AnimalView` (the D-072 seams).
+- [ ] **E3 · Vertical slice and gate.** The oak (largest plant) and the rabbit (most numerous animal) photoreal and animated, plus the photoreal ground and sky. Measure with `?perf=1` on the laptop: 1,000 rabbits and 300 oak cells. **Gate:** 60 fps mid game, 45+ late game on Medium. Pass → continue. Fail → adjust the budgets, or keep photoreal for High only.
+- [ ] **E4 · Animation system:** clip blending and states from the sim (grazing, fleeing, hunting, falling).
+- [ ] **E5 · Light and post:** HDRI, leaf translucency, ambient occlusion (High), grading, depth of field when zoomed in.
+- [ ] **E6 · Roll-out per family,** most seen first: L1 herbs → H1 grazers → P2 hunters → trees and shrubs → the rest (45 species).
+- [ ] **E7 · Presets:** High photoreal; Medium photoreal with reduced LODs; Low the low-poly fallback (integrated GPUs, mobile).
+
 ## M6 · Multiplayer (after the single player is fun)
 - [x] Relay on Durable Objects (D-219): `relay/worker.mjs`, `npm run relay:deploy`, CI deploy once `RELAY_URL` is set; `.env.example` with `VITE_RELAY_URL`. Going live needs the user's Cloudflare setup.
 - [x] Lobby + handshake (D-219, D-220): host a match / join by code or `?join=` link; build, balance hash, seed and size.

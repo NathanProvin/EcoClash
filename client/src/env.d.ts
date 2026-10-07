@@ -6,4 +6,6 @@ interface ImportMetaEnv {
   readonly VITE_BUILD?: string;
   /** Where the "Send feedback" link on the main menu points; no link when unset (D-157). */
   readonly VITE_FEEDBACK_URL?: string;
+  /** The online relay's WebSocket URL (D-219); the local relay when unset. */
+  readonly VITE_RELAY_URL?: string;
 }

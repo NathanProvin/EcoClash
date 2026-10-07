@@ -20,16 +20,30 @@ export interface MatchSetup {
   map: MapSize;
 }
 
-/** The Play menu's modes (D-137): a sandbox (everything unlocked and free, no opponent) or a
- *  match against a bot. Multiplayer and ranked come later. */
-export type Mode = "sandbox" | "ai";
+/** The Play menu's modes (D-137): a sandbox (everything unlocked and free, no opponent), a match
+ *  against a bot, or an online 1v1 (D-219). Ranked comes later. */
+export type Mode = "sandbox" | "ai" | "online";
 
-/** The setup for a mode: the sandbox has no opponent; the AI mode keeps the chosen bot level
- *  (normal if none was chosen). */
+/** The setup for a mode: the sandbox and online matches have no bot; the AI mode keeps the
+ *  chosen bot level (normal if none was chosen). */
 export function forMode(setup: MatchSetup, mode: Mode): MatchSetup {
-  return mode === "sandbox"
-    ? { ...setup, sandbox: true, bot: "none" }
-    : { ...setup, sandbox: false, bot: setup.bot === "none" ? "normal" : setup.bot };
+  if (mode === "ai")
+    return { ...setup, sandbox: false, bot: setup.bot === "none" ? "normal" : setup.bot };
+  return { ...setup, sandbox: mode === "sandbox", bot: "none" };
+}
+
+/** Room code letters: no look-alikes (I, O). */
+const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+/** A new online room code (D-219): 5 letters. */
+export function roomCode(rand: () => number = Math.random): string {
+  return Array.from({ length: 5 }, () => CODE_LETTERS[Math.floor(rand() * 24)]).join("");
+}
+
+/** A typed room code, cleaned: upper case, letters and digits only; "" if too short or long. */
+export function cleanCode(typed: string): string {
+  const code = typed.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return code.length >= 4 && code.length <= 8 ? code : "";
 }
 
 export const DEFAULT_SETUP: MatchSetup = { bot: "normal", seed: 1, sandbox: false, map: "mid" };

@@ -2557,3 +2557,13 @@ Template:
   - **Handshake:** each player's first message is `hello` {build, balance hash, seed, size}. The first in is the host: its seed and map size make the match (`start` carries both). A guest on another build or balance hash is refused (close code 4000, with the reason) and the seat frees up.
   - `npm run relay:deploy` (wrangler, `relay/wrangler.toml`); `balance.toml` is bundled as text for the `[net]` rules.
 - **Checked:** `relay:test` (5-min sync, divergence caught, refusal); `wrangler dev` with two clients (start, bundles, a third client gets "room full").
+
+## D-220 · 2026-10-07 · Multiplayer lobby: host a match, join by code or invite link (M6, Alpha 1.2)
+- **Status:** accepted (user: room code / invite link)
+- **Decision:**
+  - Play → **Multiplayer** (no longer "soon"): the host picks the map size and seed and clicks "Host a match", which makes a 5-letter room code (no I or O). A friend types the code (4–8 letters or digits) and clicks Join, or opens the invite link `?join=CODE`, which goes straight into the room.
+  - The waiting panel shows the code, the link and a "Copy invite link" button.
+  - The relay is `VITE_RELAY_URL` (`.env.example`), or `ws://localhost:8787` when it is unset; `?relay=` still wins (dev).
+  - After an online match, "Play again" returns to the menu: a room serves one match.
+  - A refused join or an unreachable relay shows its error.
+- **Checked:** two browser tabs on the local relay: hosted, joined by link, both running the same match (P1 and P2) in step.

@@ -8,7 +8,7 @@
   import { onDestroy, onMount } from "svelte";
   import { SvelteMap, SvelteSet } from "svelte/reactivity";
   import { strategicGroups } from "./game/groups";
-  import { loadSetup, MAP_SIZES, saveSetup, withUrl } from "./game/setup";
+  import { cleanCode, forMode, loadSetup, MAP_SIZES, saveSetup, withUrl } from "./game/setup";
   import { ALL_TIPS, loadSeen, saveSeen, TIPS, TipWatch } from "./game/tips";
   import { CATASTROPHE_LOOK } from "./game/catastrophes";
   import { advance, DEFEND_TITLE, OBJECTIVES, RAID, topUp, TUTORIAL_SETUP } from "./game/tutorial";
@@ -79,6 +79,8 @@
   let perfStart = 0;
   let perfWorst = 0;
   const LIVE = "live match";
+  /** The online relay (D-219): VITE_RELAY_URL in a deploy; the local relay (`npm run relay`) else. */
+  const RELAY: string = import.meta.env.VITE_RELAY_URL || "ws://localhost:8787";
   let viewer: Viewer | undefined;
   let error = $state("");
   // The HUD's tick: whole ticks only, so the bars re-render at the sim's 10 Hz, not every frame
@@ -91,6 +93,8 @@
   // The human's side: P1 against the bot (D-060); in a relayed match, the seat the relay gave.
   const me = $derived<1 | 2>(live?.me ?? 1);
   let joining = $state(false); // relayed: waiting for the other player to join
+  let room: string | undefined = $state(); // the online room code (D-219)
+  let copied = $state(false); // the invite link was copied
   /** The players' names, P1 then P2 (D-215): on the tug-of-war bar. */
   let names = $state<[string, string]>(["Player 1", "Player 2"]);
   let stalled = $state(false); // relayed: waiting for the other player's turn
@@ -810,7 +814,8 @@
       if (name === LIVE) {
         // ?seed=N&size=N (0 = the balance grid size); a fixed default seed keeps runs reproducible
         const q = new URLSearchParams(location.search);
-        const relay = q.get("relay") ?? undefined; // ?relay=ws://host:port: lockstep (D-062)
+        // ?relay=ws://host:port (dev, D-062), or the online room on the deployed relay (D-219).
+        const relay = q.get("relay") ?? (room ? `${RELAY}/${room}` : undefined);
         joining = !!relay;
         // The menu's setup (URL parameters win), or the tutorial's fixed match.
         const s = tutorial ? TUTORIAL_SETUP : withUrl(setup, location.search);
@@ -846,7 +851,19 @@
       select([]);
       inspect(null);
     } catch (e) {
+      joining = false;
       error = String(e);
+    }
+  }
+
+  /** The invite link for the online room (D-219). */
+  const inviteLink = (code: string) => `${location.origin}${location.pathname}?join=${code}`;
+  async function copyInvite(code: string) {
+    try {
+      await navigator.clipboard.writeText(inviteLink(code));
+      copied = true;
+    } catch {
+      copied = false; // no clipboard access: the link stays readable on screen
     }
   }
 
@@ -1162,6 +1179,13 @@
       Object.assign(window, { ecoAudio: audio, ecoAmbience: ambience, ecoMusic: music });
     raf = requestAnimationFrame(frame);
     void start();
+    // An invite link (?join=CODE, D-219): straight into that online room.
+    const invited = cleanCode(new URLSearchParams(location.search).get("join") ?? "");
+    if (invited) {
+      room = invited;
+      setup = forMode(setup, "online");
+      void launch();
+    }
     if (perfBench) {
       showPerf = true;
       setup = {
@@ -1342,7 +1366,16 @@
       />
     {/if}
   {/if}
-  {#if joining || (stalled && live && !outcome)}
+  {#if joining && room}
+    <div class="panel waiting invite" role="status">
+      <p>Waiting for the other player to join…</p>
+      <p class="code">Room <strong>{room}</strong></p>
+      <p class="link">{inviteLink(room)}</p>
+      <button class="btn" onclick={() => room && copyInvite(room)}>
+        {copied ? "Link copied" : "Copy invite link"}
+      </button>
+    </div>
+  {:else if joining || (stalled && live && !outcome)}
     <p class="panel waiting" role="status">
       {joining ? "Waiting for the other player to join…" : "Waiting for the other player…"}
     </p>
@@ -1355,7 +1388,7 @@
       series={replay.meta.series}
       dt={replay.meta.dt}
       onMenu={toMenu}
-      onAgain={() => launch(tutorial)}
+      onAgain={() => (room ? toMenu() : launch(tutorial))}
       onWatch={() => (endDismissed = true)}
     />
   {/if}
@@ -1383,8 +1416,18 @@
         tipsOn = on;
         saveSeen(on ? new Set() : ALL_TIPS()); // on: every tip again; off: none
       }}
-      onStart={() => launch()}
-      onTutorial={() => launch(true)}
+      onStart={() => {
+        room = undefined;
+        void launch();
+      }}
+      onOnline={(code) => {
+        room = code;
+        void launch();
+      }}
+      onTutorial={() => {
+        room = undefined;
+        void launch(true);
+      }}
       onSpecies={() => void openCatalog().catch((e: unknown) => (error = String(e)))}
     />
     {#if catalog}
@@ -1531,6 +1574,25 @@
     transform: translate(-50%, -50%);
     margin: 0;
     font-weight: 700;
+  }
+  .invite {
+    display: grid;
+    gap: 8px;
+    justify-items: center;
+    text-align: center;
+  }
+  .invite p {
+    margin: 0;
+  }
+  .invite .code strong {
+    font-size: 1.6em;
+    letter-spacing: 0.15em;
+  }
+  .invite .link {
+    font-weight: 400;
+    font-size: 0.85em;
+    opacity: 0.8;
+    user-select: all;
   }
   .error {
     position: absolute;

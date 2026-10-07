@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SETUP, forMode, loadSetup, randomSeed, saveSetup, withUrl } from "./setup";
+import {
+  cleanCode,
+  DEFAULT_SETUP,
+  forMode,
+  loadSetup,
+  randomSeed,
+  roomCode,
+  saveSetup,
+  withUrl,
+} from "./setup";
 
 function memory() {
   const data = new Map<string, string>();
@@ -15,6 +24,7 @@ describe("match setup", () => {
     expect(forMode(hard, "sandbox")).toEqual({ ...hard, sandbox: true, bot: "none" });
     expect(forMode(hard, "ai")).toEqual({ ...hard, sandbox: false }); // keeps the level
     expect(forMode({ ...hard, bot: "none" }, "ai").bot).toBe("normal");
+    expect(forMode(hard, "online")).toEqual({ ...hard, sandbox: false, bot: "none" });
   });
 
   it("remembers the chosen setup, and falls back to the default on bad data", () => {
@@ -46,5 +56,18 @@ describe("match setup", () => {
       const s = randomSeed();
       expect(s >= 1 && s <= 999_999 && Number.isInteger(s)).toBe(true);
     }
+  });
+});
+
+describe("online room codes (D-219)", () => {
+  it("are 5 letters without look-alikes", () => {
+    const code = roomCode();
+    expect(code).toMatch(/^[A-HJ-NP-Z]{5}$/);
+    expect(roomCode(() => 0.999)).toBe("ZZZZZ");
+  });
+  it("are cleaned when typed", () => {
+    expect(cleanCode(" abc-de ")).toBe("ABCDE");
+    expect(cleanCode("ab")).toBe("");
+    expect(cleanCode("ABCDEFGHI")).toBe("");
   });
 });

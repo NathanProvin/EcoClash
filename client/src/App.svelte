@@ -100,7 +100,9 @@
   let stalled = $state(false); // relayed: waiting for the other player's turn
   const mine = $derived(!!live && player === me); // viewing own side: orders allowed
   let techOpen = $state(false);
-  let outcome: Outcome | null = $state(null); // the verdict of a live match
+  // The verdict of a live match. Raw: a proxied copy never equals live.result, so it was
+  // reassigned every frame and the end stinger replayed in a loop.
+  let outcome: Outcome | null = $state.raw(null);
   let endDismissed = $state(false); // "keep watching" hides the end screen
   let inMenu = $state(true); // the main menu covers everything until a game is launched
   let quality: Quality = $state(loadQuality()); // render preset (D-056)

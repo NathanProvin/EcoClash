@@ -205,6 +205,18 @@ pub struct FaunaRules {
     /// (grazers, decomposers), and huntable prey in sight per predator.
     pub food_reserve: f64,
     pub prey_per_predator: u32,
+    /// Prey in sight per superpredator (family S, Alpha 1.2); absent: `prey_per_predator`.
+    #[serde(default)]
+    pub prey_per_superpredator: Option<u32>,
+    /// Hunting own prey (Alpha 1.2): the catch chance on the owner's own animals. Absent (older
+    /// files): no home hunting.
+    #[serde(default)]
+    pub own_catch: f64,
+    /// A kill restores this share of the hunter's body (Alpha 1.2), scaled by the prey's diet
+    /// rank, so a few kills feed a hunter whatever the prey's size. Absent (older files): the
+    /// `transfer` share of the prey's body.
+    #[serde(default)]
+    pub kill_meal: Option<f64>,
     /// A predator catches prey up to this many cells away, on each axis (D-066).
     pub strike_radius: u32,
     /// Chance of a kill per flora tick when prey is in reach (D-066).
@@ -689,6 +701,8 @@ impl Balance {
             fa.food_reserve >= 0.0
                 && fa.lockout_s >= 0.0
                 && (0.0..=1.0).contains(&fa.catch_chance)
+                && (0.0..=1.0).contains(&fa.own_catch)
+                && fa.kill_meal.is_none_or(|m| m > 0.0)
                 && fa.handling_s >= 0.0
                 && fa.wobble >= 0.0
                 && (0.0..1.0).contains(&fa.wobble_keep)
@@ -696,7 +710,7 @@ impl Balance {
                 && fa.wander_radius >= 0.0
                 && fa.steer > 0.0
                 && fa.steer <= 1.0,
-            "[fauna] food_reserve >= 0, catch_chance in [0, 1], handling_s >= 0, wobble >= 0, wobble_keep in [0, 1), scatter in [0, 0.5), wander_radius >= 0, steer in (0, 1]"
+            "[fauna] food_reserve >= 0, catch_chance and own_catch in [0, 1], kill_meal > 0, handling_s >= 0, wobble >= 0, wobble_keep in [0, 1), scatter in [0, 0.5), wander_radius >= 0, steer in (0, 1]"
                 .into(),
         )?;
         let y = &self.fauna.diet_yield;

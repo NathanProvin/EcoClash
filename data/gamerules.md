@@ -289,6 +289,8 @@ All dead organisms, plants and animals, feed `Dead biomass`.
 ### 6.2 Feeding on agents (predators)
 
 - Predators attack enemy agents whose species is in their diet. Damage reduces health, and a killed agent becomes dead biomass.
+- **Home hunting (D-218):** with no enemy prey in reach, a hungry predator takes its owner's own prey of its diet, at `own_catch`, only from the surplus: while the prey in its sight cover `prey_per_predator` per hunter. Each player thus keeps a food pyramid at home (about 32 plant cells : 16 grazers : 4 hunters : 1–2 superpredators) that cycles without crashing. Enemy prey always comes first, sated or not.
+- **Meals (D-218):** a kill restores `kill_meal` of the hunter's body (by diet rank), whatever the prey's size.
 - Predators cannot attack species outside their diet. A fox ignores slugs, for example.
 - **Refuge (D-023):** a player's small fauna inside own cells with dense hawthorn & blackthorn or bramble, or in the water dense cattails (D-125), cannot be hunted. Predators are otherwise kept in check by their own predators (§5.2).
 - **Dead trees (D-127):** trees can die of old age (a small chance, a mean life of 1 h of ecology time; D-152). The dead tree stays standing; while it stands, no tree can grow in that cell. It rots away slowly, and recyclers clear it faster, the black woodpecker best of all (dead wood is its primary food).
@@ -314,9 +316,9 @@ A species can be spawned only when **all** of the following hold:
 - **Reproduction (D-023):** an animal whose energy crosses a threshold reproduces, which costs energy, under a per-player population cap. Players still spawn cards. The numbers below are [Proposed].
 - **Carrying capacity (author's decision, D-066):** a birth also needs food nearby. Within the animal's sight, the food must cover every animal of the same role with an overlapping diet, plus the newborn:
   - grazers and decomposers: `food_reserve` seconds of bites each, from their diet plants (any land) or the litter, shared with the other player's animals that eat the same;
-  - predators: `prey_per_predator` huntable enemy prey each, counted over their owner's predators.
+  - predators: `prey_per_predator` huntable prey each (own and enemy; superpredators `prey_per_superpredator`), counted over their owner's predators (D-218).
   - The per-player and per-species caps stay only as safety ceilings. Populations then rise and fall with their food: prey with the plants, predators with the prey, in the manner of Lotka–Volterra cycles.
-- **Hunting (D-066):** a hungry predator (below full energy; a sated one does not hunt) with huntable prey within `strike_radius` cells kills one per flora tick with chance `catch_chance`.
+- **Hunting (D-066, D-218):** a predator with huntable enemy prey within `strike_radius` cells kills one per flora tick with chance `catch_chance`; own prey only when hungry (below full energy) and from the surplus, with chance `own_catch`.
 - **Grazing at home (D-066):** herbivores bite their owner's plants at `own_graze` of a full bite, but gain the energy of a full bite, so they live and breed at home without eating their owner's economy.
 - **Raids (D-160):** an attack order holds until the area around its goal is bare: the raiders graze every enemy plant they eat in sight, and only then go free. A move order ends on arrival.
 - **Trampling (D-152):** on enemy land, plants lose `graze_damage` (4) times what a grazer eats; the extra is trampled to litter. Raids break fronts faster, but the raiders are not fed more.

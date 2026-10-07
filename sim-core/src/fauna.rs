@@ -90,11 +90,15 @@ pub struct FaunaParams {
     refuge_cover: i64,
     /// Local carrying capacity (D-066): flora ticks of bites per animal, prey per predator.
     reserve: i64,
-    prey_per: i64,
+    prey_per: Vec<i64>,
     /// Catch distance (cells, each axis).
     strike: usize,
     /// Chance of a kill per flora tick (Q16).
     catch: i64,
+    /// Hunting own prey (Alpha 1.2): catch chance (Q16). A kill restores `meal` (Q16) of the
+    /// hunter's body; 0: the transfer share of the prey's body.
+    own_catch: i64,
+    meal: i64,
     /// Flora ticks a predator eats after a kill before it can strike again (D-196).
     handling: i64,
     /// Organic movement (D-065, D-088), per species: drift kick per tick (Q16 share of speed),
@@ -240,9 +244,17 @@ impl FaunaParams {
             refuge: flora_mask(&fa.refuge_flora),
             refuge_cover: round(fa.refuge_cover * one),
             reserve: round(fa.food_reserve / dt),
-            prey_per: i64::from(fa.prey_per_predator),
+            prey_per: sp
+                .iter()
+                .map(|s| {
+                    let sup = fa.prey_per_superpredator.filter(|_| s.family == "S");
+                    i64::from(sup.unwrap_or(fa.prey_per_predator))
+                })
+                .collect(),
             strike: usize::try_from(fa.strike_radius).unwrap_or(0),
             catch: round(fa.catch_chance * one),
+            own_catch: round(fa.own_catch * one),
+            meal: fa.kill_meal.map_or(0, |m| round(m * one)),
             handling: round(fa.handling_s / dt).max(0),
             wobble: sp
                 .iter()
@@ -294,6 +306,26 @@ impl FaunaParams {
             .unwrap_or(0)
     }
 
+    /// The food one animal of species `s` claims in its sight (D-066): prey for a predator,
+    /// flora ticks of bites otherwise.
+    fn need(&self, s: usize) -> i64 {
+        if self.role[s] == Role::Predator {
+            self.prey_per[s]
+        } else {
+            self.bite[s] * self.reserve
+        }
+    }
+
+    /// Whether animal species `j` (owned by `oj`) competes with `s` (owned by `pl`) for food.
+    fn rival(&self, s: usize, pl: u8, j: usize, oj: u8) -> bool {
+        self.role[j] == self.role[s]
+            && match self.role[s] {
+                Role::Herbivore => self.eats_flora[s] & self.eats_flora[j] != 0,
+                Role::Decomposer => true,
+                Role::Predator => oj == pl && self.eats_fauna[s] & self.eats_fauna[j] != 0,
+            }
+    }
+
     /// Energy from `amount` of a food of `rank`: the transfer, scaled by the rank's yield.
     fn fed(&self, amount: i64, rank: usize) -> i64 {
         div_round(amount * self.transfer * self.diet_yield[rank], ONE_I)
@@ -332,6 +364,7 @@ impl FaunaParams {
             &self.group,
             &self.cap,
             &self.breed,
+            &self.prey_per,
             &self.yld,
             &self.wobble,
             &self.wobble_keep,
@@ -353,9 +386,10 @@ impl FaunaParams {
             i64::from(self.refuge),
             self.refuge_cover,
             self.reserve,
-            self.prey_per,
             i64::try_from(self.strike).unwrap_or(0),
             self.catch,
+            self.own_catch,
+            self.meal,
             self.handling,
             self.scatter,
             self.wander,
@@ -894,12 +928,38 @@ impl Fauna {
         }
     }
 
-    /// Predators kill one huntable enemy prey in reach (`strike` cells on each axis), in index order. A
-    /// predator at full energy is sated and does not hunt (a handling limit, D-066). With prey in reach, a kill succeeds
-    /// with chance `catch` (one draw per predator that has prey in reach). After a kill it eats for
-    /// `handling` flora ticks and does not strike (D-196). Returns who lives.
+    /// Predators kill one huntable prey in reach (`strike` cells on each axis), in index order.
+    /// Enemy prey comes first, sated or not (hunters stay the answer to raids). Own prey (Alpha
+    /// 1.2) only with no enemy prey in reach, when hungry (below full energy, D-066) and from the
+    /// surplus. With prey in reach, a kill succeeds with chance `catch` (`own_catch` on own prey;
+    /// one draw per predator that has prey in reach) and restores `meal` of the hunter's body, by
+    /// diet rank. After a kill it eats for `handling` flora ticks and does not strike (D-196).
+    /// Returns who lives.
     fn hunt(&mut self, st: &mut FloraState, safe: &[bool], rng: &mut Pcg32) -> Vec<bool> {
         let (a, p, n) = (&mut self.agents, &self.p, st.n);
+        // Home hunting takes the surplus only: own prey is fair game while the prey in sight
+        // cover `prey_per` per rival hunter, itself included (the birth test, D-066), so herds
+        // are not decimated and surplus hunters starve back to the ratio. Counted once, at the
+        // start of the hunt.
+        let hungry = |i: usize| {
+            let s = usize::from(a.sp[i]);
+            p.role[s] == Role::Predator && a.energy[i] < p.body[s] * ONE_I
+        };
+        let windows = if p.own_catch > 0 {
+            Self::windows(a, p, st, safe, (0..a.len()).filter(|&i| hungry(i)))
+        } else {
+            BTreeMap::new()
+        };
+        let surplus: Vec<bool> = (0..a.len())
+            .map(|i| {
+                let s = usize::from(a.sp[i]);
+                hungry(i)
+                    && windows.get(&(s, a.owner[i])).is_some_and(|(food, load)| {
+                        let (k, r) = (a.cell(i, n), usize::try_from(p.sight[s]).unwrap_or(0));
+                        food.sum(k, r) >= load.sum(k, r)
+                    })
+            })
+            .collect();
         let mut alive = vec![true; a.len()];
         // Animals by cell, in index order (D-207): a hunter looks at the cells in its reach only.
         let mut start = vec![0usize; n * n + 1];
@@ -918,39 +978,41 @@ impl Fauna {
         }
         for i in 0..a.len() {
             let s = usize::from(a.sp[i]);
-            if p.role[s] != Role::Predator
-                || !alive[i]
-                || a.energy[i] >= p.body[s] * ONE_I
-                || a.digest[i] > 0
-            {
+            if p.role[s] != Role::Predator || !alive[i] || a.digest[i] > 0 {
                 continue;
             }
             let k = a.cell(i, n);
-            // The best-ranked prey in reach (D-123), the first in index order among equals.
-            let mut prey: Option<(usize, usize)> = None; // (rank, agent)
+            // Enemy prey first, then the best-ranked (D-123), the first in index order among
+            // equals.
+            let mut prey: Option<(bool, usize, usize)> = None; // (own, rank, agent)
             let (row, col) = (k / n, k % n);
             for y in row.saturating_sub(p.strike)..(row + p.strike + 1).min(n) {
                 for x in col.saturating_sub(p.strike)..(col + p.strike + 1).min(n) {
                     let c = y * n + x;
                     for &j in &at[start[c]..start[c + 1]] {
+                        let own = a.owner[j] == a.owner[i];
                         if alive[j]
                             && !safe[j]
-                            && a.owner[j] == 3 - a.owner[i]
+                            && (!own || surplus[i])
                             && let Some(r) = p.prey_rank(s, usize::from(a.sp[j]))
-                            && prey.is_none_or(|(pr, pj)| (r, j) < (pr, pj))
+                            && prey.is_none_or(|q| (own, r, j) < q)
                         {
-                            prey = Some((r, j));
+                            prey = Some((own, r, j));
                         }
                     }
                 }
             }
-            if let Some((rank, j)) = prey
-                && i64::from(rng.below(1 << 16)) < p.catch
+            if let Some((own, rank, j)) = prey
+                && i64::from(rng.below(1 << 16)) < if own { p.own_catch } else { p.catch }
             {
                 alive[j] = false;
                 a.digest[i] = p.handling;
                 let body = p.body[usize::from(a.sp[j])];
-                a.energy[i] += p.fed(body, rank);
+                a.energy[i] += if p.meal > 0 {
+                    div_round(p.body[s] * p.meal * p.diet_yield[rank], ONE_I)
+                } else {
+                    p.fed(body, rank)
+                };
                 st.dead[k] += body - div_round(body * p.transfer, ONE_I);
             }
         }
@@ -969,57 +1031,31 @@ impl Fauna {
         a.retain(&alive);
     }
 
-    /// At full energy, once its cooldown is over, an animal splits in two if the food within its
-    /// sight can carry one more (local carrying capacity, D-066). The food is shared by every
-    /// animal of the same role whose diet overlaps, each needing its share: grazers and
-    /// decomposers `reserve` bites of their food (diet flora on any land; dead biomass), counted
-    /// over both players since they eat the same plants and litter; predators `prey_per` huntable
-    /// enemy prey, counted over their owner's predators only (each player's predators hunt the
-    /// other's animals). The player and species caps stay as safety ceilings (D-023, D-029).
-    fn reproduce(&mut self, fl: &FloraParams, st: &FloraState) {
-        let safe = self.safe(fl, st);
-        let (a, p, n, n2) = (&mut self.agents, &self.p, st.n, st.n * st.n);
-        let ns = p.names.len();
-        let mut count = [0i64; 2];
-        let mut kin = vec![[0i64; 2]; ns];
-        for i in 0..a.len() {
-            let pi = usize::from(a.owner[i] - 1);
-            count[pi] += 1;
-            kin[usize::from(a.sp[i])][pi] += 1;
-        }
-        let len = a.len();
-        let ready: Vec<bool> = (0..len)
-            .map(|i| a.energy[i] >= p.body[usize::from(a.sp[i])] * ONE_I && a.cooldown[i] == 0)
-            .collect();
-        let need = |s: usize| -> i64 {
-            if p.role[s] == Role::Predator {
-                p.prey_per
-            } else {
-                p.bite[s] * p.reserve
-            }
-        };
-        // Whether animal species `j` (owned by `oj`) competes with `s` (owned by `pl`) for food.
-        let rival = |s: usize, pl: u8, j: usize, oj: u8| -> bool {
-            p.role[j] == p.role[s]
-                && match p.role[s] {
-                    Role::Herbivore => p.eats_flora[s] & p.eats_flora[j] != 0,
-                    Role::Decomposer => true,
-                    Role::Predator => oj == pl && p.eats_fauna[s] & p.eats_fauna[j] != 0,
-                }
-        };
-        // Food and load windows, built once per (species, player) with a ready animal.
-        let mut windows: BTreeMap<(usize, u8), (Window, Window)> = BTreeMap::new();
-        for i in (0..len).filter(|&i| ready[i]) {
+    /// Food and load per cell for the (species, player) of each animal in `who` (local carrying
+    /// capacity, D-066): food is the diet stock (grazers: diet flora on any land; recyclers: rot;
+    /// predators: huntable prey of either side, own prey when home hunting is on), load the
+    /// `need` of every rival animal. Compare their sums over a sight window.
+    fn windows(
+        a: &Agents,
+        p: &FaunaParams,
+        st: &FloraState,
+        safe: &[bool],
+        who: impl Iterator<Item = usize>,
+    ) -> BTreeMap<(usize, u8), (Window, Window)> {
+        let (n, n2, len) = (st.n, st.n * st.n, a.len());
+        let mut windows = BTreeMap::new();
+        for i in who {
             let (s, pl) = (usize::from(a.sp[i]), a.owner[i]);
             windows.entry((s, pl)).or_insert_with(|| {
                 let mut food = vec![0i64; n2];
                 let mut load = vec![0i64; n2];
                 for j in 0..len {
                     let (k, sj) = (a.cell(j, n), usize::from(a.sp[j]));
-                    if rival(s, pl, sj, a.owner[j]) {
-                        load[k] += need(sj);
+                    if p.rival(s, pl, sj, a.owner[j]) {
+                        load[k] += p.need(sj);
                     }
-                    let prey = a.owner[j] == 3 - pl && !safe[j] && p.eats_fauna[s] >> sj & 1 == 1;
+                    let side = a.owner[j] == 3 - pl || (a.owner[j] == pl && p.own_catch > 0);
+                    let prey = side && !safe[j] && p.eats_fauna[s] >> sj & 1 == 1;
                     if p.role[s] == Role::Predator && prey {
                         food[k] += 1;
                     }
@@ -1034,6 +1070,33 @@ impl Fauna {
                 (Window::new(&food, n), Window::new(&load, n))
             });
         }
+        windows
+    }
+
+    /// At full energy, once its cooldown is over, an animal splits in two if the food within its
+    /// sight can carry one more (local carrying capacity, D-066). The food is shared by every
+    /// animal of the same role whose diet overlaps, each needing its share: grazers and
+    /// decomposers `reserve` bites of their food (diet flora on any land; dead biomass), counted
+    /// over both players since they eat the same plants and litter; predators `prey_per` huntable
+    /// prey of either side (own prey when home hunting is on, Alpha 1.2), counted over their
+    /// owner's predators only. The player and species caps stay as safety ceilings (D-023, D-029).
+    fn reproduce(&mut self, fl: &FloraParams, st: &FloraState) {
+        let safe = self.safe(fl, st);
+        let (a, p, n) = (&mut self.agents, &self.p, st.n);
+        let ns = p.names.len();
+        let mut count = [0i64; 2];
+        let mut kin = vec![[0i64; 2]; ns];
+        for i in 0..a.len() {
+            let pi = usize::from(a.owner[i] - 1);
+            count[pi] += 1;
+            kin[usize::from(a.sp[i])][pi] += 1;
+        }
+        let len = a.len();
+        let ready: Vec<bool> = (0..len)
+            .map(|i| a.energy[i] >= p.body[usize::from(a.sp[i])] * ONE_I && a.cooldown[i] == 0)
+            .collect();
+        let windows = Self::windows(a, p, st, &safe, (0..len).filter(|&i| ready[i]));
+        let (need, rival) = (|s| p.need(s), |s, pl, j, oj| p.rival(s, pl, j, oj));
         let mut born: Vec<(usize, u8, usize)> = Vec::new(); // (species, owner, cell) this tick
         for i in (0..len).filter(|&i| ready[i]) {
             let (s, pl) = (usize::from(a.sp[i]), a.owner[i]);
@@ -1135,12 +1198,20 @@ impl Fauna {
                 }
                 // Seek order (D-123): the primary food in sight first, then the secondary, then the
                 // tertiary.
+                // Hunters: enemy prey at every rank before own prey (Alpha 1.2).
                 let masks: Vec<Vec<bool>> = if p.role[s] == Role::Predator {
-                    (0..DIET_RANKS)
-                        .map(|r| {
+                    let sides: &[u8] = if p.own_catch > 0 {
+                        &[3 - pl, pl]
+                    } else {
+                        &[3 - pl]
+                    };
+                    sides
+                        .iter()
+                        .flat_map(|&side| (0..DIET_RANKS).map(move |r| (side, r)))
+                        .map(|(side, r)| {
                             let mut prey = vec![false; n2];
                             for j in 0..len {
-                                if a.owner[j] == 3 - pl
+                                if a.owner[j] == side
                                     && !safe[j]
                                     && p.rank_fauna[s][r] >> a.sp[j] & 1 == 1
                                 {
@@ -1732,7 +1803,7 @@ mod tests {
     }
 
     #[test]
-    fn predators_eat_enemy_prey_in_reach_but_not_in_a_refuge_nor_when_sated() {
+    fn predators_eat_enemy_prey_in_reach_but_not_in_a_refuge() {
         let (fox, rabbits) = {
             let (_, fa, _, _) = setup(8);
             (fa.p.index("fox").unwrap(), fa.p.index("rabbits").unwrap())
@@ -1757,7 +1828,76 @@ mod tests {
         assert_eq!(run("grasses", hungry, 0), 1, "a missed attack");
         assert_eq!(run("bramble", hungry, ONE_I), 1, "hidden in the refuge");
         let full = ONE_I * 3100; // above the fox's body after its upkeep
-        assert_eq!(run("grasses", full, ONE_I), 1, "a sated fox does not hunt");
+        assert_eq!(
+            run("grasses", full, ONE_I),
+            0,
+            "a sated fox still takes enemy prey"
+        );
+    }
+
+    /// Alpha 1.2: hunters take enemy prey first; own prey only when hungry and from the surplus
+    /// (the prey in sight cover `prey_per` per hunter), at `own_catch`, for `meal` of their body.
+    #[test]
+    fn hunters_take_enemy_prey_first_and_own_prey_from_the_surplus() {
+        let (fox, rabbits) = {
+            let (_, fa, _, _) = setup(8);
+            (fa.p.index("fox").unwrap(), fa.p.index("rabbits").unwrap())
+        };
+        // One fox (energy `e`) with `own` own rabbits and `enemy` enemy rabbits in its cell; it
+        // returns the rabbits left per side and the fox's energy.
+        let run = |e: i64, own: usize, enemy: usize| {
+            let (_, mut fa, mut st, mut rng) = setup(8);
+            fa.p.catch = ONE_I;
+            fa.p.own_catch = ONE_I;
+            fa.agents.push(fox, 1, centre(4), centre(4), e, 0);
+            for (pl, count) in [(1, own), (2, enemy)] {
+                for _ in 0..count {
+                    fa.agents
+                        .push(rabbits, pl, centre(4), centre(4), ONE_I * 300, 0);
+                }
+            }
+            let safe = vec![false; fa.agents.len()];
+            let alive = fa.hunt(&mut st, &safe, &mut rng);
+            let left = |pl: u8| {
+                (0..alive.len())
+                    .filter(|&j| alive[j] && fa.agents.sp[j] == u8::try_from(rabbits).unwrap())
+                    .filter(|&j| fa.agents.owner[j] == pl)
+                    .count()
+            };
+            (left(1), left(2), fa.agents.energy[0])
+        };
+        let (hungry, prey_per) = (
+            ONE_I * 100,
+            usize::try_from(setup(8).1.p.prey_per[fox]).unwrap(),
+        );
+        assert_eq!(
+            run(hungry, prey_per, 1).0,
+            prey_per,
+            "the enemy rabbit goes first"
+        );
+        assert_eq!(run(hungry, prey_per, 1).1, 0);
+        assert_eq!(
+            run(hungry, prey_per, 0).0,
+            prey_per - 1,
+            "an own rabbit from the surplus"
+        );
+        assert_eq!(
+            run(hungry, prey_per - 1, 0).0,
+            prey_per - 1,
+            "no surplus: spared"
+        );
+        assert_eq!(
+            run(ONE_I * 3100, prey_per, 0).0,
+            prey_per,
+            "sated: own prey spared"
+        );
+        let (fa, meal) = (setup(8).1, ONE_I * 3000 * 9 / 10);
+        assert!(fa.p.meal > 0);
+        let fed = run(hungry, prey_per, 0).2 - hungry;
+        assert!(
+            (fed - meal).abs() <= ONE_I,
+            "a kill restores `kill_meal` of the fox's body"
+        );
     }
 
     /// D-196: after a kill a hunter eats before it strikes again, so two foxes can't erase a
@@ -2091,7 +2231,7 @@ mod tests {
     /// cells with a few bramble refuges. Runs `minutes` of flora ticks; returns the census of
     /// [rabbits, foxes, owls] every 30 ecology seconds.
     #[allow(clippy::float_arithmetic)] // test setup only: tick counts from the balance's dt
-    fn pyramid(seed: u64, minutes: usize) -> Vec<[i64; 3]> {
+    fn pyramid(seed: u64, minutes: usize, start: [usize; 3]) -> Vec<[i64; 3]> {
         let (mut fl, mut fa, mut st, _) = setup(16);
         let mut rng = Pcg32::new(seed, 2);
         let (n, n2) = (16, 256);
@@ -2119,7 +2259,7 @@ mod tests {
             fa.p.cap[s] = 5000; // safety ceilings off: the food decides
         }
         let full = |s: usize| fa.p.body[s] * ONE_I;
-        for (s, count) in sp.into_iter().zip([64, 16, 5]) {
+        for (s, count) in sp.into_iter().zip(start) {
             for k in 0..count {
                 let (y, x) = (k * 7 % 16, k * 3 % 8);
                 fa.agents.push(s, 1, centre(y), centre(x), full(s) / 2, 0);
@@ -2160,17 +2300,17 @@ mod tests {
     }
 
     /// The pyramid holds: in 7 of 8 seeds every level is alive after 30 minutes, and the mean
-    /// ratios stay within ×2 of 16 grazers : 4 hunters : 1–2 superpredators.
+    /// ratios (second half) are 3–6 grazers per hunter and 2–5 hunters per superpredator: the
+    /// target 16 : 4 : 1–2 (Alpha 1.2).
     #[test]
-    #[ignore = "Alpha 1.2 target, enabled once the food web is tuned"]
     fn the_food_pyramid_holds_without_a_crash() {
         let good = (1..=8)
             .filter(|&seed| {
-                let run = pyramid(seed, 30);
+                let run = pyramid(seed, 30, [64, 16, 5]);
                 let s = pyramid_stats(&run);
                 let alive = run.last().unwrap().iter().all(|&c| c > 0);
                 let (r, f, o) = (s[0][0], s[1][0], s[2][0]);
-                alive && f > 0 && o > 0 && (2..=8).contains(&(r / f)) && (1..=8).contains(&(f / o))
+                alive && f > 0 && o > 0 && (3..=6).contains(&(r / f)) && (2..=5).contains(&(f / o))
             })
             .count();
         assert!(good >= 7, "{good} of 8 seeds hold the pyramid");
@@ -2179,8 +2319,13 @@ mod tests {
     #[test]
     #[ignore = "report: cargo test -p sim-core --release -- --ignored --nocapture pyramid_report"]
     fn pyramid_report() {
+        // PYRAMID=64,16,0 starts other populations (rabbits, foxes, owls).
+        let start = std::env::var("PYRAMID").map_or([64, 16, 5], |v| {
+            let c: Vec<usize> = v.split(',').map(|x| x.trim().parse().unwrap()).collect();
+            [c[0], c[1], c[2]]
+        });
         for seed in 1..=8 {
-            let run = pyramid(seed, 30);
+            let run = pyramid(seed, 30, start);
             let s = pyramid_stats(&run);
             let trace: Vec<String> = run
                 .iter()

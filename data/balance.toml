@@ -272,8 +272,11 @@ refuge_cover = 0.5      # summed cover of refuge flora that hides small fauna (D
 shallow_speed = 0.5
 path_cells = 400
 # Local carrying capacity (D-066): a birth needs food nearby, within the species' sight.
-food_reserve = 300      # grazers, decomposers: seconds of bites the food in sight must hold per animal
-prey_per_predator = 4   # predators: huntable enemy prey in sight per predator
+food_reserve = 150      # grazers, decomposers: seconds of bites the food in sight must hold per animal
+prey_per_predator = 4   # predators: huntable prey in sight per predator, own and enemy (16 grazers feed 4 hunters)
+prey_per_superpredator = 3  # superpredators (S): 4 hunters feed 1–2 of them (Alpha 1.2)
+own_catch = 0.2         # home hunting (Alpha 1.2): catch chance on own prey; enemy prey always comes first
+kill_meal = 0.9        # a kill restores this share of the hunter's body (by diet rank): about one kill per two minutes keeps a hunter fed (Alpha 1.2)
 strike_radius = 1       # a predator catches prey up to this many cells away (each axis), once per flora tick
 catch_chance = 0.5      # chance that a hunting predator with prey in reach makes its kill, per flora tick
 handling_s = 15.0       # ecology seconds a predator spends eating after a kill before it can strike again (D-196)

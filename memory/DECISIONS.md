@@ -2536,3 +2536,15 @@ Template:
   - **Player cells:** they keep the HUD's design language: the translucent panel, with the player's colour only on the outline.
   - **One bar:** the two cells and the resources pill are joined edge to edge (`.versus`): rounded outer ends, square inner joins, no gap.
   - **Version line:** the main menu reads "Alpha 1.1 · build <commit · date>" (the deploy sets the build).
+
+## D-218 · 2026-10-07 · The food pyramid: home hunting, meals per hunter body, a pyramid test (Alpha 1.2)
+- **Status:** accepted (user: own predators feed on own herbivores with boosted stats, enemy prey first, map wide)
+- **Problem:** playtests saw hunters wipe out a raid and then starve. Hunters only ate enemy prey, and a kill fed 10 % of the prey's body: a fox (3,000) got 60 energy from a rabbit (600) against an upkeep of 9 per second, so no hunter could live on its own.
+- **Decision:**
+  - **Home hunting:** a hunter with no enemy prey in reach takes its owner's own prey, at `own_catch` (0.2), only when hungry and **from the surplus**: while the prey in its sight cover `prey_per_predator` per rival hunter, itself included (the D-066 birth test). Herds are not decimated, and surplus hunters starve back to the ratio. Refuges hide own small prey too.
+  - **Enemy prey first:** at every diet rank, in the seek masks and in the strike. A sated hunter still takes enemy prey (at the D-196 handling pace), so hunters stay the answer to raids; satiety only spares own prey.
+  - **Meals:** a kill restores `kill_meal` (0.9) of the hunter's body, scaled by the diet rank (D-123), whatever the prey's size. A hunter needs about one kill every five minutes.
+  - **Births:** predators count own and enemy prey in sight; superpredators (S) need `prey_per_superpredator` (3) prey each, other hunters 4.
+  - **Grazer capacity:** `food_reserve` 300 → 150, so a grazer needs about 2 cells of its food.
+  - **Measure:** `the_food_pyramid_holds_without_a_crash` (grasses → rabbits → foxes → eagle-owls, one player, 128 cells, 30 min, 8 seeds) and the `pyramid_report` (`PYRAMID=r,f,o` sets the start).
+- **Result:** every seed keeps every level, means 66 rabbits : 19 foxes : 6 owls on 128 cells (32 : 16.5 : 4.7 : 1.5), fluctuating ±5–15 % around the equilibrium. Bots: about 10× more hunters alive at 20 min and far fewer hunter calls; the bench's "raids answered" counts new hunter calls only, so it falls (85 → 60 %) when standing hunters do the job; win splits unchanged.

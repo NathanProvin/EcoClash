@@ -98,6 +98,8 @@ pub struct FaunaParams {
     /// Hunting own prey (Alpha 1.2): catch chance (Q16). A kill restores `meal` (Q16) of the
     /// hunter's body; 0: the transfer share of the prey's body.
     own_catch: i64,
+    /// Share of `prey_per` (Q16) home hunting needs in sight per hunter.
+    own_surplus: i64,
     meal: i64,
     /// Flora ticks a predator eats after a kill before it can strike again (D-196).
     handling: i64,
@@ -254,6 +256,7 @@ impl FaunaParams {
             strike: usize::try_from(fa.strike_radius).unwrap_or(0),
             catch: round(fa.catch_chance * one),
             own_catch: round(fa.own_catch * one),
+            own_surplus: round(fa.own_surplus * one),
             meal: fa.kill_meal.map_or(0, |m| round(m * one)),
             handling: round(fa.handling_s / dt).max(0),
             wobble: sp
@@ -389,6 +392,7 @@ impl FaunaParams {
             i64::try_from(self.strike).unwrap_or(0),
             self.catch,
             self.own_catch,
+            self.own_surplus,
             self.meal,
             self.handling,
             self.scatter,
@@ -938,7 +942,7 @@ impl Fauna {
     fn hunt(&mut self, st: &mut FloraState, safe: &[bool], rng: &mut Pcg32) -> Vec<bool> {
         let (a, p, n) = (&mut self.agents, &self.p, st.n);
         // Home hunting takes the surplus only: own prey is fair game while the prey in sight
-        // cover `prey_per` per rival hunter, itself included (the birth test, D-066), so herds
+        // cover `own_surplus` × `prey_per` per rival hunter, itself included (D-066, D-222), so herds
         // are not decimated and surplus hunters starve back to the ratio. Counted once, at the
         // start of the hunt.
         let hungry = |i: usize| {
@@ -956,7 +960,7 @@ impl Fauna {
                 hungry(i)
                     && windows.get(&(s, a.owner[i])).is_some_and(|(food, load)| {
                         let (k, r) = (a.cell(i, n), usize::try_from(p.sight[s]).unwrap_or(0));
-                        food.sum(k, r) >= load.sum(k, r)
+                        food.sum(k, r) * ONE_I >= load.sum(k, r) * p.own_surplus
                     })
             })
             .collect();
@@ -1836,7 +1840,8 @@ mod tests {
     }
 
     /// Alpha 1.2: hunters take enemy prey first; own prey only when hungry and from the surplus
-    /// (the prey in sight cover `prey_per` per hunter), at `own_catch`, for `meal` of their body.
+    /// (the prey in sight cover `own_surplus` × `prey_per` per hunter), at `own_catch`, for `meal`
+    /// of their body.
     #[test]
     fn hunters_take_enemy_prey_first_and_own_prey_from_the_surplus() {
         let (fox, rabbits) = {
@@ -1866,10 +1871,11 @@ mod tests {
             };
             (left(1), left(2), fa.agents.energy[0])
         };
-        let (hungry, prey_per) = (
-            ONE_I * 100,
-            usize::try_from(setup(8).1.p.prey_per[fox]).unwrap(),
-        );
+        let (hungry, prey_per) = (ONE_I * 100, {
+            // The home-hunting gate: `own_surplus` × `prey_per` prey in sight, rounded up.
+            let p = setup(8).1.p;
+            usize::try_from((p.prey_per[fox] * p.own_surplus + ONE_I - 1) / ONE_I).unwrap()
+        });
         assert_eq!(
             run(hungry, prey_per, 1).0,
             prey_per,

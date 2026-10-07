@@ -212,6 +212,10 @@ pub struct FaunaRules {
     /// files): no home hunting.
     #[serde(default)]
     pub own_catch: f64,
+    /// Home hunting needs this share of `prey_per` prey in sight per hunter (Alpha 1.2): 1 keeps
+    /// herds at the ratio (steady), lower lets hunters overshoot (wider cycles). Absent: 1.
+    #[serde(default = "one")]
+    pub own_surplus: f64,
     /// A kill restores this share of the hunter's body (Alpha 1.2), scaled by the prey's diet
     /// rank, so a few kills feed a hunter whatever the prey's size. Absent (older files): the
     /// `transfer` share of the prey's body.
@@ -702,6 +706,7 @@ impl Balance {
                 && fa.lockout_s >= 0.0
                 && (0.0..=1.0).contains(&fa.catch_chance)
                 && (0.0..=1.0).contains(&fa.own_catch)
+                && fa.own_surplus >= 0.0
                 && fa.kill_meal.is_none_or(|m| m > 0.0)
                 && fa.handling_s >= 0.0
                 && fa.wobble >= 0.0
@@ -710,7 +715,7 @@ impl Balance {
                 && fa.wander_radius >= 0.0
                 && fa.steer > 0.0
                 && fa.steer <= 1.0,
-            "[fauna] food_reserve >= 0, catch_chance and own_catch in [0, 1], kill_meal > 0, handling_s >= 0, wobble >= 0, wobble_keep in [0, 1), scatter in [0, 0.5), wander_radius >= 0, steer in (0, 1]"
+            "[fauna] food_reserve >= 0, catch_chance and own_catch in [0, 1], own_surplus >= 0, kill_meal > 0, handling_s >= 0, wobble >= 0, wobble_keep in [0, 1), scatter in [0, 0.5), wander_radius >= 0, steer in (0, 1]"
                 .into(),
         )?;
         let y = &self.fauna.diet_yield;

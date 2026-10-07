@@ -289,7 +289,7 @@ All dead organisms, plants and animals, feed `Dead biomass`.
 ### 6.2 Feeding on agents (predators)
 
 - Predators attack enemy agents whose species is in their diet. Damage reduces health, and a killed agent becomes dead biomass.
-- **Home hunting (D-218):** with no enemy prey in reach, a hungry predator takes its owner's own prey of its diet, at `own_catch`, only from the surplus: while the prey in its sight cover `prey_per_predator` per hunter. Each player thus keeps a food pyramid at home (about 32 plant cells : 16 grazers : 4 hunters : 1–2 superpredators) that cycles without crashing. Enemy prey always comes first, sated or not.
+- **Home hunting (D-218):** with no enemy prey in reach, a hungry predator takes its owner's own prey of its diet, at `own_catch`, only from the surplus: while the prey in its sight cover `own_surplus` × `prey_per_predator` per hunter (D-222: 1.25 × 3). Births only need `prey_per_predator`, so hunters breed past what home prey can feed, then starve back: the levels cycle. Each player thus keeps a food pyramid at home (about 32 plant cells : 16 grazers : 4 hunters : 1–2 superpredators) that cycles without crashing. Enemy prey always comes first, sated or not.
 - **Meals (D-218):** a kill restores `kill_meal` of the hunter's body (by diet rank), whatever the prey's size.
 - Predators cannot attack species outside their diet. A fox ignores slugs, for example.
 - **Refuge (D-023):** a player's small fauna inside own cells with dense hawthorn & blackthorn or bramble, or in the water dense cattails (D-125), cannot be hunted. Predators are otherwise kept in check by their own predators (§5.2).

@@ -2086,6 +2086,117 @@ mod tests {
         }
     }
 
+    /// The food pyramid (Alpha 1.2), one player's home chain at 4× the target 32 cells : 16 grazers
+    /// : 4 hunters : 1–2 superpredators: grasses → rabbits → foxes → eagle-owls, on 128 grass
+    /// cells with a few bramble refuges. Runs `minutes` of flora ticks; returns the census of
+    /// [rabbits, foxes, owls] every 30 ecology seconds.
+    #[allow(clippy::float_arithmetic)] // test setup only: tick counts from the balance's dt
+    fn pyramid(seed: u64, minutes: usize) -> Vec<[i64; 3]> {
+        let (mut fl, mut fa, mut st, _) = setup(16);
+        let mut rng = Pcg32::new(seed, 2);
+        let (n, n2) = (16, 256);
+        let (g, b) = (
+            fl.p.index("grasses").unwrap(),
+            fl.p.index("bramble").unwrap(),
+        );
+        let sp = ["rabbits", "fox", "eagle_owl"].map(|s| fa.p.index(s).unwrap());
+        for k in 0..n2 {
+            if k % n >= 8 {
+                continue; // the right half stays bare: 128 cells of meadow
+            }
+            st.owner[k] = 1;
+            st.soil[k] = U16;
+            st.bio[g * n2 + k] = fl.p.kmax[g];
+            st.gauge[g * n2 + k] = ONE_I;
+            if k / n % 5 == 2 && k % n % 5 == 2 {
+                st.bio[b * n2 + k] = fl.p.kmax[b];
+                st.gauge[b * n2 + k] = ONE_I;
+            }
+        }
+        fl.p.cap[b] = ONE_I * 3 / 100; // refuges stay patches
+        fa.p.player_cap = 5000;
+        for &s in &sp {
+            fa.p.cap[s] = 5000; // safety ceilings off: the food decides
+        }
+        let full = |s: usize| fa.p.body[s] * ONE_I;
+        for (s, count) in sp.into_iter().zip([64, 16, 5]) {
+            for k in 0..count {
+                let (y, x) = (k * 7 % 16, k * 3 % 8);
+                fa.agents.push(s, 1, centre(y), centre(x), full(s) / 2, 0);
+            }
+        }
+        let dt = Balance::from_toml(BALANCE, SPECIES).unwrap().flora_dt(); // ecology s per flora tick
+        let every = (30.0 / dt).round() as usize;
+        let ticks = (minutes as f64 * 60.0 / dt).round() as usize;
+        let mut out = Vec::new();
+        for t in 0..ticks {
+            for _ in 0..8 {
+                fa.walk(&st, &mut rng);
+            }
+            fa.act(&fl.p, &mut st, &mut rng);
+            fl.step(&mut st);
+            if t % every == 0 {
+                let c = fa.census(1);
+                out.push(sp.map(|s| c[s]));
+            }
+        }
+        out
+    }
+
+    /// Per level: mean, min, max and coefficient of variation (%) over the second half of a run.
+    fn pyramid_stats(run: &[[i64; 3]]) -> [[i64; 4]; 3] {
+        let tail = &run[run.len() / 2..];
+        let m = i64::try_from(tail.len()).unwrap();
+        [0, 1, 2].map(|l| {
+            let mean = tail.iter().map(|c| c[l]).sum::<i64>() * 100 / m; // ×100
+            let var = tail.iter().map(|c| (c[l] * 100 - mean).pow(2)).sum::<i64>() / m;
+            let sd = (1..).take_while(|r: &i64| r * r <= var).last().unwrap_or(0);
+            let cv = if mean > 0 { sd * 100 / mean } else { 0 };
+            let (lo, hi) = tail
+                .iter()
+                .fold((i64::MAX, 0), |(lo, hi), c| (lo.min(c[l]), hi.max(c[l])));
+            [mean / 100, lo, hi, cv]
+        })
+    }
+
+    /// The pyramid holds: in 7 of 8 seeds every level is alive after 30 minutes, and the mean
+    /// ratios stay within ×2 of 16 grazers : 4 hunters : 1–2 superpredators.
+    #[test]
+    #[ignore = "Alpha 1.2 target, enabled once the food web is tuned"]
+    fn the_food_pyramid_holds_without_a_crash() {
+        let good = (1..=8)
+            .filter(|&seed| {
+                let run = pyramid(seed, 30);
+                let s = pyramid_stats(&run);
+                let alive = run.last().unwrap().iter().all(|&c| c > 0);
+                let (r, f, o) = (s[0][0], s[1][0], s[2][0]);
+                alive && f > 0 && o > 0 && (2..=8).contains(&(r / f)) && (1..=8).contains(&(f / o))
+            })
+            .count();
+        assert!(good >= 7, "{good} of 8 seeds hold the pyramid");
+    }
+
+    #[test]
+    #[ignore = "report: cargo test -p sim-core --release -- --ignored --nocapture pyramid_report"]
+    fn pyramid_report() {
+        for seed in 1..=8 {
+            let run = pyramid(seed, 30);
+            let s = pyramid_stats(&run);
+            let trace: Vec<String> = run
+                .iter()
+                .step_by(6)
+                .map(|c| format!("{}/{}/{}", c[0], c[1], c[2]))
+                .collect();
+            println!(
+                "seed {seed}: rabbits {:?} foxes {:?} owls {:?} (mean lo hi cv%) | {}",
+                s[0],
+                s[1],
+                s[2],
+                trace.join(" ")
+            );
+        }
+    }
+
     /// A wall of rock down column 4 with one gap at the bottom row (D-084).
     fn walled(st: &mut FloraState) {
         for y in 0..7 {

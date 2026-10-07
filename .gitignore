@@ -36,3 +36,6 @@ client/public/replays/
 
 # Logs
 *.log
+
+# wrangler local state (relay dev and deploys)
+.wrangler/

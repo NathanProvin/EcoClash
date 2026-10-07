@@ -92,11 +92,19 @@ export class Lockstep {
 
 /** The `[net]` values of balance.toml, read by the relay (it has no TOML parser: the keys are
  *  plain `key = integer` lines). A missing key is an error, not a silent default. */
-export function netRules(balanceToml: string): { delay: number; hashEvery: number } {
+export function netRules(balanceToml: string): {
+  delay: number;
+  hashEvery: number;
+  stallS: number;
+} {
   const get = (key: string) => {
     const m = new RegExp(`^${key}\\s*=\\s*(\\d+)`, "m").exec(balanceToml);
     if (!m?.[1]) throw new Error(`balance.toml: [net] ${key} missing`);
     return Number(m[1]);
   };
-  return { delay: get("input_delay_ticks"), hashEvery: get("hash_every_ticks") };
+  return {
+    delay: get("input_delay_ticks"),
+    hashEvery: get("hash_every_ticks"),
+    stallS: get("stall_timeout_s"),
+  };
 }

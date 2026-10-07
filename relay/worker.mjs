@@ -26,6 +26,7 @@ export class Room {
     const send = (p, m) => this.sockets.get(p)?.send(JSON.stringify(m));
     const close = (p, reason) => this.sockets.get(p)?.close(4000, reason);
     this.room = createRoom(netRules(balance), send, close);
+    this.timer = setInterval(() => this.room.idle(Date.now()), 1000);
   }
 
   fetch() {
@@ -44,6 +45,7 @@ export class Room {
       if (this.sockets.get(player) !== server) return;
       this.sockets.delete(player);
       this.room.leave(player);
+      if (!this.sockets.size) clearInterval(this.timer); // the match is over
     };
     server.addEventListener("close", gone);
     server.addEventListener("error", gone);

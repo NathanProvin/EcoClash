@@ -2567,3 +2567,12 @@ Template:
   - After an online match, "Play again" returns to the menu: a room serves one match.
   - A refused join or an unreachable relay shows its error.
 - **Checked:** two browser tabs on the local relay: hosted, joined by link, both running the same match (P1 and P2) in step.
+
+## D-221 · 2026-10-07 · How an online match ends: leave, stall timeout, desync (M6, Alpha 1.2)
+- **Status:** accepted
+- **Decision:**
+  - **Leaving forfeits:** a player who leaves an online match (Menu → Leave, or closing the tab) closes the socket; the relay tells the other, who wins ("Your opponent left the match"). That is the resignation for now; a sim-side `resign` command (in replays) waits for replays (M6).
+  - **Stall timeout:** the room checks every second; once no bundle has gone out for `[net] stall_timeout_s` (10 s), the player missing from the oldest open tick is dropped, and the other wins. When both are silent, nobody is dropped.
+  - **Desync:** the match is void: the end screen reads "Void".
+  - A verdict reached first (territory, time limit) stays.
+- **Deferred:** pause (both confirm), replays, state dumps on desync.

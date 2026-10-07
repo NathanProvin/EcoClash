@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { Lockstep } from "../../client/src/net/lockstep.ts";
 import { initSync, Sim } from "../../sim-wasm/pkg/sim_wasm.js";
+import { createRoom } from "../room.mjs";
 import { startRelay } from "../server.mjs";
 
 initSync({ module: readFileSync(new URL("../../sim-wasm/pkg/sim_wasm_bg.wasm", import.meta.url)) });
@@ -151,4 +152,22 @@ test("a guest on another build is refused; the room stays open for the next", as
   host.close();
   guest.close();
   await relay.close();
+});
+
+test("a player silent past the stall timeout is dropped; the waiting one is not", () => {
+  const dropped = [];
+  const room = createRoom(
+    { delay: 2, hashEvery: 10, stallS: 10 },
+    () => {},
+    (p) => dropped.push(p),
+  );
+  const [a, b] = [room.join(), room.join()];
+  room.message(a, { type: "hello", build: "x", balance: "y" });
+  room.message(b, { type: "hello", build: "x", balance: "y" });
+  room.message(a, { type: "turn", tick: 0, payloads: [] }); // b never sends its turn
+  room.idle(0);
+  room.idle(9_000);
+  assert.deepEqual(dropped, [], "within the timeout");
+  room.idle(10_000);
+  assert.deepEqual(dropped, [b], "b held the match up");
 });

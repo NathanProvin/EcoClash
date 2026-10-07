@@ -195,4 +195,13 @@ test("live source decodes frames into census, HUD series, animals and cells", as
   expect(live.me).toBe(1);
   worker.emit({ type: "net", event: "desync", tick: 40 });
   expect(live.netProblem).toContain("tick 40");
+  expect(live.result?.reason).toBe("territory"); // a decided match keeps its verdict (D-221)
+  live.result = null; // undecided: a desync voids the match, and a later leave changes nothing
+  worker.emit({ type: "net", event: "desync", tick: 50 });
+  expect(live.result).toEqual({ winner: 0, reason: "desync", tick: 50 });
+  worker.emit({ type: "net", event: "left", tick: 0 });
+  expect(live.result).toMatchObject({ reason: "desync" });
+  live.result = null; // the other player leaves: this one wins
+  worker.emit({ type: "net", event: "left", tick: 0 });
+  expect(live.result).toMatchObject({ winner: 1, reason: "left" });
 });

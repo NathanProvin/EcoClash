@@ -344,6 +344,11 @@ export class Live implements Source {
         m.event === "desync"
           ? `Desync at tick ${m.tick}: the two simulations disagree. The match is void.`
           : "The other player left the match.";
+      // An online match ends here (D-221): a leaver forfeits; a desync voids the match.
+      this.result ??=
+        m.event === "desync"
+          ? { winner: 0, reason: "desync", tick: m.tick }
+          : { winner: this.me, reason: "left", tick: this.tick };
     } else if (m.type === "error") {
       this.error = m.message;
     }

@@ -18,6 +18,7 @@ export function startRelay({
   const rules = netRules(readFileSync(balancePath, "utf8"));
   const wss = new WebSocketServer({ port });
   const rooms = new Map(); // code -> { room, sockets }
+  const timer = setInterval(() => rooms.forEach(({ room }) => room.idle(Date.now())), 1000);
 
   wss.on("connection", (ws, req) => {
     const code = decodeURIComponent((req.url ?? "/").slice(1).split("?")[0]);
@@ -54,6 +55,7 @@ export function startRelay({
         status,
         close: () =>
           new Promise((done) => {
+            clearInterval(timer);
             wss.clients.forEach((ws) => ws.terminate());
             wss.close(done);
           }),

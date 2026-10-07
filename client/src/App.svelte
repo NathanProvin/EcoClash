@@ -700,7 +700,6 @@
       frameTick = live.renderTick(now); // between the last two animal frames: animals glide
       simMs = live.simMs;
       if (live.error) error = live.error;
-      if (live.netProblem) error = live.netProblem;
       if (live.stalled !== stalled) stalled = live.stalled;
       if (live.result !== outcome) outcome = live.result;
       for (const n of live.notices) {

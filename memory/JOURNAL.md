@@ -839,3 +839,13 @@
 - **Next (user):**
   - Cloudflare: the API token needs Workers Scripts edit; then `npm run relay:deploy` (or CI) and set the repo variable `RELAY_URL` (wss://ecoclash-relay.<account>.workers.dev);
   - a two-machine playtest, then merge to main and deploy.
+
+## 2026-10-07 (2) · Wider cycles, 30 s drop, stinger once, go-live guide (D-222)
+- **Done:**
+  - **Measured what damps the cycles:** the birth ceiling equal to the hunting gate, not the refuges. A new `own_surplus` (1.25) and birth ceilings of 3 / 2 give a lagged overshoot: foxes range 14–32, owls 6–14, with every level alive in 8/8 seeds.
+  - Silent peers are now dropped after 30 s.
+  - The end stinger plays once (a `$state.raw` verdict).
+  - The README has a step-by-step go-live guide (token, workers.dev subdomain, `relay:deploy`, `RELAY_URL`, a two-machine preview, merge, troubleshooting).
+
+  Checks green.
+- **Next (user):** follow the README guide; then merge.

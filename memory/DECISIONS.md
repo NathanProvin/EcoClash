@@ -2572,7 +2572,19 @@ Template:
 - **Status:** accepted
 - **Decision:**
   - **Leaving forfeits:** a player who leaves an online match (Menu → Leave, or closing the tab) closes the socket; the relay tells the other, who wins ("Your opponent left the match"). That is the resignation for now; a sim-side `resign` command (in replays) waits for replays (M6).
-  - **Stall timeout:** the room checks every second; once no bundle has gone out for `[net] stall_timeout_s` (10 s), the player missing from the oldest open tick is dropped, and the other wins. When both are silent, nobody is dropped.
+  - **Stall timeout:** the room checks every second; once no bundle has gone out for `[net] stall_timeout_s` (30 s since D-222), the player missing from the oldest open tick is dropped, and the other wins. When both are silent, nobody is dropped.
   - **Desync:** the match is void: the end screen reads "Void".
   - A verdict reached first (territory, time limit) stays.
 - **Deferred:** pause (both confirm), replays, state dumps on desync.
+
+## D-222 · 2026-10-07 · Wider predator–prey cycles, a 30 s drop, the end stinger once (Alpha 1.2)
+- **Status:** accepted (user: wider swings, 30 s, stinger once)
+- **Wider cycles:**
+  - **Measured:** the swings were held down by the birth ceiling being the same as the home-hunting gate, not by the bramble refuges. With no refuge the swings did not change; `own_surplus` below 1 changed nothing either, because sated hunters rarely hunt.
+  - **Decision:** a new `own_surplus` (1.25) sets the home-hunting gate apart from the birth ceiling. `prey_per_predator` 4 → 3 and `prey_per_superpredator` 3 → 2 are now the birth ceilings. Home hunting needs 1.25× that, so hunters breed past what home prey can feed, then starve back, with a lag.
+  - **Result** (pyramid test, 8 seeds, all levels alive): means 71 rabbits : 20 foxes : 9 owls on 128 cells; ranges about rabbits 56–87, foxes 14–32, owls 6–14 (fox CV 6–19 %, from 5–14 %).
+  - **Rejected:** a wider setting (births 3 / gate 4.5) cycled harder but lost the owls in 2 of 8 seeds.
+  - Bench (Normal vs Normal, 8 seeds): wins 3–3, about 53 units at 20 min: in line with D-218.
+- **Stall timeout:** `[net] stall_timeout_s` 10 → 30 s.
+- **End stinger:** `outcome` in `App.svelte` is now `$state.raw`. A proxied copy never equalled `live.result`, so it was reassigned every frame and the victory or defeat stinger replayed every 3.2 s. Checked in the browser: one play in over 8 s.
+- **Go-live guide:** README, "Going live: online multiplayer".

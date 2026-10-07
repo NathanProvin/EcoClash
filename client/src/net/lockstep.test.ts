@@ -55,9 +55,7 @@ it("runs a tick only with its bundle, sends turns `delay` ahead and hashes on ca
 });
 
 it("reads the [net] rules from balance.toml and refuses a missing key", () => {
-  expect(netRules("[net]\ninput_delay_ticks = 3\nhash_every_ticks = 7\n")).toEqual({
-    delay: 3,
-    hashEvery: 7,
-  });
+  const net = "[net]\ninput_delay_ticks = 3\nhash_every_ticks = 7\nstall_timeout_s = 10\n";
+  expect(netRules(net)).toEqual({ delay: 3, hashEvery: 7, stallS: 10 });
   expect(() => netRules("[net]\n")).toThrow("input_delay_ticks");
 });

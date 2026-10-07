@@ -31,7 +31,7 @@ max_agents = 2000        # §5.4 budget; per player: half
 
 [net]
 input_delay_ticks = 2    # §10: 200 ms at 10 Hz
-stall_timeout_s = 10     # §10
+stall_timeout_s = 30     # §10: a silent peer is dropped after this (D-221; 30 s, user)
 hash_every_ticks = 10    # §10: desync check once per second
 
 # Terrain (gamerules §2.3). V1: flat, loam, constant water and light. Species may add optional
@@ -272,8 +272,12 @@ refuge_cover = 0.5      # summed cover of refuge flora that hides small fauna (D
 shallow_speed = 0.5
 path_cells = 400
 # Local carrying capacity (D-066): a birth needs food nearby, within the species' sight.
-food_reserve = 300      # grazers, decomposers: seconds of bites the food in sight must hold per animal
-prey_per_predator = 4   # predators: huntable enemy prey in sight per predator
+food_reserve = 150      # grazers, decomposers: seconds of bites the food in sight must hold per animal
+prey_per_predator = 3   # predators: a birth needs this many huntable prey in sight per predator, own and enemy
+prey_per_superpredator = 2  # superpredators (S): the same, per superpredator (Alpha 1.2)
+own_catch = 0.2         # home hunting (Alpha 1.2): catch chance on own prey; enemy prey always comes first
+own_surplus = 1.25      # home hunting needs 1.25 × those prey per hunter: hunters breed past what home prey feeds, then starve back (wider cycles; 1 = steady)
+kill_meal = 0.9        # a kill restores this share of the hunter's body (by diet rank): about one kill per five minutes keeps a hunter fed (Alpha 1.2)
 strike_radius = 1       # a predator catches prey up to this many cells away (each axis), once per flora tick
 catch_chance = 0.5      # chance that a hunting predator with prey in reach makes its kill, per flora tick
 handling_s = 15.0       # ecology seconds a predator spends eating after a kill before it can strike again (D-196)

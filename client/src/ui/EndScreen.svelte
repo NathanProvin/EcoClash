@@ -24,7 +24,13 @@
   } = $props();
 
   const title = $derived(
-    outcome.winner === 0 ? "Draw" : outcome.winner === human ? "Victory" : "Defeat",
+    outcome.reason === "desync"
+      ? "Void"
+      : outcome.winner === 0
+        ? "Draw"
+        : outcome.winner === human
+          ? "Victory"
+          : "Defeat",
   );
   const why = $derived(
     {
@@ -32,6 +38,8 @@
       biomass: `Time's up: P${outcome.winner} had the most standing biomass.`,
       "territory share": `Time's up, biomass tied: P${outcome.winner} held more land.`,
       draw: "Time's up: a perfect tie.",
+      left: "Your opponent left the match.", // D-221
+      desync: "The two simulations disagreed: the match is void.",
     }[outcome.reason] ?? outcome.reason,
   );
   const clock = (s: number) =>

@@ -11,7 +11,7 @@ import balance from "../../../data/balance.toml?raw";
 import species from "../../../data/species.toml?raw";
 import init, { Sim } from "../../../sim-wasm/pkg/sim_wasm.js";
 import wasmUrl from "../../../sim-wasm/pkg/sim_wasm_bg.wasm?url";
-import { Lockstep, type FromRelay } from "../net/lockstep";
+import { Lockstep, type FromRelay, type ToRelay } from "../net/lockstep";
 import type { ToMain, ToWorker } from "./live";
 
 let sim: Sim | undefined;
@@ -113,11 +113,17 @@ function loop() {
   setTimeout(loop, Math.max(0, 1000 / (s?.tickHz ?? 10) - (performance.now() - start)));
 }
 
-/** Join a relay: resolves with its start message; bundles and events keep flowing to `net`. */
-function join(url: string): Promise<Extract<FromRelay, { type: "start" }> & { ws: WebSocket }> {
+/** Join a relay room with `hello` (D-219): resolves with its start message; bundles and events
+ *  keep flowing to `net`. Rejects when the relay is out of reach or refuses this client. */
+function join(
+  url: string,
+  hello: Extract<ToRelay, { type: "hello" }>,
+): Promise<Extract<FromRelay, { type: "start" }> & { ws: WebSocket }> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url);
+    ws.onopen = () => ws.send(JSON.stringify(hello));
     ws.onerror = () => reject(new Error(`cannot reach the relay at ${url}`));
+    ws.onclose = (e) => reject(new Error(e.reason || "the relay closed the connection"));
     ws.onmessage = (e: MessageEvent<string>) => {
       const m = JSON.parse(e.data) as FromRelay;
       if (m.type === "start") resolve({ ...m, ws });
@@ -137,8 +143,14 @@ async function begin(
   tutorial: boolean,
 ) {
   await init({ module_or_path: wasmUrl });
-  const room = relay ? await join(relay) : undefined;
-  if (room) [seed, sandbox, bot] = [room.seed, false, "none"]; // both peers: the relay's seed
+  let room: Awaited<ReturnType<typeof join>> | undefined;
+  if (relay) {
+    const probe = new Sim(balance, species, 0n, 0); // only for its balance hash
+    const build = import.meta.env.VITE_BUILD ?? "dev";
+    room = await join(relay, { type: "hello", build, balance: probe.balanceHash, seed, size });
+    probe.free();
+    [seed, size, sandbox, bot] = [room.seed, room.size, false, "none"]; // the host's match
+  }
   const s = new Sim(balance, species, BigInt(seed), size);
   s.setSandbox(sandbox);
   s.setTutorial(tutorial && !room); // never in a lockstep match (D-141)

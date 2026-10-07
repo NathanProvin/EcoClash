@@ -7,9 +7,11 @@
   // and it replaces the painted placeholder.
   import {
     BOTS,
+    cleanCode,
     forMode,
     MAP_SIZES,
     randomSeed,
+    roomCode,
     type Bot,
     type MapSize,
     type MatchSetup,
@@ -23,7 +25,7 @@
   // .env (VITE_FEEDBACK_URL); a dev server shows "dev" and no link.
   const BUILD: string = import.meta.env.VITE_BUILD ?? "dev";
   /** The release shown on the main menu (D-217). */
-  const VERSION = "Alpha 1.1";
+  const VERSION = "Alpha 1.2";
   const FEEDBACK: string | undefined = import.meta.env.VITE_FEEDBACK_URL || undefined;
 
   let {
@@ -35,6 +37,7 @@
     tips,
     onTips,
     onStart,
+    onOnline,
     onTutorial,
     onSpecies,
   }: {
@@ -46,21 +49,24 @@
     tips: boolean;
     onTips: (on: boolean) => void;
     onStart: () => void;
+    /** Host (a new code) or join an online room (D-219). */
+    onOnline: (code: string) => void;
     onTutorial: () => void;
     onSpecies: () => void;
   } = $props();
 
   let view: "home" | "modes" | Mode | "options" = $state("home");
+  let typed = $state(""); // the room code typed to join (D-219)
   const BOT_NAMES: Record<Bot, string> = {
     easy: "Easy",
     normal: "Normal",
     hard: "Hard",
     none: "No opponent",
   };
-  /** The Play modes, in the menu's order; Multiplayer and Ranked come later (M6). */
+  /** The Play modes, in the menu's order; Ranked comes later (M6). */
   const MODES: { id: Mode | null; name: string; hint: string }[] = [
     { id: "sandbox", name: "Sandbox", hint: "Everything unlocked and free, no opponent" },
-    { id: null, name: "Multiplayer", hint: "Play another player: coming soon" },
+    { id: "online", name: "Multiplayer", hint: "A 1v1 online: host a match or join one by code" },
     { id: null, name: "Ranked", hint: "Ranked matches: coming soon" },
     { id: "ai", name: "AI opponent", hint: "A match against the bot" },
   ];
@@ -153,10 +159,14 @@
         {/each}
         <button onclick={() => (view = "home")}>Back</button>
       </nav>
-    {:else if view === "sandbox" || view === "ai"}
+    {:else if view === "sandbox" || view === "ai" || view === "online"}
       <form
         class="panel-form"
-        aria-label={view === "ai" ? "Match against the AI" : "Sandbox"}
+        aria-label={view === "ai"
+          ? "Match against the AI"
+          : view === "online"
+            ? "Multiplayer"
+            : "Sandbox"}
         onsubmit={(e) => {
           e.preventDefault();
           onStart();
@@ -164,6 +174,8 @@
       >
         {#if view === "sandbox"}
           <p class="mode">Sandbox <small>everything unlocked and free</small></p>
+        {:else if view === "online"}
+          <p class="mode">Multiplayer <small>host picks the map, a friend joins by code</small></p>
         {/if}
         {#if view === "ai"}
           <fieldset>
@@ -198,10 +210,41 @@
             </button>
           </span>
         </label>
-        <nav class="actions">
-          <button class="primary" type="submit">Start</button>
-          <button type="button" onclick={() => (view = "modes")}>Back</button>
-        </nav>
+        {#if view === "online"}
+          <nav class="actions">
+            <button class="primary" type="button" onclick={() => onOnline(roomCode())}>
+              Host a match
+            </button>
+          </nav>
+          <label class="row">
+            Room code
+            <span class="seed">
+              <input
+                type="text"
+                maxlength="8"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="ABCDE"
+                bind:value={typed}
+              />
+              <button
+                type="button"
+                disabled={!cleanCode(typed)}
+                onclick={() => onOnline(cleanCode(typed))}
+              >
+                Join
+              </button>
+            </span>
+          </label>
+          <nav class="actions">
+            <button type="button" onclick={() => (view = "modes")}>Back</button>
+          </nav>
+        {:else}
+          <nav class="actions">
+            <button class="primary" type="submit">Start</button>
+            <button type="button" onclick={() => (view = "modes")}>Back</button>
+          </nav>
+        {/if}
       </form>
     {:else}
       <OptionsMenu

@@ -1,0 +1,293 @@
+# All gameplay tunables (D-005). Shared by every target.
+# Values are converted once to fixed-point at load time and hashed after conversion (D-011).
+# Global rules only; per-species stats live in species.toml (D-029). Values are placeholders.
+
+[sim]
+tick_hz = 10             # §4 fixed tick
+flora_every_ticks = 8    # §5.3: flora fields at 1.25 Hz (D-038; keep growth x dt <= 1)
+pace = 0.75              # seconds of ecology per real second (D-069): growth, spread, income,
+                         # feeding and breeding run at this pace; movement and the clock do not
+env_every_ticks = 10     # §5.3: nutrients / water at 1 Hz
+grid_size = 38           # §5.1: 1 cell = 4 m, a 152 m map (D-047, D-049, D-070, D-091, D-186)
+chunk_size = 32          # §5.3 chunk sleeping, hashing
+
+[match]
+players = 2
+victory_territory = 0.80 # §2.3, Q-013, D-094, D-147
+time_limit_s = 36000     # §2.3: 600 min, virtually no limit (D-138; was 60 min, D-094)
+territory_decay = true   # gamerules §11.3, D-143: the threshold decays linearly ...
+territory_start = 0.80   # ... from this (held until decay_from_s) ...
+territory_end = 0.60     # ... to this at decay_to_s, so a lead ends the match (about 30 min)
+decay_from_s = 1500      # real seconds: the decay starts at 25 min ...
+decay_to_s = 2700        # ... and ends at 45 min (D-148)
+
+# Bot difficulty (D-143): the bots' income factor by level (easy, normal, hard); humans earn 1.
+# With play quality (easy plays at home, hard adds drops and catastrophes) it makes the ladder.
+[bots]
+income = [0.8, 1.3, 2.0]
+
+[agents]
+max_agents = 2000        # §5.4 budget; per player: half
+
+[net]
+input_delay_ticks = 2    # §10: 200 ms at 10 Hz
+stall_timeout_s = 10     # §10
+hash_every_ticks = 10    # §10: desync check once per second
+
+# Terrain (gamerules §2.3). V1: flat, loam, constant water and light. Species may add optional
+# water_optimum / water_tolerance, light_optimum / light_tolerance (0..1; tolerance 0 = indifferent)
+# and soil_affinity = { sandy = 1.2, ... }; absent keys are neutral (D-024).
+[terrain]
+water = 0.5              # moisture of a flat map (and the land species' water optimum)
+light = 1.0
+soil_types = ["loam", "sandy", "clay_limestone"]
+# Map generator (D-083, D-096): relief with valleys and cliffs; one water layout per seed (a
+# river crossing the map, a central lake fed by streams, scattered ponds, or dry highlands),
+# rivers following the low ground; rock bands on cliffs and outcrops; moisture. Every map has
+# 180-degree symmetry (fair 1v1).
+generate = true          # false: the flat V1 map (tests, prototype parity)
+noise_cells = [12, 6, 3] # value-noise lattice spacing per octave (cells)
+noise_weights = [0.6, 0.3, 0.1]
+valley_cells = 8         # winding valleys: lattice spacing of the fold noise (cells) ...
+valley_width = 0.12      # ... and half width (share of the noise range); depth: per map type
+cliff_steepness = 2.0    # plateaus are joined by steps this much steeper than the slope
+cliff_drop = 0.14        # a drop to a neighbour of this share of the relief makes a cliff (rock) ...
+cliff_gaps = 0.5         # ... except where the rock noise is below this (passes)
+river_width = 2.0        # cells (streams feeding a lake: 1)
+deep_share = 0.15        # chance that a river cell is a deep (uncrossable) pool
+pond_radius = 3          # cells; ponds of radius >= 2 have a deep centre
+lake_radius = 3          # cells; the central lake (radius 2 or 3)
+home_clear = 4           # cells around each home kept dry, rock-free and flatter
+water_level = 0.1        # height of every water bed, as a share of the map's relief
+bank_rise = 0.1          # banks rise this share of the map's relief per cell away from water
+moisture_dry = 0.3       # land moisture on the highest ground ...
+moisture_wet = 0.75      # ... and in the lowest land / next to water (water cells: 1)
+bank_cells = 4           # water raises land moisture over this many cells
+relief_m = 16.0          # render only: metres of relief of a map type with relief = 1
+
+# Map types (D-102): each seed draws one, by weight. relief: share of the full relief; terraces:
+# plateaus (0: none); valley_depth: share of the relief; cliffs: rock bands on steep steps;
+# rock_share: outcrops on the high ground; water: none, river (crossing the map), lake (central,
+# fed by two streams) or flood (the lowest `flood` share of the map under water, `flood_deep` of
+# it deep); ponds: pairs of ponds in the basins, on top.
+[[terrain.map_types]]
+name = "plains"
+weight = 2
+relief = 0.12
+terraces = 0
+valley_depth = 0.1
+cliffs = false
+rock_share = 0.01
+water = "none"
+
+[[terrain.map_types]]
+name = "meadows"
+weight = 2
+relief = 0.25
+terraces = 0
+valley_depth = 0.2
+cliffs = false
+rock_share = 0.015
+water = "none"
+ponds = 2
+
+[[terrain.map_types]]
+name = "hills"
+weight = 2
+relief = 0.55
+terraces = 0
+valley_depth = 0.35
+cliffs = false
+rock_share = 0.03
+water = "river"
+
+[[terrain.map_types]]
+name = "mountains"
+weight = 2
+relief = 1.0
+terraces = 4
+valley_depth = 0.45
+cliffs = true
+rock_share = 0.07
+water = "none"
+ponds = 1
+
+[[terrain.map_types]]
+name = "canyon"
+weight = 1
+relief = 0.9
+terraces = 3
+valley_depth = 0.5
+cliffs = true
+rock_share = 0.05
+water = "river"
+
+[[terrain.map_types]]
+name = "lakeland"
+weight = 2
+relief = 0.45
+terraces = 0
+valley_depth = 0.3
+cliffs = false
+rock_share = 0.02
+water = "flood"
+flood = 0.14
+flood_deep = 0.35
+
+[[terrain.map_types]]
+name = "marsh"
+weight = 2
+relief = 0.12
+terraces = 0
+valley_depth = 0.15
+cliffs = false
+rock_share = 0.0
+water = "flood"
+flood = 0.3
+flood_deep = 0.08
+ponds = 1
+
+[[terrain.map_types]]
+name = "lake"
+weight = 1
+relief = 0.5
+terraces = 2
+valley_depth = 0.3
+cliffs = false
+rock_share = 0.03
+water = "lake"
+ponds = 1
+
+# Flora cell model (gamerules §2.1, §3; D-019). Species stats are in species.toml.
+# Rates are per second; fractions are of the species' k_max. Biomass is in u16 units (0..65535).
+[flora]
+seed_fraction = 0.1        # seed rain: biomass added per unit of gauge gained, as a fraction of k_max
+establish_threshold = 0.1  # a stratum counts for the dominant level from this fraction
+smother_rate = 0.15        # enemy strata lose this fraction of k_max per second, per attacking neighbour
+litter_fraction = 0.1      # litter per second = this x biomass_rate x biomass (turnover)
+niche_overlap = 0.5        # [Proposed] competition between species of one stratum (1 = full overlap, D-022)
+soil_min_level = [0.1, 0.2, 0.3, 0.6]  # soil development for full suitability, per height stratum: herbs (non-pioneers), intermediate, shrubs, trees
+soil_ramp = 0.1           # suitability ramps from 0 at soil_min - soil_ramp to 1 at soil_min (D-024)
+plant_gauge = 0.5         # colonization gauge of a freshly planted species (D-024)
+plant_radius = 2          # a plant order seeds a disc of this radius, in cells (gamerules §7.1; D-042)
+# [Proposed] rules behind switches (D-019)
+succession = true
+shade = true
+contested_cells = true
+
+# Fauna agents (gamerules §5.2, §6; D-023, D-026). Species stats are in species.toml.
+[deadwood]
+natural_death_s = 3600  # mean life of a tree stand (ecology seconds, 1 h; D-152: was 3 h): trees die of old age, standing (D-127)
+wood_share = 0.3        # share of a dead stand that stays standing as dead wood; the rest falls as litter
+rot_s = 600             # time for standing dead wood to rot away without recyclers (ecology seconds)
+
+# Catastrophe cards (D-129): late-game trump cards, available from the start, paid at each use,
+# then cooling down (real seconds) before the same player may play them again. They hit
+# everything in their disc, both players alike. act: kill_trees (trees die standing, D-127),
+# storm (shrubs and trees felled to litter), spill (back to bare soil); chance: per cell per
+# flora tick while it acts.
+[catastrophes.processionary_caterpillars]
+act = "kill_trees"
+cost = 15000
+radius = 4
+cooldown_s = 300
+duration_s = 8
+chance = 0.35
+effect = "Processionary caterpillars strip the woods: the trees in the area die standing within seconds."
+
+[catastrophes.storm]
+act = "storm"
+cost = 22000
+radius = 9
+cooldown_s = 420
+duration_s = 6
+chance = 0.06
+effect = "A violent storm sweeps a wide area: here and there, shrubs and trees are felled."
+
+[catastrophes.chemical_spill]
+act = "spill"
+cost = 10000
+radius = 1
+cooldown_s = 240
+duration_s = 0
+chance = 1.0
+effect = "A chemical spill poisons a few cells: back to bare soil, owned by no one."
+
+# Weather (D-132): random events, one or two per half hour, each announced by a weather alert.
+# Times are real seconds. Factors apply while it lasts: growth on positive plant growth, speed
+# on animal movement, bite on herbivore bites. Drought kills a share of the tree stands (dead
+# trees, D-127) and lays a share of the grass-only cells bare over the event; a flood turns
+# land cells next to water into shallows (chance per cell) until it ends, drowning the plants
+# whose moisture response under full water is below drown_below.
+[weather]
+first_s = [480, 900]    # the first event starts in this window
+gap_s = [720, 1200]     # from the end of one event to the start of the next
+warning_s = 30          # the weather alert comes this long before
+
+[[weather.kinds]]
+name = "rain"
+weight = 1
+duration_s = 150
+growth = 1.15
+speed = 0.9
+bite = 1.0
+effect = "Steady rain: plants grow a little faster, animals move a little slower."
+
+[[weather.kinds]]
+name = "drought"
+weight = 1
+duration_s = 150
+growth = 0.4
+speed = 0.9
+bite = 0.85
+tree_death = 0.12
+grass_loss = 0.2
+effect = "Drought: plants grow much slower, animals are sluggish; some trees die standing and some grass patches dry up to bare soil."
+
+[[weather.kinds]]
+name = "flood"
+weight = 1
+duration_s = 120
+growth = 0.85
+speed = 0.85
+bite = 1.0
+flood = 0.6
+drown_below = 0.5
+effect = "Flood: the water rises over its banks for a while, drowning the land plants there; plants grow a little slower, animals move slower."
+
+[fauna]
+transfer = 0.1          # share of eaten biomass that becomes the eater's energy (10 % rule)
+diet_yield = [1.0, 0.75, 0.5]  # energy from a primary, secondary, tertiary food, as a share of the transfer (D-123)
+own_graze = 0.2         # bite on own flora, relative to enemy flora (gamerules §10)
+graze_damage = 4.0      # enemy plants lose this many times what a grazer eats; the rest is trampled to litter (D-152)
+soil_per_dead = 0.5     # soil development (u16 units) per unit of dead biomass decomposed
+lockout_s = 30          # a cell grazed bare turns neutral; its former owner may not retake it for this long (D-098)
+herbivore_range = 10    # prototype only (tools/prototype): sim-core drops herbivores near the click
+drop_radius = 4         # a drop (herbivores off own land, predators) lands within this many cells of the click (D-061)
+flee_radius = 3         # prey flee enemy hunters closer than this
+refuge_flora = ["hawthorn", "bramble", "cattails"]  # cattails: refuge in the water (D-125)
+refuge_cover = 0.5      # summed cover of refuge flora that hides small fauna (D-023)
+# Terrain (D-084): walkers cross shallows at this share of their speed; a path search explores at
+# most this many cells before giving up (then the animal stays).
+shallow_speed = 0.5
+path_cells = 400
+# Local carrying capacity (D-066): a birth needs food nearby, within the species' sight.
+food_reserve = 150      # grazers, decomposers: seconds of bites the food in sight must hold per animal
+prey_per_predator = 4   # predators: huntable prey in sight per predator, own and enemy (16 grazers feed 4 hunters)
+prey_per_superpredator = 3  # superpredators (S): 4 hunters feed 1–2 of them (Alpha 1.2)
+own_catch = 0.2         # home hunting (Alpha 1.2): catch chance on own prey; enemy prey always comes first
+kill_meal = 0.9        # a kill restores this share of the hunter's body (by diet rank): about one kill per two minutes keeps a hunter fed (Alpha 1.2)
+strike_radius = 1       # a predator catches prey up to this many cells away (each axis), once per flora tick
+catch_chance = 0.5      # chance that a hunting predator with prey in reach makes its kill, per flora tick
+handling_s = 15.0       # ecology seconds a predator spends eating after a kill before it can strike again (D-196)
+# Organic movement (D-065): steering at any angle, plus a Brownian drift and scattered targets.
+wobble = 0.35           # random kick to an animal's drift each tick, as a share of its speed
+wobble_keep = 0.8       # share of the drift kept from one tick to the next (0 = white noise)
+scatter = 0.4           # food and order targets: random offset from the cell centre (cells, < 0.5)
+wander_radius = 1.5     # an idle animal strolls to a random point this far away at most (cells), ahead of where it goes
+steer = 0.15            # fluid motion (D-111): share of the gap to the wanted velocity closed per tick (turns and starts take about 0.6 s)
+
+# Economy (gamerules §4, §7; D-027, D-029). Costs and yields are per species (species.toml).
+[economy]
+start_budget = 1000
+drop_surcharge = 1.5         # any animal landing outside own land costs more (§6.3; D-061)

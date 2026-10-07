@@ -2536,3 +2536,55 @@ Template:
   - **Player cells:** they keep the HUD's design language: the translucent panel, with the player's colour only on the outline.
   - **One bar:** the two cells and the resources pill are joined edge to edge (`.versus`): rounded outer ends, square inner joins, no gap.
   - **Version line:** the main menu reads "Alpha 1.1 · build <commit · date>" (the deploy sets the build).
+
+## D-218 · 2026-10-07 · The food pyramid: home hunting, meals per hunter body, a pyramid test (Alpha 1.2)
+- **Status:** accepted (user: own predators feed on own herbivores with boosted stats, enemy prey first, map wide)
+- **Problem:** playtests saw hunters wipe out a raid and then starve. Hunters only ate enemy prey, and a kill fed 10 % of the prey's body: a fox (3,000) got 60 energy from a rabbit (600) against an upkeep of 9 per second, so no hunter could live on its own.
+- **Decision:**
+  - **Home hunting:** a hunter with no enemy prey in reach takes its owner's own prey, at `own_catch` (0.2), only when hungry and **from the surplus**: while the prey in its sight cover `prey_per_predator` per rival hunter, itself included (the D-066 birth test). Herds are not decimated, and surplus hunters starve back to the ratio. Refuges hide own small prey too.
+  - **Enemy prey first:** at every diet rank, in the seek masks and in the strike. A sated hunter still takes enemy prey (at the D-196 handling pace), so hunters stay the answer to raids; satiety only spares own prey.
+  - **Meals:** a kill restores `kill_meal` (0.9) of the hunter's body, scaled by the diet rank (D-123), whatever the prey's size. A hunter needs about one kill every five minutes.
+  - **Births:** predators count own and enemy prey in sight; superpredators (S) need `prey_per_superpredator` (3) prey each, other hunters 4.
+  - **Grazer capacity:** `food_reserve` 300 → 150, so a grazer needs about 2 cells of its food.
+  - **Measure:** `the_food_pyramid_holds_without_a_crash` (grasses → rabbits → foxes → eagle-owls, one player, 128 cells, 30 min, 8 seeds) and the `pyramid_report` (`PYRAMID=r,f,o` sets the start).
+- **Result:** every seed keeps every level, means 66 rabbits : 19 foxes : 6 owls on 128 cells (32 : 16.5 : 4.7 : 1.5), fluctuating ±5–15 % around the equilibrium. Bots: about 10× more hunters alive at 20 min and far fewer hunter calls; the bench's "raids answered" counts new hunter calls only, so it falls (85 → 60 %) when standing hunters do the job; win splits unchanged.
+
+## D-219 · 2026-10-07 · Online relay: rooms by code on Cloudflare Durable Objects, a handshake (M6, Alpha 1.2)
+- **Status:** accepted (user: Durable Objects, room code or invite link)
+- **Decision:**
+  - **One room logic:** `relay/room.mjs`, pure: seats, handshake, turns → bundles, hash compare. `server.mjs` (local Node, `npm run relay`, the tests) and `worker.mjs` (Cloudflare) both wrap it.
+  - **Rooms by code:** `wss://<relay>/<CODE>` (4–8 letters or digits). The Worker routes each code to its own Durable Object (`idFromName`); SQLite-backed class, free plan. Plain WebSockets, no hibernation: a room lives for its match.
+  - **Handshake:** each player's first message is `hello` {build, balance hash, seed, size}. The first in is the host: its seed and map size make the match (`start` carries both). A guest on another build or balance hash is refused (close code 4000, with the reason) and the seat frees up.
+  - `npm run relay:deploy` (wrangler, `relay/wrangler.toml`); `balance.toml` is bundled as text for the `[net]` rules.
+- **Checked:** `relay:test` (5-min sync, divergence caught, refusal); `wrangler dev` with two clients (start, bundles, a third client gets "room full").
+
+## D-220 · 2026-10-07 · Multiplayer lobby: host a match, join by code or invite link (M6, Alpha 1.2)
+- **Status:** accepted (user: room code / invite link)
+- **Decision:**
+  - Play → **Multiplayer** (no longer "soon"): the host picks the map size and seed and clicks "Host a match", which makes a 5-letter room code (no I or O). A friend types the code (4–8 letters or digits) and clicks Join, or opens the invite link `?join=CODE`, which goes straight into the room.
+  - The waiting panel shows the code, the link and a "Copy invite link" button.
+  - The relay is `VITE_RELAY_URL` (`.env.example`), or `ws://localhost:8787` when it is unset; `?relay=` still wins (dev).
+  - After an online match, "Play again" returns to the menu: a room serves one match.
+  - A refused join or an unreachable relay shows its error.
+- **Checked:** two browser tabs on the local relay: hosted, joined by link, both running the same match (P1 and P2) in step.
+
+## D-221 · 2026-10-07 · How an online match ends: leave, stall timeout, desync (M6, Alpha 1.2)
+- **Status:** accepted
+- **Decision:**
+  - **Leaving forfeits:** a player who leaves an online match (Menu → Leave, or closing the tab) closes the socket; the relay tells the other, who wins ("Your opponent left the match"). That is the resignation for now; a sim-side `resign` command (in replays) waits for replays (M6).
+  - **Stall timeout:** the room checks every second; once no bundle has gone out for `[net] stall_timeout_s` (30 s since D-222), the player missing from the oldest open tick is dropped, and the other wins. When both are silent, nobody is dropped.
+  - **Desync:** the match is void: the end screen reads "Void".
+  - A verdict reached first (territory, time limit) stays.
+- **Deferred:** pause (both confirm), replays, state dumps on desync.
+
+## D-222 · 2026-10-07 · Wider predator–prey cycles, a 30 s drop, the end stinger once (Alpha 1.2)
+- **Status:** accepted (user: wider swings, 30 s, stinger once)
+- **Wider cycles:**
+  - **Measured:** the swings were held down by the birth ceiling being the same as the home-hunting gate, not by the bramble refuges. With no refuge the swings did not change; `own_surplus` below 1 changed nothing either, because sated hunters rarely hunt.
+  - **Decision:** a new `own_surplus` (1.25) sets the home-hunting gate apart from the birth ceiling. `prey_per_predator` 4 → 3 and `prey_per_superpredator` 3 → 2 are now the birth ceilings. Home hunting needs 1.25× that, so hunters breed past what home prey can feed, then starve back, with a lag.
+  - **Result** (pyramid test, 8 seeds, all levels alive): means 71 rabbits : 20 foxes : 9 owls on 128 cells; ranges about rabbits 56–87, foxes 14–32, owls 6–14 (fox CV 6–19 %, from 5–14 %).
+  - **Rejected:** a wider setting (births 3 / gate 4.5) cycled harder but lost the owls in 2 of 8 seeds.
+  - Bench (Normal vs Normal, 8 seeds): wins 3–3, about 53 units at 20 min: in line with D-218.
+- **Stall timeout:** `[net] stall_timeout_s` 10 → 30 s.
+- **End stinger:** `outcome` in `App.svelte` is now `$state.raw`. A proxied copy never equalled `live.result`, so it was reassigned every frame and the victory or defeat stinger replayed every 3.2 s. Checked in the browser: one play in over 8 s.
+- **Go-live guide:** README, "Going live: online multiplayer".

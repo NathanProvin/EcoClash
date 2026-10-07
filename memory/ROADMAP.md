@@ -4,10 +4,10 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-06: **Alpha 1.1** released: sound, the food-web rework, situational bots, bigger maps and the performance pass (D-176…D-217) merged to main and deployed. Next: playtest feedback; then online multiplayer (M6a).
+- **Now:** 2026-10-07: **Alpha 1.2** on branch `alpha-1.2-multiplayer-foodweb`: the food pyramid (D-218) and online 1v1 (D-219…D-221). Next: the user's Cloudflare relay setup and a two-machine playtest, then merge and deploy.
 - **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
-- **Last updated:** 2026-10-06
+- **Last updated:** 2026-10-07
 
 ---
 
@@ -128,9 +128,10 @@ In this order:
 - [ ] Brand and store art after the name (Q-011). `ASSETS_LICENSES.md` complete.
 
 ## M6 · Multiplayer (after the single player is fun)
-- [ ] Relay deployed (VPS or Durable Objects), `.env.example` with `VITE_RELAY_URL`.
-- [ ] Lobby + handshake (build version, balance hash, seed).
-- [ ] Desync detection UI + state dumps, replays (seed + commands), resign/pause/disconnect rules.
+- [x] Relay on Durable Objects (D-219): `relay/worker.mjs`, `npm run relay:deploy`, CI deploy once `RELAY_URL` is set; `.env.example` with `VITE_RELAY_URL`. Going live needs the user's Cloudflare setup.
+- [x] Lobby + handshake (D-219, D-220): host a match / join by code or `?join=` link; build, balance hash, seed and size.
+- [x] Disconnect rules and desync UI (D-221): a leaver forfeits, a stalled peer is dropped, a desync voids the match.
+- [ ] State dumps on desync, replays (seed + commands), pause, a sim-side resign command.
 - [ ] Preview/prod deploy pipeline (Cloudflare Pages, itch.io).
 
 ## M7 · Balance at scale and AI training (last)

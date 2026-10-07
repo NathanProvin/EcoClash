@@ -27,7 +27,8 @@
     "wasm:check": "node sim-wasm/node/check.mjs",
     "relay": "npm run start -w relay",
     "relay:test": "npm run -s wasm:build && npm run test -w relay",
-    "relay:lint": "prettier --check relay --config client/.prettierrc"
+    "relay:lint": "prettier --check relay --config client/.prettierrc",
+    "relay:deploy": "cd relay && npx wrangler@4 deploy"
   },
   "workspaces": [
     "client",

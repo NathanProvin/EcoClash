@@ -740,7 +740,7 @@ rest = 0.5
 
 [fauna.great_tit]
 growth = 60
-spawn_cost = 200
+spawn_cost = 400
 unlock_cost = 800
 yield = 0.05
 cap = 60

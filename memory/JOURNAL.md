@@ -915,3 +915,21 @@
 
   Pass 1b cycle: tall > wide 62, wide > rush 56, rush = tall 50 (target 55–65). Fingerprints at 10 min: wide land 51 % vs tall 42 % (1.21×); species per cell at 20 min tall 1.55 vs wide 1.70 (tall saves for tree unlocks: 8 000 points banked at 10 min).
 - **Side effects of 0.3, accepted:** animals need established habitat plants (about 13 s after a first planting); a cell just conquered has its species at the threshold and is the front's weakest point. Tests adapted (scenario raids after 60 s; the grazing test asserts the front breaks).
+
+## 2026-10-08 (6) · Balance loop passes 2–6, final measures, client style choice (D-228, D-229)
+- **Passes** (matrix at Normal, 4 seeds per ordered pair; mean points % wide/tall/rush/bal; unfinished; lead changes):
+
+  | pass | change | result | kept |
+  |---|---|---|---|
+  | 2 | `smother_rate` 0.15 → 0.25 | 53/29/62/53; 56 %; 2.7 | no |
+  | 3 | `natural_death_s` 3600 → 1800 | identical to 1b (trees too late to matter) | no |
+  | 4 | great tit `spawn_cost` 200 → 400 | 56/41/49/51; 10 %; 1.4; rush > tall 68, wide > rush 62 | **yes** |
+  | 5 | `div_gain` 0.05 → 0.10 | 43/41/58/56; 15 %; 5.0; wide > rush 43 | no |
+  | 6 | tree unlocks −33 % | 64/35/51/47; 18 %; 1.2 | no |
+
+- **Final measure, 8 seeds** (D-229): wide 48, tall 40, rush 55, balanced 54; cycle rush > tall 71, tall > wide 46, wide > rush 53; unfinished 24 %, seat bias −9, lead changes 3.0, comebacks 16 %. Ladder: H > N 59 %, N > E 81 %, H > E 93 %. Adaptive hard vs locked 46 %.
+- **Met:** style means within 40–60 %; lead changes ≥ 2; normal > easy and hard > easy; decision time ≤ 1 ms; ≥ 75 % of animals called; every plant card used; distinct spending splits (wide 40 % land, tall 61 % depth, rush 65 % army).
+- **Missed:** tall > wide (46), rush > tall too strong (71), wide > rush (53); unfinished 24 % (≤ 10); seat bias −9; comebacks 16 % (25–40); hard > normal 59 % (70–85); adaptation gains nothing; great tit 35 % of calls (≤ 25); fingerprints: wide land 1.04× tall at 10 min (≥ 1.3), tall species per cell below wide.
+- **Client:** bot style choice in the AI setup (random by default), revealed on the end screen; "Medium" label (commit `250fb2d`).
+- **Not re-run:** `pyramid_report` (no fauna rule or diet changed), trophic survival at 20 min (no bench measure yet).
+- **Next (user):** choose how to continue (see the session report).

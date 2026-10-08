@@ -392,7 +392,7 @@ A species can be spawned only when **all** of the following hold:
 - **Wide:** grab land with cheap low plants; surround the opponent's bulges; many cheap cells soak up raids.
 - **Rush:** breed or drop grazers to eat species out of enemy cells or eat them bare (§6.1).
 
-Intended cycle, tuned with the bench (not hard-coded): rush beats tall (its value is concentrated), wide beats rush (its value is spread), tall beats wide (late strength), unless wide encircles it or the clock runs out first.
+Intended cycle, tuned with the bench (not hard-coded): rush beats tall (its value is concentrated), wide beats rush (its value is spread), tall beats wide (late strength), unless wide encircles it or the clock runs out first. Measured (D-229, bots at medium): rush > tall 71 %, tall > wide 46 %, wide > rush 53 %: the cycle is not there yet.
 
 ---
 

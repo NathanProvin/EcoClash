@@ -170,7 +170,7 @@ ponds = 1
 # Rates are per second; fractions are of the species' k_max. Biomass is in u16 units (0..65535).
 [flora]
 seed_fraction = 0.1        # seed rain: biomass added per unit of gauge gained, as a fraction of k_max
-establish_threshold = 0.1  # a species counts (dominant level, strength) from this fraction of k_max
+establish_threshold = 0.3  # a species counts (dominant level, strength) from this fraction of k_max
 smother_rate = 0.15        # enemy species lose this fraction of k_max per second, per point of push over strength (D-225)
 fert_gain = 0.25           # strength x (1 + fert_gain x soil development), soil 0..1 (D-225)
 litter_fraction = 0.1      # litter per second = this x biomass_rate x biomass (turnover)

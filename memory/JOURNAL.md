@@ -901,3 +901,17 @@
   - Checks: rs:lint, rs:test, wasm:check (1200 ticks), py:test, py:lint, relay:test, client test/check all green. `flora_tick_time` full 38²: 0.76 ms (was 0.73); worst tick 7.5 ms.
   - Bench, 6 seeds, 40 min, default bots: before 6/6 finished by territory (183 raids); after 4/6 finished, 2 unfinished near 50/50 (56 raids). Untuned: step 5.
 - **Next:** step 3, bot style presets; then the style matrix and tuning.
+
+## 2026-10-08 (5) · Bot styles and the balance loop (D-228), passes 0–1
+- **Done (branch `gameplay-changes`):** bot styles, front map, deficit spending, adaptation; bench `--matrix`, `--ladder`, seats `level:style[:locked]`, new measures (commit `a26dd8d`).
+- **Matrix at Normal, 4 seeds per ordered pair** (points % of the row; overall mean against the other three):
+
+  | pass | change | wide | tall | rush | bal | unfinished | lead ch. | comeback |
+  |---|---|---|---|---|---|---|---|---|
+  | 0 | baseline | 33 | 53 | 53 | 58 | 56 % | 0.4 | 4/64 |
+  | 1a | `establish_threshold` 0.1 → 0.3 (a new species must grow before it counts) | 27 | 53 | 62 | 56 | 25 % | 4.2 | 13/64 |
+  | 1b | + land-heavy bots claim free ground ahead of their border; home `deepen` alternates tallest / fastest | 47 | 51 | 49 | 49 | 20 % | 2.8 | 10/64 |
+  | – | raids with smaller herds for army-heavy bots (reverted: rush 43, feeds hunters) | 51 | 53 | 43 | 49 | 28 % | 2.7 | 10/64 |
+
+  Pass 1b cycle: tall > wide 62, wide > rush 56, rush = tall 50 (target 55–65). Fingerprints at 10 min: wide land 51 % vs tall 42 % (1.21×); species per cell at 20 min tall 1.55 vs wide 1.70 (tall saves for tree unlocks: 8 000 points banked at 10 min).
+- **Side effects of 0.3, accepted:** animals need established habitat plants (about 13 s after a first planting); a cell just conquered has its species at the threshold and is the front's weakest point. Tests adapted (scenario raids after 60 s; the grazing test asserts the front breaks).

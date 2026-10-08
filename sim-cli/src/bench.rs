@@ -119,6 +119,8 @@ pub struct Markers {
     /// land.
     pub depth10: [u64; 2],
     pub away10: [u64; 2],
+    /// Species per own cell (x100) at 20 min: deep play shows later (D-228).
+    pub depth20: [u64; 2],
     /// At the end: the spending split (% land, depth, army), weight shifts, and the mean time
     /// of one bot decision (µs).
     pub split: [[u64; 3]; 2],
@@ -414,6 +416,15 @@ pub fn play(b: &Balance, seed: u64, size: usize, seats: [Seat; 2], minutes: u64)
                         let held = w.state.owner.iter().filter(|&&o| o == player).count();
                         m.share[j][p] = u64::try_from(held * 100 / n2).unwrap_or(0);
                     }
+                }
+                if now == 1200 {
+                    let own: Vec<usize> = (0..n2).filter(|&k| w.state.owner[k] == player).collect();
+                    let species: i64 = own
+                        .iter()
+                        .map(|&k| w.flora.species_count(&w.state, k))
+                        .sum();
+                    m.depth20[p] =
+                        u64::try_from(species * 100 / own.len().max(1) as i64).unwrap_or(0);
                 }
                 if now == 600 {
                     let own: Vec<usize> = (0..n2).filter(|&k| w.state.owner[k] == player).collect();
@@ -913,10 +924,11 @@ pub fn matrix(
         };
         let _ = writeln!(
             t,
-            "{:<9} land@10 {:>2} %  species/cell {:>3}  on enemy land {:>3}  split {}/{}/{}  shifts {}",
+            "{:<9} land@10 {:>2} %  species/cell @10 {:>3} @20 {:>3}  on enemy land {:>3}  split {}/{}/{}  shifts {}",
             s.name(),
             med(&|p, m| m.share[1][p]),
             med(&|p, m| m.depth10[p]),
+            med(&|p, m| m.depth20[p]),
             med(&|p, m| m.away10[p]),
             med(&|p, m| m.split[p][0]),
             med(&|p, m| m.split[p][1]),

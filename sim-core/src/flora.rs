@@ -1506,26 +1506,31 @@ mod tests {
         );
     }
 
-    /// D-225: grazing a species out of a cell lowers its strength, and a balanced front breaks
-    /// while the grazers keep it out (it re-seeds from the neighbours otherwise).
+    /// D-225: grazing a species out of a front lowers its strength, and a balanced front breaks:
+    /// a grazed front cell falls to the side next to it. (Holding it is another matter: a cell
+    /// just taken has its species at the threshold and is the front's weakest point.)
     #[test]
     fn grazing_a_species_out_breaks_a_balanced_front() {
         let mut f = flora();
-        let n = 4;
+        let n = 5;
         let mut st = split_map(&f, n, 2, &MEADOW, &MEADOW);
         let l = f.p.index("lichen_and_moss").unwrap();
-        let k = n + 2; // a P2 front cell
-        st.bio[l * n * n + k] = 0;
-        st.gauge[l * n * n + k] = 0;
-        assert!(f.push(&st)[k] > 0, "1 species against 2");
-        for _ in 0..60 {
-            if st.owner[k] == 2 {
-                st.bio[l * n * n + k] = 0; // the grazers keep eating it
+        let k = 2 * n + 2; // a P2 front cell
+        let graze = |st: &mut FloraState| {
+            for k in (0..n * n).filter(|&k| st.owner[k] == 2) {
+                st.bio[l * n * n + k] = 0; // the grazers keep eating it, on all of P2's land
                 st.gauge[l * n * n + k] = 0;
             }
+        };
+        graze(&mut st);
+        assert!(f.push(&st)[k] > 0, "1 species against 2");
+        let mut fell = false;
+        for _ in 0..40 {
+            graze(&mut st);
             f.step(&mut st);
+            fell |= st.owner[k] == 1;
         }
-        assert_eq!(st.owner[k], 1, "the weakened cell fell");
+        assert!(fell, "the grazed front cell fell");
     }
 
     /// D-227: the enemy's trees take over a cell whose stand died; its former owner's do not.

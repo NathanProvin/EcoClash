@@ -740,8 +740,9 @@ mod tests {
 
     #[test]
     fn animals_spawn_by_command_live_in_the_hash_and_refusals_leave_a_notice() {
+        // Tick 200: the lichen planted at 0 is established, so its land is a habitat (D-225).
         let spawn = |seq: u32, species: &str| Command {
-            tick: 100,
+            tick: 200,
             player: 1,
             seq,
             payload: Payload::Spawn {
@@ -752,7 +753,7 @@ mod tests {
         };
         let mut cmds = orders();
         cmds.push(Command {
-            tick: 99,
+            tick: 199,
             player: 1,
             seq: 4,
             payload: Payload::Unlock {

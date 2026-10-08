@@ -179,6 +179,8 @@ const TALL_SPECIES: i64 = 300;
 const TALL_RATIO: i64 = 130;
 const WIDE_RATIO: i64 = 120;
 const WIDE_GROWTH: i64 = 2;
+/// How far beyond its land (cells past the plant radius) a land-heavy bot seeds new ground.
+const CLAIM_REACH: usize = 3;
 /// The least share (%) a category keeps when the bot shifts toward a counter.
 const MIN_WEIGHT: i64 = 5;
 /// Extra hunter cards the bot keeps against a rush (D-228).
@@ -968,11 +970,13 @@ impl Bot {
         Some(self.plant(name, k, n))
     }
 
-    /// Spread: the free cell next to own land nearest the enemy that an unlocked, affordable
-    /// spreader suits (grass on land, algae in the shallows; D-192). A land-heavy bot, or one
-    /// facing a wide enemy, encircles (D-228): free cells touching the most enemy cells first,
-    /// where its neighbours' strengths will add up against them. Cells it is locked out of are
-    /// skipped (D-098).
+    /// Spread (D-192, D-228). A land-heavy bot claims: it seeds the free spot within CLAIM_REACH
+    /// cells of its land whose plant disc covers the most free cells, clear of the enemy (any
+    /// free cell may be planted, D-095), and so outruns the natural spread. Otherwise, or with
+    /// nothing left to claim, the free cell next to own land nearest the enemy; facing a wide
+    /// enemy, the one touching the most enemy cells first (encircling, where its neighbours'
+    /// strengths add up). Each spot takes the first unlocked, affordable spreader it suits (grass
+    /// on land, algae in the shallows). Cells it is locked out of are skipped (D-098).
     fn expand(&self, v: &View) -> Option<Payload> {
         let (w, n) = (v.w, v.n);
         let spreaders: Vec<(&str, usize)> = SPREADERS
@@ -989,10 +993,34 @@ impl Bot {
         }
         let own = |k: usize| w.state.owner[k] == self.player;
         let barred = |k: usize| w.state.lock[k] > 0 && w.state.lock_p[k] == self.player;
+        let suited = |k: usize| {
+            spreaders
+                .iter()
+                .find(|&&(_, s)| w.flora.suitability(&w.state, s, k) >= i64::from(ONE) / 2)
+        };
+        if self.weights[LAND] >= 40 {
+            let r = usize::try_from(self.radius).unwrap_or(2);
+            let near_own = dilate(w, n, self.player, r + CLAIM_REACH);
+            let near_enemy = dilate(w, n, 3 - self.player, r + 1);
+            let free = |k: usize| w.state.owner[k] == 0 && !barred(k);
+            let best = (0..n * n)
+                .filter(|&k| free(k) && near_own[k] && !near_enemy[k] && suited(k).is_some())
+                .map(|k| {
+                    let covered = disc(k, n, r).filter(|&m| free(m)).count();
+                    (covered, Reverse(dist2(k, n, v.home)), Reverse(k))
+                })
+                .max();
+            if let Some((covered, _, Reverse(k))) = best
+                && covered > disc_cells(self.radius).unsigned_abs() as usize / 2
+                && let Some(&(name, _)) = suited(k)
+            {
+                return Some(self.plant(name, k, n));
+            }
+        }
         let mut border: Vec<usize> = (0..n * n)
             .filter(|&k| w.state.owner[k] == 0 && !barred(k) && neighbours(k, n).any(own))
             .collect();
-        let encircle = self.weights[LAND] >= 40 || self.posture == Some(Posture::Wide);
+        let encircle = self.posture == Some(Posture::Wide);
         let enemies = |k: usize| {
             neighbours(k, n)
                 .filter(|&m| w.state.owner[m] == 3 - self.player)
@@ -1015,7 +1043,7 @@ impl Bot {
     /// first the cells the enemy pushes (defence, the strongest push first), then cells next to
     /// an enemy cell one species short of falling (offence; not easy), then home, for the
     /// biodiversity income. At the front the cheapest fitting plant (strength counts species, not
-    /// height); at home the tallest (biomass and income). Recyclers, called on their own pace,
+    /// height); at home the tallest or the fastest grower, in turn. Recyclers, called on their own pace,
     /// raise the soil's fertility.
     fn deepen(&self, v: &View) -> Option<Payload> {
         let (w, n, n2) = (v.w, v.n, v.n * v.n);
@@ -1058,10 +1086,14 @@ impl Bot {
                     && !w.flora.tree_barred(&w.state, s, k, self.player)
                     && w.flora.suitability(&w.state, s, k) >= half
             });
+            // At home, every other decision the tallest plant (biomass, income), else the fastest
+            // grower (it counts in the strength soonest; D-225).
             let s = if tier < 2 {
                 fit.min_by_key(|&s| (price(s), s))
-            } else {
+            } else if self.turn.is_multiple_of(2) {
                 fit.max_by_key(|&s| (p.level[s], Reverse(s)))
+            } else {
+                fit.max_by_key(|&s| (p.rdt[s], Reverse(s)))
             };
             if let Some(s) = s {
                 return Some(self.plant(&p.names[s], k, n));
@@ -1471,6 +1503,30 @@ fn front(w: &World, me: u8) -> (Vec<i64>, Vec<i64>, Vec<i64>) {
     (strength, push, margin)
 }
 
+/// The cells within `r` (Euclidean) of cell `k` on an `n x n` map.
+fn disc(k: usize, n: usize, r: usize) -> impl Iterator<Item = usize> {
+    let (row, col) = (k / n, k % n);
+    (row.saturating_sub(r)..(row + r + 1).min(n)).flat_map(move |y| {
+        (col.saturating_sub(r)..(col + r + 1).min(n))
+            .filter(move |&x| y.abs_diff(row).pow(2) + x.abs_diff(col).pow(2) <= r * r)
+            .map(move |x| y * n + x)
+    })
+}
+
+/// Cells within `r` (Chebyshev) of `player`'s land.
+fn dilate(w: &World, n: usize, player: u8, r: usize) -> Vec<bool> {
+    let mut near = vec![false; n * n];
+    for k in (0..n * n).filter(|&k| w.state.owner[k] == player) {
+        let (row, col) = (k / n, k % n);
+        for y in row.saturating_sub(r)..(row + r + 1).min(n) {
+            for x in col.saturating_sub(r)..(col + r + 1).min(n) {
+                near[y * n + x] = true;
+            }
+        }
+    }
+    near
+}
+
 /// Cells of a plant disc of radius `r` (about π r²; enough to decide affordability).
 fn disc_cells(r: u32) -> i64 {
     let r = i64::from(r);
@@ -1645,7 +1701,10 @@ mod tests {
                 },
             );
         }
-        w.step();
+        // A minute for the planted grass to establish (D-225: raiders land on food).
+        for _ in 0..600 {
+            w.step();
+        }
         for &(c, row, col) in calls {
             send(
                 &mut w,
@@ -1773,7 +1832,7 @@ mod tests {
                     .unwrap_or_else(|e| panic!("{name}: {e}"));
             }
             w.submit(Command {
-                tick: 0,
+                tick: 590, // once the grass is established (D-225)
                 player: 2,
                 seq: 1000,
                 payload: Payload::Spawn {
@@ -1939,10 +1998,11 @@ mod tests {
         }
     }
 
-    /// D-228: a land-heavy bot spreads first into the free cells that touch the most enemy
-    /// cells (encircling); a depth-heavy one toward the enemy's centre.
+    /// D-228: a land-heavy bot claims open ground: its plant disc lands on free cells, clear of
+    /// the enemy. A bot facing a wide enemy encircles: free cells touching the most enemy cells
+    /// first. Otherwise it spreads toward the enemy's centre.
     #[test]
-    fn wide_encircles_and_tall_does_not() {
+    fn wide_claims_and_a_bot_facing_wide_encircles() {
         let b = balance();
         // The bot holds rows 20 and down. P1 has a small bulge at (19, 10), (18, 9), (18, 11),
         // and its main land in the top right corner.
@@ -1966,18 +2026,31 @@ mod tests {
             let k = row as usize * 38 + col as usize;
             neighbours(k, 38).filter(|&m| w.state.owner[m] == 1).count()
         };
-        for (style, encircles) in [(Style::Wide, true), (Style::Tall, false)] {
-            let mut bot = Bot::new(2, Level::Normal, style, &b);
+        let planted = |bot: &mut Bot| {
             let v = bot.view(&w);
-            let Some(Payload::Plant { row, col, .. }) = bot.expand(&v) else {
-                panic!("{style:?} plants");
-            };
-            assert_eq!(
-                enemies(row, col) == 2,
-                encircles,
-                "{style:?} at ({row}, {col})"
-            );
-        }
+            match bot.expand(&v) {
+                Some(Payload::Plant { row, col, .. }) => (row, col),
+                other => panic!("expected a plant, got {other:?}"),
+            }
+        };
+        let (row, col) = planted(&mut Bot::new(2, Level::Normal, Style::Wide, &b));
+        let k = row as usize * 38 + col as usize;
+        assert_eq!(w.state.owner[k], 0, "a free cell");
+        assert!(row < 20, "beyond its land: ({row}, {col})");
+        let r = usize::try_from(b.flora.plant_radius).unwrap();
+        assert!(
+            disc(k, 38, r + 1).all(|m| w.state.owner[m] != 1),
+            "clear of the enemy: ({row}, {col})"
+        );
+        let mut facing = Bot::new(2, Level::Normal, Style::Balanced, &b);
+        facing.posture = Some(Posture::Wide);
+        let (row, col) = planted(&mut facing);
+        assert_eq!(enemies(row, col), 2, "encircles at ({row}, {col})");
+        let (row, col) = planted(&mut Bot::new(2, Level::Normal, Style::Tall, &b));
+        assert!(
+            enemies(row, col) < 2,
+            "tall heads for the centre: ({row}, {col})"
+        );
     }
 
     /// D-228: facing a tall enemy, hard shifts its full step toward army, normal half, easy none;

@@ -57,8 +57,11 @@
     padding: 0;
     left: 0;
     top: 0;
-    /* Placed by transform (D-202): moving it every frame needs no layout. */
-    transform: translate(var(--x), var(--y)) translate(-50%, -120%);
+    /* Placed by the translate property (D-202: no layout per frame), centred by transform. The
+       hover scale applies after translate, so it grows the icon in place; inside transform it
+       scaled the screen position too and the icon fled the cursor (D-234). */
+    translate: var(--x) var(--y);
+    transform: translate(-50%, -120%);
     border: 0;
     border-radius: 9px;
     background: none;

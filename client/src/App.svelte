@@ -1165,6 +1165,9 @@
         if (a?.owner === mine) select([hit]);
         unitIds = [hit];
         inspect(null);
+        // Its food web on the build bar, as for a strategic icon (D-235).
+        const name = a ? replay?.meta.fauna.names[a.species] : undefined;
+        focus = (name && replay?.meta.species.find((s) => s.name === name)) || null;
       } else {
         unitIds = [];
         inspect(viewer.pickCell(box.x0, box.y0));

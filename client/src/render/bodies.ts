@@ -103,7 +103,7 @@ export const ANIMAL_FORM: Record<string, AnimalForm> = {
   great_tit: {
     body: "bird",
     length: 0.14,
-    color: "#6f8a5a",
+    color: "#1e9bd7", // deep sky blue (D-235)
     tones: { belly: "#e3c94a", accent: "#18181a", dark: "#4d5f6b", bill: "#202020" },
   },
   frog: { body: "frog", length: 0.08, color: "#6f8f3c", tones: { belly: "#d6d39a" } },

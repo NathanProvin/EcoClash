@@ -26,6 +26,7 @@ import {
   time,
   uniform,
   uv,
+  vec2,
   vec3,
   vec4,
 } from "three/tsl";
@@ -264,24 +265,14 @@ export class Viewer {
     this.frontierData = new Uint8Array(n * n * 4);
     this.frontierTex = field(this.frontierData);
     this.frontierPrev = field(new Uint8Array(n * n * 4));
-    const front = mix(
-      texture(this.frontierPrev, uv()),
-      texture(this.frontierTex, uv()),
-      this.blend,
-    );
-    const band = (own: THREE.Node<"float">, push: THREE.Node<"float">) => {
-      const top = push.mul(BAND.max - BAND.min).add(0.5 + BAND.min);
-      const aa = 0.012;
-      return smoothstep(0.5, 0.5 + aa, own).mul(smoothstep(top, top.add(aa), own).oneMinus());
-    };
-    const [l1, l2] = [band(front.r, front.b), band(front.g, front.a)];
-    const lineRgb = mix(color(PLAYER[2].base), color(PLAYER[1].base), l1.div(l1.add(l2).add(1e-4)));
+    const { rgb: lineRgb, a: line } = this.frontLine(uv());
     // No front line under the water (D-212): it showed through as a square around water cells.
+    // The water surface draws it instead (D-235).
     const dryLine =
       this.field.water === null
         ? float(1)
         : smoothstep(this.field.water - 0.05, this.field.water + 0.02, positionWorld.y);
-    const lineA = l1.max(l2).mul(this.showFrontier).mul(dryLine);
+    const lineA = line.mul(dryLine);
     const soilColour = mix(earth, humus, mottle).mul(grain);
     groundMat.colorNode = mix(this.terrainTint(soilColour, grain), lineRgb, lineA);
     groundMat.emissiveNode = lineRgb.mul(lineA.mul(0.35));
@@ -587,8 +578,24 @@ export class Viewer {
     return mix(out, color(WORLD.rock).mul(grain), rocky.mul(0.7));
   }
 
+  /** The front lines (D-108) at texture coordinates `at` of the frontier texture: their colour
+   *  and their coverage (0..1, the frontier toggle included). Shared by the ground and the water
+   *  surface (D-235). */
+  private frontLine(at: THREE.Node<"vec2">): { rgb: THREE.Node<"vec3">; a: THREE.Node<"float"> } {
+    const front = mix(texture(this.frontierPrev, at), texture(this.frontierTex, at), this.blend);
+    const band = (own: THREE.Node<"float">, push: THREE.Node<"float">) => {
+      const top = push.mul(BAND.max - BAND.min).add(0.5 + BAND.min);
+      const aa = 0.012;
+      return smoothstep(0.5, 0.5 + aa, own).mul(smoothstep(top, top.add(aa), own).oneMinus());
+    };
+    const [l1, l2] = [band(front.r, front.b), band(front.g, front.a)];
+    const rgb = mix(color(PLAYER[2].base), color(PLAYER[1].base), l1.div(l1.add(l2).add(1e-4)));
+    return { rgb, a: l1.max(l2).mul(this.showFrontier) };
+  }
+
   /** The water surface over the valleys (D-085): transparent, tinted by depth (read from the height
-   *  texture), fading at the shore, with a slow shimmer. Only when the map has water. */
+   *  texture), fading at the shore, with a slow shimmer; the front lines drawn on it (D-235). Only
+   *  when the map has water. */
   private addWater(size: number): void {
     const level = this.field.water;
     if (level === null) return;
@@ -602,13 +609,20 @@ export class Viewer {
     const bed = texture(this.heights, at).r;
     const depth = float(level).sub(bed);
     const shimmer = float(1).add(this.noise(0.35, "r", time.mul(0.04)).mul(0.06));
-    material.colorNode = mix(
+    // The frontier texture's rows run from the map's near edge (+z), the height texture's from
+    // its far edge: flip v (frontier.ts).
+    const line = this.frontLine(vec2(at.x, at.y.oneMinus()));
+    const wet = smoothstep(0.0, 0.08, depth);
+    const waterRgb = mix(
       color(WORLD.shallows),
       color(WORLD.deepWater),
       smoothstep(0.2, 2.2, depth),
     ).mul(shimmer);
+    material.colorNode = mix(waterRgb, line.rgb, line.a.mul(0.85));
+    material.emissiveNode = line.rgb.mul(line.a.mul(0.3));
     // A crisp edge (D-210): full within 8 cm of depth; the bed darkens under the water instead.
-    material.opacityNode = smoothstep(0.0, 0.08, depth).mul(0.82);
+    // Under a front line the surface is near opaque, so the line reads on open water (D-235).
+    material.opacityNode = wet.mul(mix(float(0.82), float(0.95), line.a));
     const water = new THREE.Mesh(
       new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2),
       material,

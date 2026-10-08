@@ -603,7 +603,7 @@
       0 0 12px var(--web);
   }
   .web-dim {
-    filter: saturate(0.6);
+    filter: saturate(0.2); /* -80 % (D-235) */
   }
   @keyframes web-pulse {
     50% {

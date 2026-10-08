@@ -2723,3 +2723,13 @@ Template:
     - herbs and undergrowth keep the seed scatter and the sprinkle;
     - shrubs and trees spring up as a sapling with a woody pop, no seed scatter.
   - **Animal model size:** assessed, not changed: `ANIMAL_SCALE` (2.5) in `render/animals.ts`, rings and picking follow; waits for the user's green light.
+
+## D-235 · 2026-10-08 · UI/UX round 4: the pulse back, larger animals, front line on water, sharper focus
+- **Status:** accepted (user's playtest of D-234; green light for larger animals)
+- **Decision:**
+  - **Pulse back:** the numbers' rise animation moved to the number itself; on the mark it animated `translate`, which places marks (D-234), so every number was drawn at the screen's top-left corner. Each number now opens with a heartbeat pop. `fx.pulse` gains a body at 100–150 Hz and a click: its 40–60 Hz beat alone was near silent on laptop speakers.
+  - **Animals larger:** `ANIMAL_SCALE` 2.5 → 3.5, `LARGE` 0.5 → 0.75: vole ×1.37, rabbit ×1.3, deer ×1.12; rings and picking follow.
+  - **Great tit:** coat deep sky blue `#1e9bd7`.
+  - **Food-web focus:** unrelated families and tiles at 20 % saturation (−80 %); left-clicking any animal also focuses its species.
+  - **Front line on the water:** the water surface draws the front lines from the frontier texture (`frontLine`, shared with the ground; v flipped), with near-opaque water under the line. The ground still hides its own line under the water (D-212).
+  - **Cell card:** "Strength 2.5 vs 3.8", larger (1.15 em), each number in its player's colour, a glow when the push wins; the word "push" dropped.

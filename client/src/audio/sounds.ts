@@ -296,6 +296,10 @@ export const RECIPES: Record<string, Recipe> = {
     play: (c, o, t, p, n) => {
       tone(c, o, t, { f0: 60 * p, f1: 42 * p, dur: 0.25, gain: 0.36, attack: 0.006 });
       tone(c, o, t + 0.24, { f0: 52 * p, f1: 38 * p, dur: 0.3, gain: 0.26, attack: 0.006 });
+      // A body small speakers carry (D-235): the same beat an octave and a half up, and a click.
+      tone(c, o, t, { f0: 150 * p, f1: 110 * p, dur: 0.16, gain: 0.14, attack: 0.004 });
+      tone(c, o, t + 0.24, { f0: 130 * p, f1: 100 * p, dur: 0.2, gain: 0.1, attack: 0.004 });
+      hiss(c, o, t, n, { type: "lowpass", f0: 900, f1: 200, dur: 0.05, gain: 0.06 });
       hiss(c, o, t, n, { type: "lowpass", f0: 200, f1: 90, dur: 0.2, gain: 0.04 });
     },
   },

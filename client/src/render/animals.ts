@@ -31,8 +31,8 @@ export { ANIMAL_FORM, BODIES, bodyGeometry, formOf, type AnimalForm, type Body }
 
 /** Models are drawn this many times their real size, so a vole still shows next to a 3 m crown;
  *  large animals are scaled up less (`drawnLength`), so a bison does not dwarf the trees. */
-export const ANIMAL_SCALE = 2.5;
-const LARGE = 0.5; // per metre of real length: how much less a large animal is enlarged
+export const ANIMAL_SCALE = 3.5; // D-235: was 2.5
+const LARGE = 0.75; // D-235: was 0.5; per metre of real length: how much less a large animal is enlarged
 
 /** Drawn length (m) of a species: its real length enlarged, less so the larger it is (D-087). */
 export function drawnLength(form: AnimalForm): number {

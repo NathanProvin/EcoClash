@@ -115,14 +115,15 @@
     </div>
     {#if info.front}
       {@const over = info.front.push > info.front.strength}
+      {@const enemy = info.owner === 1 ? 2 : 1}
       <div
-        class="row"
+        class="row strength"
         title="Strength: the owner's species on this cell (plants established and resident animals), times the soil's fertility. Push: the summed strength of the enemy's cells next to it. When the push beats the strength, the cell's plants are smothered; a cell just taken is held for a while (D-225, D-230)."
       >
         <span class="name">Strength</span>
         <span class="vs"
-          ><strong>{info.front.strength.toFixed(1)}</strong> vs
-          <strong class:over>{info.front.push.toFixed(1)}</strong> push</span
+          ><strong class="v{info.owner}">{info.front.strength.toFixed(1)}</strong> vs
+          <strong class="v{enemy}" class:over>{info.front.push.toFixed(1)}</strong></span
         >
       </div>
     {/if}
@@ -307,11 +308,26 @@
     font-weight: 800;
     text-align: center;
   }
+  /* Strength vs push (D-235): larger, each number in its player's colour; a winning push
+     glows. */
+  .strength {
+    font-size: 1.15em;
+  }
   .vs {
     grid-column: span 2;
     font-variant-numeric: tabular-nums;
   }
+  .vs strong {
+    font-weight: 900;
+    text-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+  }
+  .vs .v1 {
+    color: var(--p1);
+  }
+  .vs .v2 {
+    color: var(--p2);
+  }
   .vs .over {
-    color: var(--threat);
+    text-shadow: 0 0 6px currentColor;
   }
 </style>

@@ -125,9 +125,29 @@
     position: absolute;
   }
 
-  /* Income: rises and fades, a dark edge so it reads on grass. */
+  /* Income: a heartbeat pop, then it rises and fades, a dark edge so it reads on grass. The
+     animation is on the number: the mark's own translate places it (D-235). */
   .income {
-    animation: rise 1.4s ease-out forwards;
+    animation: hold 1.4s linear forwards;
+  }
+  .income .num {
+    animation:
+      rise 1.4s ease-out forwards,
+      beat 0.5s ease-out;
+  }
+  @keyframes beat {
+    0% {
+      scale: 0.6;
+    }
+    30% {
+      scale: 1.3;
+    }
+    60% {
+      scale: 0.95;
+    }
+    100% {
+      scale: 1;
+    }
   }
   .num {
     transform: translate(-50%, -50%) scale(var(--s));

@@ -977,3 +977,13 @@
   - plantings by layer and tier, saplings for shrubs and trees.
 - **Tests:** order-line fade, 12 numbers at most. Client check, lint, tests, build green.
 - **Open:** animal model size (one constant, `ANIMAL_SCALE`), awaiting the user's green light.
+
+## 2026-10-08 (13) · UI/UX round 4 (D-235)
+- **Done:**
+  - pulse numbers and sound restored (animation on the number, an audible body);
+  - animals ×1.3 to ×1.4 (large ones less);
+  - blue great tit;
+  - −80 % dimming, also on a clicked animal;
+  - front line drawn on the water surface;
+  - player-coloured strength line.
+- **Tests:** drawn sizes. Client check, lint, tests, build green.

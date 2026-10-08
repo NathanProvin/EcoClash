@@ -882,3 +882,10 @@
   - Measured the cost: today's flora tick on a full 38² map is 0.73 ms; a JS mock of a heavier rule cost 0.2 ms.
   - Python parity retired (D-226). gamerules §3, §3.1, §6.1, §7, §10, §11.2 and §12, INSTRUCTIONS §5.2 and §9, CLAUDE.md updated.
 - **Next (after the user's green light):** step 2, the sim change (plan in ROADMAP "Gameplay · Three styles").
+
+## 2026-10-08 (3) · Herb merge; dead tree rule (D-227)
+- **Done:**
+  - `perf/herb-polygons` merged into main (fast-forward, not pushed).
+  - Reviewed the user's dead tree rule against the code: the base death rate, dead wood, rot and recyclers exist (D-127). Changes specified: a per-player tree lock (`snag_owner`), the storm leaves dead trees. The enemy's trees take over through the D-225 push, so there is no mixed ownership.
+  - The spec now lives on branch `gameplay-changes`.
+- **Next (after the green light):** ROADMAP "Gameplay · Three styles" step 2 and step 2b.

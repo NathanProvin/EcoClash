@@ -200,7 +200,7 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
 - **Food ranks (D-123):** an animal seeks its primary food in sight first, then the secondary, then the tertiary (an attack-move looks on enemy land the same way). A grazer eats the best-ranked plant in its cell, a hunter the best-ranked prey in reach. A meal gives energy × `[fauna] diet_yield` of its rank: 100 %, 75 %, 50 %.
 - **Habitats:** grazers need their food plants on their owner's land; hunters need a plant family (woods for the lynx, water plants for the pike). Tier-1 insects live one layer below their food (D-126): grasshoppers and slugs on herbs, caterpillars on undergrowth, bark beetles on shrubs, so they can counter a layer before you grow it.
 - **Media (D-084):** fish and larvae swim; frog, beaver, otter, mallard and heron are amphibious; great tit, hawk, eagle-owl and black woodpecker fly; the rest walk.
-- **Black woodpecker (D-092):** will speed up the decay of dead trees; the rule comes later, today it recycles litter like the others.
+- **Black woodpecker (D-092, D-127):** eats standing dead wood first (then litter), so it clears dead trees fastest (§6.2, D-227).
 - **Great tits (D-141)** also eat grasshoppers: a tier-1 answer to grasshopper swarms.
 - **Food-web harmony (D-187):** counters cost about what the raids they answer cost, and tier-1 hunters live on meadows, so defence comes in the same phase as attack.
   - **Tiers:** within a family, no tier is weaker than the one below (costs, yield, body).
@@ -295,7 +295,14 @@ All dead organisms, plants and animals, feed `Dead biomass`.
 - **Meals (D-218):** a kill restores `kill_meal` of the hunter's body (by diet rank), whatever the prey's size.
 - Predators cannot attack species outside their diet. A fox ignores slugs, for example.
 - **Refuge (D-023):** a player's small fauna inside own cells with dense hawthorn & blackthorn or bramble, or in the water dense cattails (D-125), cannot be hunted. Predators are otherwise kept in check by their own predators (§5.2).
-- **Dead trees (D-127):** trees can die of old age (a small chance, a mean life of 1 h of ecology time; D-152). The dead tree stays standing; while it stands, no tree can grow in that cell. It rots away slowly, and recyclers clear it faster, the black woodpecker best of all (dead wood is its primary food).
+- **Dead trees (D-127, D-227):** a cell's tree stand dies:
+  - of old age, at a base rate (`natural_death_s`, a mean life of 1 h of ecology time; D-152);
+  - or by a catastrophe or weather: processionary caterpillars, the violent storm (windthrow), drought.
+
+  A dead tree model replaces the living one and stays until the dead wood is gone: it rots away slowly (`rot_s`), and recyclers clear it faster, the black woodpecker best of all (dead wood is its primary food).
+  - **While it stands, the cell is locked to its former owner's trees only** (the player who owned the cell when the stand died). The former owner's herbs, undergrowth and shrubs still grow there.
+  - **The enemy's trees may grow there.** The dead stand takes its tree species out of the cell's strength (§3), so the enemy push often wins the cell; the enemy's trees then arrive like any of its species. A cell left with dead wood only is neutral bare soil, open to the enemy's trees but not to the former owner's.
+  - Goal: dead trees break frozen fronts. Recyclers are the defender's answer: they clear the dead wood sooner, and as resident animals they add to the cell's strength.
 
 ### 6.3 Spawn conditions
 
@@ -396,7 +403,7 @@ Late-game trump cards, at the far right of the build bar: available from the sta
 | Card | Area | Effect | Cost · cooldown |
 |---|---|---|---|
 | Processionary caterpillars (D-130) | radius 4 | Over 8 s, the tree stands die and stay as standing dead trees (§6, D-127) | 15000 · 5 min |
-| Violent storm | radius 9 (about a quarter of a mid map) | Over 6 s, some cells lose all their shrubs and trees, felled to litter | 22000 · 7 min |
+| Violent storm | radius 9 (about a quarter of a mid map) | Over 6 s, some cells lose all their shrubs and trees: the shrubs fall to litter, the trees are windthrown and stand on as dead trees (§6.2, D-227) | 22000 · 7 min |
 | Chemical spill | radius 1 | The cells go back to bare soil: no plants, litter, dead wood or soil development, owned by no one | 10000 · 4 min |
 
 ## 10c. Weather (D-132)
@@ -428,7 +435,7 @@ The mechanics below make sure **no position is permanently locked**, and that **
 
 ### 11.3 Anti-stalemate mechanics
 
-1. **Forest gap dynamics (senescence).** Each tree cell has an age. Past maturity, it has a growing chance per tick (seeded RNG) to fall, as windthrow or old age. The tree stratum becomes dead biomass, the cell loses a species (strength, §3), and a **gap** opens. Gaps on the frontier are contestable: whoever recolonizes first takes the cell. Forests stay alive, as real forests do.
+1. **Forest gap dynamics (senescence).** Tree stands die at a base rate (old age), or by catastrophe and drought (§6.2, D-227). The dead tree stands on, the cell loses its tree species (strength, §3), and a **gap** opens. The former owner's trees are locked out of it until the dead wood is gone; the enemy's are not. Forests stay alive, as real forests do.
 2. **Monoculture vulnerability.** Pests (caterpillars, and the processionary caterpillars card) deal extra damage in cells whose neighbourhood is dominated by a single species. Mixed stands get a resilience bonus. This punishes "walls of beech" and rewards diversity.
 3. **Keystone disturbance cards (top of the tech tree).** They are expensive, have a long cooldown, and are **telegraphed**: the opponent sees a warning a few seconds before they hit.
    - *Processionary caterpillars:* targeted area; the trees there are weakened and lose biomass over time.

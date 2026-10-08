@@ -2627,3 +2627,16 @@ Template:
 - **Status:** accepted (user)
 - **Decision:** `sim-core` is the single reference for the rules. The exact parity test with the prototype's quant mode, its fixture, `npm run rs:fixture` and `npm run cli:check` (and their pytest) are removed with the D-225 sim change. The prototype stays for history and quick experiments.
 - **Why:** `sim-core` already goes far beyond the prototype (terrain, water, dead wood, weather); porting every rule twice doubled the cost of each change.
+
+## D-227 · 2026-10-08 · Dead trees lock out their former owner only
+- **Status:** accepted (user: a base tree death rate plus catastrophes; the dead tree blocks the owner's regrowth but not the enemy's trees, to break frozen fronts; recyclers speed up removal)
+- **Already in place (D-127, D-130, D-132, D-152):** base death rate (`natural_death_s` 3600 ecology s), standing dead wood (`snag`) with a dead tree model, rot (`rot_s`), recyclers eating dead wood (black woodpecker first); processionary caterpillars and drought leave dead trees.
+- **Changes:**
+  - The tree lock becomes per player: dead wood blocks only the trees of the player who owned the cell when the stand died. A new hashed field `snag_owner` per cell; `Flora::suitability` takes the arriving player (today it blocks every tree, `flora.rs` around line 487).
+  - The violent storm windthrows trees into dead trees (`kill_trees`) instead of felling them to litter (`fell`); shrubs still fall to litter.
+  - A cell holding dead wood only is neutral bare soil (as today), open to the enemy's trees, not to the former owner's.
+- **Review:**
+  - Enemy trees can only grow in a cell the enemy owns (one owner per cell). That comes for free with D-225: the dead stand removes the tree species from the cell's strength, so the enemy push often wins it, and the enemy's trees may then arrive. No mixed ownership needed.
+  - It hits tall hardest (its stacks lose a species), which fits the cycle; tall's answer is recyclers (faster clearing, and they count in strength as resident animals).
+  - The lever is `natural_death_s`: a 30 min match is about 1,350 ecology s, so about a third of the tree cells die once per match at 3600. Tune with the style matrix.
+  - Litter from the dead stand raises soil development (fertility, D-225) for whoever holds the cell next.

@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-08: gameplay direction agreed: conquest by strength and push, three emergent styles (D-225); Python parity retired (D-226). Spec done on `feat/conquest-strength`; the sim change waits for the green light. Herb culling (D-224) merged to main. Before: 2026-10-07: **Alpha 1.2** released: the food pyramid with wider cycles and online 1v1 on the Cloudflare relay (D-218…D-222), merged to main and deployed (Pages + relay). Played across two machines by the user. Next: playtest feedback; M6 leftovers (replays, pause, state dumps).
+- **Now:** 2026-10-08: gameplay direction agreed: conquest by strength and push, three emergent styles (D-225); Python parity retired (D-226). Spec done (D-225…D-227) on branch `gameplay-changes`; the sim change waits for the green light. Herb culling (D-224) merged to main (not pushed). Before: 2026-10-07: **Alpha 1.2** released: the food pyramid with wider cycles and online 1v1 on the Cloudflare relay (D-218…D-222), merged to main and deployed (Pages + relay). Played across two machines by the user. Next: playtest feedback; M6 leftovers (replays, pause, state dumps).
 - **Next:** Gameplay · Three styles (steps 2–6) → UI/UX juice → M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-10-08
@@ -116,9 +116,10 @@ In this order:
 - [ ] One-page report; tune `pace`, `food_reserve`, caps, costs and the victory thresholds (Q-013) with it and the playtest feedback.
 
 ## Gameplay · Three styles (D-225, D-226; before the UI/UX phase)
-Tall, wide and rush emerge from one conquest rule, map control stays the only victory. Branch `feat/conquest-strength`. Each step waits for the user's green light.
-- [x] 1. Spec: gamerules §3, §3.1, §6.1, §7, §10, §11.2; D-225, D-226; INSTRUCTIONS; CLAUDE.md.
+Tall, wide and rush emerge from one conquest rule, map control stays the only victory. Branch `gameplay-changes`. Each step waits for the user's green light.
+- [x] 1. Spec: gamerules §3, §3.1, §6.1, §7, §10, §11.2; D-225, D-226; INSTRUCTIONS; CLAUDE.md. Dead trees: D-227.
 - [ ] 2. Sim: animal species per cell (`fauna.rs`); strength and push replace the level attack in both `flora.rs` paths; contested tie-break dropped; biodiversity income (`economy.rs`); `fert_gain`, `div_gain`, `div_cap` in `balance.toml`; `pressure_frame` = push − strength; balance hash bump; parity test, fixture, `rs:fixture` and `cli:check` removed. Tests: equal front holds, a tip touching 3 weaker cells falls, fertility tips a front, grazing out a species flips a balanced cell, bare cell locked, multiplier capped.
+- [ ] 2b. Dead trees (D-227): `snag_owner` (hashed), a per-player tree lock in `Flora::suitability`, the storm windthrows trees into dead trees; tests: the former owner's tree cannot regrow under dead wood, the enemy's can, the lock ends when the wood is gone.
 - [ ] 3. Bot style presets (`sim-ai`): `Style { land, depth, army }`, Wide / Tall / Rush / Balanced.
 - [ ] 4. `sim-cli bench --style-matrix`: 4 × 4 win rates, lead changes per match.
 - [ ] 5. Tuning passes, one lever each: rush > tall > wide > rush at 55–65 %, mirrors ≈ 50 %, ≥ 2 lead changes.

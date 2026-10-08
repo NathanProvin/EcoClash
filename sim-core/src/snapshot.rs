@@ -5,8 +5,8 @@ use crate::fauna::{Fauna, Role};
 use crate::fixed::{ONE, div_round};
 use crate::flora::{Flora, FloraState, U16};
 
-/// Pressure display (D-076): an enemy grazer on a cell pushes like a quarter of a fully covered
-/// smothering neighbour, and this much push draws the widest frontier line.
+/// Pressure display (D-076, D-225): push over strength is in species (Q16); an enemy grazer on a
+/// cell shows like a quarter of a species, and two species of push draw the widest line.
 const GRAZER_PUSH: i64 = ONE as i64 / 4;
 const PUSH_FULL: i64 = 2 * ONE as i64;
 

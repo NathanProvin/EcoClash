@@ -162,8 +162,9 @@ ponds = 1
 # Rates are per second; fractions are of the species' k_max. Biomass is in u16 units (0..65535).
 [flora]
 seed_fraction = 0.1        # seed rain: biomass added per unit of gauge gained, as a fraction of k_max
-establish_threshold = 0.1  # a stratum counts for the dominant level from this fraction
-smother_rate = 0.15        # enemy strata lose this fraction of k_max per second, per attacking neighbour
+establish_threshold = 0.1  # a species counts (dominant level, strength) from this fraction of k_max
+smother_rate = 0.15        # enemy species lose this fraction of k_max per second, per point of push over strength (D-225)
+fert_gain = 0.25           # strength x (1 + fert_gain x soil development), soil 0..1 (D-225)
 litter_fraction = 0.1      # litter per second = this x biomass_rate x biomass (turnover)
 niche_overlap = 0.5        # [Proposed] competition between species of one stratum (1 = full overlap, D-022)
 soil_min_level = [0.1, 0.2, 0.3, 0.6]  # soil development for full suitability, per height stratum: herbs (non-pioneers), intermediate, shrubs, trees
@@ -173,7 +174,6 @@ plant_radius = 2          # a plant order seeds a disc of this radius, in cells 
 # [Proposed] rules behind switches (D-019)
 succession = true
 shade = true
-contested_cells = true
 
 # Fauna agents (gamerules §5.2, §6; D-023, D-026). Species stats are in species.toml.
 [deadwood]
@@ -292,3 +292,5 @@ steer = 0.15            # fluid motion (D-111): share of the gap to the wanted v
 [economy]
 start_budget = 1000
 drop_surcharge = 1.5         # any animal landing outside own land costs more (§6.3; D-061)
+div_gain = 0.05              # biodiversity income: a cell's plant income x (1 + div_gain x species) ... (D-225)
+div_cap = 1.5                # ... at most x div_cap

@@ -889,3 +889,15 @@
   - Reviewed the user's dead tree rule against the code: the base death rate, dead wood, rot and recyclers exist (D-127). Changes specified: a per-player tree lock (`snag_owner`), the storm leaves dead trees. The enemy's trees take over through the D-225 push, so there is no mixed ownership.
   - The spec now lives on branch `gameplay-changes`.
 - **Next (after the green light):** ROADMAP "Gameplay · Three styles" step 2 and step 2b.
+
+## 2026-10-08 (4) · Strength and push in the sim; dead trees per owner (D-225, D-227)
+- **Done (branch `gameplay-changes`):**
+  - `flora.rs` (both paths): strength = established species + resident animal species, × (1 + `fert_gain` × soil); attack = enemy neighbours' summed strength − strength; flips to any-level neighbour species; contested tie leaves the cell empty (`contested_cells` removed).
+  - `Fauna::residents` (animal species per cell and player), set before each flora step; `Economy::update` takes the flora and multiplies each cell's plant income by biodiversity (`div_gain` 0.05, `div_cap` 1.5).
+  - Dead trees: `snag_owner` (hashed) bars only the former owner's trees (`Flora::tree_barred`, also in `plant`); the storm windthrows trees into dead trees.
+  - `push()` (pressure frame) shows push − strength. Balance hash version 21.
+  - Parity retired: `tests/flora_parity.rs`, its fixture, `fixture.py`, `cli_check.py`, `test_cli.py`, `rs:fixture`, `cli:check` removed.
+  - New tests: strength count (animals, fertility), equal front holds and fertility tips it, a tongue tip falls first, grazing a species out breaks a front, enemy trees replace a dead stand, biodiversity income and cap.
+  - Checks: rs:lint, rs:test, wasm:check (1200 ticks), py:test, py:lint, relay:test, client test/check all green. `flora_tick_time` full 38²: 0.76 ms (was 0.73); worst tick 7.5 ms.
+  - Bench, 6 seeds, 40 min, default bots: before 6/6 finished by territory (183 raids); after 4/6 finished, 2 unfinished near 50/50 (56 raids). Untuned: step 5.
+- **Next:** step 3, bot style presets; then the style matrix and tuning.

@@ -17,7 +17,7 @@ use crate::fauna::{Fauna, FaunaParams};
 use crate::fixed::{ONE, div_round};
 
 const ONE_I: i64 = ONE as i64;
-use crate::flora::{FloraParams, FloraState, round};
+use crate::flora::{Flora, FloraState, round};
 use crate::hash::Hasher;
 
 #[derive(Clone, Debug)]
@@ -47,6 +47,9 @@ pub struct Economy {
     unlock_cost: Vec<i64>,
     spawn_cost: Vec<i64>,
     surcharge: i64,
+    /// Biodiversity income (D-225, Q16): gain per species in a cell, and the cap of the factor.
+    div_gain: i64,
+    div_cap: i64,
     /// Per species: (is an animal, family, tier) for the unlock rule.
     tree: Vec<(bool, String, u8)>,
     /// Per animal species: habitat plants (bitmask over plant species).
@@ -78,6 +81,8 @@ impl Economy {
             spawn_cost: costs(&|_, s| s),
             unlock_cost,
             surcharge: round(b.economy.drop_surcharge * one),
+            div_gain: round(b.economy.div_gain * one),
+            div_cap: round(b.economy.div_cap * one),
             tree: fl
                 .iter()
                 .map(|(_, s)| (false, s.family.clone(), s.tier))
@@ -99,20 +104,26 @@ impl Economy {
         }
     }
 
-    /// Credit one flora period of income, from the state after the flora tick.
-    pub fn update(&mut self, p: &FloraParams, st: &FloraState, fauna: &Fauna) {
-        let n2 = st.n * st.n;
+    /// Credit one flora period of income, from the state after the flora tick. A cell's plant
+    /// income is multiplied by its biodiversity (D-225): 1 + `div_gain` x its species count
+    /// (`Flora::species_count`), at most `div_cap`.
+    pub fn update(&mut self, flora: &Flora, st: &FloraState, fauna: &Fauna) {
+        let (p, n2) = (&flora.p, st.n * st.n);
         let mut income = [0i64; 2];
-        for (s, (&yld, &kmax)) in self.yld.iter().zip(&p.kmax).enumerate() {
-            let mut covered = [0i64; 2]; // sum of min(biomass, k_max) over each player's cells
-            for (k, &b) in st.bio[s * n2..(s + 1) * n2].iter().enumerate() {
-                if let o @ 1..=2 = st.owner[k] {
-                    covered[usize::from(o) - 1] += b.min(kmax);
+        for k in 0..n2 {
+            let o = st.owner[k];
+            if o == 0 {
+                continue;
+            }
+            let mut cell = 0;
+            for (s, (&yld, &kmax)) in self.yld.iter().zip(&p.kmax).enumerate() {
+                let b = st.bio[s * n2 + k];
+                if b > 0 {
+                    cell += div_round(yld * b.min(kmax), kmax);
                 }
             }
-            for (inc, c) in income.iter_mut().zip(covered) {
-                *inc += div_round(yld * c, kmax);
-            }
+            let factor = (ONE_I + self.div_gain * flora.species_count(st, k)).min(self.div_cap);
+            income[usize::from(o) - 1] += div_round(cell * factor, ONE_I);
         }
         let a = &fauna.agents;
         for i in 0..a.len() {
@@ -133,7 +144,9 @@ impl Economy {
             .i64s(&self.unlock_cost)
             .i64s(&self.spawn_cost)
             .i64(self.surcharge)
-            .i64(self.pace);
+            .i64(self.pace)
+            .i64(self.div_gain)
+            .i64(self.div_cap);
         for (animal, family, tier) in &self.tree {
             h.u64(u64::from(*animal))
                 .u64(family.len() as u64)
@@ -255,6 +268,7 @@ impl Economy {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::flora::FloraParams;
 
     const BALANCE: &str = include_str!("../../data/balance.toml");
     const SPECIES: &str = include_str!("../../data/species.toml");
@@ -343,12 +357,14 @@ mod tests {
     #[test]
     fn income_is_yield_times_capped_cover_and_banks_one_flora_period() {
         let b = Balance::from_toml(BALANCE, SPECIES).unwrap();
-        let p = FloraParams::from_balance(&b);
+        let flora = Flora::new(FloraParams::from_balance(&b));
+        let p = &flora.p;
         let fauna = Fauna::new(FaunaParams::from_balance(&b));
         let mut e = Economy::new(&b, &fauna.p);
+        e.div_gain = 0; // plain yields here; the biodiversity factor has its own test
         let start = e.bank;
         let g = p.index("grasses").unwrap();
-        let mut st = FloraState::new(&p, 4);
+        let mut st = FloraState::new(p, 4);
         for k in 0..4 {
             st.owner[k] = 1;
             st.bio[g * 16 + k] = p.kmax[g] * 2 / (1 + i64::try_from(k % 2).unwrap()); // full cover
@@ -357,7 +373,7 @@ mod tests {
         st.bio[g * 16 + 5] = p.kmax[g] / 2; // half cover
         st.owner[6] = 2;
         st.bio[g * 16 + 6] = p.kmax[g]; // P2's cell counts for P2 only
-        e.update(&p, &st, &fauna);
+        e.update(&flora, &st, &fauna);
         let yld = e.yld[g];
         let real = |v: i64| div_round(v * e.pace, ONE_I); // income is per real second
         assert_eq!(e.income, [real(yld * 4 + div_round(yld, 2)), real(yld)]);
@@ -365,6 +381,39 @@ mod tests {
         assert_eq!(
             e.bank,
             [start[0] + period(e.income[0]), start[1] + period(real(yld))]
+        );
+    }
+
+    /// D-225: a cell's plant income is multiplied by 1 + div_gain x its species (plants and
+    /// resident animals), at most div_cap.
+    #[test]
+    fn biodiversity_multiplies_a_cells_income_up_to_the_cap() {
+        let b = Balance::from_toml(BALANCE, SPECIES).unwrap();
+        let mut flora = Flora::new(FloraParams::from_balance(&b));
+        let fauna = Fauna::new(FaunaParams::from_balance(&b));
+        let mut e = Economy::new(&b, &fauna.p);
+        let names = ["grasses", "wildflowers", "lichen_and_moss"];
+        let ids = names.map(|n| flora.p.index(n).unwrap());
+        let mut st = FloraState::new(&flora.p, 2);
+        st.owner[0] = 1;
+        let mut plain = 0;
+        for &s in &ids {
+            st.bio[s * 4] = flora.p.kmax[s];
+            plain += e.yld[s];
+        }
+        flora.residents = vec![[2, 0], [0; 2], [0; 2], [0; 2]]; // two of P1's animal species
+        let raw = |e: &Economy| div_round(e.income[0] * ONE_I, e.pace); // per ecology second
+        e.update(&flora, &st, &fauna);
+        let factor = ONE_I + e.div_gain * 5;
+        assert!(
+            (raw(&e) - div_round(plain * factor, ONE_I)).abs() <= 1,
+            "x (1 + 5 div_gain)"
+        );
+        e.div_cap = ONE_I + e.div_gain; // the cap binds
+        e.update(&flora, &st, &fauna);
+        assert!(
+            (raw(&e) - div_round(plain * e.div_cap, ONE_I)).abs() <= 1,
+            "capped"
         );
     }
 }

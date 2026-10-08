@@ -964,3 +964,16 @@
 - **Done:** kill events, cell income and the best biodiversity factor as sim views; the income pulse, capture melody, combo badge, kills/bites/crumbs and sprouts; 8 new procedural sounds. Tests: `kills_are_reported`, `income_frame_and_best_factor_follow_the_plants`, `juice.test.ts` (patches, styles, captures, phrases, combo moves, kill kinds).
 - **Checks:** Rust tests, clippy, WASM hash, client check, lint, tests, build green. Not checked by eye or ear yet.
 - **Next (user):** play and tune the feel (volumes, sizes, rates), then Alpha 1.3.0.
+
+## 2026-10-08 (12) · UI/UX round 3 (D-234)
+- **Done:**
+  - icon hover fix (translate, not transform);
+  - one Esc;
+  - order lines fade;
+  - marks pinned to the map, leaf-bit forage;
+  - layout: combo below the bar, selection strip lower left, cards lower right;
+  - earthy low sounds;
+  - at most 12 income numbers;
+  - plantings by layer and tier, saplings for shrubs and trees.
+- **Tests:** order-line fade, 12 numbers at most. Client check, lint, tests, build green.
+- **Open:** animal model size (one constant, `ANIMAL_SCALE`), awaiting the user's green light.

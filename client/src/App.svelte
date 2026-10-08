@@ -339,17 +339,12 @@
       lastPulse = now;
       if (l.tick !== pulseTick && !homeless) {
         pulseTick = l.tick;
-        const pops = incomePops(f.owner, l.cellIncome, n, me, (PULSE_MS / 1000) * speed)
-          .flatMap((p) => {
-            const at = v.screenPoint({ row: p.row, col: p.col });
-            return at.inView ? [{ ...p, at }] : [];
-          })
-          .slice(0, MAX_POPS);
+        const pops = incomePops(f.owner, l.cellIncome, n, me, (PULSE_MS / 1000) * speed, MAX_POPS);
         const max = pops[0]?.value ?? 0;
         for (const p of pops) {
           const style = popStyle(p.value, max);
           const text = `+${p.value < 10 ? p.value.toFixed(1) : Math.round(p.value)}`;
-          juice?.income({ x: p.at.x, y: p.at.y, text, ...style });
+          juice?.income(p, text, style.color, style.scale);
         }
         if (pops.length) audio.play("fx.pulse", { gain: 0.9 });
       }
@@ -359,7 +354,7 @@
       const kind = killKind(k, me);
       const at = kind ? v.screenPoint(k) : null;
       if (!kind || !at?.inView) continue;
-      juice?.kill(kind, at.x, at.y);
+      juice?.kill(kind, k);
       audio.play(kind === "won" ? "fx.bite" : "fx.distress", { at: place(at), cooldown: 250 });
     }
     // Crumbs where grazers feed on the other side's land, in the colour of the plants' owner.
@@ -372,9 +367,8 @@
         const cell = { row: Math.floor(a.y), col: Math.floor(a.x) };
         const o = f.owner[cell.row * n + cell.col];
         if ((o !== 1 && o !== 2) || o === a.owner) continue;
-        const at = v.screenPoint(cell);
-        if (!at.inView) continue;
-        juice?.crumb(at.x, at.y, PLAYER[o].base);
+        if (!v.screenPoint(cell).inView) continue;
+        juice?.crumb(cell, PLAYER[o].base);
         shown++;
       }
     }
@@ -936,6 +930,8 @@
       viewer.render(frameTick);
       const after = performance.now();
       projectIcons(); // after the camera moved this frame
+      const v = viewer;
+      juice?.follow((c) => v.screenPoint(c)); // marks stay on their cells (D-234)
       appTiming.add("icons", performance.now() - after);
       if (perfBench && live) benchStep(now);
     }
@@ -1133,14 +1129,22 @@
         live.plant(me, planting, at.row, at.col);
         const s = live.meta.species.find((x) => x.name === planting);
         const rgb = plantColor(planting, s?.level ?? 1, me);
-        viewer.plantFeedback(at, live.plantRadius, rgb);
-        audio.play(plantSound(s), { at: placeOf(at), gain: 1.4 });
-        // D-233: a springy sprout with tier sparkles; shrubs and trees knock like wood.
-        const sp = viewer.screenPoint(at);
-        if (sp.inView) juice?.sprout(sp.x, sp.y, `rgb(${rgb.join(",")})`, s?.tier ?? 1);
-        if ((s?.level ?? 1) >= 3) audio.play("fx.plant.wood", { at: placeOf(at) });
-        if ((s?.tier ?? 1) >= 2)
-          audio.play("fx.sparkle", { at: placeOf(at), gain: 0.4 * (s?.tier ?? 1) });
+        const level = s?.level ?? 1;
+        // Shrubs and trees are planted as saplings with a woody pop; herbs and undergrowth are
+        // sown, seeds scattering (D-233, D-234). Sparkles: as many as the layer, the tier's colour.
+        const woody = level >= 3 && s?.family !== "W";
+        if (!woody) viewer.plantFeedback(at, live.plantRadius, rgb);
+        audio.play(woody ? "fx.plant.sapling" : plantSound(s), {
+          at: placeOf(at),
+          gain: woody ? 1 : 1.4,
+        });
+        juice?.sprout(
+          at,
+          `rgb(${rgb.join(",")})`,
+          s?.tier ?? 1,
+          woody ? level : Math.min(level, 2),
+        );
+        audio.play("fx.sparkle", { at: placeOf(at), gain: 0.25 + 0.15 * level });
       } else {
         live.spawn(me, planting, at.row, at.col);
         const place = placeOf(at);
@@ -1658,9 +1662,10 @@
     touch-action: none;
   }
   /* The cell and unit cards, stacked on the right (D-161). */
+  /* The cell and unit cards in the lower right corner (D-234), clear of the build bar. */
   .cards {
     position: absolute;
-    top: 74px;
+    bottom: 12px;
     right: 14px;
     z-index: 4;
     display: flex;

@@ -35,6 +35,17 @@ describe("game feel (D-233)", () => {
     expect(pops[1]?.value).toBeCloseTo(0.3);
   });
 
+  it("widens the patches so a large territory shows 12 numbers at most (D-234)", () => {
+    const n = 38;
+    const owner = new Uint8Array(n * n).fill(1);
+    const income = new Uint8Array(n * n).fill(20);
+    const pops = incomePops(owner, income, n, 1, 3);
+    expect(pops.length).toBeLessThanOrEqual(12);
+    expect(pops.length).toBeGreaterThan(4);
+    const total = pops.reduce((t, p) => t + p.value, 0);
+    expect(total).toBeLessThanOrEqual(n * n * 0.2 * 3 + 1e-6);
+  });
+
   it("styles numbers from small and light to large and mossy", () => {
     const low = popStyle(1, 10);
     const high = popStyle(10, 10);

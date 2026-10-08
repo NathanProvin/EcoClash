@@ -2702,3 +2702,24 @@ Template:
     - grazers on the other side's land throw crumbs in the colour of the plants' owner (up to 8 every 0.4 s).
   - **Sprouts:** planting pops a springy shoot in the plant's colour, with sparkles by tier (1 bronze, 3 silver, 6 gold stars; `fx.sparkle`). Shrubs and trees add a woody knock (`fx.plant.wood`) to the existing layered plant sounds.
   - Logic in `game/juice.ts` (tested), marks in `ui/Juice.svelte` (CSS animations, at most 140 at once, reduced motion respected), wiring in `App.feel`.
+
+## D-234 · 2026-10-08 · UI/UX round 3: clickable icons, one Esc, fading orders, pinned marks, earthy sounds
+- **Status:** accepted (user's playtest of D-232 / D-233)
+- **Decision:**
+  - **Strategic icons** are placed by the `translate` property: the hover `scale` applied before `transform` scaled their screen position, so they fled the cursor and flickered. They can now be clicked, and the build bar's prey and predator rings show (D-232).
+  - **One Esc** closes the cell card, the unit card and the selection together (when nothing is armed).
+  - **Order lines** show fully for 2.5 s, fade over 1 s, then go, even while the animals walk (`ORDER_LINE.hold_s`, `fade_s`).
+  - **Overlay marks are pinned to map cells**, re-projected every frame (`Juice.follow`), so they stay in place while panning. Forage is one small leaf bit in the plants' owner's colour.
+  - **Layout:** combo badge below the tug-of-war bar; the selection strip and its key help at the lower left; the cell and unit cards at the lower right.
+  - **Sounds:**
+    - captures: a low thump and a humus crunch walking a pentatonic scale low down (a deep rhythm under the music);
+    - losses: a falling stone rumble;
+    - the yield tick: a lub-dub heartbeat.
+
+    All tonal content stays under about 250 Hz.
+  - **Income numbers:** at most 12; the patches widen from 4×4 with the land.
+  - **Plantings:**
+    - sparkles: two per layer, coloured by tier (bronze, silver, gold);
+    - herbs and undergrowth keep the seed scatter and the sprinkle;
+    - shrubs and trees spring up as a sapling with a woody pop, no seed scatter.
+  - **Animal model size:** assessed, not changed: `ANIMAL_SCALE` (2.5) in `render/animals.ts`, rings and picking follow; waits for the user's green light.

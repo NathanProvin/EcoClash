@@ -3,11 +3,11 @@
 // biodiversity combo reports its rises and falls; kills are sorted into yours and your losses.
 // Everything here is plain data in and out: the overlay and the audio do the showing.
 
-/** The income pulse: every PULSE_MS, one number per PATCH x PATCH cells of your land. */
+/** The income pulse: every PULSE_MS, one number per patch of your land, patches PATCH cells
+ *  wide or wider: they widen until there are MAX_POPS numbers at most (D-234). */
 export const PULSE_MS = 3000;
 export const PATCH = 4;
-/** Numbers on screen at once, at most (the largest patches win). */
-export const MAX_POPS = 40;
+export const MAX_POPS = 12;
 
 /** One income number: a patch's centre (cells) and the points it made over the pulse. */
 export interface Pop {
@@ -16,21 +16,37 @@ export interface Pop {
   value: number;
 }
 
-/** The pulse's numbers (D-233): each PATCH-square patch with land of `me`, the points its cells
- *  made over `seconds` (income in hundredths of a point per second per cell), largest first. */
+/** The pulse's numbers (D-233, D-234): each patch with land of `me`, the points its cells made
+ *  over `seconds` (income in hundredths of a point per second per cell), largest first; patches
+ *  start PATCH cells wide and widen until there are `max` numbers at most. */
 export function incomePops(
   owner: ArrayLike<number>,
   income: ArrayLike<number>,
   n: number,
   me: number,
   seconds: number,
+  max = MAX_POPS,
+): Pop[] {
+  for (let side = PATCH; ; side++) {
+    const pops = patches(owner, income, n, me, seconds, side);
+    if (pops.length <= max || side >= n) return pops.slice(0, max);
+  }
+}
+
+function patches(
+  owner: ArrayLike<number>,
+  income: ArrayLike<number>,
+  n: number,
+  me: number,
+  seconds: number,
+  side: number,
 ): Pop[] {
   const pops: Pop[] = [];
-  for (let r0 = 0; r0 < n; r0 += PATCH) {
-    for (let c0 = 0; c0 < n; c0 += PATCH) {
+  for (let r0 = 0; r0 < n; r0 += side) {
+    for (let c0 = 0; c0 < n; c0 += side) {
       let [sum, cells, rs, cs] = [0, 0, 0, 0];
-      for (let r = r0; r < Math.min(n, r0 + PATCH); r++) {
-        for (let c = c0; c < Math.min(n, c0 + PATCH); c++) {
+      for (let r = r0; r < Math.min(n, r0 + side); r++) {
+        for (let c = c0; c < Math.min(n, c0 + side); c++) {
           const k = r * n + c;
           if (owner[k] !== me) continue;
           sum += income[k] ?? 0;

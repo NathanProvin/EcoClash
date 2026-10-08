@@ -115,7 +115,7 @@ EcoClash/
 │   │   ├── agents/          # hand-rolled SoA ECS, generational entity ids
 │   │   ├── pathing/         # flow fields
 │   │   ├── balance.rs       # balance.toml + species.toml, parsed and validated at runtime (D-034)
-│   │   ├── flora.rs         # flora cell model (exact port of the prototype's quant mode)
+│   │   ├── flora.rs         # flora cell model (the single reference since D-226; began as a port of the prototype)
 │   │   ├── economy.rs       # biomass points: bank + income per player (D-046)
 │   │   ├── fauna.rs         # animals: SoA agents, behaviours, spawn rules (D-052)
 │   │   ├── world.rs         # world + tick loop (multi-rate scheduler)
@@ -206,12 +206,12 @@ Required tests:
 - Each field is a flat `Vec<u16>` (row-major). Per-player flora layers: `flora[player][species]`.
 - Rendering never sees the grid as pixels. Fields are uploaded as textures and sampled bilinearly.
 
-### 5.2 Update rules (reference model, prototype first in Python)
+### 5.2 Update rules (reference model: `sim-core`; the Python prototype is retired as a reference, D-226)
 
 Flora follows the cell model of `data/gamerules.md` §2.1 and §3 (D-019): each cell has an owner and holds biomass per species; species of one stratum (L1 herbaceous, L2 intermediate, L3 shrub, L4 canopy) interpenetrate (D-022). Species belong to tech-tree families with three tiers (D-087, gamerules §4.2). Per plant tick, for each species biomass B:
 - **Logistic growth with competition:** `ΔB_i = r_i · B_i · (shade_i − c_i − α · Σ_{j≠i, same stratum} c_j) / shade_i`, where `c = B / K` is cover, `K_i = k_max_i × modifier(cell)` (the modifier is 1.0 in V1, gamerules §2.3), `α` = `niche_overlap`, and `shade_i` is the capacity left by higher strata.
 - **Colonization gauge (D-024):** `g_i ∈ [0, 1]` per species per cell caps the capacity (`K_i × g_i`). In own cells, `Δg = spread_rate × pressure × max(suit − g, 0)`, where pressure = (own cover + 4-neighbour cover of the same species and owner) / 5, and `suit = f_dev × f_soil × f_water × f_light` (the single modifier hook; neutral in V1 except the soil development ramp). Seed rain adds `seed_fraction × K × Δg` biomass.
-- **Spread:** claim progress into empty neighbours, continuous smothering of lower enemy levels by neighbour cover, frozen same-level frontiers (gamerules §3). There is no diffusion.
+- **Spread (D-225):** claim progress into empty neighbours; enemy cells are smothered when the **push** (the summed strengths of the enemy neighbours) beats the cell's **strength** (its owner's established plant and resident animal species × (1 + `fert_gain` × soil development)), at `smother_rate × (push − strength)`. Levels are not compared. Grazed-bare cells become neutral bare soil, locked to their former owner for `lockout_s`. Biodiversity multiplies a cell's plant income by (1 + `div_gain` × species), capped at `div_cap` (gamerules §3, §7). There is no diffusion.
 - **Grazing:** herbivores consume B, which converts into their energy.
 - **Hunting (D-196):** after a kill, a predator eats for `[fauna] handling_s` before it strikes again, so a few hunters wear a raid down instead of erasing it. A kill restores `kill_meal` of the hunter's body; with no enemy prey in reach, a hungry hunter takes its own player's surplus prey (D-218).
 - **Death (D-026):** litter turnover (`litter_fraction × growth_rate × B` per second), die-back (negative growth) and smothered biomass go to `dead_biomass`. Decomposers turn `dead_biomass` into soil development.
@@ -324,7 +324,7 @@ Quality presets (low / medium / high; shadows apply from the next match, D-133):
 
 ## 9. Python tooling
 
-- `tools/prototype/`: NumPy notebooks for the ecological model. This is where rules are validated **before** being ported to Rust.
+- `tools/prototype/`: NumPy notebooks for the ecological model. Since D-226 new rules go straight into `sim-core` (the single reference); the prototype is kept for history and quick experiments, with no parity test.
 - Prototype quantization: the M0 notebook has a float mode and a **quantized mode** (u16 fields, same rounding as §4). Truncation effects should show up before the port, not after.
 - `sim-cli` (M1): `sim-cli run --seed N --balance data/balance.toml --species data/species.toml --commands file.jsonl --ticks T [--size N] --out metrics.csv [--hashes hashes.csv]`. It prints the per-tick hash and writes metrics. Python tools call it as a subprocess and read the CSV.
 - `sim-py` (M4+, only if needed): exposes `World.new(seed, balance_path)`, `step(commands)`, `snapshot()` (NumPy views) and `hash()`. It is added when AI training needs in-process stepping.

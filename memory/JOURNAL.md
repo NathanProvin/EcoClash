@@ -865,3 +865,11 @@
 
   Client check and lint green.
 - **Next (user):** set `RELAY_URL` to `wss://ecoclash-relay.nanonathcry2.workers.dev` (optional now) and let CI redeploy.
+
+## 2026-10-08 (2) · Gameplay direction: strength and push, three styles (D-225, D-226)
+- **Done (design only, branch `feat/conquest-strength`):**
+  - Explored deeper gameplay with the user: game-theory framing, then simplified step by step at the user's request (no separate victory routes, no vigour formula).
+  - Agreed rule: strength = species (plants + resident animals) × fertility factor; push = summed enemy-neighbour strengths; smother at `smother_rate × (push − strength)`. Grazing stays separate (bare soil + lockout). Biodiversity income multiplier.
+  - Measured the cost: today's flora tick on a full 38² map is 0.73 ms; a JS mock of a heavier rule cost 0.2 ms.
+  - Python parity retired (D-226). gamerules §3, §3.1, §6.1, §7, §10, §11.2 and §12, INSTRUCTIONS §5.2 and §9, CLAUDE.md updated.
+- **Next (after the user's green light):** step 2, the sim change (plan in ROADMAP "Gameplay · Three styles").

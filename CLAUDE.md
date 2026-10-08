@@ -32,6 +32,5 @@ Gameplay rules (strata, tech tree, species, fauna, endgame) live in `data/gameru
 - `npm run rs:lint` (fmt + clippy -D warnings) / `rs:test` / `rs:wasm` (wasm32 build check): the Rust workspace (`sim-core`).
 - `npm run wasm:check`: build `sim-wasm` (wasm-bindgen, `--target web` into `sim-wasm/pkg/`) and require the same hash at every tick as native `sim-cli`. Needs `wasm-bindgen-cli` at the `Cargo.lock` version (`npm run doctor` says how).
 - `npm run relay` (local lockstep relay on ws://localhost:8787; open two tabs at `http://localhost:5173/?relay=ws://localhost:8787`), `npm run relay:test` (two headless players, 5 min, identical hashes; a cheat caught), `relay:lint`.
-- `npm run cli:check`: run the same command file through `sim-cli` and the prototype; the metrics must match exactly (also in pytest).
-- `npm run rs:fixture`: regenerate the flora parity fixture from the prototype. **A flora rule change goes into both `tools/prototype/flora.py` (quant mode) and `sim-core/src/flora.rs`, then regenerate; the parity test must stay exact (D-034).** Tuning values in `data/*.toml` needs no code change and no regeneration.
+- Flora rules live only in `sim-core/src/flora.rs` (D-226: the Python prototype parity, D-034, is retired). Tuning values in `data/*.toml` needs no code change.
 - Python: always go through `uv run` (the bare `python` on this machine is the Microsoft Store stub).

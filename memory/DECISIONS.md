@@ -2602,3 +2602,21 @@ Template:
   - alpha-leaf overdraw on integrated GPUs;
   - licences that forbid web redistribution;
   - the late-game frame is CPU-bound today (D-214), which the extra per-instance animation work adds to.
+
+## D-225 · 2026-10-08 · Conquest by strength and push; three emergent styles
+- **Status:** accepted (user: one victory condition, map control; tall, wide and rush must emerge from simpler rules, fluid, with no set routes)
+- **Decision:**
+  - A cell's **strength** = (its owner's plant species established in it + its owner's animal species living in it) × (1 + `fert_gain` × soil development).
+  - The **push** on an enemy cell = the summed strengths of its enemy neighbours (4 sides). If push > strength, each defending plant species loses `smother_rate × (push − strength)`; at zero the cell flips to the attacker's established neighbour species, of any level. Plant levels are no longer compared (the old smother-lower / freeze-same / immune-higher table is gone).
+  - Plant attack and animal grazing stay separate: an enemy animal standing in a cell adds no push. Grazers weaken cells by eating species out, or eat them bare: the cell becomes neutral bare soil, locked to its former owner for `lockout_s` (D-098).
+  - Empty cells: claims unchanged, except the higher-level tie-break on contested cells (a same-tick tie leaves the cell empty).
+  - **Biodiversity income:** a cell's plant income × (1 + `div_gain` × its species count), capped at `div_cap`.
+  - Styles: tall stacks species and fertility; wide surrounds bulges (neighbour strengths add up) and soaks up raids with many cheap cells; rush grazes. Intended cycle (tuned with a bench style matrix, not hard-coded): rush > tall > wide > rush.
+- **Why:** level comparison froze same-level fronts and let a tall player become immune to a wide one. One count is readable ("4 vs 6"), all-integer, cheap (a JS mock of a heavier rule cost 0.2 ms per flora tick at 38²), and makes encirclement, diversity and grazing matter without special cases.
+- **Dropped on the way (simplicity):** a vigour formula (B^γ, support terms, spill), separate victory routes, sealed picks, an L1 regrowth boost.
+- **Plan:** spec (this entry) → sim → bot style presets → `sim-cli bench --style-matrix` → tuning passes → a "strength vs push" line on the cell card. UI/UX polish comes after.
+
+## D-226 · 2026-10-08 · Retire the Python flora parity (D-034)
+- **Status:** accepted (user)
+- **Decision:** `sim-core` is the single reference for the rules. The exact parity test with the prototype's quant mode, its fixture, `npm run rs:fixture` and `npm run cli:check` (and their pytest) are removed with the D-225 sim change. The prototype stays for history and quick experiments.
+- **Why:** `sim-core` already goes far beyond the prototype (terrain, water, dead wood, weather); porting every rule twice doubled the cost of each change.

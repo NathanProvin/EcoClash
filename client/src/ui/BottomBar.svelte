@@ -163,24 +163,23 @@
 
 <svelte:window onkeydown={(e) => e.key === "Escape" && close()} />
 
+{#if picked.length}
+  <div class="selection panel p{player}" aria-label="Selection">
+    {#each picked as { s, n } (s.name)}
+      <button
+        class="pick"
+        onclick={() => onPickSpecies(s.name)}
+        title="Select only {label(s.name)}"
+      >
+        <SpeciesIcon {s} size={30} />
+        <span class="num">×{n}</span>
+      </button>
+    {/each}
+    <span class="keys">Right-click move · A attack · S stop · Ctrl 1-9 group</span>
+    <button class="x" onclick={onClear} aria-label="Clear selection">✕</button>
+  </div>
+{/if}
 <footer class="dock p{player}" bind:this={dock}>
-  {#if picked.length}
-    <div class="selection panel" aria-label="Selection">
-      {#each picked as { s, n } (s.name)}
-        <button
-          class="pick"
-          onclick={() => onPickSpecies(s.name)}
-          title="Select only {label(s.name)}"
-        >
-          <SpeciesIcon {s} size={30} />
-          <span class="num">×{n}</span>
-        </button>
-      {/each}
-      <span class="keys">Right-click move · A attack · S stop · Ctrl 1-9 group</span>
-      <button class="x" onclick={onClear} aria-label="Clear selection">✕</button>
-    </div>
-  {/if}
-
   <nav class="bar panel" aria-label="Species">
     {#each groups as g, i (g.name)}
       {@const total = g.species.reduce((t, s) => t + count(s), 0)}
@@ -471,10 +470,18 @@
     color: white;
     background: var(--player);
   }
+  /* The selection strip and its key help sit in the lower left corner (D-234), clear of the
+     build bar. */
   .selection {
+    position: absolute;
+    left: 14px;
+    bottom: 12px;
+    z-index: 3;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 6px;
+    max-width: min(34vw, 460px);
     padding: 4px 8px;
   }
   .pick {

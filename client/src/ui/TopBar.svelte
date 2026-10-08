@@ -625,7 +625,7 @@
   .combo {
     position: absolute;
     left: 50%;
-    top: -15px;
+    top: calc(100% + 6px); /* below the bar, centred (D-234) */
     z-index: 2;
     translate: -50% 0;
     padding: 0 9px;

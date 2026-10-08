@@ -945,3 +945,6 @@
 - **Done:** data per D-231; tree models scaled by the tree cover (layout `scale`, `grow`); tests: tree scale follows the cover with a seedling floor, other strata stay at 1; `grow` halves a tree about its root; the balance-hash test follows grasses 1.26.
 - **Checks:** rs:test, clippy, fmt, wasm:check, relay:test, client check, test and lint green. No bench (user).
 - **Next (user):** extended balance tests in the browser.
+
+## 2026-10-08 (9) · Gameplay merged; UI/UX branch
+- `gameplay-changes` merged into main (`c80caf1`, local, not pushed). New branch `ui-ux` for the UI/UX work before Alpha 1.3.0.

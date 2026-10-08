@@ -583,7 +583,14 @@ export class PlantView {
         if (water !== null && !aquatic && ground < water + WET_MARGIN) continue;
         const y0 = stratum === "pad" ? Math.max(ground, water ?? ground) : ground;
         const base = colors[o as 1 | 2][m.species];
-        this.style.parts(stratum, m, x, z, names[m.species] ?? "").forEach((p, i) => {
+        // Trees grow about their root with the tree cover (D-231).
+        const parts = grow(
+          this.style.parts(stratum, m, x, z, names[m.species] ?? ""),
+          x,
+          z,
+          m.scale,
+        );
+        parts.forEach((p, i) => {
           const slot = (c * STRATA.length + s) * KEY_SLOTS + m.slot;
           const key = (slot * PARTS + i) * KEY_MESHES + p.mesh;
           const color = p.color ?? this.tmp.copy(base ?? this.tmp).multiplyScalar(p.shade);
@@ -615,6 +622,20 @@ export class PlantView {
       }
     }
   }
+}
+
+/** A model's parts scaled by `k` about its root (`x`, `z` on the ground; D-231): offsets from
+ *  the root, heights and sizes shrink alike, so a young tree is its full shape, smaller. */
+export function grow(parts: Part[], x: number, z: number, k: number): Part[] {
+  if (k === 1) return parts;
+  return parts.map((p) => ({
+    ...p,
+    x: x + (p.x - x) * k,
+    z: z + (p.z - z) * k,
+    y: p.y * k,
+    w: p.w * k,
+    h: p.h * k,
+  }));
 }
 
 /** Dead trees (D-127): a weathered grey trunk and a few bare branches, sized by the dead wood

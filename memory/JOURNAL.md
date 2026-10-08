@@ -939,3 +939,9 @@
 - **Done:** `hold_s` 20 (conquest hold, both flora paths, display push); lichen and grass +15 % growth and yield; shrubs +10 %, trees +15 % (unlock and spawn); bench "flips back" measure. Tests: the hold (held, then pushed again; fast = reference), the flips-back counter; the balance-hash test follows the new grass value.
 - **Checks:** rs:test, clippy, fmt, wasm:check, relay:test, client check and test, all green. No bench matrix this round (user).
 - **Next (user):** extended balance tests in the browser.
+
+## 2026-10-08 (8) · Playtest round 2 (D-231)
+- **Feedback (user):** the herb boost of D-230 was too strong; slower trees whose models grow with their cover; middle tiers a little dearer; a larger starting budget.
+- **Done:** data per D-231; tree models scaled by the tree cover (layout `scale`, `grow`); tests: tree scale follows the cover with a seedling floor, other strata stay at 1; `grow` halves a tree about its root; the balance-hash test follows grasses 1.26.
+- **Checks:** rs:test, clippy, fmt, wasm:check, relay:test, client check, test and lint green. No bench (user).
+- **Next (user):** extended balance tests in the browser.

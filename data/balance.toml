@@ -299,7 +299,7 @@ steer = 0.15            # fluid motion (D-111): share of the gap to the wanted v
 
 # Economy (gamerules §4, §7; D-027, D-029). Costs and yields are per species (species.toml).
 [economy]
-start_budget = 1000
+start_budget = 1100
 drop_surcharge = 1.5         # any animal landing outside own land costs more (§6.3; D-061)
 div_gain = 0.05              # biodiversity income: a cell's plant income x (1 + div_gain x species) ... (D-225)
 div_cap = 1.5                # ... at most x div_cap

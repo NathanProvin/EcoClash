@@ -73,6 +73,9 @@ export const LOW = { min: 0.28, max: 0.55 } as const;
 export const PAD = { min: 0.15, max: 0.35 } as const;
 /** Tree crown radius and trunk height (m), young to full; trunk radius (m). */
 export const TREE = { min: 1.2, max: 1.86, trunkMin: 2.1, trunkMax: 3.5, trunkR: 0.19 } as const; // D-109: x1.33
+/** The smallest a tree is drawn, as a share of its full size (D-231): a young stand stays
+ *  visible. */
+export const TREE_SEEDLING = 0.12;
 /** How far a trunk may stray from its slot centre (m): trunks of neighbouring slots stay
  *  TRUNK_GAP apart. */
 export const TRUNK_JITTER = 0.25;
@@ -104,6 +107,9 @@ export interface Placement extends Slot {
   slot: number;
   size: number;
   species: number;
+  /** How grown the model is, 0..1 (D-231): a tree is its full-grown shape scaled by its cell's
+   *  tree cover; 1 for the other strata, whose `size` follows their cover. */
+  scale: number;
 }
 
 /** Crown or bush shape per species: width and height scales of the main blob, blob count. */
@@ -216,7 +222,7 @@ const SIZE = [LOW, SHRUB, TREE, PAD] as const;
 
 /** Plant models of one cell per model stratum, from the cover (0..1) of each species present in
  *  it (`strata[i]`, index in STRATA); `prev` holds each stratum's species by slot from the last
- *  layout. Sizes grow with the stratum's total cover. */
+ *  layout. Sizes grow with the stratum's total cover; trees grow by `scale` (D-231). */
 export function plantLayout(
   cell: number,
   strata: readonly (readonly { species: number; cover: number }[])[],
@@ -238,9 +244,12 @@ export function plantLayout(
     const want = v < 0.05 ? 0 : Math.max(floor, Math.round(v * base * (density[s] ?? 1)));
     const count = Math.min(most, want, free.length);
     const { min: lo, max: hi } = SIZE[s] ?? LOW;
+    const tree = STRATA[s] === "tree";
     return assign(count, plants, prev[s]).map((species, slot) => {
       const at = free[slot] as Slot;
-      return { ...at, slot, species, size: lo + (hi - lo) * v * (0.8 + 0.2 * at.seed) };
+      // Trees (D-231): the full-grown shape (varied by the slot), scaled by the tree cover.
+      const size = tree ? hi * (0.8 + 0.2 * at.seed) : lo + (hi - lo) * v * (0.8 + 0.2 * at.seed);
+      return { ...at, slot, species, size, scale: tree ? Math.max(TREE_SEEDLING, v) : 1 };
     });
   });
 }

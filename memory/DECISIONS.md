@@ -2669,3 +2669,12 @@ Template:
   - **Trees (L4) +15 %:** oak 10350 / 173, chestnut 13800 / 173, beech 18400 / 173.
 - **Why the hold, not an immunity floor:** the flicker came from conquered species arriving exactly at the establish threshold (0.3), dropping below it on the next tick and leaving the cell at strength 0. A floor of invulnerability under 10 % would freeze cells near the threshold instead of resolving them, and add a second threshold. The hold reuses existing hashed fields and reads simply ("just taken").
 - **Measure:** the bench counts "flips back" (a cell retaken by its former owner within 10 s). Not run this round, at the user's request.
+
+## D-231 · 2026-10-08 · Playtest round 2: herb pace down, slower trees that grow visibly, dearer middle tiers
+- **Status:** accepted (user, after playing D-230: the herb boost went too far)
+- **Decision:**
+  - Herbs: lichen & moss `growth` 1.06, `yield` 0.06; grasses `growth` 1.26, `yield` 0.21 (between the D-229 and D-230 values).
+  - Starting budget 1000 → 1100.
+  - Trees fill their cell 10 % slower (`biomass_rate`): oak 0.0135, chestnut 0.027, beech 0.018.
+  - Tree models grow with the cell's tree cover, the value the cell card shows: the full-grown shape (varied by slot) scaled about its root by that cover, from a 12 % seedling floor (`TREE_SEEDLING`, `Placement.scale`, `grow` in `plants.ts`). Before, a young stand already showed a tree at about 65 % of full size.
+  - Shrubs (L3) and undergrowth (L2) unlock and drop costs +5 %, yields unchanged: elder 2887.5 / 69.3, hawthorn 5775 / 69.3, hazel 8662.5 / 69.3; ferns 630 / 31.5, nettle 945 / 31.5, bramble 3150 / 31.5.

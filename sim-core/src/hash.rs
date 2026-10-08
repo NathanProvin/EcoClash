@@ -221,13 +221,13 @@ mod tests {
     fn balance_hash_ignores_formatting_but_not_values() {
         let base = hash_of(BALANCE, SPECIES);
         let crlf = SPECIES.replace('\n', "\r\n");
-        let noisy = SPECIES.replace("growth = 1.38\n", "growth   =   1.38   # comment\n");
+        let noisy = SPECIES.replace("growth = 1.26\n", "growth   =   1.26   # comment\n");
         assert_eq!(hash_of(BALANCE, &crlf), base, "line endings");
         assert_eq!(hash_of(BALANCE, &noisy), base, "spacing and comments");
         // Below the fixed-point resolution (1 / 65536 of the per-tick scale): same values.
-        let tiny = SPECIES.replacen("growth = 1.38\n", "growth = 1.380000001\n", 1);
+        let tiny = SPECIES.replacen("growth = 1.26\n", "growth = 1.260000001\n", 1);
         assert_eq!(hash_of(BALANCE, &tiny), base, "sub-resolution change");
-        let real = SPECIES.replacen("growth = 1.38\n", "growth = 1.45\n", 1);
+        let real = SPECIES.replacen("growth = 1.26\n", "growth = 1.33\n", 1);
         assert_ne!(hash_of(BALANCE, &real), base, "a real change");
         let rule = BALANCE.replace("smother_rate = 0.15", "smother_rate = 0.2");
         assert_ne!(hash_of(&rule, SPECIES), base, "a rule change");

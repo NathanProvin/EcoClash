@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  botSpec,
   cleanCode,
   DEFAULT_SETUP,
   forMode,
@@ -30,8 +31,9 @@ describe("match setup", () => {
   it("remembers the chosen setup, and falls back to the default on bad data", () => {
     const store = memory();
     expect(loadSetup(store)).toEqual(DEFAULT_SETUP);
-    saveSetup({ bot: "hard", seed: 42, sandbox: true, map: "large" }, store);
-    expect(loadSetup(store)).toEqual({ bot: "hard", seed: 42, sandbox: true, map: "large" });
+    const chosen = { bot: "hard", style: "rush", seed: 42, sandbox: true, map: "large" } as const;
+    saveSetup(chosen, store);
+    expect(loadSetup(store)).toEqual(chosen);
     store.setItem("ecoclash.setup", '{"bot":"easy","seed":3,"map":"huge"}');
     expect(loadSetup(store).map).toBe("mid"); // not a size: the default
     store.setItem("ecoclash.setup", '{"bot":"godlike","seed":-3}');
@@ -41,14 +43,21 @@ describe("match setup", () => {
   });
 
   it("lets URL parameters override it", () => {
-    const chosen = { bot: "easy", seed: 5, sandbox: false, map: "mid" } as const;
+    const chosen = { bot: "easy", style: "random", seed: 5, sandbox: false, map: "mid" } as const;
     expect(withUrl(chosen, "")).toEqual(chosen);
-    expect(withUrl(chosen, "?bot=none&seed=9&sandbox=1&map=small")).toEqual({
+    expect(withUrl(chosen, "?bot=none&style=tall&seed=9&sandbox=1&map=small")).toEqual({
       bot: "none",
+      style: "tall",
       seed: 9,
       sandbox: true,
       map: "small",
     });
+  });
+
+  it("tells the worker the bot's level and style (D-228)", () => {
+    expect(botSpec({ ...DEFAULT_SETUP, bot: "hard", style: "wide" })).toBe("hard:wide");
+    expect(botSpec({ ...DEFAULT_SETUP, bot: "none" })).toBe("none");
+    expect(loadSetup(memory()).style).toBe("random");
   });
 
   it("draws seeds in range", () => {

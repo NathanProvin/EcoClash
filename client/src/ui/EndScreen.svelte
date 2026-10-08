@@ -10,6 +10,7 @@
     human,
     series,
     dt,
+    note = "",
     onMenu,
     onAgain,
     onWatch,
@@ -18,6 +19,8 @@
     human: 1 | 2;
     series: Record<string, number[]>;
     dt: number;
+    /** A line under the match time, e.g. the bot's style (D-228). */
+    note?: string;
     onMenu: () => void;
     onAgain: () => void;
     onWatch: () => void;
@@ -60,6 +63,7 @@
     <h1 class:win={title === "Victory"} class:loss={title === "Defeat"}>{title}</h1>
     <p class="why">{why}</p>
     <p class="label">Match time {clock(outcome.tick * dt)}</p>
+    {#if note}<p class="label">{note}</p>{/if}
     <div class="charts">
       <LineChart
         title="Territory, % of the map"

@@ -49,6 +49,7 @@ class FakeWorker {
           timeLimitS: 1200,
           terrain: new Uint8Array(8).buffer,
           reliefM: 8,
+          botStyles: "2:wide",
           maxAgents: 2000,
           balanceHash: "0",
         }),

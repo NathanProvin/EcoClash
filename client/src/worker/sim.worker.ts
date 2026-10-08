@@ -180,6 +180,7 @@ async function begin(
     balanceHash: s.balanceHash,
     terrain: s.terrainFrame().buffer as ArrayBuffer, // the map, once (D-085)
     reliefM: s.reliefM,
+    botStyles: s.botStyles, // D-228
   });
   sendFields(s);
   loop();

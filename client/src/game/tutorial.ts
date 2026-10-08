@@ -8,7 +8,13 @@
 import type { MatchSetup } from "./setup";
 
 /** The tutorial's match: a small meadows map (seed 2), the easy bot, nothing unlocked for free. */
-export const TUTORIAL_SETUP: MatchSetup = { bot: "easy", seed: 2, sandbox: false, map: "small" };
+export const TUTORIAL_SETUP: MatchSetup = {
+  bot: "easy",
+  style: "balanced", // the scripted lesson needs a predictable bot (D-228)
+  seed: 2,
+  sandbox: false,
+  map: "small",
+};
 
 /** What the objectives look at, once a second. */
 export interface TutorialState {

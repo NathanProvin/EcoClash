@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import * as THREE from "three/webgpu";
-import { curve, OrderLines, ORDER_LINE, ribbon } from "./orders";
+import { curve, fade, OrderLines, ORDER_LINE, ribbon } from "./orders";
 
 describe("order lines (D-162)", () => {
   it("curves from the group to the target, bending to one side", () => {
@@ -60,5 +60,23 @@ describe("order lines (D-162)", () => {
     lines.add([1], new THREE.Vector3(8, 0, 8), "move");
     lines.add([1], new THREE.Vector3(-8, 0, 8), "attack");
     expect(scene.children).toHaveLength(1);
+  });
+
+  it("holds a line a few seconds, then fades it out and drops it (D-234)", () => {
+    const { opacity, hold_s, fade_s } = ORDER_LINE;
+    expect(fade(0)).toBe(opacity);
+    expect(fade(hold_s)).toBe(opacity);
+    expect(fade(hold_s + fade_s / 2)).toBeCloseTo(opacity / 2);
+    expect(fade(hold_s + fade_s)).toBe(0);
+    vi.useFakeTimers();
+    const scene = new THREE.Scene();
+    const lines = new OrderLines(scene);
+    lines.add([1], new THREE.Vector3(8, 0, 8), "move");
+    const drawn = [{ id: 1, owner: 1, x: 0, y: 0, z: 0 }];
+    const walking = [{ id: 1, y: 0, x: 0, species: 0, owner: 1, order: 1 }];
+    vi.advanceTimersByTime((hold_s + fade_s + 0.1) * 1000);
+    lines.update(drawn, walking, () => 0); // still walking, but the line is spent
+    expect(scene.children).toHaveLength(0);
+    vi.useRealTimers();
   });
 });

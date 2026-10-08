@@ -68,3 +68,28 @@ export function strategicGroups(
   }
   return out.sort((p, q) => q.count - p.count);
 }
+
+/** Stable icon keys (D-232): each group keeps the key of the previous group with the same
+ *  `prefix` (owner and species) it shares the most animals with, so its icon (and the hover on
+ *  it) survives members coming and going; a group sharing none gets a fresh key. `prev` maps the
+ *  last keys to their animals; `serial` numbers fresh keys and is advanced. */
+export function stableKeys(
+  prev: ReadonlyMap<string, readonly number[]>,
+  next: readonly { prefix: string; ids: readonly number[] }[],
+  serial: { n: number },
+): string[] {
+  const taken = new Set<string>();
+  return next.map((g) => {
+    const mine = new Set(g.ids);
+    let best: string | null = null;
+    let shared = 0;
+    for (const [key, ids] of prev) {
+      if (taken.has(key) || !key.startsWith(`${g.prefix}#`)) continue;
+      const n = ids.reduce((t, id) => t + (mine.has(id) ? 1 : 0), 0);
+      if (n > shared) [best, shared] = [key, n];
+    }
+    const key = best ?? `${g.prefix}#${serial.n++}`;
+    taken.add(key);
+    return key;
+  });
+}

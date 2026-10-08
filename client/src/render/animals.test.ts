@@ -10,6 +10,8 @@ import {
   RING,
   ringRadius,
   GAIT,
+  ANIMAL_SCALE,
+  drawnLength,
   stepGait,
   turnToward,
 } from "./animals";
@@ -143,5 +145,17 @@ describe("gait (D-116)", () => {
     const fox = ANIMAL_FORM.fox ?? formOf("fox", "predator");
     expect(tris(animalGeometry(fox, true))).toBe(tris(animalGeometry({ ...fox, length: 0 })));
     expect(tris(animalGeometry(fox, true)) * 3).toBeLessThan(tris(animalGeometry(fox)));
+  });
+});
+
+describe("drawn sizes (D-235)", () => {
+  it("draws animals larger, small species most, large ones less", () => {
+    expect(ANIMAL_SCALE).toBe(3.5);
+    const vole = formOf("bank_vole", "herbivore");
+    const deer = formOf("red_deer", "herbivore");
+    const gain = (f: AnimalForm) => drawnLength(f) / f.length;
+    expect(drawnLength(vole)).toBeCloseTo((0.1 * 3.5) / (1 + 0.75 * 0.1));
+    expect(gain(vole)).toBeGreaterThan(gain(deer));
+    expect(drawnLength(deer)).toBeGreaterThan(drawnLength(vole));
   });
 });

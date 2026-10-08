@@ -115,6 +115,9 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     tick: 8,
     frame: frame.buffer,
     pressure: new Uint8Array([0, 128, 0, 0]).buffer,
+    strength: new Uint8Array(8).buffer,
+    cellIncome: new Uint8Array(4).buffer,
+    factor: [100, 100],
     lock: new Uint8Array([0, 0, 0, 0, 2, 12, 0, 0]).buffer, // cell 2: P2 barred for 12 s
     deadwood: new Uint8Array([0, 0, 0, 51]).buffer, // cell 3: a dead tree (D-127)
     flood: [2], // cell 2 under flood water (D-132)
@@ -136,6 +139,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     result: "",
     stalled: false,
     drops: [1, 2],
+    kills: [],
     waits: [[50], [0]], // P1's storm: 5 s to go at 10 Hz (D-129)
     effects: [2, 0, 3, 4], // P2 cast a storm at (3, 4)
     weather: [1, 2, 600], // a flood at work for 60 s more (D-132)

@@ -108,22 +108,13 @@ impl Economy {
     /// income is multiplied by its biodiversity (D-225): 1 + `div_gain` x its species count
     /// (`Flora::species_count`), at most `div_cap`.
     pub fn update(&mut self, flora: &Flora, st: &FloraState, fauna: &Fauna) {
-        let (p, n2) = (&flora.p, st.n * st.n);
+        let n2 = st.n * st.n;
         let mut income = [0i64; 2];
         for k in 0..n2 {
             let o = st.owner[k];
-            if o == 0 {
-                continue;
+            if o != 0 {
+                income[usize::from(o) - 1] += self.cell_income(flora, st, k);
             }
-            let mut cell = 0;
-            for (s, (&yld, &kmax)) in self.yld.iter().zip(&p.kmax).enumerate() {
-                let b = st.bio[s * n2 + k];
-                if b > 0 {
-                    cell += div_round(yld * b.min(kmax), kmax);
-                }
-            }
-            let factor = (ONE_I + self.div_gain * flora.species_count(st, k)).min(self.div_cap);
-            income[usize::from(o) - 1] += div_round(cell * factor, ONE_I);
         }
         let a = &fauna.agents;
         for i in 0..a.len() {
@@ -135,6 +126,36 @@ impl Economy {
             self.income[pi] = inc;
             self.bank[pi] += div_round(inc * self.every, self.hz);
         }
+    }
+
+    /// Cell `k`'s plant income per ecology second (Q16): its plants' yields times its
+    /// biodiversity factor (D-225); 0 on a neutral cell.
+    #[must_use]
+    pub fn cell_income(&self, flora: &Flora, st: &FloraState, k: usize) -> i64 {
+        if st.owner[k] == 0 {
+            return 0;
+        }
+        let (p, n2) = (&flora.p, st.n * st.n);
+        let mut cell = 0;
+        for (s, (&yld, &kmax)) in self.yld.iter().zip(&p.kmax).enumerate() {
+            let b = st.bio[s * n2 + k];
+            if b > 0 {
+                cell += div_round(yld * b.min(kmax), kmax);
+            }
+        }
+        div_round(cell * self.factor(flora.species_count(st, k)), ONE_I)
+    }
+
+    /// The biodiversity factor of a cell with `species` species (Q16, D-225).
+    #[must_use]
+    pub fn factor(&self, species: i64) -> i64 {
+        (ONE_I + self.div_gain * species).min(self.div_cap)
+    }
+
+    /// Seconds of ecology per real second (Q16, D-069).
+    #[must_use]
+    pub fn pace(&self) -> i64 {
+        self.pace
     }
 
     /// The converted economy values, for the balance hash.

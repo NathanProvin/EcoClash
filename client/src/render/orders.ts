@@ -1,20 +1,24 @@
 // Order lines (D-162): a faint curved ribbon on the ground from a group under orders to the point
 // it was sent to, silvery grey for a move, fire red for an attack. It starts at the group's
 // centre each frame, so it shortens as they go, and it goes when no animal of the order still
-// follows it (the order byte of the animal frame, D-161).
+// follows it (the order byte of the animal frame, D-161). It is a reminder, not a fixture: it
+// holds a few seconds, then fades out even while the animals still walk (D-234).
 
 import * as THREE from "three/webgpu";
 import type { Animal } from "../replay/replay";
 import type { Drawn } from "./animals";
 
 /** Ribbon width (m), curve segments, sideways bend (share of the length), lift off the ground
- *  (m), opacity, and the colour of each order. */
+ *  (m), opacity, how long it shows fully and how long it fades (s, D-234), and the colour of
+ *  each order. */
 export const ORDER_LINE = {
   width: 0.22,
   segments: 24,
   bend: 0.18,
   lift: 0.12,
   opacity: 0.4,
+  hold_s: 2.5,
+  fade_s: 1,
   colors: { move: "#c9cdd2", attack: "#e2452b" },
 } as const;
 
@@ -67,6 +71,14 @@ export function ribbon(
   return out;
 }
 
+/** A line's opacity `age` seconds after its order (D-234): full for `hold_s`, then fading to 0
+ *  over `fade_s`. */
+export function fade(age: number): number {
+  const { opacity, hold_s, fade_s } = ORDER_LINE;
+  if (age <= hold_s) return opacity;
+  return Math.max(0, opacity * (1 - (age - hold_s) / fade_s));
+}
+
 interface Order {
   ids: Set<number>;
   kind: OrderKind;
@@ -108,7 +120,7 @@ export class OrderLines {
       new THREE.BufferAttribute(new Float32Array((ORDER_LINE.segments + 1) * 6), 3),
     );
     g.setIndex(this.index);
-    const mesh = new THREE.Mesh(g, this.materials[kind]);
+    const mesh = new THREE.Mesh(g, this.materials[kind].clone()); // its own opacity to fade
     mesh.frustumCulled = false; // rebuilt every frame
     mesh.renderOrder = 9;
     this.scene.add(mesh);
@@ -126,7 +138,11 @@ export class OrderLines {
     if (!this.orders.length) return; // nothing to draw: no per-frame maps (D-201)
     const orderOf = new Map(animals.map((a) => [a.id, a.order]));
     const at = new Map(drawn.map((d) => [d.id, d]));
+    const now = performance.now();
     for (const o of this.orders) {
+      const opacity = fade((now - o.at) / 1000);
+      if (opacity <= 0) o.ids.clear(); // faded out (D-234)
+      (o.mesh.material as THREE.Material).opacity = opacity;
       for (const id of o.ids) {
         if (!orderOf.has(id)) o.ids.delete(id); // gone
         const order = orderOf.get(id);
@@ -160,6 +176,7 @@ export class OrderLines {
       if (o.ids.size) return true;
       this.scene.remove(o.mesh);
       o.mesh.geometry.dispose();
+      (o.mesh.material as THREE.Material).dispose();
       return false;
     });
   }

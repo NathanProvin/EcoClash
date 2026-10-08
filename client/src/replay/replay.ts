@@ -43,6 +43,7 @@ export interface Fields {
   species: Uint8Array[]; // cover 0..255 per plant species (species-table order)
   cover: Uint8Array[]; // cover 0..255 per height stratum L1..L4 (sum of its species, capped)
   pressure?: Uint8Array; // live only: how hard the non-owner pushes into each cell, 0..255 (D-076)
+  strength?: Uint8Array; // live only: per cell, strength and the enemy's push, tenths of a species (D-232)
   lock?: Uint8Array; // live only: per cell, the barred player and seconds left (D-098)
   deadwood?: Uint8Array; // live only: standing dead wood per cell, 0..255 (D-127)
   flood?: number[]; // live only: cells under flood water (D-132)
@@ -62,6 +63,8 @@ export interface CellInfo {
   strata: number[];
   /** How hard the other player pushes into the cell, 0..1 (live only). */
   push: number;
+  /** The cell's strength and the enemy's push, in species (D-225, D-232; live, owned cells). */
+  front: { strength: number; push: number } | null;
   /** The player barred from taking the cell back, and for how long (D-098; live only). */
   lock: { player: number; s: number } | null;
   /** Standing dead wood, 0..1 of a full dead stand (D-127): no tree grows there. */
@@ -252,6 +255,10 @@ export function cellAt(
     ground: src.terrain?.ground[k] ?? 0,
     strata: f.cover.map((c) => (c[k] ?? 0) / 255),
     push: (f.pressure?.[k] ?? 0) / 255,
+    front:
+      f.strength && (f.owner[k] === 1 || f.owner[k] === 2)
+        ? { strength: (f.strength[2 * k] ?? 0) / 10, push: (f.strength[2 * k + 1] ?? 0) / 10 }
+        : null,
     lock: f.lock?.[2 * k] ? { player: f.lock[2 * k] ?? 0, s: f.lock[2 * k + 1] ?? 0 } : null,
     deadwood: (f.deadwood?.[k] ?? 0) / 255,
     plants,

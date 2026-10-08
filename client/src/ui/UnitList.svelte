@@ -1,6 +1,7 @@
 <script lang="ts">
   // Unit list (D-174): your controllable animals on the map, by species, in the build bar's
-  // order, with head counts. No title. A click selects every animal of that species.
+  // order, with head counts. No title. A click selects every animal of that species; the
+  // species of the selection wear a bright outline (D-232).
   import { families, label } from "../game/species";
   import type { Animal, Species } from "../replay/replay";
   import SpeciesIcon from "./SpeciesIcon.svelte";
@@ -10,6 +11,7 @@
     species,
     fauna,
     me,
+    selected = new Set(),
     onPick,
   }: {
     /** The animals drawn now. */
@@ -19,6 +21,8 @@
     /** Fauna species names, by an animal's `species` index. */
     fauna: readonly string[];
     me: number;
+    /** Species of the selected animals (D-232). */
+    selected?: ReadonlySet<string>;
     onPick: (name: string) => void;
   } = $props();
 
@@ -44,6 +48,8 @@
     {#each rows as r (r.s.name)}
       <button
         class="unit"
+        class:on={selected.has(r.s.name)}
+        aria-pressed={selected.has(r.s.name)}
         onclick={() => onPick(r.s.name)}
         title="{label(r.s.name)}: select all"
         aria-label="Select all {label(r.s.name)}"
@@ -83,6 +89,14 @@
   .unit:hover {
     border-color: var(--gold);
     background: rgba(216, 180, 92, 0.15);
+  }
+  /* The selected species (D-232): a bright outline that reads over the map. */
+  .unit.on {
+    border-color: #fff6d8;
+    background: rgba(216, 180, 92, 0.22);
+    box-shadow:
+      0 0 0 1px var(--gold),
+      0 0 10px var(--gold-soft);
   }
   .n {
     min-width: 22px;

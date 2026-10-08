@@ -1,10 +1,44 @@
 import { describe, expect, it } from "vitest";
 import type { Animal } from "../replay/replay";
-import { GROUP, strategicGroups } from "./groups";
+import { GROUP, stableKeys, strategicGroups } from "./groups";
 
 let id = 0;
 const herd = (species: number, count: number, y: number, x: number, owner = 1): Animal[] =>
   Array.from({ length: count }, (_, i) => ({ id: id++, y: y + (i % 3) * 0.5, x, species, owner }));
+
+describe("stableKeys (D-232)", () => {
+  it("keeps a group's key while its members change, and gives new groups fresh ones", () => {
+    const serial = { n: 0 };
+    const first = stableKeys(new Map(), [{ prefix: "1:3", ids: [1, 2, 3] }], serial);
+    expect(first).toEqual(["1:3#0"]);
+    const prev = new Map([["1:3#0", [1, 2, 3]]]);
+    // Animal 1 died, 4 was born, and a second herd appeared: the herd keeps its key.
+    const next = stableKeys(
+      prev,
+      [
+        { prefix: "1:3", ids: [2, 3, 4] },
+        { prefix: "1:3", ids: [9, 10, 11] },
+      ],
+      serial,
+    );
+    expect(next).toEqual(["1:3#0", "1:3#1"]);
+    // Another species or owner never inherits it.
+    expect(stableKeys(prev, [{ prefix: "2:3", ids: [1, 2, 3] }], serial)).toEqual(["2:3#2"]);
+  });
+
+  it("gives one previous key to one group only: the first, largest group", () => {
+    const prev = new Map([["1:3#0", [1, 2, 3, 4]]]);
+    const keys = stableKeys(
+      prev,
+      [
+        { prefix: "1:3", ids: [1, 2, 3] },
+        { prefix: "1:3", ids: [4] },
+      ],
+      { n: 5 },
+    );
+    expect(keys).toEqual(["1:3#0", "1:3#5"]);
+  });
+});
 
 describe("strategicGroups", () => {
   it("groups own animals per species, merging neighbouring areas", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Species } from "../replay/replay";
-import { counters, LITTER_ID, links, related, slotOf } from "./foodweb";
+import { counters, LITTER_ID, links, related, slotOf, webRoles } from "./foodweb";
 
 const sp = (
   name: string,
@@ -48,5 +48,15 @@ describe("food web (D-124)", () => {
   it("finds your counters to what the enemy fields", () => {
     expect([...counters(all, new Set(["rabbits"]))]).toEqual(["fox"]);
     expect(counters(all, new Set()).size).toBe(0);
+  });
+});
+
+describe("webRoles (D-232)", () => {
+  it("marks a focused species' foods as prey and its eaters as predators", () => {
+    const roles = webRoles(rabbit, all);
+    expect(roles.get("grasses")).toBe("prey");
+    expect(roles.get("fox")).toBe("predator");
+    expect(roles.has("earthworms")).toBe(false);
+    expect(roles.has("rabbits")).toBe(false);
   });
 });

@@ -7,7 +7,7 @@
   // Home = reset view, Space = play, T = tech tree, Esc = cancel / close / clear selection.
   import { onDestroy, onMount } from "svelte";
   import { SvelteMap, SvelteSet } from "svelte/reactivity";
-  import { strategicGroups } from "./game/groups";
+  import { stableKeys, strategicGroups } from "./game/groups";
   import {
     botSpec,
     cleanCode,
@@ -33,7 +33,21 @@
     type Toast,
   } from "./game/alerts";
   import { cardState, isSwarm, label, unlockedNow } from "./game/species";
-  import { plantColor, WORLD } from "./render/palette";
+  import { plantColor, PLAYER, WORLD } from "./render/palette";
+  import Juice from "./ui/Juice.svelte";
+  import {
+    captures,
+    comboChange,
+    FALL,
+    incomePops,
+    killKind,
+    MAX_POPS,
+    Phrase,
+    popStyle,
+    PULSE_MS,
+    ratio,
+    RISE,
+  } from "./game/juice";
   import { Viewer, type CameraKeys, type Layer } from "./render/viewer";
   import { loadQuality, saveQuality, type Quality } from "./render/quality";
   import { censusText, frameStats, Sections } from "./game/perf";
@@ -231,6 +245,10 @@
 
   /** The groups the icons stand for (map cells), regrouped ~10 times a second. */
   let iconGroups: (Omit<(typeof icons)[number], "x" | "y"> & { row: number; col: number })[] = [];
+  /** Each icon's animals at the last regrouping, by key, and the next fresh key (D-232): a group
+   *  keeps its key, and its icon its hover, while its members come and go. */
+  let iconKeys = new Map<string, readonly number[]>();
+  const iconSerial = { n: 0 };
 
   /** Icons over sizeable groups: regroup the animals (10 Hz, in `frame`). */
   function placeIcons() {
@@ -244,16 +262,131 @@
     // Yours, then the enemy's (D-146): see where the threat is; theirs only show.
     const mine = live ? me : player;
     const animals = v.visibleAnimals();
-    iconGroups = [mine, 3 - mine].flatMap((owner) =>
+    const found = [mine, 3 - mine].flatMap((owner) =>
       strategicGroups(animals, owner, swarm).flatMap((g) => {
         const s = fauna[g.species];
-        if (!s) return [];
-        const key = `${owner}:${g.species}:${g.ids[0] ?? 0}`;
-        const enemy = owner !== mine;
-        const order = !enemy && !swarm[g.species];
-        return [{ key, row: g.row, col: g.col, s, count: g.count, ids: g.ids, order, enemy }];
+        return s ? [{ owner, g, s, prefix: `${owner}:${g.species}` }] : [];
       }),
     );
+    const keys = stableKeys(
+      iconKeys,
+      found.map((f) => ({ prefix: f.prefix, ids: f.g.ids })),
+      iconSerial,
+    );
+    iconKeys = new Map(found.map((f, i) => [keys[i] ?? "", f.g.ids]));
+    iconGroups = found.map(({ owner, g, s }, i) => {
+      const enemy = owner !== mine;
+      const order = !enemy && !swarm[g.species];
+      const key = keys[i] ?? "";
+      return { key, row: g.row, col: g.col, s, count: g.count, ids: g.ids, order, enemy };
+    });
+  }
+
+  // Game feel (D-233): the income pulse, the capture melody, the biodiversity combo, kills and
+  // raid crumbs, run once per frame by `feel`; the overlay shows the marks.
+  let juice: Juice | undefined = $state();
+  let lastPulse = 0;
+  let pulseTick = -1;
+  let ownerFrame = -1;
+  let prevOwner: Uint8Array | null = null;
+  const rise = new Phrase(RISE, 2500);
+  const fall = new Phrase(FALL, 2500);
+  let lastCombo: number | null = null;
+  /** The combo for the top bar: its value, its last move, and a counter that replays the
+   *  animation on every move. */
+  let combo = $state<{ value: number; move: "up" | "down" | null; n: number } | null>(null);
+  let lastCrumbs = 0;
+  /** Crumbs every this many ms, from at most CRUMBS grazers on the other side's land. */
+  const CRUMB_MS = 400;
+  const CRUMBS = 8;
+
+  function feel(now: number) {
+    const l = live;
+    const v = viewer;
+    if (!l || !v || outcome || perfBench) return;
+    const f = l.fields();
+    const n = l.meta.n;
+    const place = (at: { x: number; inView: boolean }) => ({ ...at, width: canvas.clientWidth });
+    // A new field frame: the cells you gained play a rising pentatonic phrase, the cells you
+    // lost sad low notes (a few per frame); the combo reports its move.
+    if (f.frame !== ownerFrame) {
+      if (prevOwner && prevOwner.length === f.owner.length) {
+        const { gained, lost } = captures(prevOwner, f.owner, me);
+        gained.slice(0, 4).forEach((_, i) =>
+          setTimeout(() => {
+            const pitch = ratio(rise.next(performance.now()));
+            audio.play("fx.capture", { pitch, cooldown: 60 });
+          }, i * 120),
+        );
+        lost.slice(0, 2).forEach((_, i) =>
+          setTimeout(() => {
+            const pitch = ratio(fall.next(performance.now()));
+            audio.play("fx.loss", { pitch, cooldown: 200 });
+          }, i * 320),
+        );
+      }
+      prevOwner = f.owner.slice();
+      ownerFrame = f.frame;
+      const value = l.factor[me - 1] ?? 1;
+      const move = lastCombo === null ? null : comboChange(lastCombo, value);
+      if (move) audio.play(move === "up" ? "ui.combo.up" : "ui.combo.down");
+      if (lastCombo === null || move) combo = { value, move, n: (combo?.n ?? 0) + 1 };
+      lastCombo = value;
+    }
+    // The income pulse: what each patch of your land made over the last PULSE_MS (none while
+    // paused).
+    if (now - lastPulse >= PULSE_MS) {
+      lastPulse = now;
+      if (l.tick !== pulseTick && !homeless) {
+        pulseTick = l.tick;
+        const pops = incomePops(f.owner, l.cellIncome, n, me, (PULSE_MS / 1000) * speed, MAX_POPS);
+        const max = pops[0]?.value ?? 0;
+        for (const p of pops) {
+          const style = popStyle(p.value, max);
+          const text = `+${p.value < 10 ? p.value.toFixed(1) : Math.round(p.value)}`;
+          juice?.income(p, text, style.color, style.scale);
+        }
+        if (pops.length) audio.play("fx.pulse", { gain: 0.9 });
+      }
+    }
+    // Kills: your hunters' bites, your animals' panic.
+    for (const k of l.takeKills()) {
+      const kind = killKind(k, me);
+      const at = kind ? v.screenPoint(k) : null;
+      if (!kind || !at?.inView) continue;
+      juice?.kill(kind, k);
+      audio.play(kind === "won" ? "fx.bite" : "fx.distress", { at: place(at), cooldown: 250 });
+    }
+    // Crumbs where grazers feed on the other side's land, in the colour of the plants' owner.
+    if (now - lastCrumbs >= CRUMB_MS) {
+      lastCrumbs = now;
+      let shown = 0;
+      for (const a of v.visibleAnimals()) {
+        if (shown >= CRUMBS) break;
+        if (fauna[a.species]?.role !== "herbivore") continue;
+        const cell = { row: Math.floor(a.y), col: Math.floor(a.x) };
+        const o = f.owner[cell.row * n + cell.col];
+        if ((o !== 1 && o !== 2) || o === a.owner) continue;
+        if (!v.screenPoint(cell).inView) continue;
+        juice?.crumb(cell, PLAYER[o].base);
+        shown++;
+      }
+    }
+  }
+
+  /** The species whose food web the build bar lights (D-232): set by clicking a strategic icon,
+   *  cleared with the selection. */
+  let focus = $state<Species | null>(null);
+
+  /** A strategic icon clicked (D-232): select your group, or only highlight a swarm or the
+   *  enemy's (they take no orders); and light its prey and predators on the build bar. */
+  function pickIcon(i: (typeof icons)[number]) {
+    if (i.order) select(i.ids);
+    else {
+      select([]);
+      viewer?.setSelection(i.ids);
+    }
+    focus = i.s;
   }
 
   /** Every frame (D-171): the icons follow the camera smoothly; regrouping alone at 10 Hz made
@@ -658,6 +791,15 @@
     return viewer?.visibleAnimals() ?? [];
   });
   let hoverIds = $state<number[] | null>(null);
+  /** Species of the selected animals: the unit list outlines them (D-232). */
+  const selectedNames = $derived(
+    new Set(
+      listAnimals.flatMap((a) => {
+        const name = selection.has(a.id) ? replay?.meta.fauna.names[a.species] : undefined;
+        return name ? [name] : [];
+      }),
+    ),
+  );
   const unit = $derived.by(() => {
     void tick;
     const ids = hoverIds ?? unitIds;
@@ -780,6 +922,7 @@
             audio.play("fx.rumble", { gain: 0.8 }); // D-185
           }
         }
+        feel(now); // D-233
       }
       if (Math.floor(frameTick) !== tick) tick = Math.floor(frameTick);
       const before = performance.now();
@@ -787,6 +930,8 @@
       viewer.render(frameTick);
       const after = performance.now();
       projectIcons(); // after the camera moved this frame
+      const v = viewer;
+      juice?.follow((c) => v.screenPoint(c)); // marks stay on their cells (D-234)
       appTiming.add("icons", performance.now() - after);
       if (perfBench && live) benchStep(now);
     }
@@ -897,6 +1042,7 @@
   }
 
   function select(ids: number[]) {
+    focus = null; // a new selection ends the food-web focus (D-232)
     selection = new Set(ids);
     viewer?.setSelection(selection);
     if (ids.length) speak(ids, SELECT_CALL); // D-182
@@ -982,8 +1128,23 @@
       if (armedKind === "flora") {
         live.plant(me, planting, at.row, at.col);
         const s = live.meta.species.find((x) => x.name === planting);
-        viewer.plantFeedback(at, live.plantRadius, plantColor(planting, s?.level ?? 1, me));
-        audio.play(plantSound(s), { at: placeOf(at), gain: 1.4 });
+        const rgb = plantColor(planting, s?.level ?? 1, me);
+        const level = s?.level ?? 1;
+        // Shrubs and trees are planted as saplings with a woody pop; herbs and undergrowth are
+        // sown, seeds scattering (D-233, D-234). Sparkles: as many as the layer, the tier's colour.
+        const woody = level >= 3 && s?.family !== "W";
+        if (!woody) viewer.plantFeedback(at, live.plantRadius, rgb);
+        audio.play(woody ? "fx.plant.sapling" : plantSound(s), {
+          at: placeOf(at),
+          gain: woody ? 1 : 1.4,
+        });
+        juice?.sprout(
+          at,
+          `rgb(${rgb.join(",")})`,
+          s?.tier ?? 1,
+          woody ? level : Math.min(level, 2),
+        );
+        audio.play("fx.sparkle", { at: placeOf(at), gain: 0.25 + 0.15 * level });
       } else {
         live.spawn(me, planting, at.row, at.col);
         const place = placeOf(at);
@@ -1004,6 +1165,9 @@
         if (a?.owner === mine) select([hit]);
         unitIds = [hit];
         inspect(null);
+        // Its food web on the build bar, as for a strategic icon (D-235).
+        const name = a ? replay?.meta.fauna.names[a.species] : undefined;
+        focus = (name && replay?.meta.species.find((s) => s.name === name)) || null;
       } else {
         unitIds = [];
         inspect(viewer.pickCell(box.x0, box.y0));
@@ -1059,8 +1223,12 @@
       else if (attackArmed) attackArmed = false;
       else if (castArmed) castArmed = null;
       else if (planting) planting = null;
-      else if (cell) inspect(null);
-      else select([]);
+      else {
+        // One press clears the lot (D-234): the cell card, the unit card and the selection.
+        inspect(null);
+        unitIds = [];
+        select([]);
+      }
     } else if (key === "Home") {
       viewer?.resetView();
     }
@@ -1261,6 +1429,7 @@
     <TopBar
       {replay}
       {tick}
+      combo={live ? combo : null}
       victory={victoryNow}
       bind:player
       onTech={() => (techOpen = true)}
@@ -1301,6 +1470,7 @@
       onUnlock={unlock}
       {popped}
       onPickSpecies={pickSpecies}
+      {focus}
       onClear={() => select([])}
       catastrophes={live?.catastrophes ?? []}
       waits={catastropheWaits}
@@ -1328,7 +1498,8 @@
       </p>
     {/if}
     <div class="p{live ? me : player}" style:display="contents">
-      <StrategicIcons {icons} onSelect={(ids) => select(ids)} onHover={(ids) => (hoverIds = ids)} />
+      <Juice bind:this={juice} />
+      <StrategicIcons {icons} onSelect={pickIcon} onHover={(ids) => (hoverIds = ids)} />
     </div>
     {#if showPerf && perfDetail}
       <pre class="perf-detail">{perfDetail}</pre>
@@ -1348,6 +1519,7 @@
         species={replay?.meta.species ?? []}
         fauna={replay?.meta.fauna.names ?? []}
         {me}
+        selected={selectedNames}
         onPick={(name) => pickSpecies(name)}
       />
     {/if}
@@ -1493,9 +1665,10 @@
     touch-action: none;
   }
   /* The cell and unit cards, stacked on the right (D-161). */
+  /* The cell and unit cards in the lower right corner (D-234), clear of the build bar. */
   .cards {
     position: absolute;
-    top: 74px;
+    bottom: 12px;
     right: 14px;
     z-index: 4;
     display: flex;

@@ -319,6 +319,38 @@ impl Sim {
         serde_json::Value::Array(list).to_string()
     }
 
+    /// Hunters' kills since the last call (D-233), flat (hunter, prey owner, prey species, row,
+    /// col) quintuples, for the HUD.
+    #[wasm_bindgen(js_name = takeKills)]
+    pub fn take_kills(&mut self) -> Vec<u32> {
+        self.world
+            .take_kills()
+            .into_iter()
+            .flat_map(|k| {
+                [
+                    u32::from(k.hunter),
+                    u32::from(k.owner),
+                    u32::from(k.species),
+                    k.row,
+                    k.col,
+                ]
+            })
+            .collect()
+    }
+
+    /// Plant income per cell, hundredths of a point per second (D-233): the income pulse.
+    #[wasm_bindgen(js_name = incomeFrame)]
+    pub fn income_frame(&self) -> Vec<u8> {
+        self.world.income_frame()
+    }
+
+    /// `player`'s best biodiversity factor over its cells, x100 (D-233).
+    #[wasm_bindgen(js_name = bestFactor)]
+    #[must_use]
+    pub fn best_factor(&self, player: u8) -> u32 {
+        self.world.best_factor(player)
+    }
+
     /// Animals dropped by spawn commands since the last call, as flat (first id, count) pairs
     /// (D-080): the renderer parachutes them in.
     #[wasm_bindgen(js_name = takeDrops)]
@@ -361,6 +393,13 @@ impl Sim {
                 if left > 0 { [p, left] } else { [0, 0] }
             })
             .collect()
+    }
+
+    /// Strength and the enemy's push per cell (D-225, D-232): two bytes per cell, tenths of a
+    /// species, for the cell card.
+    #[wasm_bindgen(js_name = strengthFrame)]
+    pub fn strength_frame(&self) -> Vec<u8> {
+        self.world.strength_frame()
     }
 
     /// How hard the non-owner pushes into each cell, 0..=255, for the frontier lines (D-076).

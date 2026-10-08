@@ -6,7 +6,10 @@
   // stats; clicking arms it (the next map click plants it or calls the animal; Shift keeps it
   // armed), buys it when it can be unlocked, or does nothing while locked. A click on a family
   // item pins its flyout (touch, keyboard); Esc closes it. With animals selected, a selection
-  // strip sits above the bar. Replays show the same bar, read-only.
+  // strip sits above the bar. Replays show the same bar, read-only. With a species in focus (a
+  // strategic icon clicked, D-232), its predators wear a red ring, its prey a mossy green one,
+  // and every other family and tile is greyed out.
+  import { webRoles } from "../game/foodweb";
   import {
     cardState,
     families,
@@ -40,6 +43,7 @@
     castArmed = null,
     onCast = () => {},
     popped = null,
+    focus = null,
   }: {
     replay: Source;
     tick: number;
@@ -58,6 +62,8 @@
     onCast?: (name: string) => void;
     /** The species just unlocked: its card and family tile pop (D-169). */
     popped?: string | null;
+    /** The species whose food web the bar lights (D-232). */
+    focus?: Species | null;
   } = $props();
 
   const TIERS = [1, 2, 3] as const;
@@ -68,6 +74,23 @@
   const species = $derived(replay.meta.species);
   const fauna = $derived(species.filter((s) => s.kind === "fauna"));
   const groups = $derived(families(species));
+  /** The focused species' prey and predators by name (D-232). */
+  const roles = $derived(focus ? webRoles(focus, species) : null);
+  /** A species' place in the focus: its role, "dim" when unrelated, "" without a focus. */
+  const web = (name: string) =>
+    roles ? (roles.get(name) ?? (name === focus?.name ? "" : "dim")) : "";
+  /** A family's place: predator if one of its species is, else prey, else dim. */
+  const webOf = (names: string[]) => {
+    if (!roles) return "";
+    const r = names.map(web);
+    return r.includes("predator")
+      ? "predator"
+      : r.includes("prey")
+        ? "prey"
+        : r.includes("")
+          ? ""
+          : "dim";
+  };
   const counts = $derived(replay.counts(tick, player));
   const count = (s: Species) => counts[species.indexOf(s)] ?? 0;
 
@@ -140,24 +163,23 @@
 
 <svelte:window onkeydown={(e) => e.key === "Escape" && close()} />
 
+{#if picked.length}
+  <div class="selection panel p{player}" aria-label="Selection">
+    {#each picked as { s, n } (s.name)}
+      <button
+        class="pick"
+        onclick={() => onPickSpecies(s.name)}
+        title="Select only {label(s.name)}"
+      >
+        <SpeciesIcon {s} size={30} />
+        <span class="num">×{n}</span>
+      </button>
+    {/each}
+    <span class="keys">Right-click move · A attack · S stop · Ctrl 1-9 group</span>
+    <button class="x" onclick={onClear} aria-label="Clear selection">✕</button>
+  </div>
+{/if}
 <footer class="dock p{player}" bind:this={dock}>
-  {#if picked.length}
-    <div class="selection panel" aria-label="Selection">
-      {#each picked as { s, n } (s.name)}
-        <button
-          class="pick"
-          onclick={() => onPickSpecies(s.name)}
-          title="Select only {label(s.name)}"
-        >
-          <SpeciesIcon {s} size={30} />
-          <span class="num">×{n}</span>
-        </button>
-      {/each}
-      <span class="keys">Right-click move · A attack · S stop · Ctrl 1-9 group</span>
-      <button class="x" onclick={onClear} aria-label="Clear selection">✕</button>
-    </div>
-  {/if}
-
   <nav class="bar panel" aria-label="Species">
     {#each groups as g, i (g.name)}
       {@const total = g.species.reduce((t, s) => t + count(s), 0)}
@@ -165,7 +187,7 @@
         ></span>{/if}
       <div class="group" role="group" onpointerenter={() => enter(g.name)} onpointerleave={leave}>
         <button
-          class="item"
+          class="item web-{webOf(g.species.map((s) => s.name))}"
           class:open={open === g.name}
           class:armed={g.species.some((s) => s.name === planting)}
           class:pop={g.species.some((s) => s.name === popped)}
@@ -194,7 +216,7 @@
                     {#each list as s (s.name)}
                       {@const state = cardOf(s)}
                       <button
-                        class="tile {state} {MEDAL[s.tier - 1] ?? 'bronze'}"
+                        class="tile {state} {MEDAL[s.tier - 1] ?? 'bronze'} web-{web(s.name)}"
                         class:armed={planting === s.name}
                         class:pop={popped === s.name}
                         class:none={count(s) === 0 && state === "unlocked"}
@@ -448,10 +470,18 @@
     color: white;
     background: var(--player);
   }
+  /* The selection strip and its key help sit in the lower left corner (D-234), clear of the
+     build bar. */
   .selection {
+    position: absolute;
+    left: 14px;
+    bottom: 12px;
+    z-index: 3;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 6px;
+    max-width: min(34vw, 460px);
     padding: 4px 8px;
   }
   .pick {
@@ -551,5 +581,35 @@
   em {
     font-size: 0.95em;
     line-height: 1.3;
+  }
+  /* Food-web focus (D-232): rings like the tutorial's pointer, red for predators, mossy green
+     for prey; everything unrelated loses 40 % of its colour. */
+  .web-predator,
+  .web-prey {
+    position: relative;
+    z-index: 1;
+    animation: web-pulse 1.4s ease-in-out infinite;
+  }
+  .web-predator {
+    --web: var(--threat);
+    box-shadow:
+      0 0 0 2px var(--web),
+      0 0 12px var(--web);
+  }
+  .web-prey {
+    --web: #3f6b2a;
+    box-shadow:
+      0 0 0 2px var(--web),
+      0 0 12px var(--web);
+  }
+  .web-dim {
+    filter: saturate(0.2); /* -80 % (D-235) */
+  }
+  @keyframes web-pulse {
+    50% {
+      box-shadow:
+        0 0 0 2px var(--web),
+        0 0 20px var(--web);
+    }
   }
 </style>

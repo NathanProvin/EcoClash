@@ -33,6 +33,16 @@ export type ToWorker =
   | { type: "bot"; player: 1 | 2; level: string } // hand a player to a bot (dev: profiling, D-149)
   | { type: "command"; player: 1 | 2; payload: object };
 
+/** A hunter's kill (D-233): the hunter's owner, the prey's owner and species (fauna index),
+ *  its cell. */
+export interface Kill {
+  hunter: number;
+  owner: number;
+  species: number;
+  row: number;
+  col: number;
+}
+
 export type ToMain =
   | {
       type: "ready";
@@ -63,6 +73,7 @@ export type ToMain =
       result: string; // the verdict as JSON once the match is decided, else ""
       stalled: boolean; // relayed: waiting for the other player's turn
       drops: number[]; // animals just dropped by spawn commands: flat (first id, count) pairs
+      kills: number[]; // hunters' kills: flat (hunter, prey owner, prey species, row, col) (D-233)
       waits: number[][]; // per player, ticks before each catastrophe card is ready (D-129)
       effects: number[]; // catastrophes just cast: flat (player, card, row, col) quadruples
       weather: number[]; // [kind + 1 (0: none), phase (0 clear, 1 alert, 2 active), ticks left] (D-132)
@@ -72,6 +83,9 @@ export type ToMain =
       tick: number;
       frame: ArrayBuffer;
       pressure: ArrayBuffer;
+      strength: ArrayBuffer; // per cell: strength and the enemy's push, tenths of a species (D-232)
+      cellIncome: ArrayBuffer; // per cell: plant income, hundredths of a point per second (D-233)
+      factor: number[]; // per player: the best biodiversity factor, x100 (D-233)
       lock: ArrayBuffer;
       deadwood: ArrayBuffer;
       flood: number[]; // cells under flood water (D-132)
@@ -156,6 +170,12 @@ export class Live implements Source {
   readonly weatherKinds: WeatherKind[];
   weather: WeatherNow = CLEAR;
   private effects: { player: number; card: number; row: number; col: number }[] = [];
+  /** Hunters' kills not yet shown (D-233). */
+  private kills: Kill[] = [];
+  /** Per cell, plant income in hundredths of a point per second; per player, the best
+   *  biodiversity factor (D-233). */
+  cellIncome: Uint8Array = new Uint8Array(0);
+  factor: number[] = [1, 1];
   private readonly tickHz: number;
   private readonly maxAgents: number;
   /** Each bot's style (D-228): "player:style", comma-separated; "" with no bot. */
@@ -270,6 +290,13 @@ export class Live implements Source {
   }
 
   /** Catastrophes cast since the last call (both players'), for the animations. */
+  /** Hunters' kills since the last call (D-233). */
+  takeKills(): Kill[] {
+    const out = this.kills;
+    this.kills = [];
+    return out;
+  }
+
   takeEffects(): { player: number; card: number; row: number; col: number }[] {
     const out = this.effects;
     this.effects = [];
@@ -319,6 +346,16 @@ export class Live implements Source {
       this.unlockedFlags = m.unlocked;
       this.stalled = m.stalled;
       this.noteDrops(m.drops, this.cur.at);
+      for (let i = 0; i + 4 < m.kills.length; i += 5) {
+        const [hunter, owner, species, row, col] = m.kills.slice(i, i + 5) as [
+          number,
+          number,
+          number,
+          number,
+          number,
+        ];
+        this.kills.push({ hunter, owner, species, row, col });
+      }
       this.waits = m.waits.map((w) => w.map((t) => t / this.tickHz));
       for (let i = 0; i + 3 < m.effects.length; i += 4) {
         const [player, card, row, col] = m.effects.slice(i, i + 4) as [
@@ -334,6 +371,9 @@ export class Live implements Source {
     } else if (m.type === "fields") {
       this.current = this.decode(this.current.frame + 1, new Uint8Array(m.frame), m);
       this.current.pressure = new Uint8Array(m.pressure);
+      this.current.strength = new Uint8Array(m.strength);
+      this.cellIncome = new Uint8Array(m.cellIncome);
+      this.factor = m.factor.map((f) => f / 100);
       this.current.lock = new Uint8Array(m.lock);
       this.current.deadwood = new Uint8Array(m.deadwood);
       this.current.flood = m.flood;

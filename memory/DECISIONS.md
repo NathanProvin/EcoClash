@@ -2678,3 +2678,58 @@ Template:
   - Trees fill their cell 10 % slower (`biomass_rate`): oak 0.0135, chestnut 0.027, beech 0.018.
   - Tree models grow with the cell's tree cover, the value the cell card shows: the full-grown shape (varied by slot) scaled about its root by that cover, from a 12 % seedling floor (`TREE_SEEDLING`, `Placement.scale`, `grow` in `plants.ts`). Before, a young stand already showed a tree at about 65 % of full size.
   - Shrubs (L3) and undergrowth (L2) unlock and drop costs +5 %, yields unchanged: elder 2887.5 / 69.3, hawthorn 5775 / 69.3, hazel 8662.5 / 69.3; ferns 630 / 31.5, nettle 945 / 31.5, bramble 3150 / 31.5.
+
+## D-232 · 2026-10-08 · UI: icons that hold, food-web focus on the build bar, strength on the cell card
+- **Status:** accepted (user, first UI/UX items for Alpha 1.3.0)
+- **Decision:**
+  - **Strategic icons:**
+    - They keep their key while their group's members change: each group inherits the key of the previous group of the same owner and species it shares the most animals with (`stableKeys`). Before, the key was the group's first animal, so births and deaths recreated the button under the cursor: the hover dropped and the icon blinked.
+    - Every icon is clickable. Your group is selected; a swarm or an enemy group is highlighted only (they take no orders).
+  - **Food-web focus:** clicking a strategic icon lights its species' web on the build bar, with rings in the tutorial pointer's pulsing style. Predators wear red (`--threat`), prey a deep mossy green (#3f6b2a), and every other family and tile drops to 60 % saturation. A family takes the strongest role among its species (predator, then prey). Any new selection or Esc ends the focus (`webRoles`).
+  - **Unit list:** the species of the selected animals wear a bright gold-white outline.
+  - **Cell card:** on owned cells, "Strength x vs y push" in species, the push in red when it wins; from a new `strengthFrame` (tenths of a species, `Flora::fronts`). The hold of D-230 shows through the existing lock chip.
+
+## D-233 · 2026-10-08 · Game feel: income pulse, capture melody, combo badge, kills and crumbs, sprouts
+- **Status:** accepted (user's UX list; per 4×4 patch for the income numbers; all six steps at once)
+- **Decision:**
+  - **Sim views (never hashed):** `Fauna::kills` / `World::take_kills` (hunter, prey owner and species, cell), `World::income_frame` (each cell's plant income, hundredths of a point per second), `World::best_factor` (a player's best biodiversity factor ×100); `Economy::cell_income` is shared with the income update.
+  - **Income pulse:** every 3 s, one floating number per 4×4 patch of your land on screen (the points it made, speed included; at most 40, the largest), from light clear green and small to mossy green and large, with a deep soft thump (`fx.pulse`). Nothing while paused.
+  - **Capture melody:** at each field frame, up to 4 gained cells play a soft note climbing a major pentatonic scale (the phrase restarts after 2.5 s quiet), up to 2 lost cells a low note falling a minor pentatonic (`fx.capture`, `fx.loss`).
+  - **Combo badge:** "×1.35" over the centre of the tug-of-war bar: your best cell's income factor. A rise: a green pulse, shake and glow, and a bright arpeggio (`ui.combo.up`). A fall: a red flash and shake, and two falling notes (`ui.combo.down`).
+  - **Kills and crumbs:**
+    - your hunter's kill: snapping jaws and a gold flash, a crunchy bite (`fx.bite`);
+    - your animal caught: a red ring and a shaking "!", a distress call (`fx.distress`);
+    - grazers on the other side's land throw crumbs in the colour of the plants' owner (up to 8 every 0.4 s).
+  - **Sprouts:** planting pops a springy shoot in the plant's colour, with sparkles by tier (1 bronze, 3 silver, 6 gold stars; `fx.sparkle`). Shrubs and trees add a woody knock (`fx.plant.wood`) to the existing layered plant sounds.
+  - Logic in `game/juice.ts` (tested), marks in `ui/Juice.svelte` (CSS animations, at most 140 at once, reduced motion respected), wiring in `App.feel`.
+
+## D-234 · 2026-10-08 · UI/UX round 3: clickable icons, one Esc, fading orders, pinned marks, earthy sounds
+- **Status:** accepted (user's playtest of D-232 / D-233)
+- **Decision:**
+  - **Strategic icons** are placed by the `translate` property: the hover `scale` applied before `transform` scaled their screen position, so they fled the cursor and flickered. They can now be clicked, and the build bar's prey and predator rings show (D-232).
+  - **One Esc** closes the cell card, the unit card and the selection together (when nothing is armed).
+  - **Order lines** show fully for 2.5 s, fade over 1 s, then go, even while the animals walk (`ORDER_LINE.hold_s`, `fade_s`).
+  - **Overlay marks are pinned to map cells**, re-projected every frame (`Juice.follow`), so they stay in place while panning. Forage is one small leaf bit in the plants' owner's colour.
+  - **Layout:** combo badge below the tug-of-war bar; the selection strip and its key help at the lower left; the cell and unit cards at the lower right.
+  - **Sounds:**
+    - captures: a low thump and a humus crunch walking a pentatonic scale low down (a deep rhythm under the music);
+    - losses: a falling stone rumble;
+    - the yield tick: a lub-dub heartbeat.
+
+    All tonal content stays under about 250 Hz.
+  - **Income numbers:** at most 12; the patches widen from 4×4 with the land.
+  - **Plantings:**
+    - sparkles: two per layer, coloured by tier (bronze, silver, gold);
+    - herbs and undergrowth keep the seed scatter and the sprinkle;
+    - shrubs and trees spring up as a sapling with a woody pop, no seed scatter.
+  - **Animal model size:** assessed, not changed: `ANIMAL_SCALE` (2.5) in `render/animals.ts`, rings and picking follow; waits for the user's green light.
+
+## D-235 · 2026-10-08 · UI/UX round 4: the pulse back, larger animals, front line on water, sharper focus
+- **Status:** accepted (user's playtest of D-234; green light for larger animals)
+- **Decision:**
+  - **Pulse back:** the numbers' rise animation moved to the number itself; on the mark it animated `translate`, which places marks (D-234), so every number was drawn at the screen's top-left corner. Each number now opens with a heartbeat pop. `fx.pulse` gains a body at 100–150 Hz and a click: its 40–60 Hz beat alone was near silent on laptop speakers.
+  - **Animals larger:** `ANIMAL_SCALE` 2.5 → 3.5, `LARGE` 0.5 → 0.75: vole ×1.37, rabbit ×1.3, deer ×1.12; rings and picking follow.
+  - **Great tit:** coat deep sky blue `#1e9bd7`.
+  - **Food-web focus:** unrelated families and tiles at 20 % saturation (−80 %); left-clicking any animal also focuses its species.
+  - **Front line on the water:** the water surface draws the front lines from the frontier texture (`frontLine`, shared with the ground; v flipped), with near-opaque water under the line. The ground still hides its own line under the water (D-212).
+  - **Cell card:** "Strength 2.5 vs 3.8", larger (1.15 em), each number in its player's colour, a glow when the push wins; the word "push" dropped.

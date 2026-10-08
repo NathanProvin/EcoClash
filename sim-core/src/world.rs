@@ -14,6 +14,9 @@ use crate::commands::{Command, CommandQueue, OrderKind, Payload, disc};
 use crate::economy::Economy;
 use crate::fauna::{Fauna, FaunaParams};
 use crate::fixed::{ONE, div_round};
+
+/// Q16 one as i64, for the view helpers.
+const ONE_I64: i64 = ONE as i64;
 use crate::flora::{Flora, FloraParams, FloraState};
 use crate::hash::{FieldHashes, Hasher};
 use crate::rng::Pcg32;
@@ -502,6 +505,38 @@ impl World {
         std::mem::take(&mut self.drops)
     }
 
+    /// Hunters' kills since the last call (D-233), for the HUD; a view, never hashed.
+    pub fn take_kills(&mut self) -> Vec<crate::fauna::Kill> {
+        std::mem::take(&mut self.fauna.kills)
+    }
+
+    /// Plant income per cell in hundredths of a point per real second, at most 2.55 (D-233):
+    /// the income pulse. A view, never hashed.
+    #[must_use]
+    pub fn income_frame(&self) -> Vec<u8> {
+        let e = &self.economy;
+        (0..self.state.n * self.state.n)
+            .map(|k| {
+                let real = div_round(
+                    e.cell_income(&self.flora, &self.state, k) * e.pace(),
+                    ONE_I64,
+                );
+                u8::try_from(div_round(real * 100, ONE_I64)).unwrap_or(u8::MAX)
+            })
+            .collect()
+    }
+
+    /// `player`'s best biodiversity factor over its cells, x100 (D-233): the HUD's combo.
+    #[must_use]
+    pub fn best_factor(&self, player: u8) -> u32 {
+        let best = (0..self.state.n * self.state.n)
+            .filter(|&k| self.state.owner[k] == player)
+            .map(|k| self.flora.species_count(&self.state, k))
+            .max()
+            .map_or(ONE_I64, |count| self.economy.factor(count));
+        u32::try_from(div_round(best * 100, ONE_I64)).unwrap_or(0)
+    }
+
     /// Hash of the current state: tick, scalars (points banked included), RNG, field digest (dirty chunks re-hashed).
     pub fn hash(&mut self) -> u64 {
         let digest = self.fields.refresh(&self.state);
@@ -539,6 +574,24 @@ impl World {
     #[must_use]
     pub fn pressure_frame(&self) -> Vec<u8> {
         crate::snapshot::pressure_frame(&self.flora, &self.state, &self.fauna)
+    }
+
+    /// Strength and push per cell for the cell card (D-232): two bytes per cell, tenths of a
+    /// species (at most 25.5). A view, never hashed.
+    #[must_use]
+    pub fn strength_frame(&self) -> Vec<u8> {
+        let tenths = |v: i64| {
+            u8::try_from(crate::fixed::div_round(
+                v.max(0) * 10,
+                i64::from(crate::fixed::ONE),
+            ))
+            .unwrap_or(u8::MAX)
+        };
+        self.flora
+            .fronts(&self.state)
+            .into_iter()
+            .flat_map(|[s, p]| [tenths(s), tenths(p)])
+            .collect()
     }
 
     /// Shade on the ground and moisture per cell, 0..=255, for the map overlays (D-135).
@@ -780,6 +833,33 @@ mod tests {
         assert_eq!(drops.len(), 1, "one spawn landed: {drops:?}");
         assert!(drops[0].1 > 0, "its animals are there to parachute in");
         assert!(w.take_drops().is_empty(), "drained");
+    }
+
+    /// D-233: the HUD views: plant income per cell (own cells only) and the best biodiversity
+    /// factor, which rises with the species on a cell.
+    #[test]
+    fn income_frame_and_best_factor_follow_the_plants() {
+        let (_, mut w) = play(7, 40, 300, &orders());
+        let income = w.income_frame();
+        let owned = |k: usize| w.state.owner[k] != 0;
+        assert!(
+            (0..income.len()).any(|k| owned(k) && income[k] > 0),
+            "own cells earn"
+        );
+        assert!(
+            (0..income.len()).all(|k| owned(k) || income[k] == 0),
+            "free cells do not"
+        );
+        let before = w.best_factor(1);
+        assert!(before >= 100);
+        let k = (0..w.state.owner.len())
+            .find(|&k| w.state.owner[k] == 1)
+            .unwrap();
+        let n2 = w.state.n * w.state.n;
+        for s in 0..w.flora.p.species() {
+            w.state.bio[s * n2 + k] = w.flora.p.kmax[s]; // every plant on one cell
+        }
+        assert!(w.best_factor(1) > before, "more species, a better factor");
     }
 
     #[test]

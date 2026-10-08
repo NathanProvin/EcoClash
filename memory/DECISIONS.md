@@ -2678,3 +2678,13 @@ Template:
   - Trees fill their cell 10 % slower (`biomass_rate`): oak 0.0135, chestnut 0.027, beech 0.018.
   - Tree models grow with the cell's tree cover, the value the cell card shows: the full-grown shape (varied by slot) scaled about its root by that cover, from a 12 % seedling floor (`TREE_SEEDLING`, `Placement.scale`, `grow` in `plants.ts`). Before, a young stand already showed a tree at about 65 % of full size.
   - Shrubs (L3) and undergrowth (L2) unlock and drop costs +5 %, yields unchanged: elder 2887.5 / 69.3, hawthorn 5775 / 69.3, hazel 8662.5 / 69.3; ferns 630 / 31.5, nettle 945 / 31.5, bramble 3150 / 31.5.
+
+## D-232 · 2026-10-08 · UI: icons that hold, food-web focus on the build bar, strength on the cell card
+- **Status:** accepted (user, first UI/UX items for Alpha 1.3.0)
+- **Decision:**
+  - **Strategic icons:**
+    - They keep their key while their group's members change: each group inherits the key of the previous group of the same owner and species it shares the most animals with (`stableKeys`). Before, the key was the group's first animal, so births and deaths recreated the button under the cursor: the hover dropped and the icon blinked.
+    - Every icon is clickable. Your group is selected; a swarm or an enemy group is highlighted only (they take no orders).
+  - **Food-web focus:** clicking a strategic icon lights its species' web on the build bar, with rings in the tutorial pointer's pulsing style. Predators wear red (`--threat`), prey a deep mossy green (#3f6b2a), and every other family and tile drops to 60 % saturation. A family takes the strongest role among its species (predator, then prey). Any new selection or Esc ends the focus (`webRoles`).
+  - **Unit list:** the species of the selected animals wear a bright gold-white outline.
+  - **Cell card:** on owned cells, "Strength x vs y push" in species, the push in red when it wins; from a new `strengthFrame` (tenths of a species, `Flora::fronts`). The hold of D-230 shows through the existing lock chip.

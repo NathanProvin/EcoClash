@@ -11,6 +11,7 @@ const base: CellInfo = {
   strata: [0.5, 0, 0, 0],
   push: 0,
   lock: null,
+  front: null,
   deadwood: 0,
   plants: [],
   animals: [],

@@ -67,6 +67,7 @@ describe("Replay", () => {
       strata: [0, 0, 0, 0],
       push: 0,
       lock: null,
+      front: null, // replays carry no strength frame
       deadwood: 0,
       plants: [],
       animals: [{ name: "rabbits", owner: 1, count: 1 }],

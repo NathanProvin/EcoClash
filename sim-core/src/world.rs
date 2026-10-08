@@ -541,6 +541,24 @@ impl World {
         crate::snapshot::pressure_frame(&self.flora, &self.state, &self.fauna)
     }
 
+    /// Strength and push per cell for the cell card (D-232): two bytes per cell, tenths of a
+    /// species (at most 25.5). A view, never hashed.
+    #[must_use]
+    pub fn strength_frame(&self) -> Vec<u8> {
+        let tenths = |v: i64| {
+            u8::try_from(crate::fixed::div_round(
+                v.max(0) * 10,
+                i64::from(crate::fixed::ONE),
+            ))
+            .unwrap_or(u8::MAX)
+        };
+        self.flora
+            .fronts(&self.state)
+            .into_iter()
+            .flat_map(|[s, p]| [tenths(s), tenths(p)])
+            .collect()
+    }
+
     /// Shade on the ground and moisture per cell, 0..=255, for the map overlays (D-135).
     #[must_use]
     pub fn shade_frame(&self) -> Vec<u8> {

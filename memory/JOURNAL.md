@@ -948,3 +948,14 @@
 
 ## 2026-10-08 (9) · Gameplay merged; UI/UX branch
 - `gameplay-changes` merged into main (`c80caf1`, local, not pushed). New branch `ui-ux` for the UI/UX work before Alpha 1.3.0.
+
+## 2026-10-08 (10) · UI/UX round 1 (D-232), branch `ui-ux`
+- **Done:**
+  - stable strategic icon keys (the blink fix);
+  - every icon clickable (select yours, highlight others);
+  - food-web focus on the build bar (red predators, mossy green prey, the rest greyed);
+  - unit list outline for the selection;
+  - strength vs push on the cell card (`Flora::fronts`, `World::strength_frame`, `strengthFrame`).
+- **Tests:** `stableKeys` (members change, fresh keys, one key per group), `webRoles`, `fronts`; fixtures updated.
+- **Checks:** Rust, WASM hash, relay, client check, test and lint green. Not yet checked by eye in the browser.
+- **Next (user):** look at it in the browser; more UI/UX items, then Alpha 1.3.0.

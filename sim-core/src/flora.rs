@@ -577,11 +577,11 @@ impl Flora {
         self.strength_of(self.species_count(st, k), st.soil[k])
     }
 
-    /// How hard the non-owner's plants push into each owned cell (Q16; 0 on empty cells), for
-    /// display (D-076): the flora step's push over strength (D-225), the summed strengths of the
-    /// enemy's neighbouring cells less the cell's own, at least 0.
+    /// Each owned cell's strength and the enemy's push on it (Q16, D-225): the summed strength
+    /// of the enemy's neighbouring cells, 0 while the cell is held against that enemy (D-230).
+    /// Neutral cells: [0, 0].
     #[must_use]
-    pub fn push(&self, st: &FloraState) -> Vec<i64> {
+    pub fn fronts(&self, st: &FloraState) -> Vec<[i64; 2]> {
         let (n, cells) = (st.n, st.n * st.n);
         let strength: Vec<i64> = (0..cells).map(|k| self.strength(st, k)).collect();
         (0..cells)
@@ -589,8 +589,11 @@ impl Flora {
                 let enemy = match st.owner[k] {
                     1 => 2,
                     2 => 1,
-                    _ => return 0,
+                    _ => return [0, 0],
                 };
+                if st.lock[k] > 0 && st.lock_p[k] == enemy {
+                    return [strength[k], 0]; // held against its former owner (D-230)
+                }
                 let (y, x) = (k / n, k % n);
                 let near = [
                     (y > 0).then(|| k - n),
@@ -598,17 +601,24 @@ impl Flora {
                     (x > 0).then(|| k - 1),
                     (x + 1 < n).then(|| k + 1),
                 ];
-                if st.lock[k] > 0 && st.lock_p[k] == enemy {
-                    return 0; // held against its former owner (D-230)
-                }
                 let push: i64 = near
                     .into_iter()
                     .flatten()
                     .filter(|&m| st.owner[m] == enemy)
                     .map(|m| strength[m])
                     .sum();
-                (push - strength[k]).max(0)
+                [strength[k], push]
             })
+            .collect()
+    }
+
+    /// How hard the non-owner's plants push into each owned cell (Q16; 0 on empty cells), for
+    /// display (D-076): the flora step's push over strength (D-225), at least 0.
+    #[must_use]
+    pub fn push(&self, st: &FloraState) -> Vec<i64> {
+        self.fronts(st)
+            .into_iter()
+            .map(|[strength, push]| (push - strength).max(0))
             .collect()
     }
 
@@ -1559,6 +1569,30 @@ mod tests {
             fell |= st.owner[k] == 1;
         }
         assert!(fell, "the grazed front cell fell");
+    }
+
+    /// D-232: the cell card's numbers: each owned cell's strength and the enemy's summed push;
+    /// the display push is their difference, at least 0.
+    #[test]
+    fn fronts_give_strength_and_the_enemy_push() {
+        let f = flora();
+        let n = 4;
+        let st = split_map(&f, n, 2, &MEADOW, &["grasses"]);
+        let (two, one) = (f.strength(&st, 0), f.strength(&st, 3));
+        let fronts = f.fronts(&st);
+        assert_eq!(
+            fronts[n + 1],
+            [two, one],
+            "P1's front cell, one P2 neighbour"
+        );
+        assert_eq!(
+            fronts[n + 2],
+            [one, two],
+            "P2's front cell, one P1 neighbour"
+        );
+        assert_eq!(fronts[n], [two, 0], "behind the front: no push");
+        assert_eq!(f.push(&st)[n + 2], two - one);
+        assert_eq!(f.push(&st)[n + 1], 0);
     }
 
     /// D-230: a conquered cell is held against its former owner: no push while the hold runs,

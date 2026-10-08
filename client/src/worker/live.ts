@@ -72,6 +72,7 @@ export type ToMain =
       tick: number;
       frame: ArrayBuffer;
       pressure: ArrayBuffer;
+      strength: ArrayBuffer; // per cell: strength and the enemy's push, tenths of a species (D-232)
       lock: ArrayBuffer;
       deadwood: ArrayBuffer;
       flood: number[]; // cells under flood water (D-132)
@@ -334,6 +335,7 @@ export class Live implements Source {
     } else if (m.type === "fields") {
       this.current = this.decode(this.current.frame + 1, new Uint8Array(m.frame), m);
       this.current.pressure = new Uint8Array(m.pressure);
+      this.current.strength = new Uint8Array(m.strength);
       this.current.lock = new Uint8Array(m.lock);
       this.current.deadwood = new Uint8Array(m.deadwood);
       this.current.flood = m.flood;

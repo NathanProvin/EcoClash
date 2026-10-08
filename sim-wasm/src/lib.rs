@@ -363,6 +363,13 @@ impl Sim {
             .collect()
     }
 
+    /// Strength and the enemy's push per cell (D-225, D-232): two bytes per cell, tenths of a
+    /// species, for the cell card.
+    #[wasm_bindgen(js_name = strengthFrame)]
+    pub fn strength_frame(&self) -> Vec<u8> {
+        self.world.strength_frame()
+    }
+
     /// How hard the non-owner pushes into each cell, 0..=255, for the frontier lines (D-076).
     #[wasm_bindgen(js_name = pressureFrame)]
     pub fn pressure_frame(&self) -> Vec<u8> {

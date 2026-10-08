@@ -113,6 +113,19 @@
       <span class="bar soil"><span style:width={css(info.soil)}></span></span>
       <span class="num">{pct(info.soil)}</span>
     </div>
+    {#if info.front}
+      {@const over = info.front.push > info.front.strength}
+      <div
+        class="row"
+        title="Strength: the owner's species on this cell (plants established and resident animals), times the soil's fertility. Push: the summed strength of the enemy's cells next to it. When the push beats the strength, the cell's plants are smothered; a cell just taken is held for a while (D-225, D-230)."
+      >
+        <span class="name">Strength</span>
+        <span class="vs"
+          ><strong>{info.front.strength.toFixed(1)}</strong> vs
+          <strong class:over>{info.front.push.toFixed(1)}</strong> push</span
+        >
+      </div>
+    {/if}
     <div class="row" title="How hard the other side pushes into this cell">
       <span class="name">Enemy push</span>
       <span class="bar push"><span style:width={css(info.push)}></span></span>
@@ -293,5 +306,12 @@
     font-size: 0.8em;
     font-weight: 800;
     text-align: center;
+  }
+  .vs {
+    grid-column: span 2;
+    font-variant-numeric: tabular-nums;
+  }
+  .vs .over {
+    color: var(--threat);
   }
 </style>

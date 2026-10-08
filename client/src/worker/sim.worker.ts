@@ -36,6 +36,7 @@ function sendFields(s: Sim) {
   floraTick = s.floraTick;
   const frame = s.fieldFrame().buffer as ArrayBuffer; // a fresh copy out of WASM memory
   const pressure = s.pressureFrame().buffer as ArrayBuffer;
+  const strength = s.strengthFrame().buffer as ArrayBuffer; // D-232
   const lock = s.lockFrame().buffer as ArrayBuffer; // D-098
   const deadwood = s.deadwoodFrame().buffer as ArrayBuffer; // D-127
   const flood = [...s.floodCells()]; // D-132
@@ -51,6 +52,7 @@ function sendFields(s: Sim) {
       tick: s.tick,
       frame,
       pressure,
+      strength,
       lock,
       deadwood,
       flood,
@@ -61,7 +63,7 @@ function sendFields(s: Sim) {
       standing,
       victory,
     },
-    [frame, pressure, lock, deadwood, shade, moisture],
+    [frame, pressure, strength, lock, deadwood, shade, moisture],
   );
 }
 

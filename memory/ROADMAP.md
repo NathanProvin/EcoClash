@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-08: gameplay rework merged to main (`c80caf1`, not pushed): conquest by strength and push (D-225), dead trees per owner (D-227), bot styles and balance (D-228, D-229), playtest rounds (D-230, D-231). Next: UI/UX juice on branch `ui-ux`, then Alpha 1.3.0. Herb culling (D-224) merged to main (not pushed). Before: 2026-10-07: **Alpha 1.2** released: the food pyramid with wider cycles and online 1v1 on the Cloudflare relay (D-218…D-222), merged to main and deployed (Pages + relay). Played across two machines by the user. Next: playtest feedback; M6 leftovers (replays, pause, state dumps).
+- **Now:** 2026-10-08: gameplay rework merged to main (`c80caf1`, not pushed): conquest by strength and push (D-225), dead trees per owner (D-227), bot styles and balance (D-228, D-229), playtest rounds (D-230, D-231). UI/UX on branch `ui-ux`: round 1 done (D-232: icons hold, food-web focus, strength on the cell card); then Alpha 1.3.0. Herb culling (D-224) merged to main (not pushed). Before: 2026-10-07: **Alpha 1.2** released: the food pyramid with wider cycles and online 1v1 on the Cloudflare relay (D-218…D-222), merged to main and deployed (Pages + relay). Played across two machines by the user. Next: playtest feedback; M6 leftovers (replays, pause, state dumps).
 - **Next:** Gameplay · Three styles (steps 2–6) → UI/UX juice → M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-10-08
@@ -133,7 +133,7 @@ Tall, wide and rush emerge from one conquest rule, map control stays the only vi
     - *sim-ai:* style fingerprints; `deepen` defends front cells first; breach targeting; encircling; adaptation shifts (Hard yes, Easy no, capped); deficit spending within ±10; existing tests across all levels × styles.
     - *sim-cli:* matrix reducer, lead-change counter, seat parser.
     - *balance.rs:* `[bots.styles]` validation.
-- [ ] 6. Cell card: "strength vs push".
+- [x] 6. Cell card: "strength vs push" (D-232).
 
 ## Content · Terrain, biomes, map generator, species (D-073)
 - [x] Retire the Python flora parity rule (D-034): done, D-226.

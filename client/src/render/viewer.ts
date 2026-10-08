@@ -477,8 +477,14 @@ export class Viewer {
     });
     this.grass = this.makeGrass();
     this.grass.visible = visible;
+    this.cullHerbs();
     this.scene.add(this.grass);
     this.resize();
+  }
+
+  /** Hide herb chunks with nothing to show in the frames being blended (D-224). */
+  private cullHerbs(): void {
+    this.grass.cull?.([this.mixData, this.mixPrev.image.data as Uint8Array]);
   }
 
   setVisible(layer: Layer, on: boolean): void {
@@ -1053,6 +1059,7 @@ export class Viewer {
     if (!step) (this.floraPrev.image.data as Uint8Array).set(this.floraData); // no blend
     if (!step) (this.mixPrev.image.data as Uint8Array).set(this.mixData);
     if (!step) (this.frontierPrev.image.data as Uint8Array).set(this.frontierData);
+    this.cullHerbs();
     const since = now - this.lastPaint;
     this.blendS = Math.min(BLEND_S.max, Math.max(BLEND_S.min, since));
     this.blendFrom = now;

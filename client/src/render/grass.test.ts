@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { grassBlades, herbBudget, LICHEN, TUFT, tuftGeometry } from "./grass";
+import { grassBlades, herbBudget, herbIn, LICHEN, TUFT, tuftGeometry } from "./grass";
 import { CELL } from "./layout";
 
 describe("grassBlades", () => {
@@ -50,6 +50,19 @@ describe("grassBlades", () => {
     expect(herbBudget(25, lod)).toBe(1);
     expect(herbBudget(57.5, lod)).toBeCloseTo(0.675);
     expect(herbBudget(500, lod)).toBeCloseTo(0.35);
+  });
+
+  it("keeps a herb's chunk only where it, or a border cell, has a share (D-224)", () => {
+    const [now, prev] = [new Uint8Array(n * n * 4), new Uint8Array(n * n * 4)];
+    const span = [0, 3, 0, 3] as const;
+    expect(herbIn(n, [now, prev], 2, span)).toBe(false);
+    now[(3 * n + 3) * 4 + 2] = 40; // flowers in the border cell (3, 3)
+    expect(herbIn(n, [now, prev], 2, span)).toBe(true);
+    expect(herbIn(n, [now, prev], 1, span)).toBe(false); // not grasses
+    now.fill(0);
+    prev[(5 * n + 5) * 4 + 2] = 40; // still fading out, but two cells away
+    expect(herbIn(n, [now, prev], 2, span)).toBe(false);
+    expect(herbIn(n, [now, prev], 2, [3, 6, 3, 6])).toBe(true);
   });
 
   it("builds lichen and flower tufts with one colour per patch (D-151)", () => {

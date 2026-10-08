@@ -74,6 +74,24 @@ export function herbBudget(d: number, lod: HerbLod): number {
   return 1 - t * (1 - lod.min);
 }
 
+/** Whether herb `herb` (0 lichen and moss, 1 grasses, 2 wildflowers: the herb mix channel) can
+ *  show anywhere in the cells [r0, r1) x [c0, c1) of an `n x n` map, from the herb mix frames
+ *  being blended (`mixes`, n x n RGBA). The shader samples the mix bilinearly, so one cell of
+ *  border counts too; a herb with no share there collapses every tuft, so its mesh can go. */
+export function herbIn(
+  n: number,
+  mixes: readonly Uint8Array[],
+  herb: number,
+  [r0, r1, c0, c1]: readonly [number, number, number, number],
+): boolean {
+  for (let r = Math.max(0, r0 - 1); r < Math.min(n, r1 + 1); r++) {
+    for (let c = Math.max(0, c0 - 1); c < Math.min(n, c1 + 1); c++) {
+      for (const m of mixes) if (m[(r * n + c) * 4 + herb]) return true;
+    }
+  }
+  return false;
+}
+
 /** Vertex data of every blade: one triangle each (base left, base right, tip). */
 export interface Blades {
   /** Blade-local positions (x, y, z), before the shader scales and moves them. */
@@ -147,26 +165,22 @@ function lichenTuft(r: number, hue: number, rnd: (k: number) => number): TuftSha
   return { position, normal, index, hue: Array(LICHEN_SIDES + 1).fill(hue) as number[] };
 }
 
-/** Wildflowers: `FLOWER.heads` round heads (octahedra) on thin stems, around the root. */
+/** Wildflowers: `FLOWER.heads` round heads (the top half of an octahedron: the camera looks
+ *  down, so the lower half was all back faces) on thin stems, around the root. */
 function flowerTuft(rnd: (k: number) => number, hue: number): TuftShape {
   const s: TuftShape = { position: [], normal: [], index: [], hue: [] };
   const corners = [
     [1, 0, 0],
     [-1, 0, 0],
     [0, 1, 0],
-    [0, -1, 0],
     [0, 0, 1],
     [0, 0, -1],
   ] as const;
   const faces = [
-    [0, 2, 4],
-    [4, 2, 1],
-    [1, 2, 5],
-    [5, 2, 0],
-    [4, 3, 0],
-    [1, 3, 4],
-    [5, 3, 1],
-    [0, 3, 5],
+    [0, 2, 3],
+    [3, 2, 1],
+    [1, 2, 4],
+    [4, 2, 0],
   ] as const;
   for (let h = 0; h < FLOWER.heads; h++) {
     const a = rnd(h) * Math.PI * 2;
@@ -180,10 +194,10 @@ function flowerTuft(rnd: (k: number) => number, hue: number): TuftShape {
     s.normal.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
     s.hue.push(-1, -1, -1);
     s.index.push(v, v + 1, v + 2, v + 2, v + 1, v);
-    // The head: a flattened octahedron (a round blob from above).
+    // The head: a flattened dome (a round blob from above), its rim a little below the stem top.
     const o = s.position.length / 3;
     for (const [cx, cy, cz] of corners) {
-      s.position.push(x + cx * r, y + cy * r * 0.7, z + cz * r);
+      s.position.push(x + cx * r, y + (cy - 0.35) * r * 0.7, z + cz * r);
       s.normal.push(cx, cy, cz);
       s.hue.push(hue);
     }
@@ -383,6 +397,8 @@ export function makeGrass(
     perTuft: number;
     cells: number;
     per: number;
+    herb: number;
+    span: [number, number, number, number];
   }[] = [];
   const side = Math.ceil(n / HERB_CHUNKS);
   for (let r0 = 0; r0 < n; r0 += side) {
@@ -427,10 +443,17 @@ export function makeGrass(
           perTuft: indices / (per * cells.length),
           cells: cells.length,
           per,
+          herb: [1, 0, 2][i] ?? 1, // blades are grasses (mix G), lichen R, flowers B
+          span: [r0, Math.min(n, r0 + side), c0, Math.min(n, c0 + side)],
         });
       }
     }
   }
+  // Each field frame: hide the chunk meshes of herbs absent from their chunk (most of the map
+  // early on; wildflowers, the heaviest tufts, wherever they are not grown).
+  group.cull = (mixes) => {
+    for (const c of chunks) c.mesh.visible = herbIn(n, mixes, c.herb, c.span);
+  };
   // Each frame: a chunk draws only the tufts the nearest point of its square can show.
   group.lod = (eye: THREE.Vector3) => {
     for (const c of chunks) {
@@ -442,5 +465,9 @@ export function makeGrass(
   return group;
 }
 
-/** The herbs' group, with its per-frame level of detail (D-199). */
-export type HerbGroup = THREE.Group & { lod?: (eye: THREE.Vector3) => void };
+/** The herbs' group, with its per-frame level of detail (D-199) and its per-field-frame culling
+ *  from the herb mix frames being blended (D-224). */
+export type HerbGroup = THREE.Group & {
+  lod?: (eye: THREE.Vector3) => void;
+  cull?: (mixes: readonly Uint8Array[]) => void;
+};

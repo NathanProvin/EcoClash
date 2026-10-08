@@ -626,6 +626,18 @@ pub struct Fauna {
     /// Weather factors on speed and herbivore bites (Q16, D-132); ONE: none.
     pub speed: i64,
     pub bite: i64,
+    /// Kills since the last `World::take_kills`, for the HUD (D-233): a view, never hashed.
+    pub kills: Vec<Kill>,
+}
+
+/// A hunter's kill (D-233): the hunter's owner, the prey's owner and species, its cell.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Kill {
+    pub hunter: u8,
+    pub owner: u8,
+    pub species: u8,
+    pub row: u32,
+    pub col: u32,
 }
 
 impl Fauna {
@@ -653,6 +665,7 @@ impl Fauna {
             agents: Agents::default(),
             speed: ONE_I,
             bite: ONE_I,
+            kills: Vec::new(),
         }
     }
 
@@ -1027,6 +1040,14 @@ impl Fauna {
                 && i64::from(rng.below(1 << 16)) < if own { p.own_catch } else { p.catch }
             {
                 alive[j] = false;
+                let at = a.cell(j, n);
+                self.kills.push(Kill {
+                    hunter: a.owner[i],
+                    owner: a.owner[j],
+                    species: a.sp[j],
+                    row: u32::try_from(at / n).unwrap_or(0),
+                    col: u32::try_from(at % n).unwrap_or(0),
+                });
                 a.digest[i] = p.handling;
                 let body = p.body[usize::from(a.sp[j])];
                 a.energy[i] += if p.meal > 0 {
@@ -1920,6 +1941,31 @@ mod tests {
         assert!(
             (fed - meal).abs() <= ONE_I,
             "a kill restores `kill_meal` of the fox's body"
+        );
+    }
+
+    /// D-233: a kill is reported for the HUD: the hunter's owner, the prey's owner, species
+    /// and cell.
+    #[test]
+    fn kills_are_reported() {
+        let (_, mut fa, mut st, mut rng) = setup(8);
+        let (fox, rabbits) = (fa.p.index("fox").unwrap(), fa.p.index("rabbits").unwrap());
+        fa.p.catch = ONE_I;
+        fa.agents.push(fox, 1, centre(4), centre(4), ONE_I * 100, 0);
+        fa.agents
+            .push(rabbits, 2, centre(4), centre(5), ONE_I * 300, 0);
+        let safe = vec![false; 2];
+        fa.hunt(&mut st, &safe, &mut rng);
+        let rabbit = u8::try_from(rabbits).unwrap();
+        assert_eq!(
+            fa.kills,
+            vec![Kill {
+                hunter: 1,
+                owner: 2,
+                species: rabbit,
+                row: 4,
+                col: 5
+            }]
         );
     }
 

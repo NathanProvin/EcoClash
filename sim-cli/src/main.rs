@@ -127,23 +127,35 @@ fn bench_cmd(rest: &[String]) -> Result<(), String> {
         &read(get("balance", "data/balance.toml"))?,
         &read(get("species", "data/species.toml"))?,
     )?;
-    let level = |k: &str, d: &str| {
-        sim_ai::Level::parse(&get(k, d)).ok_or(format!("--{k}: easy, normal or hard"))
+    let seat = |k: &str, d: &str| {
+        bench::Seat::parse(&get(k, d)).ok_or(format!(
+            "--{k}: level[:style[:locked]], level easy, normal or hard, style wide, tall, rush or balanced"
+        ))
     };
-    let levels = [level("p1", "normal")?, level("p2", "hard")?];
     let size = usize::try_from(number("size", &b.sim.grid_size.to_string())?)
         .map_err(|e| e.to_string())?;
     let threads = std::thread::available_parallelism().map_or(4, std::num::NonZero::get);
     let threads = usize::try_from(number("threads", &threads.to_string())?).unwrap_or(4);
-    let ms = bench::run(
-        &b,
-        number("seeds", "8")?,
-        size,
-        levels,
-        number("minutes", "45")?,
-        threads,
-    );
-    print!("{}", bench::summary(&ms, levels));
+    let (seeds, minutes) = (number("seeds", "8")?, number("minutes", "45")?);
+    if let Some(level) = opts.get("matrix") {
+        let level = sim_ai::Level::parse(level).ok_or("--matrix: easy, normal or hard")?;
+        print!(
+            "{}",
+            bench::matrix(&b, seeds, size, level, minutes, threads)
+        );
+        return Ok(());
+    }
+    if let Some(style) = opts.get("ladder") {
+        let style = sim_ai::Style::parse(style).ok_or("--ladder: wide, tall, rush or balanced")?;
+        print!(
+            "{}",
+            bench::ladder(&b, seeds, size, style, minutes, threads)
+        );
+        return Ok(());
+    }
+    let seats = [seat("p1", "normal")?, seat("p2", "hard")?];
+    let ms = bench::run(&b, seeds, size, seats, minutes, threads);
+    print!("{}", bench::summary(&ms, seats));
     Ok(())
 }
 

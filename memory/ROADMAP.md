@@ -120,9 +120,19 @@ Tall, wide and rush emerge from one conquest rule, map control stays the only vi
 - [x] 1. Spec: gamerules §3, §3.1, §6.1, §7, §10, §11.2; D-225, D-226; INSTRUCTIONS; CLAUDE.md. Dead trees: D-227.
 - [x] 2. Sim: animal species per cell (`fauna.rs`); strength and push replace the level attack in both `flora.rs` paths; contested tie-break dropped; biodiversity income (`economy.rs`); `fert_gain`, `div_gain`, `div_cap` in `balance.toml`; `pressure_frame` = push − strength; balance hash bump; parity test, fixture, `rs:fixture` and `cli:check` removed. Tests: equal front holds, a tip touching 3 weaker cells falls, fertility tips a front, grazing out a species flips a balanced cell, bare cell locked, multiplier capped.
 - [x] 2b. Dead trees (D-227): `snag_owner` (hashed), a per-player tree lock in `Flora::suitability`, the storm windthrows trees into dead trees; tests: the former owner's tree cannot regrow under dead wood, the enemy's can, the lock ends when the wood is gone.
-- [ ] 3. Bot style presets (`sim-ai`): `Style { land, depth, army }`, Wide / Tall / Rush / Balanced.
-- [ ] 4. `sim-cli bench --style-matrix`: 4 × 4 win rates, lead changes per match.
-- [ ] 5. Tuning passes, one lever each: rush > tall > wide > rush at 55–65 %, mirrors ≈ 50 %, ≥ 2 lead changes.
+- [ ] 3. **Balance and bots (merged 3–5; plan approved 2026-10-08).** Bot: styles as spending weights in `[bots.styles]` (Wide 60/20/20, Tall 20/60/20, Rush 20/20/60, Balanced 34/33/33 for land/depth/army), deficit spending, a front map (strength, push, margin), `deepen`, breach raids, encircling; adaptation (Easy none, Normal half every 120 s, Hard full every 60 s, ±25 cap); reactive and proactive plays. Bench: `--p1 hard:wide`, `--matrix <level>`, `--ladder <style>`, lead changes, comeback, front mobility, style fingerprints. Balance passes, one lever each. Plumbing: sim-wasm style, match setup choice, end-screen label.
+  - **Targets:**
+    - *Match shape* (Balanced mirror, Normal, 16 seeds): median end 18–30 min; unfinished at 45 min ≤ 10 %; ≥ 2 lead changes; comeback 25–40 %; stalemates < 5 %; seat bias ±5.
+    - *Cycle* (matrix at Normal, 8 seeds × both seats): rush > tall, tall > wide, wide > rush at 55–65 %; mirrors 45–55 %; Balanced 45–60 % against each; every style 40–60 % overall.
+    - *Distinct styles* (at 10 min): Wide land ≥ 1.3× Tall's; Tall species per cell ≥ 1.5× Wide's; Rush animals on enemy land ≥ 2× the others'.
+    - *Adaptation and reactivity:* adaptive Hard ≥ 55 % against locked Hard; raids answered within 60 s ≥ 85 % (Normal), Hard median ≤ 10 s; 0 rejected commands.
+    - *Ladder:* Hard vs Normal 70–85 %, Normal vs Easy 70–85 %, Hard vs Easy ≥ 90 %.
+    - *Ecology and roster:* all trophic levels alive at 20 min in ≥ 90 %; pyramid within D-222 ranges; ≥ 75 % of animals called over the matrix; top species ≤ 25 % of calls; every plant card unlocked somewhere.
+    - *Performance:* `Bot::think` ≤ 1 ms median at 38²; worst tick ≤ 8 ms.
+  - **Tests:**
+    - *sim-ai:* style fingerprints; `deepen` defends front cells first; breach targeting; encircling; adaptation shifts (Hard yes, Easy no, capped); deficit spending within ±10; existing tests across all levels × styles.
+    - *sim-cli:* matrix reducer, lead-change counter, seat parser.
+    - *balance.rs:* `[bots.styles]` validation.
 - [ ] 6. Cell card: "strength vs push".
 
 ## Content · Terrain, biomes, map generator, species (D-073)

@@ -75,12 +75,37 @@ pub struct MatchRules {
 #[serde(deny_unknown_fields)]
 pub struct BotRules {
     pub income: [f64; 3],
+    /// Play styles (D-228): the share of spending (%) each puts on land, depth and army.
+    #[serde(default)]
+    pub styles: BotStyles,
+}
+
+/// `[bots.styles]` (D-228): spending weights in % (land, depth, army), each summing to 100.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BotStyles {
+    pub wide: [u32; 3],
+    pub tall: [u32; 3],
+    pub rush: [u32; 3],
+    pub balanced: [u32; 3],
+}
+
+impl Default for BotStyles {
+    fn default() -> BotStyles {
+        BotStyles {
+            wide: [60, 20, 20],
+            tall: [20, 60, 20],
+            rush: [20, 20, 60],
+            balanced: [34, 33, 33],
+        }
+    }
 }
 
 impl Default for BotRules {
     fn default() -> BotRules {
         BotRules {
             income: [1.0, 1.0, 1.0],
+            styles: BotStyles::default(),
         }
     }
 }
@@ -592,6 +617,13 @@ impl Balance {
         check(
             self.economy.drop_surcharge >= 1.0,
             "economy.drop_surcharge must be >= 1".into(),
+        )?;
+        let st = &self.bots.styles;
+        check(
+            [st.wide, st.tall, st.rush, st.balanced]
+                .iter()
+                .all(|w| w.iter().sum::<u32>() == 100),
+            "[bots.styles] weights must sum to 100".into(),
         )?;
         check(
             (0.0..=4.0).contains(&f.fert_gain),

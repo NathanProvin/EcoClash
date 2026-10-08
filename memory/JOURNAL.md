@@ -933,3 +933,9 @@
 - **Client:** bot style choice in the AI setup (random by default), revealed on the end screen; "Medium" label (commit `250fb2d`).
 - **Not re-run:** `pyramid_report` (no fauna rule or diet changed), trophic survival at 20 min (no bench measure yet).
 - **Next (user):** choose how to continue (see the session report).
+
+## 2026-10-08 (7) · First playtest feedback: conquest hold, opening, shrub and tree costs (D-230)
+- **Feedback (user, matches against the styles at medium):** the update works; the start is a bit slow; shrubs unlocked at 5 min; the front line flickers.
+- **Done:** `hold_s` 20 (conquest hold, both flora paths, display push); lichen and grass +15 % growth and yield; shrubs +10 %, trees +15 % (unlock and spawn); bench "flips back" measure. Tests: the hold (held, then pushed again; fast = reference), the flips-back counter; the balance-hash test follows the new grass value.
+- **Checks:** rs:test, clippy, fmt, wasm:check, relay:test, client check and test, all green. No bench matrix this round (user).
+- **Next (user):** extended balance tests in the browser.

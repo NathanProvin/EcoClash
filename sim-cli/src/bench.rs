@@ -28,6 +28,8 @@ const COUNT_AT: [u64; 3] = [10, 20, 30];
 const LEAD_MIN: usize = 2;
 /// Minutes over which the front's churn is measured at the end of a match (gamerules §11.5).
 const CHURN_MIN: usize = 5;
+/// A cell retaken by the owner who lost it within this many seconds "flips back" (D-230).
+const FLIP_S: u64 = 10;
 
 /// A player's bot (D-228): its level, its style, and whether it adapts to the enemy.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -128,6 +130,8 @@ pub struct Markers {
     pub think_us: [u64; 2],
     /// Cells on the map.
     pub cells: u64,
+    /// Cells retaken by their former owner within FLIP_S seconds of losing them (D-230).
+    pub flips_back: u64,
 }
 
 impl Markers {
@@ -161,6 +165,25 @@ pub fn lead(was: u8, p1: usize, p2: usize, n2: usize) -> u8 {
     }
 }
 
+/// Count the cells that flip back (D-230): retaken by the owner who lost them within FLIP_S
+/// seconds. `lost[k]` keeps who last lost cell `k` and when (second `now`).
+pub fn flips_back(prev: &[u8], now: &[u8], lost: &mut [(u8, u64)], second: u64) -> u64 {
+    let mut flips = 0;
+    for k in 0..now.len() {
+        if prev[k] == now[k] {
+            continue;
+        }
+        let (who, at) = lost[k];
+        if now[k] != 0 && now[k] == who && second - at <= FLIP_S {
+            flips += 1;
+        }
+        if prev[k] != 0 {
+            lost[k] = (prev[k], second);
+        }
+    }
+    flips
+}
+
 /// Play one bot-vs-bot match on a generated map of `size`, for at most `minutes`.
 #[must_use]
 #[allow(clippy::too_many_lines)] // one marker per block
@@ -177,6 +200,8 @@ pub fn play(b: &Balance, seed: u64, size: usize, seats: [Seat; 2], minutes: u64)
     });
     let mut leader = 0u8;
     let mut last_owner = vec![0u8; size * size];
+    let mut sampled = vec![0u8; size * size];
+    let mut lost = vec![(0u8, 0u64); size * size];
     let mut churn: std::collections::VecDeque<u64> = std::collections::VecDeque::new();
     let mut think_ns = [0u128; 2];
     // Tiers outside the herbs: the herb ladder is the early economy, cheap by design.
@@ -292,6 +317,8 @@ pub fn play(b: &Balance, seed: u64, size: usize, seats: [Seat; 2], minutes: u64)
         w.step();
         let now = w.tick / HZ;
         if w.tick.is_multiple_of(SAMPLE) {
+            m.flips_back += flips_back(&sampled, &w.state.owner, &mut lost, now);
+            sampled.clone_from(&w.state.owner);
             // The land lead (D-228), with LEAD_MIN % of hysteresis.
             let held = |p: u8| w.state.owner.iter().filter(|&&o| o == p).count();
             let now_leads = lead(leader, held(1), held(2), n2);
@@ -790,13 +817,15 @@ fn shape(ms: &[Markers]) -> String {
     let stale = open.iter().filter(|m| m.churn * 100 < 2 * m.cells).count();
     let ends: Vec<u64> = ms.iter().filter_map(|m| m.end.map(|e| e.2)).collect();
     let end = median(ends);
+    let flips: u64 = ms.iter().map(|m| m.flips_back).sum();
     format!(
-        "shape: lead changes {:.1}/match; comeback {back}/{} ; stale ends {stale}/{} unfinished; median end {}:{:02}\n",
+        "shape: lead changes {:.1}/match; comeback {back}/{} ; stale ends {stale}/{} unfinished; median end {}:{:02}; flips back {:.0}/match\n",
         leads as f64 / ms.len().max(1) as f64,
         led.len(),
         open.len(),
         end / 60,
-        end % 60
+        end % 60,
+        flips as f64 / ms.len().max(1) as f64
     )
 }
 
@@ -1040,6 +1069,37 @@ mod tests {
         ] {
             assert!(Seat::parse(bad).is_none(), "{bad}");
         }
+    }
+
+    #[test]
+    fn a_cell_retaken_soon_after_it_was_lost_flips_back() {
+        let mut lost = vec![(0u8, 0u64); 2];
+        assert_eq!(
+            flips_back(&[1, 1], &[2, 1], &mut lost, 100),
+            0,
+            "P1 loses cell 0"
+        );
+        assert_eq!(
+            flips_back(&[2, 1], &[1, 1], &mut lost, 105),
+            1,
+            "P1 retakes it in 5 s"
+        );
+        assert_eq!(flips_back(&[1, 1], &[2, 1], &mut lost, 200), 0);
+        assert_eq!(
+            flips_back(&[2, 1], &[1, 1], &mut lost, 230),
+            0,
+            "30 s later: not a flip"
+        );
+        assert_eq!(
+            flips_back(&[1, 1], &[1, 0], &mut lost, 240),
+            0,
+            "cell 1 goes neutral"
+        );
+        assert_eq!(
+            flips_back(&[1, 0], &[1, 1], &mut lost, 242),
+            1,
+            "and P1 takes it back"
+        );
     }
 
     #[test]

@@ -2659,3 +2659,13 @@ Template:
 - **Kept:** `establish_threshold` 0.1 → 0.3 (a new species must grow before it counts; fronts no longer freeze: unfinished 56 % → 20 %); great tit `spawn_cost` 200 → 400 (the universal swarm answer; rush > tall and wide > rush appear), and the frog (tier 2 of the same family) 300 → 400 so no tier is cheaper than the one below (`food_web` test).
 - **Tried and reverted:** `smother_rate` 0.25 (unfinished 56 %, tall 29 %); `natural_death_s` 1800 (no effect: trees come too late); `div_gain` 0.10 (breaks wide > rush); tree unlocks −33 % (tall 35 %, wide 64 %); smaller raid herds for army-heavy bots (rush 43 %).
 - **Final measure** (style matrix at Normal, 8 seeds per ordered pair, 128 matches): wide 48, tall 40, rush 55, balanced 54 (mean points %); rush > tall 71, tall > wide 46, wide > rush 53; unfinished 24 %; seat bias −9; lead changes 3.0; comebacks 16 %; roster 25/33 animals called, great tit 35 % of calls. Ladder (balanced): hard > normal 59 %, normal > easy 81 %, hard > easy 93 %. Adaptive hard vs locked hard 46 %. Decision time 150–270 µs.
+
+## D-230 · 2026-10-08 · Conquest hold; a faster opening, later shrubs and trees
+- **Status:** accepted (user, after playing the styles: the opening is slow, shrubs came at 5 min, and the front flickered, cells changing hands within seconds)
+- **Decision:**
+  - **Conquest hold:** a cell taken from its owner is held against that owner for `[flora] hold_s` = 20 real seconds: no push from them while it runs (the lockout fields `lock`, `lock_p` of D-098, set after the flora step when a cell goes straight from one owner to the other). Grazing still works.
+  - **Opening +15 %:** lichen & moss `growth` 1.0 → 1.15, `yield` 0.06 → 0.07; grasses `growth` 1.2 → 1.38, `yield` 0.20 → 0.23.
+  - **Shrubs (L3) +10 %:** elder 2750 / 66, hawthorn 5500 / 66, hazel 8250 / 66 (unlock / spawn).
+  - **Trees (L4) +15 %:** oak 10350 / 173, chestnut 13800 / 173, beech 18400 / 173.
+- **Why the hold, not an immunity floor:** the flicker came from conquered species arriving exactly at the establish threshold (0.3), dropping below it on the next tick and leaving the cell at strength 0. A floor of invulnerability under 10 % would freeze cells near the threshold instead of resolving them, and add a second threshold. The hold reuses existing hashed fields and reads simply ("just taken").
+- **Measure:** the bench counts "flips back" (a cell retaken by its former owner within 10 s). Not run this round, at the user's request.

@@ -130,6 +130,8 @@ Plants reproduce and spread **from cell to cell**, into the 4 neighbouring cells
 | **Owned by the opponent, push ≤ strength** | **Nothing happens.** The frontier holds, until either side's numbers change |
 | **Owned by us** (D-024) | Each of our species colonizes the neighbour through its gauge: forest advances over our own meadow, and lower strata fill in underneath (understory), subject to shade, soil and bioclimate. Only species established in a neighbour (above `establish_threshold`) seed new arrivals |
 
+**Conquest hold (D-230).** A cell just conquered is held against its former owner for `hold_s` (20 s): that player's push has no effect on it until the hold runs out. A freshly taken cell has its species at the establish threshold and would otherwise flip back and forth; the hold gives it time to grow, and the front moves in steps instead of flickering. Grazing still works on it.
+
 **Contested empty cell.** When both players are colonizing the same empty cell, the first to complete progress takes it. If both complete on the same tick, the cell stays empty.
 
 **Determinism note.** Spread is computed from the previous tick's state (double buffering), so the result never depends on the order in which cells are updated.

@@ -60,6 +60,8 @@ pub struct FloraParams {
     pub shade: bool,
     /// Strength gain at full soil development (Q16, D-225).
     pub fert: i64,
+    /// Conquest hold (D-230), in flora ticks.
+    pub hold: i64,
     /// Dead wood (D-127), per flora tick (Q16): the chance a tree stand dies of old age, the
     /// share of it left standing, and the share of standing dead wood that rots.
     pub death: i64,
@@ -145,6 +147,7 @@ impl FloraParams {
             succession: f.succession,
             shade: f.shade,
             fert: round(f.fert_gain * one),
+            hold: round(f.hold_s * f64::from(b.sim.tick_hz) / f64::from(b.sim.flora_every_ticks)),
             death: round(dt / b.deadwood.natural_death_s * one),
             wood_share: round(b.deadwood.wood_share * one),
             rot: round(dt / b.deadwood.rot_s * one),
@@ -205,7 +208,8 @@ impl FloraParams {
             .i64(self.soil_ramp)
             .i64(self.water0)
             .i64(self.light0)
-            .i64(self.fert);
+            .i64(self.fert)
+            .i64(self.hold);
         h.bytes(&[u8::from(self.succession), u8::from(self.shade)]);
     }
 }
@@ -527,6 +531,18 @@ impl Flora {
         dom
     }
 
+    /// Conquest hold (D-230): every cell that went straight from one owner to the other this
+    /// tick is held against its former owner for `hold` flora ticks (the lockout fields, D-098).
+    fn hold_conquests(&self, st: &mut FloraState, new_owner: &[u8]) {
+        for (k, &now) in new_owner.iter().enumerate() {
+            let was = st.owner[k];
+            if was != 0 && now != 0 && now != was {
+                st.lock[k] = self.p.hold;
+                st.lock_p[k] = was;
+            }
+        }
+    }
+
     /// Whether a dead tree in cell `k` bars species `s` of `player` (D-227): a tree of the
     /// player who held the cell when the stand died, while its dead wood stands.
     #[must_use]
@@ -582,6 +598,9 @@ impl Flora {
                     (x > 0).then(|| k - 1),
                     (x + 1 < n).then(|| k + 1),
                 ];
+                if st.lock[k] > 0 && st.lock_p[k] == enemy {
+                    return 0; // held against its former owner (D-230)
+                }
                 let push: i64 = near
                     .into_iter()
                     .flatten()
@@ -775,7 +794,13 @@ impl Flora {
                         .filter(|&&m| m != NONE && owner[m as usize] == pl)
                         .map(|&m| sc.strength[m as usize])
                         .sum();
-                    attack[pi] = (push - sc.strength[k]).max(0);
+                    // A cell just taken from this player is held (D-230).
+                    let held = st.lock[k] > 0 && st.lock_p[k] == pl;
+                    attack[pi] = if held {
+                        0
+                    } else {
+                        (push - sc.strength[k]).max(0)
+                    };
                 }
             }
 
@@ -888,6 +913,7 @@ impl Flora {
             st.dead[k] += dead;
         }
 
+        self.hold_conquests(st, &sc.owner);
         std::mem::swap(&mut st.bio, &mut sc.bio);
         std::mem::swap(&mut st.gauge, &mut sc.gauge);
         std::mem::swap(&mut st.owner, &mut sc.owner);
@@ -1002,7 +1028,8 @@ impl Flora {
                         .filter(|&m| owner[m] == pl)
                         .map(|m| strength[m])
                         .sum();
-                    attack[pi][k] = (push - strength[k]).max(0);
+                    let held = st.lock[k] > 0 && st.lock_p[k] == pl; // D-230
+                    attack[pi][k] = if held { 0 } else { (push - strength[k]).max(0) };
                 }
             }
             // Species at their cell cap (D-029) cannot enter new cells this tick.
@@ -1159,6 +1186,7 @@ impl Flora {
         for k in 0..cells {
             st.dead[k] += dead[k];
         }
+        self.hold_conquests(st, &new_owner);
         st.owner = new_owner;
         st.bio = new_bio;
         st.gauge = new_g;
@@ -1531,6 +1559,63 @@ mod tests {
             fell |= st.owner[k] == 1;
         }
         assert!(fell, "the grazed front cell fell");
+    }
+
+    /// D-230: a conquered cell is held against its former owner: no push while the hold runs,
+    /// even out-numbered; then the push is back. Both steps agree.
+    #[test]
+    fn a_conquered_cell_is_held_against_its_former_owner() {
+        let mut f = flora();
+        let n = 6;
+        // P1 strong on the left (3 species), P2 weak on the right (1): P2's front falls.
+        let mut st = split_map(
+            &f,
+            n,
+            3,
+            &["grasses", "lichen_and_moss", "wildflowers"],
+            &["grasses"],
+        );
+        let mut reference = st.clone();
+        let k = 2 * n + 3; // a P2 front cell
+        let mut taken = None;
+        for t in 0..60 {
+            f.step(&mut st);
+            f.step_reference(&mut reference);
+            if taken.is_none() && st.owner[k] == 1 {
+                taken = Some(t);
+                assert_eq!(
+                    (st.lock_p[k], st.lock[k]),
+                    (2, f.p.hold - 1),
+                    "held against P2"
+                );
+            }
+        }
+        assert!(taken.is_some(), "the cell fell");
+        assert_eq!(st, reference, "the fast step matches the reference");
+
+        // A held P1 cell inside strong P2 land: no push; once the hold ends, pushed.
+        let mut st = split_map(
+            &f,
+            n,
+            0,
+            &[],
+            &["grasses", "lichen_and_moss", "wildflowers"],
+        );
+        let g = f.p.index("grasses").unwrap();
+        let k = 2 * n + 2;
+        for s in 0..f.p.species() {
+            st.bio[s * n * n + k] = 0;
+        }
+        st.owner[k] = 1;
+        st.bio[g * n * n + k] = f.p.kmax[g];
+        (st.lock[k], st.lock_p[k]) = (5, 2);
+        assert_eq!(f.push(&st)[k], 0, "held: no push");
+        for _ in 0..3 {
+            f.step(&mut st);
+        }
+        assert_eq!(st.owner[k], 1, "still P1's while held");
+        st.lock[k] = 0;
+        assert!(f.push(&st)[k] > 0, "the hold is over: out-numbered, pushed");
     }
 
     /// D-227: the enemy's trees take over a cell whose stand died; its former owner's do not.

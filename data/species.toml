@@ -32,10 +32,10 @@
 #   defaulting to [fauna]; rest = chance to stay put at an idle decision (stop-and-go).
 
 [flora.lichen_and_moss]
-growth = 1.0
+growth = 1.15
 spawn_cost = 20
 unlock_cost = 0
-yield = 0.06
+yield = 0.07
 cap = 0.75
 effect = "Pioneer: spreads a little slower than grasses, carpets shaded ground; fastest soil development."
 family = "L1"
@@ -51,10 +51,10 @@ water_optimum = 0.5
 water_tolerance = 0.6
 
 [flora.grasses]
-growth = 1.2
+growth = 1.38
 spawn_cost = 20
 unlock_cost = 200
-yield = 0.2
+yield = 0.23
 cap = 0.75
 effect = "Pioneer: fastest spread; the main early income."
 family = "L1"
@@ -147,8 +147,8 @@ water_tolerance = 0.6
 
 [flora.elder]
 growth = 0.7
-spawn_cost = 60
-unlock_cost = 2500
+spawn_cost = 66
+unlock_cost = 2750
 yield = 0.3
 cap = 0.35
 effect = "Fastest shrub, short-lived: the first shrub foothold."
@@ -166,8 +166,8 @@ water_tolerance = 0.6
 
 [flora.hawthorn]
 growth = 0.48
-spawn_cost = 60
-unlock_cost = 5000
+spawn_cost = 66
+unlock_cost = 5500
 yield = 0.35
 cap = 0.35
 effect = "Thorny refuge: own small animals inside cannot be hunted."
@@ -185,8 +185,8 @@ water_tolerance = 0.6
 
 [flora.hazel]
 growth = 0.72
-spawn_cost = 60
-unlock_cost = 7500
+spawn_cost = 66
+unlock_cost = 8250
 yield = 0.45
 cap = 0.35
 effect = "Shade-tolerant shrub: grows under own trees; its nuts feed squirrels."
@@ -204,8 +204,8 @@ water_tolerance = 0.6
 
 [flora.oak]
 growth = 0.24
-spawn_cost = 150
-unlock_cost = 9000
+spawn_cost = 173
+unlock_cost = 10350
 yield = 0.8
 cap = 0.3
 effect = "Light canopy: the understory thrives beneath it."
@@ -223,8 +223,8 @@ water_tolerance = 0.6
 
 [flora.chestnut]
 growth = 0.48
-spawn_cost = 150
-unlock_cost = 12000
+spawn_cost = 173
+unlock_cost = 13800
 yield = 0.85
 cap = 0.3
 effect = "Fastest-growing tree."
@@ -242,8 +242,8 @@ water_tolerance = 0.6
 
 [flora.beech]
 growth = 0.288
-spawn_cost = 150
-unlock_cost = 16000
+spawn_cost = 173
+unlock_cost = 18400
 yield = 0.9
 cap = 0.3
 effect = "Deep shade: suppresses the understory beneath it."

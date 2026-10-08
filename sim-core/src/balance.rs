@@ -38,6 +38,9 @@ pub struct FloraRules {
     pub shade: bool,
     /// Strength gain at full soil development (D-225): strength x (1 + fert_gain x soil).
     pub fert_gain: f64,
+    /// Conquest hold (D-230): real seconds during which a cell just conquered cannot be pushed
+    /// by its former owner.
+    pub hold_s: f64,
 }
 
 /// `[economy]`: the points bank (gamerules §4; D-046). Other keys are prototype-only for now.
@@ -629,6 +632,7 @@ impl Balance {
             (0.0..=4.0).contains(&f.fert_gain),
             "[flora] fert_gain must be in 0..4".into(),
         )?;
+        check(f.hold_s >= 0.0, "[flora] hold_s must be >= 0".into())?;
         check(
             (0.0..=1.0).contains(&self.economy.div_gain)
                 && (1.0..=8.0).contains(&self.economy.div_cap),

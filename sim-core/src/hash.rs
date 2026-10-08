@@ -154,7 +154,7 @@ impl FieldHashes {
 }
 
 /// Bumped whenever the set or order of hashed balance values changes.
-pub const BALANCE_HASH_VERSION: u64 = 21; // 21: strength and push, biodiversity income (D-225); 20: handling time; 2: economy; 3: fauna; 4: costs; 5: victory; 6: drops; 7: movement; 8: capacity; 9: pace; 10: terrain; 11: families; 12: map types; 13: steering; 14: ranked diets; 15: dead wood; 16: catastrophes; 17: weather; 18: bot income, decay window; 19: graze damage
+pub const BALANCE_HASH_VERSION: u64 = 22; // 22: conquest hold (D-230); 21: strength and push, biodiversity income (D-225); 20: handling time; 2: economy; 3: fauna; 4: costs; 5: victory; 6: drops; 7: movement; 8: capacity; 9: pace; 10: terrain; 11: families; 12: map types; 13: steering; 14: ranked diets; 15: dead wood; 16: catastrophes; 17: weather; 18: bot income, decay window; 19: graze damage
 
 /// The balance hash (INSTRUCTIONS §4, §10): the values the simulation uses, **after** conversion
 /// to fixed-point, never the file bytes. Formatting, comments, CRLF / LF and changes below the
@@ -221,13 +221,13 @@ mod tests {
     fn balance_hash_ignores_formatting_but_not_values() {
         let base = hash_of(BALANCE, SPECIES);
         let crlf = SPECIES.replace('\n', "\r\n");
-        let noisy = SPECIES.replace("growth = 1.2\n", "growth   =   1.2   # comment\n");
+        let noisy = SPECIES.replace("growth = 1.38\n", "growth   =   1.38   # comment\n");
         assert_eq!(hash_of(BALANCE, &crlf), base, "line endings");
         assert_eq!(hash_of(BALANCE, &noisy), base, "spacing and comments");
         // Below the fixed-point resolution (1 / 65536 of the per-tick scale): same values.
-        let tiny = SPECIES.replacen("growth = 1.2\n", "growth = 1.200000001\n", 1);
+        let tiny = SPECIES.replacen("growth = 1.38\n", "growth = 1.380000001\n", 1);
         assert_eq!(hash_of(BALANCE, &tiny), base, "sub-resolution change");
-        let real = SPECIES.replacen("growth = 1.2\n", "growth = 1.25\n", 1);
+        let real = SPECIES.replacen("growth = 1.38\n", "growth = 1.45\n", 1);
         assert_ne!(hash_of(BALANCE, &real), base, "a real change");
         let rule = BALANCE.replace("smother_rate = 0.15", "smother_rate = 0.2");
         assert_ne!(hash_of(&rule, SPECIES), base, "a rule change");

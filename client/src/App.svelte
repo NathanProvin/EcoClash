@@ -1216,8 +1216,12 @@
       else if (attackArmed) attackArmed = false;
       else if (castArmed) castArmed = null;
       else if (planting) planting = null;
-      else if (cell) inspect(null);
-      else select([]);
+      else {
+        // One press clears the lot (D-234): the cell card, the unit card and the selection.
+        inspect(null);
+        unitIds = [];
+        select([]);
+      }
     } else if (key === "Home") {
       viewer?.resetView();
     }

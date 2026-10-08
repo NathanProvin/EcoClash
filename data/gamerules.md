@@ -47,7 +47,7 @@ Victory conditions are defined in `INSTRUCTIONS.md` §2.3 (territory share or to
 Aquatic plants (family W) sit in the stratum of their height: they want the water through their moisture response, so they hold the shallows and wet banks (D-087).
 
 - **[Proposed] Complementarity.** Species of one stratum compete with partial niche overlap (`niche_overlap` in `balance.toml`, below 1), so a mixed stand holds more biomass than a monoculture.
-- A cell's **dominant level** is the highest level among the strata present in it, counting only strata whose biomass is above `establish_threshold`.
+- A cell's **dominant level** is the highest level among the strata present in it, counting only strata whose biomass is above `establish_threshold`. It sets shade and succession; conquest uses strength (§3, D-225).
 - **[Proposed] Shade.** Higher strata in a cell reduce the growth of the owner's lower strata in that same cell. Shade-tolerant species suffer less.
 - **[Proposed] Succession (soil development).** Each cell has a **soil development** value (organic matter), which starts at 0 on bare soil. Plants raise it over time, pioneers fastest. Each level needs a minimum value to establish: pioneers none, the rest of L1 low, L2 lower-medium, L3 medium, L4 high. This drives the V1 progression bare soil → meadow → shrubs → forest. It is independent of the soil *type* (§2.3).
 
@@ -119,28 +119,31 @@ It rises toward the site's **suitability**, so poor sites fill slower and cap lo
 
 Plants reproduce and spread **from cell to cell**, into the 4 neighbouring cells. For each own cell whose species has enough biomass to spread (above `spread_threshold`), each neighbour is evaluated as follows:
 
+**Strength and push (D-225).** Conquest of enemy land compares numbers, not plant levels:
+- A cell's **strength** = (its owner's plant species established in it, above `establish_threshold`, + its owner's animal species living in it) × (1 + `fert_gain` × soil fertility). Soil fertility is the cell's soil development, 0 to 1.
+- The **push** on a cell = the sum of the strengths of its enemy neighbours (4 sides). Push comes from the plants spreading; animals add to it only as part of their own cell's strength. An enemy animal standing in the cell adds nothing (animals attack by grazing, §6.1).
+
 | Neighbour cell state | Result |
 |---|---|
-| **Empty** | Gradually colonized. A claim progress builds up at `spread_rate × neighbour pressure × suitability`, and the cell switches to the spreading player when progress is complete. The arriving species start established, with a gauge equal to pressure × suitability. Species with zero suitability cannot arrive |
-| **Owned by the opponent, same dominant level** | **Nothing happens.** The frontier holds |
-| **Owned by the opponent, lower dominant level** (e.g. enemy meadow grasses next to our trees) | Gradually **colonized and smothered**. The enemy biomass decreases at `smother_rate`, our colonization progress rises, and the cell switches to us when the enemy biomass reaches zero |
-| **Owned by the opponent, higher dominant level** | Our spread has no effect. Their spread smothers us instead |
+| **Empty** (bare soil) | Gradually colonized. A claim progress builds up at `spread_rate × neighbour pressure × suitability`, and the cell switches to the spreading player when progress is complete. The arriving species start established, with a gauge equal to pressure × suitability. Species with zero suitability cannot arrive. A former owner under a lockout cannot claim it (§6.1) |
+| **Owned by the opponent, push > strength** | Gradually **smothered**: each of the enemy's plant species there loses `smother_rate × (push − strength)`. When the enemy biomass reaches zero, the cell switches to us, with our species established in the neighbours (any level) |
+| **Owned by the opponent, push ≤ strength** | **Nothing happens.** The frontier holds, until either side's numbers change |
 | **Owned by us** (D-024) | Each of our species colonizes the neighbour through its gauge: forest advances over our own meadow, and lower strata fill in underneath (understory), subject to shade, soil and bioclimate. Only species established in a neighbour (above `establish_threshold`) seed new arrivals |
 
-Only the **level** is compared, not the tier within a level (see open questions).
+**Conquest hold (D-230).** A cell just conquered is held against its former owner for `hold_s` (20 s): that player's push has no effect on it until the hold runs out. A freshly taken cell has its species at the establish threshold and would otherwise flip back and forth; the hold gives it time to grow, and the front moves in steps instead of flickering. Grazing still works on it.
 
-**[Proposed] Contested empty cell.** When both players are colonizing the same empty cell, the first to complete progress takes it. If both complete on the same tick, the higher level wins. If the levels are equal too, the cell stays empty.
+**Contested empty cell.** When both players are colonizing the same empty cell, the first to complete progress takes it. If both complete on the same tick, the cell stays empty.
 
 **Determinism note.** Spread is computed from the previous tick's state (double buffering), so the result never depends on the order in which cells are updated.
 
 ### 3.1 Design consequences
 
-- **Same-level frontiers freeze.** There are three ways to break one:
-  1. Unlock and plant a **higher level**.
-  2. Send **herbivores** to eat the enemy's dominant stratum at the frontier. Its dominant level drops, and your spread takes over.
-  3. **[Proposed]** Improve your soil so that a higher level can establish on your side of the frontier.
-- **Trees dominate but are slow and demanding.** Their counterplay is fauna that attacks trees: caterpillars defoliate them, and voles eat their seeds (§6.1).
-- Frozen frontiers are also broken by the endgame mechanics of §11.
+- **A front holds only while both sides are equal.** Any change moves it: growth, a new species, fertile soil, dead trees, weather, a raid. Ways to push:
+  1. **Diversity:** more species per cell (tall play). A cell with grasses, ferns, elder, oak and a resident squirrel has strength 5.
+  2. **Geometry:** a cell touching 2 or 3 of your cells takes all their strengths. A bulge into your land is pushed back at its tip, and encirclement wins (wide play).
+  3. **Grazing:** herbivores eat species out of an enemy cell, which lowers its strength, or eat it bare, which opens it to your spread (rush play).
+  4. **Fertility:** recyclers and litter raise soil development, which multiplies strength.
+- **Monocultures are weak.** A beech wall alone in its cells has strength 1 per cell, whatever its height.
 
 ### 3.2 Territory demarcation line
 
@@ -199,7 +202,7 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
 - **Food ranks (D-123):** an animal seeks its primary food in sight first, then the secondary, then the tertiary (an attack-move looks on enemy land the same way). A grazer eats the best-ranked plant in its cell, a hunter the best-ranked prey in reach. A meal gives energy × `[fauna] diet_yield` of its rank: 100 %, 75 %, 50 %.
 - **Habitats:** grazers need their food plants on their owner's land; hunters need a plant family (woods for the lynx, water plants for the pike). Tier-1 insects live one layer below their food (D-126): grasshoppers and slugs on herbs, caterpillars on undergrowth, bark beetles on shrubs, so they can counter a layer before you grow it.
 - **Media (D-084):** fish and larvae swim; frog, beaver, otter, mallard and heron are amphibious; great tit, hawk, eagle-owl and black woodpecker fly; the rest walk.
-- **Black woodpecker (D-092):** will speed up the decay of dead trees; the rule comes later, today it recycles litter like the others.
+- **Black woodpecker (D-092, D-127):** eats standing dead wood first (then litter), so it clears dead trees fastest (§6.2, D-227).
 - **Great tits (D-141)** also eat grasshoppers: a tier-1 answer to grasshopper swarms.
 - **Food-web harmony (D-187):** counters cost about what the raids they answer cost, and tier-1 hunters live on meadows, so defence comes in the same phase as attack.
   - **Tiers:** within a family, no tier is weaker than the one below (costs, yield, body).
@@ -282,8 +285,9 @@ All dead organisms, plants and animals, feed `Dead biomass`.
 ### 6.1 Feeding on cells (herbivores)
 
 - Animals attack by **feeding on cells**, and **only where species matching their diet are present**. For example, caterpillars can only feed on cells holding shrubs or trees.
-- A feeding herbivore reduces the biomass of the matching enemy stratum in its cell. When a stratum reaches zero it disappears, which can lower the cell's dominant level (§3.1) or empty the cell.
-- **Grazed bare (author's decision, D-098):** a cell whose plants are all eaten by the enemy's grazers turns neutral, and its former owner may not take it back for `lockout_s` (30 s): the raider's plants can move in behind its grazers, so fronts move.
+- A feeding herbivore reduces the biomass of the matching enemy stratum in its cell. When a stratum reaches zero it disappears, which lowers the cell's strength (§3) or empties the cell.
+- **Grazed bare (author's decision, D-098, D-225):** a cell whose plants are all eaten by the enemy's grazers becomes bare soil: neutral, owned by nobody. A time lock stops its former owner from reclaiming it directly for `lockout_s` (30 s); anyone else may claim it, so the raider's plants can move in behind its grazers. The lockout is the main lever of rush against wide.
+- Grazing never pushes a cell by itself: it weakens it, by eating species out of it (lower strength, §3) or eating it bare.
 - **[Proposed] Seed eaters** (voles, when feeding on hazel or trees) do not reduce standing biomass. Instead, they reduce the enemy tree or shrub's **spread rate** around them.
 
 ### 6.2 Feeding on agents (predators)
@@ -293,7 +297,14 @@ All dead organisms, plants and animals, feed `Dead biomass`.
 - **Meals (D-218):** a kill restores `kill_meal` of the hunter's body (by diet rank), whatever the prey's size.
 - Predators cannot attack species outside their diet. A fox ignores slugs, for example.
 - **Refuge (D-023):** a player's small fauna inside own cells with dense hawthorn & blackthorn or bramble, or in the water dense cattails (D-125), cannot be hunted. Predators are otherwise kept in check by their own predators (§5.2).
-- **Dead trees (D-127):** trees can die of old age (a small chance, a mean life of 1 h of ecology time; D-152). The dead tree stays standing; while it stands, no tree can grow in that cell. It rots away slowly, and recyclers clear it faster, the black woodpecker best of all (dead wood is its primary food).
+- **Dead trees (D-127, D-227):** a cell's tree stand dies:
+  - of old age, at a base rate (`natural_death_s`, a mean life of 1 h of ecology time; D-152);
+  - or by a catastrophe or weather: processionary caterpillars, the violent storm (windthrow), drought.
+
+  A dead tree model replaces the living one and stays until the dead wood is gone: it rots away slowly (`rot_s`), and recyclers clear it faster, the black woodpecker best of all (dead wood is its primary food).
+  - **While it stands, the cell is locked to its former owner's trees only** (the player who owned the cell when the stand died). The former owner's herbs, undergrowth and shrubs still grow there.
+  - **The enemy's trees may grow there.** The dead stand takes its tree species out of the cell's strength (§3), so the enemy push often wins the cell; the enemy's trees then arrive like any of its species. A cell left with dead wood only is neutral bare soil, open to the enemy's trees but not to the former owner's.
+  - Goal: dead trees break frozen fronts. Recyclers are the defender's answer: they clear the dead wood sooner, and as resident animals they add to the cell's strength.
 
 ### 6.3 Spawn conditions
 
@@ -332,7 +343,8 @@ A species can be spawned only when **all** of the following hold:
 - **Biomass points** are the single currency.
 - **Income:** mainly from living plants & fauna growth, in proportion to their biomass and growth. 
 - **Spending:** unlocking cards (§4) or spawning species (§8).
-- **Prototype rules (D-027, D-029, values [Proposed]):** income = Σ species yield × (cover of each own cell, or number of own animals). Costs are per species (§4.4). Predators dropped outside own land cost ×`drop_surcharge`.
+- **Prototype rules (D-027, D-029, values [Proposed]):** income = Σ species yield × (cover of each own cell, or number of own animals).
+- **Biodiversity bonus (D-225):** a cell's plant income × (1 + `div_gain` × its species count, the same count as its strength in §3), capped at `div_cap`. Costs are per species (§4.4). Predators dropped outside own land cost ×`drop_surcharge`.
 
 ---
 
@@ -377,6 +389,13 @@ A species can be spawned only when **all** of the following hold:
 - **[Proposed] Stance per consumer:** Offensive (seek targets in enemy territory) or Guard (stay on own territory and intercept intruders).
 - **Friendly fire:** herbivores without orders may graze your own plants if no enemy flora is nearby, but with a way slower rate, and they generate bonus biomass, the idea is to use them as economy.
 
+**Three styles, one goal (D-225).** Map control is the only victory condition. Three play styles come out of the strength rule (§3) and are mixed freely; none is a set route:
+- **Tall:** spend on unlocks rather than spread; stack species and fertility per cell for strong, high-income cells; roll over the enemy late.
+- **Wide:** grab land with cheap low plants; surround the opponent's bulges; many cheap cells soak up raids.
+- **Rush:** breed or drop grazers to eat species out of enemy cells or eat them bare (§6.1).
+
+Intended cycle, tuned with the bench (not hard-coded): rush beats tall (its value is concentrated), wide beats rush (its value is spread), tall beats wide (late strength), unless wide encircles it or the clock runs out first. Measured (D-229, bots at medium): rush > tall 71 %, tall > wide 46 %, wide > rush 53 %: the cycle is not there yet.
+
 ---
 
 ## 10b. Catastrophe cards (D-129)
@@ -386,7 +405,7 @@ Late-game trump cards, at the far right of the build bar: available from the sta
 | Card | Area | Effect | Cost · cooldown |
 |---|---|---|---|
 | Processionary caterpillars (D-130) | radius 4 | Over 8 s, the tree stands die and stay as standing dead trees (§6, D-127) | 15000 · 5 min |
-| Violent storm | radius 9 (about a quarter of a mid map) | Over 6 s, some cells lose all their shrubs and trees, felled to litter | 22000 · 7 min |
+| Violent storm | radius 9 (about a quarter of a mid map) | Over 6 s, some cells lose all their shrubs and trees: the shrubs fall to litter, the trees are windthrown and stand on as dead trees (§6.2, D-227) | 22000 · 7 min |
 | Chemical spill | radius 1 | The cells go back to bare soil: no plants, litter, dead wood or soil development, owned by no one | 10000 · 4 min |
 
 ## 10c. Weather (D-132)
@@ -411,14 +430,14 @@ Random weather events hit the whole map, both players alike. There is one per ha
 
 ### 11.2 Why stalemates happen
 
-- By the author's rule, same-level frontiers freeze. Once both sides reach forest, the whole frontier can become L3 vs L3 and stop moving.
-- A leading player could also turtle and wait for the time limit.
+- Under the old level rule, same-level frontiers froze. The strength rule (D-225) removed that: a front only holds while both sides are equal (§3.1).
+- A leading player could still turtle and wait for the time limit.
 
 The mechanics below make sure **no position is permanently locked**, and that **the trailing player always has tools to swing the game**.
 
 ### 11.3 Anti-stalemate mechanics
 
-1. **Forest gap dynamics (senescence).** Each tree cell has an age. Past maturity, it has a growing chance per tick (seeded RNG) to fall, as windthrow or old age. The tree stratum becomes dead biomass, the cell's dominant level drops, and a **gap** opens. Gaps on the frontier are contestable: whoever recolonizes first takes the cell. Forests stay alive, as real forests do.
+1. **Forest gap dynamics (senescence).** Tree stands die at a base rate (old age), or by catastrophe and drought (§6.2, D-227). The dead tree stands on, the cell loses its tree species (strength, §3), and a **gap** opens. The former owner's trees are locked out of it until the dead wood is gone; the enemy's are not. Forests stay alive, as real forests do.
 2. **Monoculture vulnerability.** Pests (caterpillars, and the processionary caterpillars card) deal extra damage in cells whose neighbourhood is dominated by a single species. Mixed stands get a resilience bonus. This punishes "walls of beech" and rewards diversity.
 3. **Keystone disturbance cards (top of the tech tree).** They are expensive, have a long cooldown, and are **telegraphed**: the opponent sees a warning a few seconds before they hit.
    - *Processionary caterpillars:* targeted area; the trees there are weakened and lose biomass over time.
@@ -442,7 +461,7 @@ The mechanics below make sure **no position is permanently locked**, and that **
 
 ## 12. Open questions
 
-1. **Tier in spread:** should the tier matter within a level? For example, beech beating oak at a same-level frontier.
+1. ~~**Tier in spread:** should the tier matter within a level?~~ Moot since D-225: levels are no longer compared.
 2. **Contested empty cells:** is the proposed resolution acceptable (§3)?
 3. **Predator drops in enemy territory:** allowed with a surcharge, or own territory only?
 4. **Herbivore trigger range `R`:** a global rule, or per species?

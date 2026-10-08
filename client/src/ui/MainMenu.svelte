@@ -12,7 +12,9 @@
     MAP_SIZES,
     randomSeed,
     roomCode,
+    STYLES,
     type Bot,
+    type BotStyle,
     type MapSize,
     type MatchSetup,
     type Mode,
@@ -59,7 +61,7 @@
   let typed = $state(""); // the room code typed to join (D-219)
   const BOT_NAMES: Record<Bot, string> = {
     easy: "Easy",
-    normal: "Normal",
+    normal: "Medium",
     hard: "Hard",
     none: "No opponent",
   };
@@ -75,6 +77,14 @@
     view = mode;
   }
   const MAP_NAMES: Record<MapSize, string> = { small: "Small", mid: "Mid", large: "Large" };
+  /** Bot styles (D-228): name and hint. */
+  const STYLE_NAMES: Record<BotStyle, [string, string]> = {
+    random: ["Random", "One of the four, revealed at the end"],
+    wide: ["Wide", "Grabs land fast with cheap plants"],
+    tall: ["Tall", "Stacks species and tech, strong late"],
+    rush: ["Rush", "Raids early with grazers"],
+    balanced: ["Balanced", "A bit of everything"],
+  };
   /** Soft out-of-focus light motes rising through the background (D-164): fixed, not random. */
   const MOTES = Array.from({ length: 14 }, (_, i) => ({
     x: (i * 37 + 11) % 100,
@@ -185,6 +195,17 @@
                 <label class="choice" class:on={setup.bot === b}>
                   <input type="radio" name="bot" value={b} bind:group={setup.bot} />
                   {BOT_NAMES[b]}
+                </label>
+              {/each}
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Bot style</legend>
+            <div class="choices three">
+              {#each STYLES as st (st)}
+                <label class="choice" class:on={setup.style === st} title={STYLE_NAMES[st][1]}>
+                  <input type="radio" name="style" value={st} bind:group={setup.style} />
+                  {STYLE_NAMES[st][0]}
                 </label>
               {/each}
             </div>

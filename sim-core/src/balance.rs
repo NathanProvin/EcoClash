@@ -36,7 +36,11 @@ pub struct FloraRules {
     pub plant_radius: u32,
     pub succession: bool,
     pub shade: bool,
-    pub contested_cells: bool,
+    /// Strength gain at full soil development (D-225): strength x (1 + fert_gain x soil).
+    pub fert_gain: f64,
+    /// Conquest hold (D-230): real seconds during which a cell just conquered cannot be pushed
+    /// by its former owner.
+    pub hold_s: f64,
 }
 
 /// `[economy]`: the points bank (gamerules §4; D-046). Other keys are prototype-only for now.
@@ -45,6 +49,10 @@ pub struct EconomyRules {
     pub start_budget: f64,
     /// Animals landing outside own land cost this much more (gamerules §6.3; D-061).
     pub drop_surcharge: f64,
+    /// Biodiversity income (D-225): a cell's plant income x (1 + div_gain x its species),
+    /// at most x div_cap.
+    pub div_gain: f64,
+    pub div_cap: f64,
 }
 
 /// `[match]`: victory (INSTRUCTIONS §2.3, gamerules §11.3; D-059).
@@ -70,12 +78,37 @@ pub struct MatchRules {
 #[serde(deny_unknown_fields)]
 pub struct BotRules {
     pub income: [f64; 3],
+    /// Play styles (D-228): the share of spending (%) each puts on land, depth and army.
+    #[serde(default)]
+    pub styles: BotStyles,
+}
+
+/// `[bots.styles]` (D-228): spending weights in % (land, depth, army), each summing to 100.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BotStyles {
+    pub wide: [u32; 3],
+    pub tall: [u32; 3],
+    pub rush: [u32; 3],
+    pub balanced: [u32; 3],
+}
+
+impl Default for BotStyles {
+    fn default() -> BotStyles {
+        BotStyles {
+            wide: [60, 20, 20],
+            tall: [20, 60, 20],
+            rush: [20, 20, 60],
+            balanced: [34, 33, 33],
+        }
+    }
 }
 
 impl Default for BotRules {
     fn default() -> BotRules {
         BotRules {
             income: [1.0, 1.0, 1.0],
+            styles: BotStyles::default(),
         }
     }
 }
@@ -587,6 +620,23 @@ impl Balance {
         check(
             self.economy.drop_surcharge >= 1.0,
             "economy.drop_surcharge must be >= 1".into(),
+        )?;
+        let st = &self.bots.styles;
+        check(
+            [st.wide, st.tall, st.rush, st.balanced]
+                .iter()
+                .all(|w| w.iter().sum::<u32>() == 100),
+            "[bots.styles] weights must sum to 100".into(),
+        )?;
+        check(
+            (0.0..=4.0).contains(&f.fert_gain),
+            "[flora] fert_gain must be in 0..4".into(),
+        )?;
+        check(f.hold_s >= 0.0, "[flora] hold_s must be >= 0".into())?;
+        check(
+            (0.0..=1.0).contains(&self.economy.div_gain)
+                && (1.0..=8.0).contains(&self.economy.div_cap),
+            "[economy] div_gain must be in 0..1 and div_cap in 1..8".into(),
         )?;
         let dt = self.flora_dt();
         self.validate_fauna()?;

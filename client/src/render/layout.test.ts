@@ -18,6 +18,7 @@ import {
   stratumOf,
   treesIn,
   TREE,
+  TREE_SEEDLING,
   TRUNK_CLEAR,
   TRUNK_GAP,
   type Slot,
@@ -109,6 +110,19 @@ describe("plantLayout", () => {
     const two = Array.from({ length: 100 }, (_, c) => c).find((c) => treesIn(c) === 2) ?? 0;
     const trees = plantLayout(two, [[], [], half])[2] ?? [];
     expect(new Set(trees.map((t) => t.species))).toEqual(new Set([9, 10]));
+  });
+
+  it("grows trees with their cover, from a seedling floor; other strata stay at scale 1 (D-231)", () => {
+    const tree = (cover: number) => plantLayout(7, [[], [], [{ species: 9, cover }]])[2] ?? [];
+    for (const cover of [0.3, 0.6, 1]) {
+      for (const m of tree(cover)) expect(m.scale).toBeCloseTo(cover);
+    }
+    for (const m of tree(0.06)) expect(m.scale).toBe(TREE_SEEDLING);
+    const full = tree(1)[0];
+    expect(full?.size).toBeGreaterThanOrEqual(TREE.max * 0.8);
+    const low = plantLayout(7, [[{ species: 1, cover: 0.5 }]])[0] ?? [];
+    expect(low.length).toBeGreaterThan(0);
+    for (const m of low) expect(m.scale).toBe(1);
   });
 });
 

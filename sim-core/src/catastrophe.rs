@@ -167,6 +167,8 @@ impl Catastrophes {
                         flora.kill_trees(st, k);
                     }
                     Act::Storm => {
+                        // Windthrown trees stand on as dead trees (D-227); shrubs fall to litter.
+                        flora.kill_trees(st, k);
                         flora.fell(st, k, 3);
                     }
                     Act::Spill => flora.lay_bare(st, k),

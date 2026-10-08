@@ -29,8 +29,10 @@ pub struct Sim {
     max_agents: u32,
     terrain: TerrainParams,
     relief_m: f64,
-    /// The bots' income factors by level (D-143).
-    bot_income: [f64; 3],
+    /// The balance, for the bots (income factors by level, D-143; style weights, D-228).
+    bots_balance: Balance,
+    /// Each bot's style, as "player:style" (D-228).
+    bot_styles: Vec<String>,
     seed: u64,
     /// Scripted opponents, and the next sequence number of each one's commands.
     bots: Vec<(sim_ai::Bot, u32)>,
@@ -60,7 +62,8 @@ impl Sim {
             max_agents: b.agents.max_agents,
             terrain: TerrainParams::from_balance(&b),
             relief_m: b.terrain.relief_m,
-            bot_income: b.bots.income,
+            bots_balance: b.clone(),
+            bot_styles: Vec::new(),
             seed,
             bots: Vec::new(),
             world: World::new(&b, seed, n),
@@ -150,20 +153,33 @@ impl Sim {
         hex(self.world.step())
     }
 
-    /// Let a scripted bot play `player` ("easy", "normal" or "hard"; D-060). Its sequence numbers
-    /// start high so they never collide with commands the host sends for the same player.
+    /// Let a scripted bot play `player`: `"level[:style]"`, a level "easy", "normal" or "hard"
+    /// (D-060) and a style "wide", "tall", "rush", "balanced" or "random" (D-228; also when
+    /// left out: picked from the match seed). Its sequence numbers start high so they never
+    /// collide with commands the host sends for the same player.
     #[wasm_bindgen(js_name = addBot)]
-    pub fn add_bot(&mut self, player: u8, level: &str) -> Result<(), JsError> {
-        let level = sim_ai::Level::parse(level).ok_or_else(|| JsError::new("unknown bot level"))?;
+    pub fn add_bot(&mut self, player: u8, spec: &str) -> Result<(), JsError> {
+        let mut parts = spec.split(':');
+        let level = parts
+            .next()
+            .and_then(sim_ai::Level::parse)
+            .ok_or_else(|| JsError::new("unknown bot level"))?;
         if !matches!(player, 1 | 2) {
             return Err(JsError::new("player must be 1 or 2"));
         }
-        let bot = sim_ai::Bot::new(player, level, self.plant_radius);
-        let factor = self.bot_income[match level {
-            sim_ai::Level::Easy => 0,
-            sim_ai::Level::Normal => 1,
-            sim_ai::Level::Hard => 2,
-        }];
+        let style = match parts.next() {
+            None | Some("random") => {
+                let all = sim_ai::Style::ALL;
+                let pick = (self.seed + u64::from(player)) % all.len() as u64;
+                all[usize::try_from(pick).unwrap_or(0)]
+            }
+            Some(name) => {
+                sim_ai::Style::parse(name).ok_or_else(|| JsError::new("unknown bot style"))?
+            }
+        };
+        let bot = sim_ai::Bot::new(player, level, style, &self.bots_balance);
+        let factor = level.income(&self.bots_balance);
+        self.bot_styles.push(format!("{player}:{}", style.name()));
         self.world.set_income_factor(player, factor); // D-143
         self.bots.push((bot, 1 << 30));
         Ok(())
@@ -200,6 +216,13 @@ impl Sim {
     #[wasm_bindgen(getter)]
     pub fn pace(&self) -> f64 {
         self.pace
+    }
+
+    /// The bots' styles (D-228), "player:style" separated by commas, e.g. "2:wide".
+    #[wasm_bindgen(getter, js_name = botStyles)]
+    #[must_use]
+    pub fn bot_styles(&self) -> String {
+        self.bot_styles.join(",")
     }
 
     /// Radius in cells of a player's plant order (`[flora] plant_radius`).

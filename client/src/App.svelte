@@ -8,7 +8,15 @@
   import { onDestroy, onMount } from "svelte";
   import { SvelteMap, SvelteSet } from "svelte/reactivity";
   import { strategicGroups } from "./game/groups";
-  import { cleanCode, forMode, loadSetup, MAP_SIZES, saveSetup, withUrl } from "./game/setup";
+  import {
+    botSpec,
+    cleanCode,
+    forMode,
+    loadSetup,
+    MAP_SIZES,
+    saveSetup,
+    withUrl,
+  } from "./game/setup";
   import { ALL_TIPS, loadSeen, saveSeen, TIPS, TipWatch } from "./game/tips";
   import { CATASTROPHE_LOOK } from "./game/catastrophes";
   import { advance, DEFEND_TITLE, OBJECTIVES, RAID, topUp, TUTORIAL_SETUP } from "./game/tutorial";
@@ -100,6 +108,12 @@
   let copied = $state(false); // the invite link was copied
   /** The players' names, P1 then P2 (D-215): on the tug-of-war bar. */
   let names = $state<[string, string]>(["Player 1", "Player 2"]);
+  /** The opponent bot's style for the end screen (D-228), e.g. "Bot style: Wide". */
+  const botNote = $derived.by(() => {
+    const style = live?.botStyles.split(",").find((e) => e.startsWith(`${3 - (live?.me ?? 1)}:`));
+    const name = style?.split(":")[1] ?? "";
+    return name ? `Bot style: ${name[0]?.toUpperCase() ?? ""}${name.slice(1)}` : "";
+  });
   let stalled = $state(false); // relayed: waiting for the other player's turn
   const mine = $derived(!!live && player === me); // viewing own side: orders allowed
   let techOpen = $state(false);
@@ -825,7 +839,7 @@
         const s = tutorial ? TUTORIAL_SETUP : withUrl(setup, location.search);
         // ?size=N wins (tools); in a lockstep match the host's seed and size win (D-219).
         const size = Number(q.get("size") ?? MAP_SIZES[s.map]);
-        live = await Live.start(s.seed, size, s.sandbox, s.bot, relay, tutorial);
+        live = await Live.start(s.seed, size, s.sandbox, botSpec(s), relay, tutorial);
         joining = false;
         player = live.me; // view your own side
         const other = relay
@@ -1391,6 +1405,7 @@
       human={me}
       series={replay.meta.series}
       dt={replay.meta.dt}
+      note={botNote}
       onMenu={toMenu}
       onAgain={() => (room ? toMenu() : launch(tutorial))}
       onWatch={() => (endDismissed = true)}

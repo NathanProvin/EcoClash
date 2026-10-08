@@ -51,6 +51,7 @@ export type ToMain =
       balanceHash: string;
       terrain: ArrayBuffer; // elevation (0..255) then ground class, n * n bytes each
       reliefM: number;
+      botStyles: string; // each bot's style, "player:style" comma-separated (D-228)
     }
   | {
       type: "tick";
@@ -157,6 +158,8 @@ export class Live implements Source {
   private effects: { player: number; card: number; row: number; col: number }[] = [];
   private readonly tickHz: number;
   private readonly maxAgents: number;
+  /** Each bot's style (D-228): "player:style", comma-separated; "" with no bot. */
+  readonly botStyles: string;
   private current: Fields;
   private flora: number[][] = [[], []]; // cells per plant species, per player, current frame
   private unlockedFlags: number[][] = [[], []];
@@ -168,6 +171,7 @@ export class Live implements Source {
     ready: Extract<ToMain, { type: "ready" }>,
   ) {
     const species = JSON.parse(ready.species) as Species[];
+    this.botStyles = ready.botStyles;
     const plants = species.filter((s) => s.kind === "flora");
     const animals = species.filter((s) => s.kind === "fauna");
     this.plantRadius = ready.plantRadius;

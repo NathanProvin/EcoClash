@@ -629,6 +629,23 @@ pub struct Fauna {
 }
 
 impl Fauna {
+    /// The animal species living in each cell of an `n x n` map, per player (D-225): what a
+    /// cell's animals add to its strength and biodiversity.
+    #[must_use]
+    pub fn residents(&self, n: usize) -> Vec<[u8; 2]> {
+        let a = &self.agents;
+        let mut mask = vec![[0u64; 2]; n * n];
+        for i in 0..a.len() {
+            let k = a.cell(i, n);
+            if let (Some(m), o @ 1..=2) = (mask.get_mut(k), a.owner[i]) {
+                m[usize::from(o) - 1] |= 1 << (u32::from(a.sp[i]) % 64);
+            }
+        }
+        mask.into_iter()
+            .map(|m| m.map(|b| u8::try_from(b.count_ones()).unwrap_or(u8::MAX)))
+            .collect()
+    }
+
     #[must_use]
     pub fn new(p: FaunaParams) -> Fauna {
         Fauna {

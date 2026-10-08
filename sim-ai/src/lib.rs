@@ -2,15 +2,18 @@
 //! reads the world and returns commands, which the host submits through the same queue as a
 //! human's. It never mutates the world, so matches against it replay and verify like any other.
 //!
-//! Difficulty is reaction time, anticipation and actions per decision (INSTRUCTIONS §6). Each
-//! decision reads the map (`Intel`: enemy animals on its land and near its herds, the enemy's
-//! plants, water) and tries a rotating list of plays, keeping the first few that apply: unlock
-//! the answer to the worst threat or the next card of the plan, push the front (grass on land,
-//! algae in the shallows), grow taller plants, call recyclers and grazers fit for the food at
-//! hand, answer raids with the hunter that eats the raiders, raid with the grazers that eat what
-//! the enemy grows (D-191, D-192). Deterministic: no randomness, fixed orders.
+//! Difficulty is reaction time, anticipation, actions per decision and adaptation (INSTRUCTIONS
+//! §6). A style (D-228) shares the spending between land (spreading), depth (species per cell)
+//! and army (grazers for raids). Each decision reads the map (`Intel`: enemy animals on its land
+//! and near its herds, the enemy's plants, water; the front: strength, push and margin per cell,
+//! D-225), answers threats first (hunters, the unlock toward their eater), then runs the plays of
+//! the category furthest below its share: spread toward the enemy or around its bulges, add the
+//! species a front cell lacks, raid the enemy cell one grazed-out species would flip (D-191,
+//! D-192, D-228). Deterministic: no randomness, fixed orders.
 
-use sim_core::balance::Act;
+use std::cmp::Reverse;
+
+use sim_core::balance::{Act, Balance};
 use sim_core::commands::{OrderKind, Payload};
 use sim_core::fauna::Role;
 use sim_core::fixed::ONE;
@@ -75,9 +78,19 @@ impl Level {
         }
     }
 
+    /// Adaptation (D-228): seconds between two reads of the enemy's play, and how far (points of
+    /// spending share) the bot shifts toward the counter; easy keeps its style.
+    fn adaptation(self) -> Option<(u64, i64)> {
+        match self {
+            Level::Easy => None,
+            Level::Normal => Some((120, 12)),
+            Level::Hard => Some((60, 25)),
+        }
+    }
+
     /// This level's income factor (D-143), from `[bots] income`.
     #[must_use]
-    pub fn income(self, b: &sim_core::balance::Balance) -> f64 {
+    pub fn income(self, b: &Balance) -> f64 {
         b.bots.income[match self {
             Level::Easy => 0,
             Level::Normal => 1,
@@ -96,6 +109,86 @@ impl Level {
         }
     }
 }
+
+/// A play style (D-228): how the bot shares its spending between land (spreading), depth
+/// (species per cell, fertility) and army (grazers for raids); the weights are `[bots.styles]`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Style {
+    Wide,
+    Tall,
+    Rush,
+    Balanced,
+}
+
+impl Style {
+    pub const ALL: [Style; 4] = [Style::Wide, Style::Tall, Style::Rush, Style::Balanced];
+
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        match self {
+            Style::Wide => "wide",
+            Style::Tall => "tall",
+            Style::Rush => "rush",
+            Style::Balanced => "balanced",
+        }
+    }
+
+    /// "wide", "tall", "rush" or "balanced".
+    #[must_use]
+    pub fn parse(name: &str) -> Option<Style> {
+        Style::ALL.into_iter().find(|s| s.name() == name)
+    }
+
+    /// Spending weights in % (land, depth, army), from `[bots.styles]`.
+    #[must_use]
+    pub fn weights(self, b: &Balance) -> [i64; 3] {
+        let s = &b.bots.styles;
+        match self {
+            Style::Wide => s.wide,
+            Style::Tall => s.tall,
+            Style::Rush => s.rush,
+            Style::Balanced => s.balanced,
+        }
+        .map(i64::from)
+    }
+}
+
+/// The enemy's play as the bot reads it from the map (D-228).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Posture {
+    Wide,
+    Tall,
+    Rush,
+}
+
+/// Spending categories (D-228), indices into a style's weights.
+const LAND: usize = 0;
+const DEPTH: usize = 1;
+const ARMY: usize = 2;
+
+/// Points (Q16) every category is credited with, so a few commands do not swing the shares; and
+/// the decisions over which recent spending fades (D-228).
+const SPEND_PRIOR: i64 = 1000 << 16;
+const SPEND_WINDOW: i64 = 64;
+
+/// Reading the enemy (D-228): enemy grazers on own land that make a rush; mean species per enemy
+/// cell (x100) and its ratio to the bot's own (%) that make it tall; enemy land against the bot's
+/// (%) or its growth per minute (% of the map) that make it wide.
+const RUSH_RAIDERS: i64 = 6;
+const TALL_SPECIES: i64 = 300;
+const TALL_RATIO: i64 = 130;
+const WIDE_RATIO: i64 = 120;
+const WIDE_GROWTH: i64 = 2;
+/// How far beyond its land (cells past the plant radius) a land-heavy bot seeds new ground.
+const CLAIM_REACH: usize = 3;
+/// The least share (%) a category keeps when the bot shifts toward a counter.
+const MIN_WEIGHT: i64 = 5;
+/// Extra hunter cards the bot keeps against a rush (D-228).
+const RUSH_GUARD: i64 = 2;
+/// The army weight (%) at which the bot's raid pace and grazer cards are the level's own; and the
+/// pace bounds (seconds).
+const ARMY_REF: i64 = 33;
+const PACE_S: (u64, u64) = (15, 300);
 
 /// The backbone plan (players start with lichen & moss only, D-118), by game phase (D-142): herbs,
 /// the first grazers and their cheap answers (D-187), undergrowth and shrubs with their eaters,
@@ -187,6 +280,22 @@ type Play = fn(&Bot, &View) -> Option<Payload>;
 pub struct Bot {
     pub player: u8,
     level: Level,
+    pub style: Style,
+    /// The style's weights, and the weights now (after adaptation), in % (land, depth, army).
+    base: [i64; 3],
+    pub weights: [i64; 3],
+    /// Points spent per category (Q16, priced from the bot's own commands): over the match, and
+    /// recently (fading by 1/SPEND_WINDOW per decision; the budgets use it).
+    pub spent: [i64; 3],
+    recent: [i64; 3],
+    /// Whether the bot adapts to the enemy (its level allowing); off to measure a style alone.
+    pub adapt: bool,
+    /// The enemy's play as last read, and how many times the bot changed its weights.
+    pub posture: Option<Posture>,
+    pub shifts: u32,
+    /// The tick of the next read, and the enemy's cells at the last one.
+    read_next: u64,
+    enemy_land: Option<i64>,
     /// The brush radius of a plant order (`[flora] plant_radius`).
     radius: u32,
     next: u64,
@@ -222,6 +331,11 @@ struct View<'a> {
     intel: Intel,
     /// Threats the bot answers now, worst first: animal species (D-191).
     threats: Vec<usize>,
+    /// The front (D-225): each cell's strength for its owner (Q16); on own cells the enemy's push
+    /// over it (`Flora::push`); on enemy cells the margin, the bot's push less the cell's strength.
+    strength: Vec<i64>,
+    push: Vec<i64>,
+    margin: Vec<i64>,
     /// The bank above the savings, worked out once per decision (D-207): the bank cannot change
     /// within one (commands apply at the next tick).
     spare: i64,
@@ -229,15 +343,32 @@ struct View<'a> {
 
 impl Bot {
     #[must_use]
-    pub fn new(player: u8, level: Level, plant_radius: u32) -> Bot {
+    pub fn new(player: u8, level: Level, style: Style, b: &Balance) -> Bot {
+        let base = style.weights(b);
         Bot {
             player,
             level,
-            radius: plant_radius,
+            style,
+            base,
+            weights: base,
+            spent: [0; 3],
+            recent: [0; 3],
+            adapt: true,
+            posture: None,
+            shifts: 0,
+            read_next: 0,
+            enemy_land: None,
+            radius: b.flora.plant_radius,
             next: 0,
             turn: 0,
             since: Vec::new(),
         }
+    }
+
+    /// Decisions taken so far.
+    #[must_use]
+    pub fn decisions(&self) -> usize {
+        self.turn
     }
 
     /// Commands for this tick (usually none: the bot decides every `period` ticks). Call it once
@@ -248,9 +379,85 @@ impl Bot {
         }
         self.next = w.tick + self.level.period();
         self.turn += 1;
+        let view = self.view(w);
+        if centroid(w, self.player).is_none() {
+            if w.tick < self.level.found_after() {
+                return Vec::new(); // looking the map over first (D-101)
+            }
+            let p = self.found(&view);
+            if let Some(p) = &p {
+                self.book(&view, p);
+            }
+            return p.into_iter().collect(); // no land yet: found the colony
+        }
+        self.adapt_to(&view);
+        // Threats first (D-191), outside the budgets; then the categories at or below their
+        // share, furthest below first (D-228). A category over its share waits: the bot saves
+        // for the others rather than spend its money elsewhere.
+        let reactive: [Play; 3] = [Bot::catastrophe, Bot::defend, Bot::unlock];
+        let budgets: [&[Play]; 3] = [
+            &[Bot::expand],
+            &[Bot::deepen, Bot::decomposers],
+            &[Bot::herbivores, Bot::drop_raiders, Bot::raid],
+        ];
+        let active = [LAND, DEPTH, ARMY].map(|c| self.active(&view, c));
+        let mut order: Vec<usize> = (0..3)
+            .filter(|&c| active[c] && self.deficit(c, active) >= -self.slack(active))
+            .collect();
+        order.sort_by_key(|&c| (Reverse(self.deficit(c, active)), c));
+        let mut out = Vec::new();
+        let actions = self.level.actions();
+        for play in reactive {
+            if out.len() < actions
+                && let Some(p) = play(self, &view)
+            {
+                self.book(&view, &p);
+                out.push(p);
+            }
+        }
+        for &c in &order {
+            for play in budgets[c] {
+                if out.len() < actions
+                    && let Some(p) = play(self, &view)
+                {
+                    self.book(&view, &p);
+                    out.push(p);
+                }
+            }
+        }
+        // Recent spending fades (D-228): a category that could not spend for a while does not
+        // binge to catch up.
+        self.recent = self.recent.map(|x| x - x / SPEND_WINDOW);
+        out
+    }
+
+    /// Whether category `c` has anything to spend on now (D-228): land a spreader and a free
+    /// border cell; depth a plant beyond the spreaders or a recycler; army a grazer. A category
+    /// with nothing to do drops out of the shares instead of starving the others.
+    fn active(&self, v: &View, c: usize) -> bool {
+        let w = v.w;
+        let unlocked = |i: usize| w.economy.is_unlocked(self.player, i);
+        let cards = w.flora.p.species() + w.fauna.p.names.len();
+        match c {
+            LAND => {
+                let n = v.n;
+                (0..cards).any(|i| unlocked(i) && category(w, i) == Some(LAND))
+                    && (0..n * n).any(|k| {
+                        w.state.owner[k] == 0
+                            && !(w.state.lock[k] > 0 && w.state.lock_p[k] == self.player)
+                            && neighbours(k, n).any(|m| w.state.owner[m] == self.player)
+                    })
+            }
+            _ => (0..cards).any(|i| unlocked(i) && category(w, i) == Some(c)),
+        }
+    }
+
+    /// What the bot reads from the world for one decision (D-191, D-225).
+    fn view<'a>(&mut self, w: &'a World) -> View<'a> {
         let n = w.state.n;
         let intel = self.intel(w);
         let threats = self.threats(w, &intel);
+        let (strength, push, margin) = front(w, self.player);
         let mut view = View {
             w,
             n,
@@ -259,35 +466,157 @@ impl Bot {
             intel,
             threats,
             spare: 0,
+            strength,
+            push,
+            margin,
         };
         view.spare = self.savings(&view);
-        if centroid(w, self.player).is_none() {
-            if w.tick < self.level.found_after() {
-                return Vec::new(); // looking the map over first (D-101)
-            }
-            return self.found(&view).into_iter().collect(); // no land yet: found the colony
+        view
+    }
+
+    /// Points category `c` is short of its share of recent spending (Q16; below 0: over), the
+    /// shares taken over the `active` categories only.
+    fn deficit(&self, c: usize, active: [bool; 3]) -> i64 {
+        let (mut total, mut weight) = (0, 0);
+        for k in (0..3).filter(|&k| active[k]) {
+            total += self.recent[k] + SPEND_PRIOR;
+            weight += self.weights[k];
         }
-        let plays: [Play; 9] = [
-            Bot::catastrophe,
-            Bot::unlock,
-            Bot::expand,
-            Bot::succession,
-            Bot::decomposers,
-            Bot::herbivores,
-            Bot::defend,
-            Bot::drop_raiders,
-            Bot::raid,
-        ];
-        let mut out = Vec::new();
-        for k in 0..plays.len() {
-            if out.len() >= self.level.actions() {
-                break;
+        total / weight.max(1) * self.weights[c] - (self.recent[c] + SPEND_PRIOR)
+    }
+
+    /// How far over its share a category may go and still spend: a twentieth of recent
+    /// spending, so the shares do not jitter.
+    fn slack(&self, active: [bool; 3]) -> i64 {
+        (0..3)
+            .filter(|&k| active[k])
+            .map(|k| self.recent[k] + SPEND_PRIOR)
+            .sum::<i64>()
+            / 20
+    }
+
+    /// Book what a command costs to its category (D-228): plants by kind (spreaders are land,
+    /// the rest depth), grazers army, recyclers depth, unlocks by the card's kind. Hunters and
+    /// catastrophes answer threats: outside the budgets.
+    fn book(&mut self, v: &View, p: &Payload) {
+        let w = v.w;
+        let n = v.n;
+        let (cat, cost) = match p {
+            Payload::Plant { species, .. } => {
+                let Some(i) = Bot::sheet(w, species) else {
+                    return;
+                };
+                let cat = category(w, i);
+                (cat, w.economy.unit_cost(i, false) * disc_cells(self.radius))
             }
-            if let Some(p) = plays[(self.turn + k) % plays.len()](self, &view) {
-                out.push(p);
+            Payload::Spawn { species, row, col } => {
+                let Some(s) = w.fauna.p.index(species) else {
+                    return;
+                };
+                let i = w.economy.animal(s);
+                let k = *row as usize * n + *col as usize;
+                let away = w.state.owner.get(k) != Some(&self.player);
+                (
+                    category(w, i),
+                    w.economy.unit_cost(i, away) * w.fauna.p.group_size(s),
+                )
+            }
+            Payload::Unlock { species } => {
+                let Some(i) = Bot::sheet(w, species) else {
+                    return;
+                };
+                (category(w, i), w.economy.unlock_price(i))
+            }
+            _ => return,
+        };
+        if let Some(c) = cat {
+            self.spent[c] += cost;
+            self.recent[c] += cost;
+        }
+    }
+
+    /// Adaptation (D-228): at the level's pace, read the enemy's play from the map and shift the
+    /// weights toward its counter (against tall, army; against rush, land and more hunters;
+    /// against wide, depth and encircling), at most the level's shift away from the style.
+    fn adapt_to(&mut self, v: &View) {
+        let Some((every, shift)) = self.level.adaptation() else {
+            return;
+        };
+        if !self.adapt || v.w.tick < self.read_next {
+            return;
+        }
+        self.read_next = v.w.tick + every * 10;
+        let posture = self.read(v, every);
+        let mut weights = self.base;
+        if let Some(p) = posture {
+            let to = match p {
+                Posture::Tall => ARMY,
+                Posture::Rush => LAND,
+                Posture::Wide => DEPTH,
+            };
+            for c in (0..3).filter(|&c| c != to) {
+                let take = (shift / 2).min(weights[c] - MIN_WEIGHT).max(0);
+                weights[c] -= take;
+                weights[to] += take;
             }
         }
-        out
+        if weights != self.weights {
+            self.shifts += 1;
+        }
+        self.weights = weights;
+        self.posture = posture;
+    }
+
+    /// The enemy's play, from the map only (D-228): grazers on the bot's land (rush), more
+    /// species per cell than the bot (tall), more land or fast-growing land (wide).
+    fn read(&mut self, v: &View, every: u64) -> Option<Posture> {
+        let (w, n2) = (v.w, v.n * v.n);
+        let (mut mine, mut theirs, mut dm, mut de) = (0i64, 0i64, 0i64, 0i64);
+        for k in 0..n2 {
+            match w.state.owner[k] {
+                o if o == self.player => {
+                    mine += 1;
+                    dm += w.flora.species_count(&w.state, k);
+                }
+                o if o == 3 - self.player => {
+                    theirs += 1;
+                    de += w.flora.species_count(&w.state, k);
+                }
+                _ => {}
+            }
+        }
+        let cells = i64::try_from(n2).unwrap_or(i64::MAX);
+        let minutes = i64::try_from(every).unwrap_or(60);
+        let growth = self.enemy_land.map_or(0, |was| {
+            (theirs - was) * 100 * 60 / (cells * minutes).max(1)
+        });
+        self.enemy_land = Some(theirs);
+        if v.intel.raiders.iter().sum::<i64>() >= RUSH_RAIDERS {
+            return Some(Posture::Rush);
+        }
+        if theirs == 0 || mine == 0 {
+            return None;
+        }
+        let (de, dm) = (de * 100 / theirs, dm * 100 / mine);
+        if de >= TALL_SPECIES && de * 100 >= dm * TALL_RATIO {
+            return Some(Posture::Tall);
+        }
+        if theirs * 100 >= mine * WIDE_RATIO || growth >= WIDE_GROWTH {
+            return Some(Posture::Wide);
+        }
+        None
+    }
+
+    /// A pace of `secs` at the level's own army weight, scaled by the bot's: more army, more
+    /// often (D-228).
+    fn paced(&self, secs: u64) -> u64 {
+        let army = u64::try_from(self.weights[ARMY].max(1)).unwrap_or(1);
+        (secs * ARMY_REF.unsigned_abs() / army).clamp(PACE_S.0, PACE_S.1)
+    }
+
+    /// One species' worth of strength in cell `k` (Q16): its strength over its species count.
+    fn one(v: &View, k: usize) -> i64 {
+        v.strength[k] / v.w.flora.species_count(&v.w.state, k).max(1)
     }
 
     /// Read the map (D-191): enemy animals on own land, near own animals they eat, anywhere;
@@ -410,9 +739,12 @@ impl Bot {
             })
             .map_or(0, |i| w.economy.unlock_price(i));
         // The raid fund (D-192): levels that drop raids keep the price of the next drop too.
+        let active = [LAND, DEPTH, ARMY].map(|c| self.active(v, c));
         let army = match self.level.aggression().2 {
-            Some(_) => self.raider(v).map_or(0, |s| self.drop_cost(v, s)),
-            None => 0,
+            Some(_) if active[ARMY] && self.deficit(ARMY, active) > 0 => {
+                self.raider(v).map_or(0, |s| self.drop_cost(v, s))
+            }
+            _ => 0,
         };
         let keep = |x: i64| if x > reach { 0 } else { x };
         bank - keep(unlock) - keep(army)
@@ -480,7 +812,8 @@ impl Bot {
         })
     }
 
-    /// The plan for this map: the backbone, with the water cards on maps with water (D-192).
+    /// The plan for this map: the backbone, with the water cards on maps with water (D-192),
+    /// reordered by the weights (D-228): the cards of a heavier category come earlier.
     fn plan(&self, v: &View) -> Vec<&'static str> {
         let mut plan: Vec<&str> = UNLOCKS.to_vec();
         if v.intel.water {
@@ -492,7 +825,24 @@ impl Bot {
                 plan.insert(at, name);
             }
         }
-        plan
+        let w = v.w;
+        let weight = |name: &str| {
+            Bot::sheet(w, name)
+                .and_then(|i| category(w, i))
+                .map_or(ARMY_REF, |c| self.weights[c])
+        };
+        let mut keyed: Vec<(i64, &str)> = plan
+            .into_iter()
+            .enumerate()
+            .map(|(i, name)| {
+                (
+                    i64::try_from(i).unwrap_or(0) * 100 / (weight(name) + 20),
+                    name,
+                )
+            })
+            .collect();
+        keyed.sort_by_key(|&(key, _)| key); // stable: ties keep the backbone's order
+        keyed.into_iter().map(|(_, name)| name).collect()
     }
 
     /// What card `i` still costs to reach (its price plus its missing lower tier and habitat
@@ -620,8 +970,13 @@ impl Bot {
         Some(self.plant(name, k, n))
     }
 
-    /// Push the front: the free cell next to own land nearest the enemy that an unlocked,
-    /// affordable spreader suits (grass on land, algae in the shallows; D-192).
+    /// Spread (D-192, D-228). A land-heavy bot claims: it seeds the free spot within CLAIM_REACH
+    /// cells of its land whose plant disc covers the most free cells, clear of the enemy (any
+    /// free cell may be planted, D-095), and so outruns the natural spread. Otherwise, or with
+    /// nothing left to claim, the free cell next to own land nearest the enemy; facing a wide
+    /// enemy, the one touching the most enemy cells first (encircling, where its neighbours'
+    /// strengths add up). Each spot takes the first unlocked, affordable spreader it suits (grass
+    /// on land, algae in the shallows). Cells it is locked out of are skipped (D-098).
     fn expand(&self, v: &View) -> Option<Payload> {
         let (w, n) = (v.w, v.n);
         let spreaders: Vec<(&str, usize)> = SPREADERS
@@ -637,10 +992,45 @@ impl Bot {
             return None;
         }
         let own = |k: usize| w.state.owner[k] == self.player;
+        let barred = |k: usize| w.state.lock[k] > 0 && w.state.lock_p[k] == self.player;
+        let suited = |k: usize| {
+            spreaders
+                .iter()
+                .find(|&&(_, s)| w.flora.suitability(&w.state, s, k) >= i64::from(ONE) / 2)
+        };
+        if self.weights[LAND] >= 40 {
+            let r = usize::try_from(self.radius).unwrap_or(2);
+            let near_own = dilate(w, n, self.player, r + CLAIM_REACH);
+            let near_enemy = dilate(w, n, 3 - self.player, r + 1);
+            let free = |k: usize| w.state.owner[k] == 0 && !barred(k);
+            let best = (0..n * n)
+                .filter(|&k| free(k) && near_own[k] && !near_enemy[k] && suited(k).is_some())
+                .map(|k| {
+                    let covered = disc(k, n, r).filter(|&m| free(m)).count();
+                    (covered, Reverse(dist2(k, n, v.home)), Reverse(k))
+                })
+                .max();
+            if let Some((covered, _, Reverse(k))) = best
+                && covered > disc_cells(self.radius).unsigned_abs() as usize / 2
+                && let Some(&(name, _)) = suited(k)
+            {
+                return Some(self.plant(name, k, n));
+            }
+        }
         let mut border: Vec<usize> = (0..n * n)
-            .filter(|&k| w.state.owner[k] == 0 && neighbours(k, n).any(own))
+            .filter(|&k| w.state.owner[k] == 0 && !barred(k) && neighbours(k, n).any(own))
             .collect();
-        border.sort_by_key(|&k| (dist2(k, n, v.enemy), k));
+        let encircle = self.posture == Some(Posture::Wide);
+        let enemies = |k: usize| {
+            neighbours(k, n)
+                .filter(|&m| w.state.owner[m] == 3 - self.player)
+                .count()
+        };
+        if encircle {
+            border.sort_by_key(|&k| (Reverse(enemies(k)), dist2(k, n, v.enemy), k));
+        } else {
+            border.sort_by_key(|&k| (dist2(k, n, v.enemy), k));
+        }
         border.into_iter().find_map(|k| {
             let (name, _) = spreaders
                 .iter()
@@ -649,36 +1039,63 @@ impl Bot {
         })
     }
 
-    /// The tallest unlocked plant, on an own cell where the soil suits it and it is missing,
-    /// nearest the enemy: undergrowth, shrubs and trees follow the grass (succession); reeds and
-    /// cattails take the shores (D-192).
-    fn succession(&self, v: &View) -> Option<Payload> {
+    /// Depth (D-225, D-228): a plant the cell lacks, on own land, where a species counts most:
+    /// first the cells the enemy pushes (defence, the strongest push first), then cells next to
+    /// an enemy cell one species short of falling (offence; not easy), then home, for the
+    /// biodiversity income. At the front the cheapest fitting plant (strength counts species, not
+    /// height); at home the tallest or the fastest grower, in turn. Recyclers, called on their own pace,
+    /// raise the soil's fertility.
+    fn deepen(&self, v: &View) -> Option<Payload> {
         let (w, n, n2) = (v.w, v.n, v.n * v.n);
         let p = &w.flora.p;
-        let mut order: Vec<usize> = (0..p.species()).collect();
-        order.sort_by_key(|&s| (std::cmp::Reverse(p.level[s]), s));
-        for s in order {
-            if p.level[s] < 2 // undergrowth, shrubs and trees (D-087, D-142)
-                || !w.economy.is_unlocked(self.player, s)
-                || !self.can_pay(v, s, disc_cells(self.radius) / 2)
-            {
-                continue;
-            }
-            let good = |k: usize| {
-                w.state.owner[k] == self.player
-                    && w.state.bio[s * n2 + k] == 0
-                    && w.flora.suitability(&w.state, s, k) >= i64::from(ONE) / 2
-            };
-            // Easy grows its tall plants at home; normal and hard push them onto the front.
-            let toward = if self.level == Level::Easy {
-                v.home
+        let half = i64::from(ONE) / 2;
+        let plants: Vec<usize> = (0..p.species())
+            .filter(|&s| {
+                w.economy.is_unlocked(self.player, s)
+                    && self.can_pay(v, s, disc_cells(self.radius) / 2)
+            })
+            .collect();
+        if plants.is_empty() {
+            return None;
+        }
+        let offence = |k: usize| {
+            self.level != Level::Easy
+                && neighbours(k, n).any(|e| {
+                    w.state.owner[e] == 3 - self.player
+                        && v.margin[e] <= 0
+                        && v.margin[e] + Bot::one(v, e) > 0
+                })
+        };
+        let mut cells: Vec<(u8, i64, usize, usize)> = (0..n2)
+            .filter(|&k| w.state.owner[k] == self.player)
+            .map(|k| {
+                if v.push[k] > 0 {
+                    (0, -v.push[k], dist2(k, n, v.enemy), k)
+                } else if offence(k) {
+                    (1, 0, dist2(k, n, v.enemy), k)
+                } else {
+                    (2, 0, dist2(k, n, v.home), k)
+                }
+            })
+            .collect();
+        cells.sort_unstable();
+        let price = |s: usize| w.economy.unit_cost(s, false);
+        for (tier, _, _, k) in cells {
+            let fit = plants.iter().copied().filter(|&s| {
+                w.state.bio[s * n2 + k] == 0
+                    && !w.flora.tree_barred(&w.state, s, k, self.player)
+                    && w.flora.suitability(&w.state, s, k) >= half
+            });
+            // At home, every other decision the tallest plant (biomass, income), else the fastest
+            // grower (it counts in the strength soonest; D-225).
+            let s = if tier < 2 {
+                fit.min_by_key(|&s| (price(s), s))
+            } else if self.turn.is_multiple_of(2) {
+                fit.max_by_key(|&s| (p.level[s], Reverse(s)))
             } else {
-                v.enemy
+                fit.max_by_key(|&s| (p.rdt[s], Reverse(s)))
             };
-            if let Some(k) = (0..n2)
-                .filter(|&k| good(k))
-                .min_by_key(|&k| (dist2(k, n, toward), k))
-            {
+            if let Some(s) = s {
                 return Some(self.plant(&p.names[s], k, n));
             }
         }
@@ -714,15 +1131,16 @@ impl Bot {
         }
         let at = self.own_near(v, v.home)?;
         let food = |s: usize| self.varied(v, s, Bot::food_for(v, s, &v.intel.own_plants));
-        let s = self.pick(v, Role::Herbivore, self.level.aggression().3, food, at)?;
+        let cards = (self.level.aggression().3 * self.weights[ARMY] / ARMY_REF).clamp(2, 16);
+        let s = self.pick(v, Role::Herbivore, cards, food, at)?;
         Some(self.spawn(v, s, at))
     }
 
     /// A raid by drop (×1.5, D-061): the raid grazer (`raider`, D-192), dropped on the enemy cell
-    /// with its food nearest home. Normal and hard, at their drop pace (D-148), once the raid
-    /// fund that `spare` keeps holds the drop's price.
+    /// with its food nearest the breach (D-228). Normal and hard, at their drop pace (D-148,
+    /// scaled by the army weight), once the raid fund that `spare` keeps holds the drop's price.
     fn drop_raiders(&self, v: &View) -> Option<Payload> {
-        let every = self.level.aggression().2?;
+        let every = self.paced(self.level.aggression().2?);
         if !self.every(v, every) {
             return None;
         }
@@ -737,9 +1155,10 @@ impl Bot {
                 && (0..w.flora.p.species())
                     .any(|j| fa.eats_plant(s, j) && w.state.bio[j * n2 + k] >= 1)
         };
+        let aim = self.breach(v).map_or(v.home, |b| (b / n, b % n));
         let k = (0..n2)
             .filter(|&k| food(k))
-            .min_by_key(|&k| (dist2(k, n, v.home), k))?;
+            .min_by_key(|&k| (dist2(k, n, aim), k))?;
         Some(Payload::Spawn {
             species: fa.names[s].clone(),
             row: u32::try_from(k / n).unwrap_or(0),
@@ -782,10 +1201,15 @@ impl Bot {
             };
             let at = (k / n, k % n);
             let rank = |h: usize| fa.prey_rank(h, q);
+            let guard = if self.posture == Some(Posture::Rush) {
+                RUSH_GUARD
+            } else {
+                0
+            };
             if let Some(h) = self.pick(
                 v,
                 Role::Predator,
-                DEFEND_CARDS,
+                DEFEND_CARDS + guard,
                 |h| rank(h).map_or(0, |r| 3 - i64::try_from(r).unwrap_or(2)),
                 at,
             ) {
@@ -898,11 +1322,11 @@ impl Bot {
         None
     }
 
-    /// At the level's raid pace, with a large enough herd of units (D-148): own herbivores
-    /// attack-move to the enemy land nearest home.
+    /// At the level's raid pace (scaled by the army weight, D-228), with a large enough herd of
+    /// units (D-148): own herbivores attack-move to the breach.
     fn raid(&self, v: &View) -> Option<Payload> {
         let (every, herd, ..) = self.level.aggression();
-        if !self.every(v, every) {
+        if !self.every(v, self.paced(every)) {
             return None;
         }
         let (w, n) = (v.w, v.n);
@@ -913,9 +1337,7 @@ impl Bot {
             })
             .map(|i| a.id[i])
             .collect();
-        let target = (0..n * n)
-            .filter(|&k| w.state.owner[k] == 3 - self.player)
-            .min_by_key(|&k| (dist2(k, n, v.home), k))?;
+        let target = self.breach(v)?;
         let units = ids
             .iter()
             .filter(|&&id| {
@@ -928,6 +1350,39 @@ impl Bot {
             kind: OrderKind::Attack,
             row: u32::try_from(target / n).unwrap_or(0),
             col: u32::try_from(target % n).unwrap_or(0),
+        })
+    }
+
+    /// The raid target (D-225, D-228): an enemy cell next to own land that one species grazed out
+    /// would flip (margin <= 0 < margin + one species); an army-heavy bot takes the strongest such
+    /// stack (concentrated value), the others the one closest to falling. Else the enemy cell next
+    /// to own land closest to falling; else the enemy land nearest home.
+    fn breach(&self, v: &View) -> Option<usize> {
+        let (w, n) = (v.w, v.n);
+        let enemy = |k: usize| w.state.owner[k] == 3 - self.player;
+        let front: Vec<usize> = (0..n * n)
+            .filter(|&k| enemy(k) && neighbours(k, n).any(|m| w.state.owner[m] == self.player))
+            .collect();
+        let rush = self.weights[ARMY] >= 50;
+        let tips = front
+            .iter()
+            .copied()
+            .filter(|&e| v.margin[e] <= 0 && v.margin[e] + Bot::one(v, e) > 0);
+        let best = if rush {
+            tips.max_by_key(|&e| (v.strength[e], Reverse(e)))
+        } else {
+            tips.max_by_key(|&e| (v.margin[e], Reverse(e)))
+        };
+        best.or_else(|| {
+            front
+                .iter()
+                .copied()
+                .max_by_key(|&e| (v.margin[e], Reverse(e)))
+        })
+        .or_else(|| {
+            (0..n * n)
+                .filter(|&k| enemy(k))
+                .min_by_key(|&k| (dist2(k, n, v.home), k))
         })
     }
 
@@ -1007,6 +1462,71 @@ impl Bot {
     }
 }
 
+/// The budget a card's commands come out of (D-228): spreaders land, other plants and recyclers
+/// depth, grazers army; hunters none (they answer threats).
+fn category(w: &World, i: usize) -> Option<usize> {
+    let plants = w.flora.p.species();
+    if i < plants {
+        return Some(if SPREADERS.contains(&w.flora.p.names[i].as_str()) {
+            LAND
+        } else {
+            DEPTH
+        });
+    }
+    match w.fauna.p.role[i - plants] {
+        Role::Herbivore => Some(ARMY),
+        Role::Decomposer => Some(DEPTH),
+        Role::Predator => None,
+    }
+}
+
+/// The front for `me` (D-225): strength per cell; the enemy's push over own cells; on enemy
+/// cells, the margin (the summed strength of `me`'s neighbouring cells less the cell's own).
+fn front(w: &World, me: u8) -> (Vec<i64>, Vec<i64>, Vec<i64>) {
+    let n = w.state.n;
+    let n2 = n * n;
+    let strength: Vec<i64> = (0..n2).map(|k| w.flora.strength(&w.state, k)).collect();
+    let push = w.flora.push(&w.state);
+    let margin = (0..n2)
+        .map(|k| {
+            if w.state.owner[k] == 3 - me {
+                neighbours(k, n)
+                    .filter(|&m| w.state.owner[m] == me)
+                    .map(|m| strength[m])
+                    .sum::<i64>()
+                    - strength[k]
+            } else {
+                0
+            }
+        })
+        .collect();
+    (strength, push, margin)
+}
+
+/// The cells within `r` (Euclidean) of cell `k` on an `n x n` map.
+fn disc(k: usize, n: usize, r: usize) -> impl Iterator<Item = usize> {
+    let (row, col) = (k / n, k % n);
+    (row.saturating_sub(r)..(row + r + 1).min(n)).flat_map(move |y| {
+        (col.saturating_sub(r)..(col + r + 1).min(n))
+            .filter(move |&x| y.abs_diff(row).pow(2) + x.abs_diff(col).pow(2) <= r * r)
+            .map(move |x| y * n + x)
+    })
+}
+
+/// Cells within `r` (Chebyshev) of `player`'s land.
+fn dilate(w: &World, n: usize, player: u8, r: usize) -> Vec<bool> {
+    let mut near = vec![false; n * n];
+    for k in (0..n * n).filter(|&k| w.state.owner[k] == player) {
+        let (row, col) = (k / n, k % n);
+        for y in row.saturating_sub(r)..(row + r + 1).min(n) {
+            for x in col.saturating_sub(r)..(col + r + 1).min(n) {
+                near[y * n + x] = true;
+            }
+        }
+    }
+    near
+}
+
 /// Cells of a plant disc of radius `r` (about π r²; enough to decide affordability).
 fn disc_cells(r: u32) -> i64 {
     let r = i64::from(r);
@@ -1043,7 +1563,6 @@ fn neighbours(k: usize, n: usize) -> impl Iterator<Item = usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sim_core::balance::Balance;
     use sim_core::commands::Command;
 
     fn balance() -> Balance {
@@ -1090,7 +1609,7 @@ mod tests {
     #[test]
     fn a_bot_outgrows_an_idle_player_and_its_orders_are_well_formed() {
         let b = balance();
-        let mut bots = [Bot::new(2, Level::Normal, b.flora.plant_radius)];
+        let mut bots = [Bot::new(2, Level::Normal, Style::Balanced, &b)];
         let (w, _) = play(&mut bots, 6);
         let t = w.territory();
         assert!(t[1] > t[0], "bot territory {} vs idle {}", t[1], t[0]);
@@ -1106,7 +1625,7 @@ mod tests {
         let n = usize::try_from(b.sim.grid_size).unwrap();
         let mut w = World::new(&b, 1, n);
         w.generate_terrain(&sim_core::terrain::TerrainParams::from_balance(&b), 1);
-        let mut bot = Bot::new(2, Level::Easy, b.flora.plant_radius);
+        let mut bot = Bot::new(2, Level::Easy, Style::Balanced, &b);
         for seq in 0..600 {
             for payload in bot.think(&w) {
                 w.submit(Command {
@@ -1121,7 +1640,7 @@ mod tests {
         assert!(w.territory()[1] > 0, "the bot spawned and holds land");
         let mut early = World::new(&b, 1, n);
         early.generate_terrain(&sim_core::terrain::TerrainParams::from_balance(&b), 1);
-        let mut bot = Bot::new(2, Level::Hard, b.flora.plant_radius);
+        let mut bot = Bot::new(2, Level::Hard, Style::Balanced, &b);
         for _ in 0..Level::Hard.found_after() {
             assert!(
                 bot.think(&early).is_empty(),
@@ -1135,9 +1654,14 @@ mod tests {
     #[test]
     fn bot_matches_replay_identically() {
         let b = balance();
-        let r = b.flora.plant_radius;
-        let mut a = [Bot::new(1, Level::Hard, r), Bot::new(2, Level::Easy, r)];
-        let mut c = [Bot::new(1, Level::Hard, r), Bot::new(2, Level::Easy, r)];
+        let mut a = [
+            Bot::new(1, Level::Hard, Style::Balanced, &b),
+            Bot::new(2, Level::Easy, Style::Balanced, &b),
+        ];
+        let mut c = [
+            Bot::new(1, Level::Hard, Style::Balanced, &b),
+            Bot::new(2, Level::Easy, Style::Balanced, &b),
+        ];
         assert_eq!(play(&mut a, 3).1, play(&mut c, 3).1);
     }
 
@@ -1177,7 +1701,10 @@ mod tests {
                 },
             );
         }
-        w.step();
+        // A minute for the planted grass to establish (D-225: raiders land on food).
+        for _ in 0..600 {
+            w.step();
+        }
         for &(c, row, col) in calls {
             send(
                 &mut w,
@@ -1189,7 +1716,7 @@ mod tests {
                 },
             );
         }
-        let mut bot = Bot::new(2, level, b.flora.plant_radius);
+        let mut bot = Bot::new(2, level, Style::Balanced, &b);
         let mut sent = Vec::new();
         for _ in 0..secs * 10 {
             for payload in bot.think(&w) {
@@ -1305,7 +1832,7 @@ mod tests {
                     .unwrap_or_else(|e| panic!("{name}: {e}"));
             }
             w.submit(Command {
-                tick: 0,
+                tick: 590, // once the grass is established (D-225)
                 player: 2,
                 seq: 1000,
                 payload: Payload::Spawn {
@@ -1351,7 +1878,7 @@ mod tests {
         );
         w.setup_plant(2, "lichen_and_moss", r, c, 3);
         w.economy.bank[1] = 1_000_000 << 16;
-        let mut bot = Bot::new(2, Level::Hard, b.flora.plant_radius);
+        let mut bot = Bot::new(2, Level::Hard, Style::Balanced, &b);
         for seq in 0..10 * 60 * 10 {
             for payload in bot.think(&w) {
                 w.submit(Command {
@@ -1385,7 +1912,7 @@ mod tests {
         for seed in 1..=10 {
             let mut w = World::new(&b, seed, n);
             w.generate_terrain(&tp, seed);
-            let mut bot = Bot::new(2, Level::Hard, b.flora.plant_radius);
+            let mut bot = Bot::new(2, Level::Hard, Style::Balanced, &b);
             let at = (0..400).find_map(|_| {
                 let first = bot.think(&w).into_iter().find_map(|p| match p {
                     Payload::Plant { row, col, .. } => Some((row as usize, col as usize)),
@@ -1402,13 +1929,285 @@ mod tests {
     }
 
     /// How a full match goes, for tuning by hand:
+    /// A 38 x 38 sandbox world on developed soil (everything unlocked and free, D-058): `owner`
+    /// gives each cell's owner (0: neutral), `plants` its species at full cover.
+    fn painted(
+        b: &Balance,
+        owner: &dyn Fn(usize, usize) -> u8,
+        plants: &dyn Fn(usize, usize) -> Vec<&'static str>,
+    ) -> World {
+        let n = 38;
+        let mut w = World::new(b, 1, n);
+        w.economy.sandbox = true;
+        w.state.soil.fill(sim_core::flora::U16);
+        let n2 = n * n;
+        for k in 0..n2 {
+            let (r, c) = (k / n, k % n);
+            w.state.owner[k] = owner(r, c);
+            if w.state.owner[k] == 0 {
+                continue;
+            }
+            for name in plants(r, c) {
+                let s = w.flora.p.index(name).unwrap();
+                w.state.bio[s * n2 + k] = w.flora.p.kmax[s];
+                w.state.gauge[s * n2 + k] = i64::from(ONE);
+            }
+        }
+        w
+    }
+
+    /// D-225, D-228: the bot adds a species first where the enemy pushes it, not at home.
+    #[test]
+    fn deepen_defends_a_pushed_front_cell_first() {
+        let b = balance();
+        // The bot (P2) holds rows 19 and down in grass only; P1 above in grass and lichen: every
+        // bot cell of row 19 is pushed (2 species against 1).
+        let w = painted(&b, &|r, _| if r >= 19 { 2 } else { 1 }, &|r, _| {
+            if r >= 19 {
+                vec!["grasses"]
+            } else {
+                vec!["grasses", "lichen_and_moss"]
+            }
+        });
+        let mut bot = Bot::new(2, Level::Normal, Style::Tall, &b);
+        let v = bot.view(&w);
+        assert!(v.push[19 * 38 + 5] > 0, "the front row is pushed");
+        match bot.deepen(&v) {
+            Some(Payload::Plant { row, .. }) => assert_eq!(row, 19, "on the pushed row"),
+            other => panic!("expected a plant, got {other:?}"),
+        }
+    }
+
+    /// D-225, D-228: the raid goes where grazing one species out flips the cell.
+    #[test]
+    fn raids_aim_at_the_breach() {
+        let b = balance();
+        // P1 (rows up to 18) holds three species per cell, but cell (18, 25) only two; the bot
+        // (rows 19 and down) two. Only (18, 25) falls if one species is grazed out.
+        let w = painted(&b, &|r, _| if r >= 19 { 2 } else { 1 }, &|r, c| {
+            if r >= 19 || (r, c) == (18, 25) {
+                vec!["grasses", "lichen_and_moss"]
+            } else {
+                vec!["grasses", "lichen_and_moss", "wildflowers"]
+            }
+        });
+        for style in [Style::Balanced, Style::Rush] {
+            let mut bot = Bot::new(2, Level::Normal, style, &b);
+            let v = bot.view(&w);
+            assert_eq!(bot.breach(&v), Some(18 * 38 + 25), "{style:?}");
+        }
+    }
+
+    /// D-228: a land-heavy bot claims open ground: its plant disc lands on free cells, clear of
+    /// the enemy. A bot facing a wide enemy encircles: free cells touching the most enemy cells
+    /// first. Otherwise it spreads toward the enemy's centre.
+    #[test]
+    fn wide_claims_and_a_bot_facing_wide_encircles() {
+        let b = balance();
+        // The bot holds rows 20 and down. P1 has a small bulge at (19, 10), (18, 9), (18, 11),
+        // and its main land in the top right corner.
+        let p1 = |r: usize, c: usize| {
+            [(19, 10), (18, 9), (18, 11)].contains(&(r, c)) || (r < 6 && c > 30)
+        };
+        let w = painted(
+            &b,
+            &|r, c| {
+                if r >= 20 {
+                    2
+                } else if p1(r, c) {
+                    1
+                } else {
+                    0
+                }
+            },
+            &|_, _| vec!["grasses"],
+        );
+        let enemies = |row: u32, col: u32| {
+            let k = row as usize * 38 + col as usize;
+            neighbours(k, 38).filter(|&m| w.state.owner[m] == 1).count()
+        };
+        let planted = |bot: &mut Bot| {
+            let v = bot.view(&w);
+            match bot.expand(&v) {
+                Some(Payload::Plant { row, col, .. }) => (row, col),
+                other => panic!("expected a plant, got {other:?}"),
+            }
+        };
+        let (row, col) = planted(&mut Bot::new(2, Level::Normal, Style::Wide, &b));
+        let k = row as usize * 38 + col as usize;
+        assert_eq!(w.state.owner[k], 0, "a free cell");
+        assert!(row < 20, "beyond its land: ({row}, {col})");
+        let r = usize::try_from(b.flora.plant_radius).unwrap();
+        assert!(
+            disc(k, 38, r + 1).all(|m| w.state.owner[m] != 1),
+            "clear of the enemy: ({row}, {col})"
+        );
+        let mut facing = Bot::new(2, Level::Normal, Style::Balanced, &b);
+        facing.posture = Some(Posture::Wide);
+        let (row, col) = planted(&mut facing);
+        assert_eq!(enemies(row, col), 2, "encircles at ({row}, {col})");
+        let (row, col) = planted(&mut Bot::new(2, Level::Normal, Style::Tall, &b));
+        assert!(
+            enemies(row, col) < 2,
+            "tall heads for the centre: ({row}, {col})"
+        );
+    }
+
+    /// D-228: facing a tall enemy, hard shifts its full step toward army, normal half, easy none;
+    /// a style keeps at least MIN_WEIGHT in every category.
+    #[test]
+    fn adaptation_shifts_toward_the_counter_by_level() {
+        let b = balance();
+        let tall = [
+            "grasses",
+            "lichen_and_moss",
+            "wildflowers",
+            "ferns",
+            "nettle",
+        ];
+        let w = painted(&b, &|r, _| if r >= 19 { 2 } else { 1 }, &|r, _| {
+            if r >= 19 {
+                vec!["grasses"]
+            } else {
+                tall.to_vec()
+            }
+        });
+        for (level, gain) in [(Level::Easy, 0), (Level::Normal, 12), (Level::Hard, 24)] {
+            let mut bot = Bot::new(2, level, Style::Balanced, &b);
+            let base = bot.weights;
+            let v = bot.view(&w);
+            bot.adapt_to(&v);
+            assert_eq!(bot.weights[ARMY] - base[ARMY], gain, "{level:?}");
+            assert_eq!(bot.weights.iter().sum::<i64>(), 100);
+            if gain > 0 {
+                assert_eq!(bot.posture, Some(Posture::Tall));
+            }
+        }
+        let mut rush = Bot::new(2, Level::Hard, Style::Rush, &b);
+        let v = rush.view(&w);
+        rush.adapt_to(&v);
+        assert!(
+            rush.weights.iter().all(|&x| x >= MIN_WEIGHT),
+            "{:?}",
+            rush.weights
+        );
+    }
+
+    /// D-228: over a match each style puts a larger share of its spending on its own category
+    /// than the other styles do, and the tall style stacks more species per cell than the wide.
+    #[test]
+    fn each_style_leans_on_its_own_category() {
+        let b = balance();
+        let styles = [Style::Wide, Style::Tall, Style::Rush];
+        let mut share = Vec::new();
+        let mut depth = Vec::new();
+        for style in styles {
+            let mut bots = [
+                Bot::new(1, Level::Normal, Style::Balanced, &b),
+                Bot::new(2, Level::Normal, style, &b),
+            ];
+            bots[1].adapt = false;
+            let (w, _) = play(&mut bots, 8);
+            let spent = bots[1].spent;
+            let total: i64 = spent.iter().sum::<i64>().max(1);
+            share.push(spent.map(|x| x * 100 / total));
+            let own: Vec<usize> = (0..w.state.owner.len())
+                .filter(|&k| w.state.owner[k] == 2)
+                .collect();
+            let species: i64 = own
+                .iter()
+                .map(|&k| w.flora.species_count(&w.state, k))
+                .sum();
+            depth.push(species * 100 / i64::try_from(own.len().max(1)).unwrap());
+        }
+        for (i, style) in styles.iter().enumerate() {
+            for j in (0..3).filter(|&j| j != i) {
+                assert!(
+                    share[i][i] > share[j][i],
+                    "{style:?} {:?} against {:?} {:?}",
+                    share[i],
+                    styles[j],
+                    share[j]
+                );
+            }
+        }
+        assert!(
+            depth[1] > depth[0],
+            "tall {} vs wide {} species per cell (x100)",
+            depth[1],
+            depth[0]
+        );
+    }
+
+    /// D-228: each style against an idle player, minute by minute: land, the spending split,
+    /// species per own cell, bank. `cargo test -p sim-ai --release -- --ignored --nocapture
+    /// style_report`.
+    #[test]
+    #[ignore = "report, run by hand in release"]
+    fn style_report() {
+        let b = balance();
+        for style in Style::ALL {
+            let mut bots = [Bot::new(2, Level::Normal, style, &b)];
+            bots[0].adapt = false;
+            let mut line = format!("{:<9}", style.name());
+            let (mut w, _) = play(&mut bots, 0);
+            for minute in 1..=10 {
+                w = advance(w, &mut bots, 1);
+                if minute % 2 == 0 {
+                    let own: Vec<usize> = (0..w.state.owner.len())
+                        .filter(|&k| w.state.owner[k] == 2)
+                        .collect();
+                    let depth: i64 = own
+                        .iter()
+                        .map(|&k| w.flora.species_count(&w.state, k))
+                        .sum();
+                    let t = w.territory();
+                    let total = bots[0].spent.iter().sum::<i64>().max(1);
+                    let split = bots[0].spent.map(|x| x * 100 / total);
+                    line += &format!(
+                        " | {minute}m {}v{} sp {:.1} {split:?} bank {}",
+                        t[1],
+                        t[0],
+                        depth as f64 / own.len().max(1) as f64,
+                        w.economy.bank[1] >> 16
+                    );
+                }
+            }
+            println!("{line}");
+        }
+    }
+
+    /// Step `w` for `minutes` with `bots` playing.
+    fn advance(mut w: World, bots: &mut [Bot], minutes: u64) -> World {
+        let mut seq = [1u32 << 20; 2];
+        for _ in 0..minutes * 600 {
+            for bot in bots.iter_mut() {
+                for payload in bot.think(&w) {
+                    let player = bot.player;
+                    let s = &mut seq[usize::from(player - 1)];
+                    w.submit(Command {
+                        tick: w.tick,
+                        player,
+                        seq: *s,
+                        payload,
+                    });
+                    *s += 1;
+                }
+            }
+            w.step();
+        }
+        w
+    }
+
     /// `cargo test -p sim-ai --release -- --ignored --nocapture bot_report`.
     #[test]
     #[ignore = "report, run by hand in release"]
     fn bot_report() {
         let b = balance();
-        let r = b.flora.plant_radius;
-        let mut bots = [Bot::new(1, Level::Normal, r), Bot::new(2, Level::Hard, r)];
+        let mut bots = [
+            Bot::new(1, Level::Normal, Style::Balanced, &b),
+            Bot::new(2, Level::Hard, Style::Balanced, &b),
+        ];
         let (w, _) = play(&mut bots, 20);
         let (t, s) = (w.territory(), w.standing());
         for p in 0..2 {

@@ -3,13 +3,15 @@
 //! fastest; how many animals are on the map; how it ends), printed as one compact table.
 //!
 //! sim-cli bench --seeds N [--size 32] [--p1 normal] [--p2 hard] [--minutes 45] [--threads K]
+//! A seat is `level[:style[:locked]]` (D-228), e.g. `hard:wide`; `locked` turns adaptation off.
+//! `--matrix <level>`: every style pair, both seats; `--ladder <style>`: the three levels.
 //! TRACE=<minute> prints seed 1's unlocks, census and notices at that minute (to stderr).
 
 use std::fmt::Write as _;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use sim_ai::{Bot, Level};
+use sim_ai::{Bot, Level, Style};
 use sim_core::balance::Balance;
 use sim_core::commands::{Command, Payload};
 use sim_core::fauna::Role;
@@ -22,6 +24,47 @@ const SAMPLE: u64 = HZ;
 const GROWTH_EVERY: u64 = 30 * HZ;
 /// Minutes at which the animals on the map are counted.
 const COUNT_AT: [u64; 3] = [10, 20, 30];
+/// A land lead counts from this share of the map (%, D-228): smaller leads change nothing.
+const LEAD_MIN: usize = 2;
+/// Minutes over which the front's churn is measured at the end of a match (gamerules §11.5).
+const CHURN_MIN: usize = 5;
+/// A cell retaken by the owner who lost it within this many seconds "flips back" (D-230).
+const FLIP_S: u64 = 10;
+
+/// A player's bot (D-228): its level, its style, and whether it adapts to the enemy.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Seat {
+    pub level: Level,
+    pub style: Style,
+    pub adapt: bool,
+}
+
+impl Seat {
+    /// `level[:style[:locked]]`, e.g. `hard:wide:locked`; the style defaults to balanced.
+    #[must_use]
+    pub fn parse(s: &str) -> Option<Seat> {
+        let mut parts = s.split(':');
+        let level = Level::parse(parts.next()?)?;
+        let style = parts.next().map_or(Some(Style::Balanced), Style::parse)?;
+        let adapt = match parts.next() {
+            None => true,
+            Some("locked") => false,
+            Some(_) => return None,
+        };
+        parts.next().is_none().then_some(Seat {
+            level,
+            style,
+            adapt,
+        })
+    }
+
+    #[must_use]
+    pub fn label(&self) -> String {
+        let level = format!("{:?}", self.level).to_lowercase();
+        let lock = if self.adapt { "" } else { ":locked" };
+        format!("{level}:{}{lock}", self.style.name())
+    }
+}
 
 /// One match, seen from both players. Times in seconds (None: never).
 #[derive(Clone, Debug, Default)]
@@ -68,23 +111,99 @@ pub struct Markers {
     pub water: bool,
     pub aquatic: [[bool; 3]; 2],
     pub water_calls: u64,
+    /// Land lead changes (D-228): the leader switching sides, leads under LEAD_MIN % ignored;
+    /// who led at 10 min (0: nobody by LEAD_MIN %).
+    pub lead_changes: u64,
+    pub leader10: u8,
+    /// Cells that changed owner over the last CHURN_MIN minutes, summed minute by minute.
+    pub churn: u64,
+    /// Style fingerprints at 10 min (D-228): species per own cell (x100), own animals on enemy
+    /// land.
+    pub depth10: [u64; 2],
+    pub away10: [u64; 2],
+    /// Species per own cell (x100) at 20 min: deep play shows later (D-228).
+    pub depth20: [u64; 2],
+    /// At the end: the spending split (% land, depth, army), weight shifts, and the mean time
+    /// of one bot decision (µs).
+    pub split: [[u64; 3]; 2],
+    pub shifts: [u32; 2],
+    pub think_us: [u64; 2],
+    /// Cells on the map.
+    pub cells: u64,
+    /// Cells retaken by their former owner within FLIP_S seconds of losing them (D-230).
+    pub flips_back: u64,
+}
+
+impl Markers {
+    /// The match's points per seat (D-228): 1 for a win, 0 for a loss, half each for a draw or
+    /// a match still running at the end.
+    #[must_use]
+    pub fn points(&self) -> [u32; 2] {
+        match self.end {
+            Some((1, ..)) => [2, 0],
+            Some((2, ..)) => [0, 2],
+            _ => [1, 1],
+        }
+    }
 }
 
 /// Enemy grazers on own land that make a raid (D-190), and seconds without them that end it.
 const RAID_SIZE: usize = 3;
 const RAID_GONE_S: u64 = 30;
 
+/// Who leads on land (D-228): the player ahead by LEAD_MIN % of the `n2` cells or more; within
+/// that margin, the previous leader stays (0: nobody yet).
+#[must_use]
+pub fn lead(was: u8, p1: usize, p2: usize, n2: usize) -> u8 {
+    let margin = n2 * LEAD_MIN / 100;
+    if p1 >= p2 + margin.max(1) {
+        1
+    } else if p2 >= p1 + margin.max(1) {
+        2
+    } else {
+        was
+    }
+}
+
+/// Count the cells that flip back (D-230): retaken by the owner who lost them within FLIP_S
+/// seconds. `lost[k]` keeps who last lost cell `k` and when (second `now`).
+pub fn flips_back(prev: &[u8], now: &[u8], lost: &mut [(u8, u64)], second: u64) -> u64 {
+    let mut flips = 0;
+    for k in 0..now.len() {
+        if prev[k] == now[k] {
+            continue;
+        }
+        let (who, at) = lost[k];
+        if now[k] != 0 && now[k] == who && second - at <= FLIP_S {
+            flips += 1;
+        }
+        if prev[k] != 0 {
+            lost[k] = (prev[k], second);
+        }
+    }
+    flips
+}
+
 /// Play one bot-vs-bot match on a generated map of `size`, for at most `minutes`.
 #[must_use]
-pub fn play(b: &Balance, seed: u64, size: usize, levels: [Level; 2], minutes: u64) -> Markers {
+#[allow(clippy::too_many_lines)] // one marker per block
+pub fn play(b: &Balance, seed: u64, size: usize, seats: [Seat; 2], minutes: u64) -> Markers {
     let mut w = World::new(b, seed, size);
     w.generate_terrain(&TerrainParams::from_balance(b), seed);
-    w.set_income_factor(1, levels[0].income(b));
-    w.set_income_factor(2, levels[1].income(b));
-    let mut bots = [
-        Bot::new(1, levels[0], b.flora.plant_radius),
-        Bot::new(2, levels[1], b.flora.plant_radius),
-    ];
+    w.set_income_factor(1, seats[0].level.income(b));
+    w.set_income_factor(2, seats[1].level.income(b));
+    let mut bots = [1u8, 2].map(|p| {
+        let seat = seats[usize::from(p - 1)];
+        let mut bot = Bot::new(p, seat.level, seat.style, b);
+        bot.adapt = seat.adapt;
+        bot
+    });
+    let mut leader = 0u8;
+    let mut last_owner = vec![0u8; size * size];
+    let mut sampled = vec![0u8; size * size];
+    let mut lost = vec![(0u8, 0u64); size * size];
+    let mut churn: std::collections::VecDeque<u64> = std::collections::VecDeque::new();
+    let mut think_ns = [0u128; 2];
     // Tiers outside the herbs: the herb ladder is the early economy, cheap by design.
     let tier = |i: usize| {
         let plants = b.flora_species.len();
@@ -114,6 +233,7 @@ pub fn play(b: &Balance, seed: u64, size: usize, levels: [Level; 2], minutes: u6
             .ground
             .iter()
             .any(|&g| g == sim_core::terrain::SHALLOW || g == sim_core::terrain::DEEP),
+        cells: n2 as u64,
         ..Markers::default()
     };
     let family = |s: usize| b.fauna_species[s].1.family.as_str();
@@ -129,8 +249,11 @@ pub fn play(b: &Balance, seed: u64, size: usize, levels: [Level; 2], minutes: u6
         }
     };
     for _ in 0..minutes * 60 * HZ {
-        for bot in &mut bots {
-            for payload in bot.think(&w) {
+        for (bi, bot) in bots.iter_mut().enumerate() {
+            let t0 = std::time::Instant::now();
+            let payloads = bot.think(&w);
+            think_ns[bi] += t0.elapsed().as_nanos();
+            for payload in payloads {
                 let p = bot.player;
                 if let Payload::Order {
                     kind: sim_core::commands::OrderKind::Attack,
@@ -194,6 +317,32 @@ pub fn play(b: &Balance, seed: u64, size: usize, levels: [Level; 2], minutes: u6
         w.step();
         let now = w.tick / HZ;
         if w.tick.is_multiple_of(SAMPLE) {
+            m.flips_back += flips_back(&sampled, &w.state.owner, &mut lost, now);
+            sampled.clone_from(&w.state.owner);
+            // The land lead (D-228), with LEAD_MIN % of hysteresis.
+            let held = |p: u8| w.state.owner.iter().filter(|&&o| o == p).count();
+            let now_leads = lead(leader, held(1), held(2), n2);
+            if leader != 0 && now_leads != leader {
+                m.lead_changes += 1;
+            }
+            leader = now_leads;
+            if now == 600 {
+                m.leader10 = leader;
+            }
+            if now.is_multiple_of(60) {
+                let changed = w
+                    .state
+                    .owner
+                    .iter()
+                    .zip(&last_owner)
+                    .filter(|(x, y)| x != y)
+                    .count();
+                churn.push_back(changed as u64);
+                if churn.len() > CHURN_MIN {
+                    churn.pop_front();
+                }
+                last_owner.clone_from(&w.state.owner);
+            }
             for p in 0..2 {
                 let player = u8::try_from(p + 1).unwrap_or(1);
                 let census = w.fauna.census(player);
@@ -295,6 +444,30 @@ pub fn play(b: &Balance, seed: u64, size: usize, levels: [Level; 2], minutes: u6
                         m.share[j][p] = u64::try_from(held * 100 / n2).unwrap_or(0);
                     }
                 }
+                if now == 1200 {
+                    let own: Vec<usize> = (0..n2).filter(|&k| w.state.owner[k] == player).collect();
+                    let species: i64 = own
+                        .iter()
+                        .map(|&k| w.flora.species_count(&w.state, k))
+                        .sum();
+                    m.depth20[p] =
+                        u64::try_from(species * 100 / own.len().max(1) as i64).unwrap_or(0);
+                }
+                if now == 600 {
+                    let own: Vec<usize> = (0..n2).filter(|&k| w.state.owner[k] == player).collect();
+                    let species: i64 = own
+                        .iter()
+                        .map(|&k| w.flora.species_count(&w.state, k))
+                        .sum();
+                    m.depth10[p] =
+                        u64::try_from(species * 100 / own.len().max(1) as i64).unwrap_or(0);
+                    let a = &w.fauna.agents;
+                    m.away10[p] = (0..a.len())
+                        .filter(|&j| {
+                            a.owner[j] == player && w.state.owner[a.cell(j, size)] == 3 - player
+                        })
+                        .count() as u64;
+                }
                 if now == 20 * 60 {
                     m.capped[p] = census
                         .iter()
@@ -322,6 +495,16 @@ pub fn play(b: &Balance, seed: u64, size: usize, levels: [Level; 2], minutes: u6
     }
     m.land = w.territory();
     m.unanswered += raids.iter().flatten().count() as u64;
+    m.churn = churn.iter().sum();
+    for (p, bot) in bots.iter().enumerate() {
+        let total: i64 = bot.spent.iter().sum::<i64>().max(1);
+        m.split[p] = bot
+            .spent
+            .map(|x| u64::try_from(x * 100 / total).unwrap_or(0));
+        m.shifts[p] = bot.shifts;
+        let decisions = u128::try_from(bot.decisions().max(1)).unwrap_or(1);
+        m.think_us[p] = u64::try_from(think_ns[p] / decisions / 1000).unwrap_or(u64::MAX);
+    }
     for p in 0..2 {
         for (i, &u) in w.economy.unlocked[p].iter().enumerate() {
             if !u {
@@ -351,7 +534,7 @@ pub fn run(
     b: &Balance,
     seeds: u64,
     size: usize,
-    levels: [Level; 2],
+    seats: [Seat; 2],
     minutes: u64,
     threads: usize,
 ) -> Vec<Markers> {
@@ -365,7 +548,7 @@ pub fn run(
                     if seed > seeds {
                         break;
                     }
-                    let m = play(b, seed, size, levels, minutes);
+                    let m = play(b, seed, size, seats, minutes);
                     out.lock().map(|mut v| v.push((seed, m))).ok();
                 }
             });
@@ -400,14 +583,14 @@ fn spread(values: &mut [u64], missing: usize) -> String {
 /// The compact table: one line per marker (p25 / median / p75 over both players of every match).
 #[must_use]
 #[allow(clippy::float_arithmetic, clippy::cast_precision_loss)] // report figures only
-pub fn summary(ms: &[Markers], levels: [Level; 2]) -> String {
+pub fn summary(ms: &[Markers], seats: [Seat; 2]) -> String {
     let mut t = String::new();
     let _ = writeln!(
         t,
-        "{} matches, {:?} vs {:?}            p25    med    p75",
+        "{} matches, {} vs {}            p25    med    p75",
         ms.len(),
-        levels[0],
-        levels[1]
+        seats[0].label(),
+        seats[1].label()
     );
     let mut line = |name: &str, pick: &dyn Fn(&Markers) -> [Option<u64>; 2]| {
         let all: Vec<Option<u64>> = ms.iter().flat_map(pick).collect();
@@ -610,5 +793,350 @@ pub fn summary(ms: &[Markers], levels: [Level; 2]) -> String {
         reasons(Reason::Territory),
         reasons(Reason::Biomass)
     );
+    let _ = write!(t, "{}", shape(ms));
+    let _ = write!(t, "{}", fingerprints(ms));
     t
+}
+
+/// The median of `v` (0 when empty).
+fn median(mut v: Vec<u64>) -> u64 {
+    v.sort_unstable();
+    v.get(v.len() / 2).copied().unwrap_or(0)
+}
+
+/// Match shape (D-228): lead changes, comebacks, stale ends.
+#[allow(clippy::float_arithmetic, clippy::cast_precision_loss)] // report figures only
+fn shape(ms: &[Markers]) -> String {
+    let leads: u64 = ms.iter().map(|m| m.lead_changes).sum();
+    let led: Vec<&Markers> = ms.iter().filter(|m| m.leader10 != 0).collect();
+    let back = led
+        .iter()
+        .filter(|m| m.end.is_some_and(|e| e.0 != 0 && e.0 != m.leader10))
+        .count();
+    let open: Vec<&Markers> = ms.iter().filter(|m| m.end.is_none()).collect();
+    let stale = open.iter().filter(|m| m.churn * 100 < 2 * m.cells).count();
+    let ends: Vec<u64> = ms.iter().filter_map(|m| m.end.map(|e| e.2)).collect();
+    let end = median(ends);
+    let flips: u64 = ms.iter().map(|m| m.flips_back).sum();
+    format!(
+        "shape: lead changes {:.1}/match; comeback {back}/{} ; stale ends {stale}/{} unfinished; median end {}:{:02}; flips back {:.0}/match\n",
+        leads as f64 / ms.len().max(1) as f64,
+        led.len(),
+        open.len(),
+        end / 60,
+        end % 60,
+        flips as f64 / ms.len().max(1) as f64
+    )
+}
+
+/// Style fingerprints per seat (D-228), medians: land at 10 min, species per own cell, animals
+/// on enemy land, the spending split, weight shifts, decision time.
+#[allow(clippy::float_arithmetic, clippy::cast_precision_loss)] // report figures only
+fn fingerprints(ms: &[Markers]) -> String {
+    let mut t = String::new();
+    for p in 0..2 {
+        let med = |f: &dyn Fn(&Markers) -> u64| median(ms.iter().map(f).collect());
+        let _ = writeln!(
+            t,
+            "P{}: land@10 {} %, species/cell {:.2}, on enemy land {}, split {}/{}/{}, shifts {}, think {} µs",
+            p + 1,
+            med(&|m| m.share[1][p]),
+            med(&|m| m.depth10[p]) as f64 / 100.0,
+            med(&|m| m.away10[p]),
+            med(&|m| m.split[p][0]),
+            med(&|m| m.split[p][1]),
+            med(&|m| m.split[p][2]),
+            med(&|m| u64::from(m.shifts[p])),
+            med(&|m| m.think_us[p]),
+        );
+    }
+    t
+}
+
+/// Points (%) of the row style against the column style, both seats pooled (D-228); and the
+/// points P1 took overall (%). `runs` holds (row style, column style, matches with the row
+/// style in seat 1).
+#[must_use]
+pub fn tally(runs: &[(usize, usize, Vec<Markers>)]) -> ([[u32; 4]; 4], u32) {
+    let (mut pts, mut games) = ([[0u32; 4]; 4], [[0u32; 4]; 4]);
+    let (mut p1, mut all) = (0u32, 0u32);
+    for (i, j, ms) in runs {
+        for m in ms {
+            let [a, c] = m.points();
+            pts[*i][*j] += a;
+            pts[*j][*i] += c;
+            games[*i][*j] += 2;
+            games[*j][*i] += 2;
+            p1 += a;
+            all += 2;
+        }
+    }
+    let mut table = [[0u32; 4]; 4];
+    for i in 0..4 {
+        for j in 0..4 {
+            table[i][j] = pts[i][j] * 100 / games[i][j].max(1);
+        }
+    }
+    (table, p1 * 100 / all.max(1))
+}
+
+/// The style matrix (D-228): every ordered pair of styles at `level`, `seeds` matches each.
+#[must_use]
+pub fn matrix(
+    b: &Balance,
+    seeds: u64,
+    size: usize,
+    level: Level,
+    minutes: u64,
+    threads: usize,
+) -> String {
+    let seat = |s: Style| Seat {
+        level,
+        style: s,
+        adapt: true,
+    };
+    let mut runs = Vec::new();
+    for (i, &a) in Style::ALL.iter().enumerate() {
+        for (j, &c) in Style::ALL.iter().enumerate() {
+            runs.push((
+                i,
+                j,
+                run(b, seeds, size, [seat(a), seat(c)], minutes, threads),
+            ));
+        }
+    }
+    let (table, p1) = tally(&runs);
+    let mut t = format!(
+        "style matrix at {level:?}, {seeds} seeds per ordered pair; points % of the row (win 1, draw or unfinished 1/2)\n{:<10}",
+        ""
+    );
+    for s in Style::ALL {
+        let _ = write!(t, "{:>9}", s.name());
+    }
+    let _ = writeln!(t, "{:>9}", "mean");
+    for (i, s) in Style::ALL.iter().enumerate() {
+        let _ = write!(t, "{:<10}", s.name());
+        for v in table[i] {
+            let _ = write!(t, "{v:>9}");
+        }
+        let others: u32 = (0..4).filter(|&j| j != i).map(|j| table[i][j]).sum();
+        let _ = writeln!(t, "{:>9}", others / 3);
+    }
+    let all: Vec<Markers> = runs.iter().flat_map(|r| r.2.iter().cloned()).collect();
+    let open = all.iter().filter(|m| m.end.is_none()).count();
+    let _ = writeln!(
+        t,
+        "P1 points {p1} % (seat bias {:+}); unfinished {} %",
+        i64::from(p1) - 50,
+        open * 100 / all.len().max(1)
+    );
+    let _ = write!(t, "{}", shape(&all));
+    // Fingerprints per style, from every seat it sat in.
+    for (i, s) in Style::ALL.iter().enumerate() {
+        let seated: Vec<(usize, &Markers)> = runs
+            .iter()
+            .flat_map(|(a, c, ms)| {
+                let mut v = Vec::new();
+                for m in ms {
+                    if *a == i {
+                        v.push((0, m));
+                    }
+                    if *c == i {
+                        v.push((1, m));
+                    }
+                }
+                v
+            })
+            .collect();
+        let med = |f: &dyn Fn(usize, &Markers) -> u64| {
+            median(seated.iter().map(|&(p, m)| f(p, m)).collect())
+        };
+        let _ = writeln!(
+            t,
+            "{:<9} land@10 {:>2} %  species/cell @10 {:>3} @20 {:>3}  on enemy land {:>3}  split {}/{}/{}  shifts {}",
+            s.name(),
+            med(&|p, m| m.share[1][p]),
+            med(&|p, m| m.depth10[p]),
+            med(&|p, m| m.depth20[p]),
+            med(&|p, m| m.away10[p]),
+            med(&|p, m| m.split[p][0]),
+            med(&|p, m| m.split[p][1]),
+            med(&|p, m| m.split[p][2]),
+            med(&|p, m| u64::from(m.shifts[p])),
+        );
+    }
+    let _ = write!(t, "{}", roster(&all));
+    t
+}
+
+/// Roster use over many matches (D-228): animals called at least once, the top species' share.
+fn roster(ms: &[Markers]) -> String {
+    let Some(first) = ms.first() else {
+        return String::new();
+    };
+    let mut calls: std::collections::BTreeMap<&str, u64> = std::collections::BTreeMap::new();
+    for m in ms {
+        for (k, v) in &m.called {
+            if !k.starts_with("cast") {
+                *calls.entry(k.as_str()).or_insert(0) += v;
+            }
+        }
+    }
+    let total: u64 = calls.values().sum();
+    let top = calls
+        .iter()
+        .max_by_key(|&(k, v)| (*v, std::cmp::Reverse(*k)));
+    let plants_unlocked = first
+        .flora_names
+        .iter()
+        .filter(|n| ms.iter().any(|m| m.unlocked.contains_key(*n)))
+        .count();
+    format!(
+        "roster: animals called {}/{}; top {} {} %; plant cards unlocked somewhere {}/{}\n",
+        calls.len(),
+        first.fauna_names.len(),
+        top.map_or("-", |(k, _)| k),
+        top.map_or(0, |(_, v)| v * 100 / total.max(1)),
+        plants_unlocked,
+        first.flora_names.len()
+    )
+}
+
+/// The difficulty ladder (D-228): hard against normal, normal against easy, hard against easy,
+/// in `style`, both seats; the stronger level's points.
+#[must_use]
+pub fn ladder(
+    b: &Balance,
+    seeds: u64,
+    size: usize,
+    style: Style,
+    minutes: u64,
+    threads: usize,
+) -> String {
+    let seat = |level: Level| Seat {
+        level,
+        style,
+        adapt: true,
+    };
+    let mut t = format!(
+        "ladder in {} style, {seeds} seeds per seat order\n",
+        style.name()
+    );
+    for (hi, lo) in [
+        (Level::Hard, Level::Normal),
+        (Level::Normal, Level::Easy),
+        (Level::Hard, Level::Easy),
+    ] {
+        let a = run(b, seeds, size, [seat(hi), seat(lo)], minutes, threads);
+        let c = run(b, seeds, size, [seat(lo), seat(hi)], minutes, threads);
+        let pts: u32 = a.iter().map(|m| m.points()[0]).sum::<u32>()
+            + c.iter().map(|m| m.points()[1]).sum::<u32>();
+        let games = u32::try_from(2 * (a.len() + c.len())).unwrap_or(1).max(1);
+        let all: Vec<Markers> = a.into_iter().chain(c).collect();
+        let _ = writeln!(
+            t,
+            "{hi:?} vs {lo:?}: {} % ; {}",
+            pts * 100 / games,
+            shape(&all).trim_end()
+        );
+    }
+    t
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn seats_parse_level_style_and_lock() {
+        let s = Seat::parse("hard:wide:locked").unwrap();
+        assert_eq!(
+            (s.level, s.style, s.adapt),
+            (Level::Hard, Style::Wide, false)
+        );
+        let s = Seat::parse("easy").unwrap();
+        assert_eq!(
+            (s.level, s.style, s.adapt),
+            (Level::Easy, Style::Balanced, true)
+        );
+        assert_eq!(Seat::parse("normal:rush").unwrap().label(), "normal:rush");
+        for bad in [
+            "",
+            "medium",
+            "hard:huge",
+            "hard:wide:open",
+            "hard:wide:locked:x",
+        ] {
+            assert!(Seat::parse(bad).is_none(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn a_cell_retaken_soon_after_it_was_lost_flips_back() {
+        let mut lost = vec![(0u8, 0u64); 2];
+        assert_eq!(
+            flips_back(&[1, 1], &[2, 1], &mut lost, 100),
+            0,
+            "P1 loses cell 0"
+        );
+        assert_eq!(
+            flips_back(&[2, 1], &[1, 1], &mut lost, 105),
+            1,
+            "P1 retakes it in 5 s"
+        );
+        assert_eq!(flips_back(&[1, 1], &[2, 1], &mut lost, 200), 0);
+        assert_eq!(
+            flips_back(&[2, 1], &[1, 1], &mut lost, 230),
+            0,
+            "30 s later: not a flip"
+        );
+        assert_eq!(
+            flips_back(&[1, 1], &[1, 0], &mut lost, 240),
+            0,
+            "cell 1 goes neutral"
+        );
+        assert_eq!(
+            flips_back(&[1, 0], &[1, 1], &mut lost, 242),
+            1,
+            "and P1 takes it back"
+        );
+    }
+
+    #[test]
+    fn the_lead_needs_a_margin_and_holds_within_it() {
+        let n2 = 1000; // margin: 20 cells
+        assert_eq!(lead(0, 110, 100, n2), 0, "under the margin: nobody yet");
+        assert_eq!(lead(0, 120, 100, n2), 1);
+        assert_eq!(
+            lead(1, 105, 110, n2),
+            1,
+            "within the margin the leader stays"
+        );
+        assert_eq!(lead(1, 100, 125, n2), 2, "a clear lead changes hands");
+    }
+
+    #[test]
+    fn the_tally_pools_both_seats_and_measures_the_seat_bias() {
+        let won = |w: u8| Markers {
+            end: Some((w, Reason::Territory, 600)),
+            ..Markers::default()
+        };
+        let open = Markers::default();
+        // Wide (0) against tall (1): wide wins both seats; a mirror of rush (2) runs out.
+        let runs = vec![
+            (0, 1, vec![won(1), won(1)]),
+            (1, 0, vec![won(2), won(1)]),
+            (2, 2, vec![open.clone()]),
+        ];
+        let (table, p1) = tally(&runs);
+        assert_eq!(table[0][1], 75, "3 wins of 4");
+        assert_eq!(table[1][0], 25);
+        assert_eq!(table[2][2], 50, "an unfinished mirror is a half");
+        assert_eq!(table[3][3], 0, "no games");
+        assert_eq!(
+            p1,
+            (2 + 2 + 2 + 1) * 100 / 10, // seat 1: won, won, lost, won, half
+            "P1's points over all matches"
+        );
+    }
 }

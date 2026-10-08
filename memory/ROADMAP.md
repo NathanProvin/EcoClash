@@ -4,8 +4,8 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-08: herb polygons trimmed (D-224); gameplay-feel ideas proposed to the user, awaiting their picks. Before: 2026-10-07: **Alpha 1.2** released: the food pyramid with wider cycles and online 1v1 on the Cloudflare relay (D-218…D-222), merged to main and deployed (Pages + relay). Played across two machines by the user. Next: playtest feedback; M6 leftovers (replays, pause, state dumps).
-- **Next:** M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
+- **Now:** 2026-10-08: gameplay direction agreed: conquest by strength and push, three emergent styles (D-225); Python parity retired (D-226). Steps 2, 2b done; step 3 (bots and balance, D-228, D-229) built and tuned over 6 passes, targets partly missed, playtest rounds 1–2 applied (D-230 conquest hold; D-231 herb pace, slower trees that grow visibly, dearer middle tiers); the user runs extended balance tests. Branch `gameplay-changes`, not pushed. Herb culling (D-224) merged to main (not pushed). Before: 2026-10-07: **Alpha 1.2** released: the food pyramid with wider cycles and online 1v1 on the Cloudflare relay (D-218…D-222), merged to main and deployed (Pages + relay). Played across two machines by the user. Next: playtest feedback; M6 leftovers (replays, pause, state dumps).
+- **Next:** Gameplay · Three styles (steps 2–6) → UI/UX juice → M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
 - **Last updated:** 2026-10-08
 
@@ -115,8 +115,28 @@ In this order:
 - [x] Bot-vs-bot batch runs: `sim-cli bench` (seeds × difficulties → phase markers, match length, win rates, calls; D-142).
 - [ ] One-page report; tune `pace`, `food_reserve`, caps, costs and the victory thresholds (Q-013) with it and the playtest feedback.
 
+## Gameplay · Three styles (D-225, D-226; before the UI/UX phase)
+Tall, wide and rush emerge from one conquest rule, map control stays the only victory. Branch `gameplay-changes`. Each step waits for the user's green light.
+- [x] 1. Spec: gamerules §3, §3.1, §6.1, §7, §10, §11.2; D-225, D-226; INSTRUCTIONS; CLAUDE.md. Dead trees: D-227.
+- [x] 2. Sim: animal species per cell (`fauna.rs`); strength and push replace the level attack in both `flora.rs` paths; contested tie-break dropped; biodiversity income (`economy.rs`); `fert_gain`, `div_gain`, `div_cap` in `balance.toml`; `pressure_frame` = push − strength; balance hash bump; parity test, fixture, `rs:fixture` and `cli:check` removed. Tests: equal front holds, a tip touching 3 weaker cells falls, fertility tips a front, grazing out a species flips a balanced cell, bare cell locked, multiplier capped.
+- [x] 2b. Dead trees (D-227): `snag_owner` (hashed), a per-player tree lock in `Flora::suitability`, the storm windthrows trees into dead trees; tests: the former owner's tree cannot regrow under dead wood, the enemy's can, the lock ends when the wood is gone.
+- [ ] 3. **Balance and bots (merged 3–5; plan approved 2026-10-08).** Bot: styles as spending weights in `[bots.styles]` (Wide 60/20/20, Tall 20/60/20, Rush 20/20/60, Balanced 34/33/33 for land/depth/army), deficit spending, a front map (strength, push, margin), `deepen`, breach raids, encircling; adaptation (Easy none, Normal half every 120 s, Hard full every 60 s, ±25 cap); reactive and proactive plays. Bench: `--p1 hard:wide`, `--matrix <level>`, `--ladder <style>`, lead changes, comeback, front mobility, style fingerprints. Balance passes, one lever each. Plumbing: sim-wasm style, match setup choice, end-screen label.
+  - **Targets:**
+    - *Match shape* (Balanced mirror, Normal, 16 seeds): median end 18–30 min; unfinished at 45 min ≤ 10 %; ≥ 2 lead changes; comeback 25–40 %; stalemates < 5 %; seat bias ±5.
+    - *Cycle* (matrix at Normal, 8 seeds × both seats): rush > tall, tall > wide, wide > rush at 55–65 %; mirrors 45–55 %; Balanced 45–60 % against each; every style 40–60 % overall.
+    - *Distinct styles* (at 10 min): Wide land ≥ 1.3× Tall's; Tall species per cell ≥ 1.5× Wide's; Rush animals on enemy land ≥ 2× the others'.
+    - *Adaptation and reactivity:* adaptive Hard ≥ 55 % against locked Hard; raids answered within 60 s ≥ 85 % (Normal), Hard median ≤ 10 s; 0 rejected commands.
+    - *Ladder:* Hard vs Normal 70–85 %, Normal vs Easy 70–85 %, Hard vs Easy ≥ 90 %.
+    - *Ecology and roster:* all trophic levels alive at 20 min in ≥ 90 %; pyramid within D-222 ranges; ≥ 75 % of animals called over the matrix; top species ≤ 25 % of calls; every plant card unlocked somewhere.
+    - *Performance:* `Bot::think` ≤ 1 ms median at 38²; worst tick ≤ 8 ms.
+  - **Tests:**
+    - *sim-ai:* style fingerprints; `deepen` defends front cells first; breach targeting; encircling; adaptation shifts (Hard yes, Easy no, capped); deficit spending within ±10; existing tests across all levels × styles.
+    - *sim-cli:* matrix reducer, lead-change counter, seat parser.
+    - *balance.rs:* `[bots.styles]` validation.
+- [ ] 6. Cell card: "strength vs push".
+
 ## Content · Terrain, biomes, map generator, species (D-073)
-- [ ] Decide on retiring the Python flora parity rule (D-034) before the terrain work (`sim-core` as the single reference).
+- [x] Retire the Python flora parity rule (D-034): done, D-226.
 - [ ] Seeded map generation in `sim-core` (soil types, water, relief), deterministic and hashed; relief and water in the client.
 - [ ] The three biomes of gamerules §2.2 and their species (Q-014, Q-016); the bot learns them; the balance loop re-tunes.
 

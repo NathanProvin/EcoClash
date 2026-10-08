@@ -93,6 +93,7 @@ export class Ghost {
       slot: 0,
       size: size ?? TUFT,
       species: 0,
+      scale: 1, // full grown (D-231)
     };
     for (const p of this.style.parts(stratum, at, 0, 0, spec.name)) {
       const geometry = this.style.meshes[p.mesh]?.geometry;

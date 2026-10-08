@@ -2609,3 +2609,72 @@ Template:
   - At each field frame, a herb chunk mesh (grasses, lichen and moss, wildflowers; D-155) is hidden when no cell of its chunk, nor one cell of border (the shader samples the herb mix bilinearly), has a share of that herb in the two frames being blended (`herbIn`, `HerbGroup.cull`). Exact: those tufts were all collapsed in the shader, but their vertices still ran.
   - Wildflower heads are the top half of the octahedron (5 vertices, 4 triangles instead of 6 and 8): the camera looks down, so the lower half was back faces. The rim sits a little lower so the head keeps its height.
 - **Why:** wildflowers were the heaviest herb (27 vertices and 30 triangles per tuft, as many vertices per cell as the grass) and every herb ran its full vertex shader over the whole map, empty land included. Heads now cost 24 vertices and 18 triangles per tuft; early game most chunks draw nothing, and wildflowers only draw where they grow.
+
+## D-225 · 2026-10-08 · Conquest by strength and push; three emergent styles
+- **Status:** accepted (user: one victory condition, map control; tall, wide and rush must emerge from simpler rules, fluid, with no set routes)
+- **Decision:**
+  - A cell's **strength** = (its owner's plant species established in it + its owner's animal species living in it) × (1 + `fert_gain` × soil development).
+  - The **push** on an enemy cell = the summed strengths of its enemy neighbours (4 sides). If push > strength, each defending plant species loses `smother_rate × (push − strength)`; at zero the cell flips to the attacker's established neighbour species, of any level. Plant levels are no longer compared (the old smother-lower / freeze-same / immune-higher table is gone).
+  - Plant attack and animal grazing stay separate: an enemy animal standing in a cell adds no push. Grazers weaken cells by eating species out, or eat them bare: the cell becomes neutral bare soil, locked to its former owner for `lockout_s` (D-098).
+  - Empty cells: claims unchanged, except the higher-level tie-break on contested cells (a same-tick tie leaves the cell empty).
+  - **Biodiversity income:** a cell's plant income × (1 + `div_gain` × its species count), capped at `div_cap`.
+  - Styles: tall stacks species and fertility; wide surrounds bulges (neighbour strengths add up) and soaks up raids with many cheap cells; rush grazes. Intended cycle (tuned with a bench style matrix, not hard-coded): rush > tall > wide > rush.
+- **Why:** level comparison froze same-level fronts and let a tall player become immune to a wide one. One count is readable ("4 vs 6"), all-integer, cheap (a JS mock of a heavier rule cost 0.2 ms per flora tick at 38²), and makes encirclement, diversity and grazing matter without special cases.
+- **Dropped on the way (simplicity):** a vigour formula (B^γ, support terms, spill), separate victory routes, sealed picks, an L1 regrowth boost.
+- **Plan:** spec (this entry) → sim → bot style presets → `sim-cli bench --style-matrix` → tuning passes → a "strength vs push" line on the cell card. UI/UX polish comes after.
+
+## D-226 · 2026-10-08 · Retire the Python flora parity (D-034)
+- **Status:** accepted (user)
+- **Decision:** `sim-core` is the single reference for the rules. The exact parity test with the prototype's quant mode, its fixture, `npm run rs:fixture` and `npm run cli:check` (and their pytest) are removed with the D-225 sim change. The prototype stays for history and quick experiments.
+- **Why:** `sim-core` already goes far beyond the prototype (terrain, water, dead wood, weather); porting every rule twice doubled the cost of each change.
+
+## D-227 · 2026-10-08 · Dead trees lock out their former owner only
+- **Status:** accepted (user: a base tree death rate plus catastrophes; the dead tree blocks the owner's regrowth but not the enemy's trees, to break frozen fronts; recyclers speed up removal)
+- **Already in place (D-127, D-130, D-132, D-152):** base death rate (`natural_death_s` 3600 ecology s), standing dead wood (`snag`) with a dead tree model, rot (`rot_s`), recyclers eating dead wood (black woodpecker first); processionary caterpillars and drought leave dead trees.
+- **Changes:**
+  - The tree lock becomes per player: dead wood blocks only the trees of the player who owned the cell when the stand died. A new hashed field `snag_owner` per cell; `Flora::suitability` takes the arriving player (today it blocks every tree, `flora.rs` around line 487).
+  - The violent storm windthrows trees into dead trees (`kill_trees`) instead of felling them to litter (`fell`); shrubs still fall to litter.
+  - A cell holding dead wood only is neutral bare soil (as today), open to the enemy's trees, not to the former owner's.
+- **Review:**
+  - Enemy trees can only grow in a cell the enemy owns (one owner per cell). That comes for free with D-225: the dead stand removes the tree species from the cell's strength, so the enemy push often wins it, and the enemy's trees may then arrive. No mixed ownership needed.
+  - It hits tall hardest (its stacks lose a species), which fits the cycle; tall's answer is recyclers (faster clearing, and they count in strength as resident animals).
+  - The lever is `natural_death_s`: a 30 min match is about 1,350 ecology s, so about a third of the tree cells die once per match at 3600. Tune with the style matrix.
+  - Litter from the dead stand raises soil development (fertility, D-225) for whoever holds the cell next.
+
+## D-228 · 2026-10-08 · Bot styles, front-aware plays and adaptation
+- **Status:** accepted (user: four styles at three difficulties that understand the strength rule, adapt, and play reactively and proactively; merged with the balance pass)
+- **Decision:**
+  - A style is a spending split over land (spreaders), depth (other plants, recyclers) and army (grazers), in `[bots.styles]`: Wide 60/20/20, Tall 20/60/20, Rush 20/20/60, Balanced 34/33/33. Hunters and catastrophes answer threats outside the budgets.
+  - Each decision answers threats first, then runs the categories at or below their share of recent spending, furthest below first. A category over its share waits (the bot saves). A category with nothing to buy drops out of the shares. Recent spending fades by 1/64 per decision.
+  - A front map (strength, push, margin per cell) drives the plays:
+    - `deepen` adds a missing species to pushed cells first, then cells one species from tipping an enemy cell, then home (alternating tallest and fastest grower);
+    - raids and drops aim at the breach;
+    - land-heavy bots claim free ground ahead of their border; a bot facing a wide enemy encircles.
+  - Adaptation: Easy keeps its style; Normal (every 120 s, 12 points) and Hard (every 60 s, 25 points) read the enemy's posture from the map (rush: ≥ 6 grazers on own land; tall: ≥ 3 species per cell and ≥ 1.3× own; wide: ≥ 1.2× own land or ≥ 2 % of the map per minute) and shift toward its counter.
+  - The match setup offers the style (random by default: from the seed), revealed on the end screen. "Normal" reads "Medium" in the menu.
+- **Bench:** seats `level[:style[:locked]]`, `--matrix <level>`, `--ladder <style>`; lead changes, comebacks, end churn, style fingerprints, spending split, decision time.
+
+## D-229 · 2026-10-08 · Balance pass under the strength rule (6 passes, not converged)
+- **Status:** accepted for the kept values; targets partly missed (reported to the user)
+- **Kept:** `establish_threshold` 0.1 → 0.3 (a new species must grow before it counts; fronts no longer freeze: unfinished 56 % → 20 %); great tit `spawn_cost` 200 → 400 (the universal swarm answer; rush > tall and wide > rush appear), and the frog (tier 2 of the same family) 300 → 400 so no tier is cheaper than the one below (`food_web` test).
+- **Tried and reverted:** `smother_rate` 0.25 (unfinished 56 %, tall 29 %); `natural_death_s` 1800 (no effect: trees come too late); `div_gain` 0.10 (breaks wide > rush); tree unlocks −33 % (tall 35 %, wide 64 %); smaller raid herds for army-heavy bots (rush 43 %).
+- **Final measure** (style matrix at Normal, 8 seeds per ordered pair, 128 matches): wide 48, tall 40, rush 55, balanced 54 (mean points %); rush > tall 71, tall > wide 46, wide > rush 53; unfinished 24 %; seat bias −9; lead changes 3.0; comebacks 16 %; roster 25/33 animals called, great tit 35 % of calls. Ladder (balanced): hard > normal 59 %, normal > easy 81 %, hard > easy 93 %. Adaptive hard vs locked hard 46 %. Decision time 150–270 µs.
+
+## D-230 · 2026-10-08 · Conquest hold; a faster opening, later shrubs and trees
+- **Status:** accepted (user, after playing the styles: the opening is slow, shrubs came at 5 min, and the front flickered, cells changing hands within seconds)
+- **Decision:**
+  - **Conquest hold:** a cell taken from its owner is held against that owner for `[flora] hold_s` = 20 real seconds: no push from them while it runs (the lockout fields `lock`, `lock_p` of D-098, set after the flora step when a cell goes straight from one owner to the other). Grazing still works.
+  - **Opening +15 %:** lichen & moss `growth` 1.0 → 1.15, `yield` 0.06 → 0.07; grasses `growth` 1.2 → 1.38, `yield` 0.20 → 0.23.
+  - **Shrubs (L3) +10 %:** elder 2750 / 66, hawthorn 5500 / 66, hazel 8250 / 66 (unlock / spawn).
+  - **Trees (L4) +15 %:** oak 10350 / 173, chestnut 13800 / 173, beech 18400 / 173.
+- **Why the hold, not an immunity floor:** the flicker came from conquered species arriving exactly at the establish threshold (0.3), dropping below it on the next tick and leaving the cell at strength 0. A floor of invulnerability under 10 % would freeze cells near the threshold instead of resolving them, and add a second threshold. The hold reuses existing hashed fields and reads simply ("just taken").
+- **Measure:** the bench counts "flips back" (a cell retaken by its former owner within 10 s). Not run this round, at the user's request.
+
+## D-231 · 2026-10-08 · Playtest round 2: herb pace down, slower trees that grow visibly, dearer middle tiers
+- **Status:** accepted (user, after playing D-230: the herb boost went too far)
+- **Decision:**
+  - Herbs: lichen & moss `growth` 1.06, `yield` 0.06; grasses `growth` 1.26, `yield` 0.21 (between the D-229 and D-230 values).
+  - Starting budget 1000 → 1100.
+  - Trees fill their cell 10 % slower (`biomass_rate`): oak 0.0135, chestnut 0.027, beech 0.018.
+  - Tree models grow with the cell's tree cover, the value the cell card shows: the full-grown shape (varied by slot) scaled about its root by that cover, from a 12 % seedling floor (`TREE_SEEDLING`, `Placement.scale`, `grow` in `plants.ts`). Before, a young stand already showed a tree at about 65 % of full size.
+  - Shrubs (L3) and undergrowth (L2) unlock and drop costs +5 %, yields unchanged: elder 2887.5 / 69.3, hawthorn 5775 / 69.3, hazel 8662.5 / 69.3; ferns 630 / 31.5, nettle 945 / 31.5, bramble 3150 / 31.5.

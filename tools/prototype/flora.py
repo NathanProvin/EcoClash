@@ -86,7 +86,7 @@ class Flora:
         self.step_s = sim["flora_every_ticks"] / sim["tick_hz"]  # real seconds per flora step
         self.pace = sim["pace"]  # seconds of ecology per real second (D-069)
         self.dt = self.step_s * self.pace  # ecology seconds per step: every rate uses it
-        self.sw = {k: switches.get(k, f[k]) for k in SWITCHES}
+        self.sw = {k: switches.get(k, f.get(k, False)) for k in SWITCHES}  # retired rules (D-226)
         self.names = [k for k, v in f.items() if isinstance(v, dict)]
         sp = [f[n] for n in self.names]  # species index = table order
         soil_types = terrain["soil_types"]

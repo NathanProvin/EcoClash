@@ -1,6 +1,6 @@
-//! Flora cell model (gamerules §2–§3; D-019, D-022, D-024, D-025, D-029), the Rust port of the
-//! prototype's quant mode (`tools/prototype/flora.py`, `Flora.step`). The port is exact: the
-//! parity test replays a prototype fixture and demands identical state at every checkpoint.
+//! Flora cell model (gamerules §2–§3; D-019, D-022, D-024, D-025, D-029). It began as an exact
+//! port of the prototype's quant mode (`tools/prototype/flora.py`); since D-226 it is the single
+//! reference for the rules. Conquest of enemy cells compares strength and push (D-225).
 //!
 //! Units, as in the prototype: biomass, soil, water, light in 0..=U16; cover, gauge, suitability
 //! and claim progress in 0..=ONE (Q16.16). Every rule reads the previous state; the new state is
@@ -58,7 +58,10 @@ pub struct FloraParams {
     pub cap: Vec<i64>,
     pub succession: bool,
     pub shade: bool,
-    pub contested_cells: bool,
+    /// Strength gain at full soil development (Q16, D-225).
+    pub fert: i64,
+    /// Conquest hold (D-230), in flora ticks.
+    pub hold: i64,
     /// Dead wood (D-127), per flora tick (Q16): the chance a tree stand dies of old age, the
     /// share of it left standing, and the share of standing dead wood that rots.
     pub death: i64,
@@ -143,7 +146,8 @@ impl FloraParams {
             level,
             succession: f.succession,
             shade: f.shade,
-            contested_cells: f.contested_cells,
+            fert: round(f.fert_gain * one),
+            hold: round(f.hold_s * f64::from(b.sim.tick_hz) / f64::from(b.sim.flora_every_ticks)),
             death: round(dt / b.deadwood.natural_death_s * one),
             wood_share: round(b.deadwood.wood_share * one),
             rot: round(dt / b.deadwood.rot_s * one),
@@ -203,12 +207,10 @@ impl FloraParams {
             .i64(self.plant_g)
             .i64(self.soil_ramp)
             .i64(self.water0)
-            .i64(self.light0);
-        h.bytes(&[
-            u8::from(self.succession),
-            u8::from(self.shade),
-            u8::from(self.contested_cells),
-        ]);
+            .i64(self.light0)
+            .i64(self.fert)
+            .i64(self.hold);
+        h.bytes(&[u8::from(self.succession), u8::from(self.shade)]);
     }
 }
 
@@ -239,8 +241,10 @@ pub struct FloraState {
     pub lock: Vec<i64>,
     pub lock_p: Vec<u8>,
     /// Standing dead wood (D-127), biomass units: a dead tree, eaten by recyclers and rotting to
-    /// litter; while any stands, no tree grows in the cell.
+    /// litter; while any stands, the trees of `snag_owner` (who held the cell when the stand
+    /// died) do not grow in the cell; the enemy's may (D-227).
     pub snag: Vec<i64>,
+    pub snag_owner: Vec<u8>,
     /// Flora ticks done.
     pub t: u64,
 }
@@ -266,6 +270,7 @@ impl FloraState {
             lock: vec![0; cells],
             lock_p: vec![0; cells],
             snag: vec![0; cells],
+            snag_owner: vec![0; cells],
             t: 0,
         }
     }
@@ -304,6 +309,9 @@ pub struct Flora {
     pub p: FloraParams,
     /// Weather factor on positive growth (Q16, D-132); ONE leaves the rules exactly as is.
     pub growth: i64,
+    /// Animal species living in each cell, per player (D-225): set from the animals before each
+    /// flora step (`Fauna::residents`); empty counts none. Derived from hashed state.
+    pub residents: Vec<[u8; 2]>,
     scratch: Scratch,
 }
 
@@ -320,6 +328,8 @@ struct Scratch {
     /// Bit s set when species s has biomass in the cell.
     present: Vec<u64>,
     dom: Vec<u8>,
+    /// Strength of each cell for its owner (Q16, D-225).
+    strength: Vec<i64>,
     bio: Vec<i64>,
     gauge: Vec<i64>,
     owner: Vec<u8>,
@@ -348,6 +358,7 @@ impl Scratch {
         self.cover.resize(ns * cells, 0);
         self.present.resize(cells, 0);
         self.dom.resize(cells, 0);
+        self.strength.resize(cells, 0);
     }
 }
 
@@ -368,6 +379,7 @@ impl Flora {
         }
         let standing = div(wood * p.wood_share, ONE_I);
         st.snag[k] += standing;
+        st.snag_owner[k] = st.owner[k]; // its trees may not grow back under it (D-227)
         st.dead[k] += wood - standing;
         if (0..p.species()).all(|s| st.bio[s * n2 + k] < 1) {
             st.owner[k] = 0;
@@ -439,6 +451,7 @@ impl Flora {
         Flora {
             p,
             growth: ONE_I,
+            residents: Vec::new(),
             scratch: Scratch::default(),
         }
     }
@@ -483,10 +496,6 @@ impl Flora {
         if matches!(st.ground[k], crate::terrain::ROCK | crate::terrain::DEEP) {
             return 0;
         }
-        // A dead tree still standing: no tree takes root under it (D-127).
-        if st.snag[k] > 0 && usize::from(p.level[s]) == LEVELS {
-            return 0;
-        }
         let mut suit = p.aff[s][usize::from(st.soil_type[k])];
         if p.succession {
             let dev = div(
@@ -522,14 +531,59 @@ impl Flora {
         dom
     }
 
-    /// How hard the non-owner's plants push into each owned cell (Q16 cover units; 0 on empty
-    /// cells), for display (D-076): the flora step's attack term (step 4), i.e. over the 4
-    /// neighbours held by the enemy, the best cover of an enemy species able to smother this
-    /// cell (a higher level than its dominant one, suitable here). Same-level fronts push 0.
+    /// Conquest hold (D-230): every cell that went straight from one owner to the other this
+    /// tick is held against its former owner for `hold` flora ticks (the lockout fields, D-098).
+    fn hold_conquests(&self, st: &mut FloraState, new_owner: &[u8]) {
+        for (k, &now) in new_owner.iter().enumerate() {
+            let was = st.owner[k];
+            if was != 0 && now != 0 && now != was {
+                st.lock[k] = self.p.hold;
+                st.lock_p[k] = was;
+            }
+        }
+    }
+
+    /// Whether a dead tree in cell `k` bars species `s` of `player` (D-227): a tree of the
+    /// player who held the cell when the stand died, while its dead wood stands.
+    #[must_use]
+    pub fn tree_barred(&self, st: &FloraState, s: usize, k: usize, player: u8) -> bool {
+        st.snag[k] > 0 && usize::from(self.p.level[s]) == LEVELS && st.snag_owner[k] == player
+    }
+
+    /// Strength from a species count (D-225): `count` x (1 + fert x soil development), Q16.
+    fn strength_of(&self, count: i64, soil: i64) -> i64 {
+        count * (ONE_I + div(self.p.fert * soil, U16))
+    }
+
+    /// The species that count in cell `k` for its owner (D-225): its plants established there
+    /// plus its animal species living there; 0 on a neutral cell.
+    #[must_use]
+    pub fn species_count(&self, st: &FloraState, k: usize) -> i64 {
+        let (p, cells) = (&self.p, st.n * st.n);
+        let o = st.owner[k];
+        if o == 0 {
+            return 0;
+        }
+        let plants = (0..p.species())
+            .filter(|&s| st.bio[s * cells + k] >= p.est_thr[s])
+            .count();
+        let animals = self.residents.get(k).map_or(0, |r| r[usize::from(o) - 1]);
+        i64::try_from(plants).unwrap_or(0) + i64::from(animals)
+    }
+
+    /// Strength of cell `k` for its owner (Q16, D-225).
+    #[must_use]
+    pub fn strength(&self, st: &FloraState, k: usize) -> i64 {
+        self.strength_of(self.species_count(st, k), st.soil[k])
+    }
+
+    /// How hard the non-owner's plants push into each owned cell (Q16; 0 on empty cells), for
+    /// display (D-076): the flora step's push over strength (D-225), the summed strengths of the
+    /// enemy's neighbouring cells less the cell's own, at least 0.
     #[must_use]
     pub fn push(&self, st: &FloraState) -> Vec<i64> {
-        let (p, n, cells) = (&self.p, st.n, st.n * st.n);
-        let dom = self.dominant(st);
+        let (n, cells) = (st.n, st.n * st.n);
+        let strength: Vec<i64> = (0..cells).map(|k| self.strength(st, k)).collect();
         (0..cells)
             .map(|k| {
                 let enemy = match st.owner[k] {
@@ -544,19 +598,16 @@ impl Flora {
                     (x > 0).then(|| k - 1),
                     (x + 1 < n).then(|| k + 1),
                 ];
-                let able: Vec<usize> = (0..p.species())
-                    .filter(|&s| p.level[s] > dom[k] && self.suitability(st, s, k) > 0)
-                    .collect();
-                near.into_iter()
+                if st.lock[k] > 0 && st.lock_p[k] == enemy {
+                    return 0; // held against its former owner (D-230)
+                }
+                let push: i64 = near
+                    .into_iter()
                     .flatten()
                     .filter(|&m| st.owner[m] == enemy)
-                    .map(|m| {
-                        able.iter()
-                            .map(|&s| div(st.bio[s * cells + m] * ONE_I, p.kmax[s]))
-                            .max()
-                            .unwrap_or(0)
-                    })
-                    .sum()
+                    .map(|m| strength[m])
+                    .sum();
+                (push - strength[k]).max(0)
             })
             .collect()
     }
@@ -574,7 +625,7 @@ impl Flora {
         for &k in cells {
             let barred = st.lock[k] > 0 && st.lock_p[k] == player; // D-098
             let free = (st.owner[k] == 0 && !barred) || st.owner[k] == player;
-            if !free || self.suitability(st, s, k) <= 0 {
+            if !free || self.suitability(st, s, k) <= 0 || self.tree_barred(st, s, k, player) {
                 continue;
             }
             let i = s * n2 + k;
@@ -614,16 +665,18 @@ impl Flora {
         assert!(ns <= 64, "at most 64 plant species (presence bitmask)");
         sc.prepare(n, ns);
 
-        // Global pass: cover, presence bitmask, dominant level, cells held per species.
+        // Global pass: cover, presence bitmask, dominant level, strength (D-225), cells held per
+        // species.
         let mut held = [vec![0i64; ns], vec![0i64; ns]];
         for k in 0..cells {
-            let (mut mask, mut dom) = (0u64, 0u8);
+            let (mut mask, mut dom, mut count) = (0u64, 0u8, 0i64);
             for s in 0..ns {
                 let i = s * cells + k;
                 let b = st.bio[i];
                 sc.cover[i] = if b > 0 { div(b * ONE_I, p.kmax[s]) } else { 0 };
                 if b >= p.est_thr[s] {
                     dom = dom.max(p.level[s]);
+                    count += 1;
                 }
                 if b > 0 {
                     mask |= 1 << s;
@@ -634,6 +687,13 @@ impl Flora {
             }
             sc.present[k] = mask;
             sc.dom[k] = dom;
+            sc.strength[k] = match st.owner[k] {
+                o @ 1..=2 => {
+                    let animals = self.residents.get(k).map_or(0, |r| r[usize::from(o) - 1]);
+                    self.strength_of(count + i64::from(animals), st.soil[k])
+                }
+                _ => 0,
+            };
         }
         let full: [Vec<bool>; 2] = [0, 1].map(|pi| {
             (0..ns)
@@ -665,6 +725,16 @@ impl Flora {
             for s in species() {
                 suit[s] = self.suitability(st, s, k);
             }
+            // Per player: a dead tree bars its former owner's trees only (D-227).
+            let suitp: [[i64; 64]; 2] = [0, 1].map(|pi| {
+                let mut v = suit;
+                for s in species() {
+                    if self.tree_barred(st, s, k, PLAYERS[pi]) {
+                        v[s] = 0;
+                    }
+                }
+                v
+            });
 
             // 1-2. Shade and logistic growth with competition, for the species present here.
             let casts = self.casts(|j| cover[at(j)]);
@@ -692,9 +762,8 @@ impl Flora {
                 sc.soil[k] = (st.soil[k] + gain).min(U16);
             }
 
-            // 4. Pressure, seeds and attack of each player.
-            let dom = sc.dom[k];
-            let can = |s: usize| p.level[s] > dom && suit[s] > 0;
+            // 4. Pressure, seeds and attack of each player. Attack (D-225): the push of the
+            //    player's neighbouring cells over this enemy cell's strength.
             let mut press = [[0i64; 64]; 2];
             let mut seeds = [[false; 64]; 2];
             let mut attack = [0i64; 2];
@@ -717,16 +786,21 @@ impl Flora {
                         }
                     }
                     press[pi][s] = div(sum, 5).min(ONE_I);
-                    seeds[pi][s] = mine && suit[s] > 0;
+                    seeds[pi][s] = mine && suitp[pi][s] > 0;
                 }
-                for &m in &nbr {
-                    if m != NONE {
-                        let m = m as usize;
-                        attack[pi] += species()
-                            .map(|s| if can(s) { cov(s, m) } else { 0 })
-                            .max()
-                            .unwrap_or(0);
-                    }
+                if owner[k] == 3 - pl {
+                    let push: i64 = nbr
+                        .iter()
+                        .filter(|&&m| m != NONE && owner[m as usize] == pl)
+                        .map(|&m| sc.strength[m as usize])
+                        .sum();
+                    // A cell just taken from this player is held (D-230).
+                    let held = st.lock[k] > 0 && st.lock_p[k] == pl;
+                    attack[pi] = if held {
+                        0
+                    } else {
+                        (push - sc.strength[k]).max(0)
+                    };
                 }
             }
 
@@ -761,10 +835,10 @@ impl Flora {
                 }
                 for s in species() {
                     let i = at(s);
-                    if suit[s] <= 0 || (full[pi][s] && sc.bio[i] == 0) {
+                    if suitp[pi][s] <= 0 || (full[pi][s] && sc.bio[i] == 0) {
                         continue;
                     }
-                    let gap = (suit[s] - sc.gauge[i]).max(0);
+                    let gap = (suitp[pi][s] - sc.gauge[i]).max(0);
                     let dg = div(p.rate[s] * press[pi][s] * gap, ONE_I * ONE_I);
                     sc.gauge[i] += dg;
                     if dg > 0 {
@@ -779,47 +853,42 @@ impl Flora {
                 |pi: usize, cand: &dyn Fn(usize) -> bool, gauge: &mut [i64], new: &mut [i64]| {
                     for s in species().filter(|&s| cand(s)) {
                         let i = at(s);
-                        let g = div(press[pi][s] * suit[s], ONE_I);
+                        let g = div(press[pi][s] * suitp[pi][s], ONE_I);
                         gauge[i] = g;
                         new[i] = grow_div(p.seed_b[s] * g, ONE_I).max(p.est_thr[s]);
                     }
                 };
 
-            // 7. A smothered enemy cell flips to the attacker's higher-level species. Caps do not
-            //    hold conquest back (D-113): they limit planting and expansion into free land.
+            // 7. A smothered enemy cell flips to the attacker's species established next to it, of
+            //    any level (D-225). Caps do not hold conquest back (D-113): they limit planting
+            //    and expansion into free land.
             for (pi, pl) in PLAYERS.into_iter().enumerate() {
                 if owner[k] == 3 - pl && new_owner == 0 && attack[pi] > 0 {
-                    arrive(pi, &|s| can(s) && seeds[pi][s], &mut sc.gauge, &mut sc.bio);
+                    arrive(pi, &|s| seeds[pi][s], &mut sc.gauge, &mut sc.bio);
                     new_owner = pl;
                 }
             }
 
-            // 8. Empty cell: claim progress; the first player to complete takes it. Land grazed
-            //    bare from the enemy is conquest: caps do not hold it back (D-113).
+            // 8. Empty cell: claim progress; the first player to complete takes it, a tie leaves
+            //    it empty (D-225). Land grazed bare from the enemy is conquest: caps do not hold it
+            //    back (D-113).
             if owner[k] == 0 {
                 let barred = |pi: usize| st.lock[k] > 0 && st.lock_p[k] == PLAYERS[pi]; // D-098
                 let won = |pi: usize| st.lock_p[k] == 3 - PLAYERS[pi];
                 let cand =
                     |pi: usize, s: usize| seeds[pi][s] && (!full[pi][s] || won(pi)) && !barred(pi);
-                let (mut done, mut lvl) = ([false; 2], [0u8; 2]);
+                let mut done = [false; 2];
                 for pi in 0..2 {
                     let push = species()
                         .filter(|&s| cand(pi, s))
-                        .map(|s| div(p.rate[s] * press[pi][s] * suit[s], ONE_I * ONE_I))
+                        .map(|s| div(p.rate[s] * press[pi][s] * suitp[pi][s], ONE_I * ONE_I))
                         .max()
                         .unwrap_or(0);
                     sc.prog[pi][k] = st.prog[pi][k] + push;
                     done[pi] = sc.prog[pi][k] >= ONE_I && species().any(|s| cand(pi, s));
-                    lvl[pi] = species()
-                        .filter(|&s| cand(pi, s))
-                        .map(|s| p.level[s])
-                        .max()
-                        .unwrap_or(0);
                 }
                 for pi in 0..2 {
-                    let q = 1 - pi;
-                    let both = done[0] && done[1];
-                    if (done[pi] && !done[q]) || (p.contested_cells && both && lvl[pi] > lvl[q]) {
+                    if done[pi] && !done[1 - pi] {
                         arrive(pi, &|s| cand(pi, s), &mut sc.gauge, &mut sc.bio);
                         new_owner = PLAYERS[pi];
                     }
@@ -844,6 +913,7 @@ impl Flora {
             st.dead[k] += dead;
         }
 
+        self.hold_conquests(st, &sc.owner);
         std::mem::swap(&mut st.bio, &mut sc.bio);
         std::mem::swap(&mut st.gauge, &mut sc.gauge);
         std::mem::swap(&mut st.owner, &mut sc.owner);
@@ -928,10 +998,17 @@ impl Flora {
             }
         }
 
-        // 4. Pressure (own + 4-neighbour cover, / 5), attack (best higher-level neighbour cover,
-        //    summed over neighbours) and seeds (species established in a neighbour).
-        let dom = self.dominant(st);
-        let can = |s: usize, k: usize| p.level[s] > dom[k] && suit[at(s, k)] > 0;
+        // 4. Pressure (own + 4-neighbour cover, / 5), attack (the push of the neighbours over the
+        //    cell's strength, D-225) and seeds (species established in a neighbour). A dead tree
+        //    bars its former owner's trees (D-227).
+        let sp = |pi: usize, s: usize, k: usize| {
+            if self.tree_barred(st, s, k, PLAYERS[pi]) {
+                0
+            } else {
+                suit[at(s, k)]
+            }
+        };
+        let strength: Vec<i64> = (0..cells).map(|k| self.strength(st, k)).collect();
         let mut pressure = [vec![0i64; ns * cells], vec![0i64; ns * cells]];
         let mut attack = [vec![0i64; cells], vec![0i64; cells]];
         let mut seeds = [vec![false; ns * cells], vec![false; ns * cells]];
@@ -944,16 +1021,16 @@ impl Flora {
                     pressure[pi][at(s, k)] = div(cov(s, k) + near, 5).min(ONE_I);
                     let mine =
                         neighbours(k).any(|m| owner[m] == pl && bio[at(s, m)] >= p.est_thr[s]);
-                    seeds[pi][at(s, k)] = mine && suit[at(s, k)] > 0;
+                    seeds[pi][at(s, k)] = mine && sp(pi, s, k) > 0;
                 }
-                attack[pi][k] = neighbours(k)
-                    .map(|m| {
-                        (0..ns)
-                            .map(|s| if can(s, k) { cov(s, m) } else { 0 })
-                            .max()
-                            .unwrap_or(0)
-                    })
-                    .sum();
+                if owner[k] == 3 - pl {
+                    let push: i64 = neighbours(k)
+                        .filter(|&m| owner[m] == pl)
+                        .map(|m| strength[m])
+                        .sum();
+                    let held = st.lock[k] > 0 && st.lock_p[k] == pl; // D-230
+                    attack[pi][k] = if held { 0 } else { (push - strength[k]).max(0) };
+                }
             }
             // Species at their cell cap (D-029) cannot enter new cells this tick.
             for s in 0..ns {
@@ -964,7 +1041,7 @@ impl Flora {
             }
         }
 
-        // 5. Growth, minus litter and smothering by higher enemy levels; losses become litter.
+        // 5. Growth, minus litter and smothering by the enemy's push; losses become litter.
         let mut new_bio = vec![0i64; ns * cells];
         let mut dead = vec![0i64; cells];
         for s in 0..ns {
@@ -1003,12 +1080,12 @@ impl Flora {
                     let i = at(s, k);
                     let own = owner[k] == pl
                         && new_owner[k] == pl
-                        && suit[i] > 0
+                        && sp(pi, s, k) > 0
                         && !(full[pi][s] && new_bio[i] == 0);
                     if !own {
                         continue;
                     }
-                    let gap = (suit[i] - new_g[i]).max(0);
+                    let gap = (sp(pi, s, k) - new_g[i]).max(0);
                     let dg = div(p.rate[s] * pressure[pi][i] * gap, ONE_I * ONE_I);
                     new_g[i] += dg;
                     if dg > 0 {
@@ -1029,7 +1106,7 @@ impl Flora {
             for k in (0..cells).filter(|&k| mask[k]) {
                 for s in (0..ns).filter(|&s| cand(s, k)) {
                     let i = at(s, k);
-                    let g = div(pressure[pi][i] * suit[i], ONE_I);
+                    let g = div(pressure[pi][i] * sp(pi, s, k), ONE_I);
                     new_g[i] = g;
                     new_bio[i] = grow_div(p.seed_b[s] * g, ONE_I).max(p.est_thr[s]);
                 }
@@ -1037,25 +1114,25 @@ impl Flora {
             }
         }; // fmt: skip
 
-        // 7. Smothered enemy cells flip to the attacker's higher-level species; caps do not hold
-        //    conquest back (D-113).
+        // 7. Smothered enemy cells flip to the attacker's neighbouring species, any level (D-225);
+        //    caps do not hold conquest back (D-113).
         for (pi, &pl) in PLAYERS.iter().enumerate() {
             let won: Vec<bool> = (0..cells)
                 .map(|k| owner[k] == 3 - pl && new_owner[k] == 0 && attack[pi][k] > 0)
                 .collect();
-            let cand = |s: usize, k: usize| can(s, k) && seeds[pi][at(s, k)];
+            let cand = |s: usize, k: usize| seeds[pi][at(s, k)];
             arrive(&won, pi, &cand, &mut new_bio, &mut new_g, &mut new_owner);
         }
 
-        // 8. Empty cells: claim progress builds up; the first player to complete takes the cell.
-        //    Caps hold back expansion, not land grazed bare from the enemy (D-113).
+        // 8. Empty cells: claim progress builds up; the first player to complete takes the cell, a
+        //    tie leaves it empty (D-225). Caps hold back expansion, not land grazed bare from the
+        //    enemy (D-113).
         let barred = |pi: usize, k: usize| st.lock[k] > 0 && st.lock_p[k] == PLAYERS[pi];
         let won = |pi: usize, k: usize| st.lock_p[k] == 3 - PLAYERS[pi];
         let cand = |pi: usize, s: usize, k: usize| {
             seeds[pi][at(s, k)] && (!full[pi][s] || won(pi, k)) && !barred(pi, k)
         };
         let mut done = [vec![false; cells], vec![false; cells]];
-        let mut lvl = [vec![0u8; cells], vec![0u8; cells]];
         for pi in 0..2 {
             for k in 0..cells {
                 if owner[k] != 0 {
@@ -1066,7 +1143,7 @@ impl Flora {
                     .map(|s| {
                         if cand(pi, s, k) {
                             div(
-                                p.rate[s] * pressure[pi][at(s, k)] * suit[at(s, k)],
+                                p.rate[s] * pressure[pi][at(s, k)] * sp(pi, s, k),
                                 ONE_I * ONE_I,
                             )
                         } else {
@@ -1078,21 +1155,11 @@ impl Flora {
                 prog[pi][k] += push;
                 let any = (0..ns).any(|s| cand(pi, s, k));
                 done[pi][k] = prog[pi][k] >= ONE_I && any;
-                lvl[pi][k] = (0..ns)
-                    .map(|s| if cand(pi, s, k) { p.level[s] } else { 0 })
-                    .max()
-                    .unwrap_or(0);
             }
         }
         for pi in 0..2 {
             let q = 1 - pi;
-            let win: Vec<bool> = (0..cells)
-                .map(|k| {
-                    let both = done[0][k] && done[1][k];
-                    (done[pi][k] && !done[q][k])
-                        || (p.contested_cells && both && lvl[pi][k] > lvl[q][k])
-                })
-                .collect();
+            let win: Vec<bool> = (0..cells).map(|k| done[pi][k] && !done[q][k]).collect();
             let c = |s: usize, k: usize| cand(pi, s, k);
             arrive(&win, pi, &c, &mut new_bio, &mut new_g, &mut new_owner);
         }
@@ -1119,6 +1186,7 @@ impl Flora {
         for k in 0..cells {
             st.dead[k] += dead[k];
         }
+        self.hold_conquests(st, &new_owner);
         st.owner = new_owner;
         st.bio = new_bio;
         st.gauge = new_g;
@@ -1318,9 +1386,9 @@ mod tests {
         assert_eq!(st.owner[bare], 1, "the grazed-bare cell is taken");
     }
 
-    /// D-127: dead trees. Killed trees leave standing dead wood (the rest falls as litter) and
-    /// the cell turns neutral if nothing else grows there; no tree takes root while the wood
-    /// stands; it rots to litter, and trees can grow again.
+    /// D-127, D-227: dead trees. Killed trees leave standing dead wood (the rest falls as litter)
+    /// and the cell turns neutral if nothing else grows there; its former owner's trees do not
+    /// take root while the wood stands, the enemy's may; it rots to litter, and the bar lifts.
     #[test]
     fn dead_trees_stand_block_trees_and_rot_away() {
         let f = flora();
@@ -1333,16 +1401,26 @@ mod tests {
         st.bio[oak * n * n + k] = 10_000;
         assert!(f.suitability(&st, oak, k) > 0);
         assert!(f.kill_trees(&mut st, k));
+        assert_eq!(st.snag_owner[k], 1, "the stand was P1's");
         let standing = 10_000 * f.p.wood_share / ONE_I;
         assert!((st.snag[k] - standing).abs() <= 1 && st.snag[k] + st.dead[k] == 10_000);
         assert_eq!(
             st.owner[k], 0,
             "nothing else grew there: the cell turns neutral"
         );
-        assert_eq!(f.suitability(&st, oak, k), 0, "no tree under a dead one");
         assert!(
-            f.suitability(&st, grasses, k) > 0,
+            f.tree_barred(&st, oak, k, 1),
+            "not P1's trees under its dead one"
+        );
+        assert!(!f.tree_barred(&st, oak, k, 2), "P2's trees may grow there");
+        assert!(
+            !f.tree_barred(&st, grasses, k, 1),
             "herbs may grow around it"
+        );
+        assert_eq!(
+            f.plant(&mut st, 1, oak, &[k]),
+            0,
+            "P1 cannot replant its oak"
         );
         assert!(!f.kill_trees(&mut st, k), "no trees left to kill");
         let mut ticks = 0;
@@ -1352,45 +1430,214 @@ mod tests {
             assert!(ticks < 100_000, "it rots away");
         }
         assert_eq!(st.dead[k], 10_000, "all of it ends as litter");
-        assert!(f.suitability(&st, oak, k) > 0, "trees may grow again");
+        assert!(!f.tree_barred(&st, oak, k, 1), "trees may grow again");
     }
 
-    #[test]
-    fn push_shows_where_higher_enemy_levels_smother() {
-        let mut f = flora();
-        let (oak, grasses) = (f.p.index("oak").unwrap(), f.p.index("grasses").unwrap());
-        let n = 4;
+    /// A map split at column `split`: P1 on the left, P2 on the right, each cell at full cover
+    /// with `left` / `right` species, on developed soil.
+    fn split_map(f: &Flora, n: usize, split: usize, left: &[&str], right: &[&str]) -> FloraState {
         let mut st = FloraState::new(&f.p, n);
-        st.soil.fill(U16); // developed soil: every level is suitable
+        st.soil.fill(U16);
         for k in 0..n * n {
-            let (player, s) = if k % n < 2 { (1, oak) } else { (2, grasses) };
+            let (player, names) = if k % n < split { (1, left) } else { (2, right) };
             st.owner[k] = player;
-            st.bio[s * n * n + k] = f.p.kmax[s];
-            st.gauge[s * n * n + k] = ONE_I;
+            for name in names {
+                let s = f.p.index(name).unwrap();
+                st.bio[s * n * n + k] = f.p.kmax[s];
+                st.gauge[s * n * n + k] = ONE_I;
+            }
+        }
+        st
+    }
+
+    const MEADOW: [&str; 2] = ["grasses", "lichen_and_moss"];
+
+    /// D-225: strength counts the owner's established species (plants and resident animals),
+    /// times the fertility factor; the push is the enemy neighbours' summed strength.
+    #[test]
+    fn strength_counts_species_animals_and_fertility() {
+        let mut f = flora();
+        let n = 4;
+        let mut st = split_map(&f, n, 2, &MEADOW, &MEADOW);
+        let fert = ONE_I + f.p.fert; // full soil
+        assert_eq!(f.species_count(&st, 0), 2);
+        assert_eq!(f.strength(&st, 0), 2 * fert);
+        f.residents = vec![[0; 2]; n * n];
+        f.residents[0] = [3, 1]; // P1's three species count on P1's cell, P2's one does not
+        assert_eq!(f.species_count(&st, 0), 5);
+        st.soil[0] = 0;
+        assert_eq!(f.strength(&st, 0), 5 * ONE_I, "no fertility: x 1");
+    }
+
+    /// D-225: a straight front between equal sides holds; fertility tips it.
+    #[test]
+    fn an_equal_front_holds_and_fertility_tips_it() {
+        let f = flora();
+        let n = 6;
+        let mut st = split_map(&f, n, 3, &MEADOW, &MEADOW);
+        assert!(f.push(&st).iter().all(|&v| v == 0), "equal: no push");
+        let before = st.owner.clone();
+        let mut f2 = f.clone();
+        for _ in 0..60 {
+            f2.step(&mut st);
+        }
+        assert_eq!(st.owner, before, "the front holds");
+
+        // P2's soil is poorer: P1's front cells are stronger and push.
+        let mut st = split_map(&f, n, 3, &MEADOW, &MEADOW);
+        for k in (0..n * n).filter(|k| k % n >= 3) {
+            st.soil[k] = 0;
         }
         let push = f.push(&st);
         for k in 0..n * n {
             match k % n {
-                2 => assert!(push[k] > 0, "P2 grass next to P1 oaks is pushed"),
-                _ => assert_eq!(push[k], 0, "no push behind the front, none on the oaks"),
+                3 => assert!(push[k] > 0, "P2's front cell is pushed"),
+                _ => assert_eq!(push[k], 0, "nothing else"),
             }
         }
-        let before: Vec<i64> = (0..n * n).map(|k| st.bio[grasses * n * n + k]).collect();
-        f.step(&mut st);
-        for k in (0..n * n).filter(|k| k % n == 2) {
-            assert!(
-                st.bio[grasses * n * n + k] < before[k],
-                "and that is where it smothers"
-            );
-        }
+    }
 
-        // Oaks against oaks: a frozen front, no push.
-        let mut st = FloraState::new(&f.p, n);
-        st.soil.fill(U16);
-        for k in 0..n * n {
-            st.owner[k] = if k % n < 2 { 1 } else { 2 };
-            st.bio[oak * n * n + k] = f.p.kmax[oak];
+    /// D-225: a bulge whose tip touches three equal enemy cells falls (their strengths add up);
+    /// the side that wins loses nothing.
+    #[test]
+    fn a_bulge_tip_touching_three_cells_falls() {
+        let mut f = flora();
+        let n = 5;
+        let mut st = split_map(&f, n, n, &MEADOW, &[]); // all P1
+        let col = |k: usize| k % n == 2 && k / n >= 2; // P2's tongue, rows 2..4 of column 2
+        let (g, l) = (
+            f.p.index("grasses").unwrap(),
+            f.p.index("lichen_and_moss").unwrap(),
+        );
+        for k in (0..n * n).filter(|&k| col(k)) {
+            st.owner[k] = 2;
+            for s in [g, l] {
+                st.bio[s * n * n + k] = f.p.kmax[s];
+            }
         }
-        assert!(f.push(&st).iter().all(|&v| v == 0));
+        let tip = 2 * n + 2;
+        let push = f.push(&st);
+        assert!(
+            push[tip] > push[tip + n] && push[tip + n] > 0,
+            "3 neighbours against the tip, 2 against the tongue's middle"
+        );
+        let mut reference = st.clone();
+        for _ in 0..60 {
+            f.step(&mut st);
+            f.step_reference(&mut reference);
+        }
+        assert_eq!(st, reference, "the fast step matches the reference");
+        assert_eq!(st.owner[tip], 1, "the tip fell");
+        assert!(
+            (0..n * n).filter(|&k| !col(k)).all(|k| st.owner[k] == 1),
+            "P1 lost nothing"
+        );
+    }
+
+    /// D-225: grazing a species out of a front lowers its strength, and a balanced front breaks:
+    /// a grazed front cell falls to the side next to it. (Holding it is another matter: a cell
+    /// just taken has its species at the threshold and is the front's weakest point.)
+    #[test]
+    fn grazing_a_species_out_breaks_a_balanced_front() {
+        let mut f = flora();
+        let n = 5;
+        let mut st = split_map(&f, n, 2, &MEADOW, &MEADOW);
+        let l = f.p.index("lichen_and_moss").unwrap();
+        let k = 2 * n + 2; // a P2 front cell
+        let graze = |st: &mut FloraState| {
+            for k in (0..n * n).filter(|&k| st.owner[k] == 2) {
+                st.bio[l * n * n + k] = 0; // the grazers keep eating it, on all of P2's land
+                st.gauge[l * n * n + k] = 0;
+            }
+        };
+        graze(&mut st);
+        assert!(f.push(&st)[k] > 0, "1 species against 2");
+        let mut fell = false;
+        for _ in 0..40 {
+            graze(&mut st);
+            f.step(&mut st);
+            fell |= st.owner[k] == 1;
+        }
+        assert!(fell, "the grazed front cell fell");
+    }
+
+    /// D-230: a conquered cell is held against its former owner: no push while the hold runs,
+    /// even out-numbered; then the push is back. Both steps agree.
+    #[test]
+    fn a_conquered_cell_is_held_against_its_former_owner() {
+        let mut f = flora();
+        let n = 6;
+        // P1 strong on the left (3 species), P2 weak on the right (1): P2's front falls.
+        let mut st = split_map(
+            &f,
+            n,
+            3,
+            &["grasses", "lichen_and_moss", "wildflowers"],
+            &["grasses"],
+        );
+        let mut reference = st.clone();
+        let k = 2 * n + 3; // a P2 front cell
+        let mut taken = None;
+        for t in 0..60 {
+            f.step(&mut st);
+            f.step_reference(&mut reference);
+            if taken.is_none() && st.owner[k] == 1 {
+                taken = Some(t);
+                assert_eq!(
+                    (st.lock_p[k], st.lock[k]),
+                    (2, f.p.hold - 1),
+                    "held against P2"
+                );
+            }
+        }
+        assert!(taken.is_some(), "the cell fell");
+        assert_eq!(st, reference, "the fast step matches the reference");
+
+        // A held P1 cell inside strong P2 land: no push; once the hold ends, pushed.
+        let mut st = split_map(
+            &f,
+            n,
+            0,
+            &[],
+            &["grasses", "lichen_and_moss", "wildflowers"],
+        );
+        let g = f.p.index("grasses").unwrap();
+        let k = 2 * n + 2;
+        for s in 0..f.p.species() {
+            st.bio[s * n * n + k] = 0;
+        }
+        st.owner[k] = 1;
+        st.bio[g * n * n + k] = f.p.kmax[g];
+        (st.lock[k], st.lock_p[k]) = (5, 2);
+        assert_eq!(f.push(&st)[k], 0, "held: no push");
+        for _ in 0..3 {
+            f.step(&mut st);
+        }
+        assert_eq!(st.owner[k], 1, "still P1's while held");
+        st.lock[k] = 0;
+        assert!(f.push(&st)[k] > 0, "the hold is over: out-numbered, pushed");
+    }
+
+    /// D-227: the enemy's trees take over a cell whose stand died; its former owner's do not.
+    #[test]
+    fn enemy_trees_replace_a_dead_stand() {
+        let mut f = flora();
+        let n = 3;
+        let mut st = split_map(&f, n, 0, &[], &["grasses", "oak"]); // all P2, grass under oak
+        let (g, oak) = (f.p.index("grasses").unwrap(), f.p.index("oak").unwrap());
+        let k = 4; // the centre: P1's grass and oak
+        st.owner[k] = 1;
+        for s in [g, oak] {
+            st.bio[s * n * n + k] = f.p.kmax[s];
+        }
+        assert_eq!(f.push(&st)[k], 4 * f.strength(&st, 0) - f.strength(&st, k));
+        assert!(f.kill_trees(&mut st, k), "P1's stand dies");
+        assert_eq!(st.owner[k], 1, "its grass still holds the cell, for now");
+        let mut grew = false;
+        for _ in 0..80 {
+            f.step(&mut st);
+            grew |= st.owner[k] == 2 && st.bio[oak * n * n + k] > 0 && st.snag[k] > 0;
+        }
+        assert!(grew, "P2 took the cell and its oak grew by the dead one");
     }
 }

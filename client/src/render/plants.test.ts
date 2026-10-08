@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { LOW, TREE, type Placement } from "./layout";
 import { uniform } from "three/tsl";
 import * as THREE from "three/webgpu";
-import { LowPolyPlants, PlantView, type CellCover } from "./plants";
+import { grow, LowPolyPlants, PlantView, type CellCover } from "./plants";
 
 const style = new LowPolyPlants();
 const at = (size: number, seed: number): Placement => ({
@@ -13,6 +13,7 @@ const at = (size: number, seed: number): Placement => ({
   slot: 0,
   size,
   species: 0,
+  scale: 1,
 });
 
 describe("LowPolyPlants (D-150)", () => {
@@ -57,6 +58,22 @@ describe("LowPolyPlants (D-150)", () => {
     const key = (seed: number) =>
       JSON.stringify(style.parts("tree", at(TREE.max, seed), 0, 0, "oak").map((p) => p.x));
     expect(key(0.1)).not.toEqual(key(0.6));
+  });
+});
+
+describe("grow (D-231)", () => {
+  it("scales a tree's parts about its root: half cover, half the size", () => {
+    const parts = style.parts("tree", at(TREE.max, 0.4), 3, -2, "oak");
+    const half = grow(parts, 3, -2, 0.5);
+    parts.forEach((p, i) => {
+      const q = half[i];
+      expect(q?.w).toBeCloseTo(p.w / 2);
+      expect(q?.h).toBeCloseTo(p.h / 2);
+      expect(q?.y).toBeCloseTo(p.y / 2);
+      expect(q?.x).toBeCloseTo(3 + (p.x - 3) / 2);
+      expect(q?.z).toBeCloseTo(-2 + (p.z + 2) / 2);
+    });
+    expect(grow(parts, 3, -2, 1)).toBe(parts);
   });
 });
 

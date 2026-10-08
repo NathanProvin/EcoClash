@@ -874,3 +874,74 @@
 
   Client test, check and lint green. Not measured on the reference laptop yet (`?perf=1`).
 - **Next (user):** a `?perf=1` run; pick the gameplay ideas to build.
+
+## 2026-10-08 (2) · Gameplay direction: strength and push, three styles (D-225, D-226)
+- **Done (design only, branch `feat/conquest-strength`):**
+  - Explored deeper gameplay with the user: game-theory framing, then simplified step by step at the user's request (no separate victory routes, no vigour formula).
+  - Agreed rule: strength = species (plants + resident animals) × fertility factor; push = summed enemy-neighbour strengths; smother at `smother_rate × (push − strength)`. Grazing stays separate (bare soil + lockout). Biodiversity income multiplier.
+  - Measured the cost: today's flora tick on a full 38² map is 0.73 ms; a JS mock of a heavier rule cost 0.2 ms.
+  - Python parity retired (D-226). gamerules §3, §3.1, §6.1, §7, §10, §11.2 and §12, INSTRUCTIONS §5.2 and §9, CLAUDE.md updated.
+- **Next (after the user's green light):** step 2, the sim change (plan in ROADMAP "Gameplay · Three styles").
+
+## 2026-10-08 (3) · Herb merge; dead tree rule (D-227)
+- **Done:**
+  - `perf/herb-polygons` merged into main (fast-forward, not pushed).
+  - Reviewed the user's dead tree rule against the code: the base death rate, dead wood, rot and recyclers exist (D-127). Changes specified: a per-player tree lock (`snag_owner`), the storm leaves dead trees. The enemy's trees take over through the D-225 push, so there is no mixed ownership.
+  - The spec now lives on branch `gameplay-changes`.
+- **Next (after the green light):** ROADMAP "Gameplay · Three styles" step 2 and step 2b.
+
+## 2026-10-08 (4) · Strength and push in the sim; dead trees per owner (D-225, D-227)
+- **Done (branch `gameplay-changes`):**
+  - `flora.rs` (both paths): strength = established species + resident animal species, × (1 + `fert_gain` × soil); attack = enemy neighbours' summed strength − strength; flips to any-level neighbour species; contested tie leaves the cell empty (`contested_cells` removed).
+  - `Fauna::residents` (animal species per cell and player), set before each flora step; `Economy::update` takes the flora and multiplies each cell's plant income by biodiversity (`div_gain` 0.05, `div_cap` 1.5).
+  - Dead trees: `snag_owner` (hashed) bars only the former owner's trees (`Flora::tree_barred`, also in `plant`); the storm windthrows trees into dead trees.
+  - `push()` (pressure frame) shows push − strength. Balance hash version 21.
+  - Parity retired: `tests/flora_parity.rs`, its fixture, `fixture.py`, `cli_check.py`, `test_cli.py`, `rs:fixture`, `cli:check` removed.
+  - New tests: strength count (animals, fertility), equal front holds and fertility tips it, a tongue tip falls first, grazing a species out breaks a front, enemy trees replace a dead stand, biodiversity income and cap.
+  - Checks: rs:lint, rs:test, wasm:check (1200 ticks), py:test, py:lint, relay:test, client test/check all green. `flora_tick_time` full 38²: 0.76 ms (was 0.73); worst tick 7.5 ms.
+  - Bench, 6 seeds, 40 min, default bots: before 6/6 finished by territory (183 raids); after 4/6 finished, 2 unfinished near 50/50 (56 raids). Untuned: step 5.
+- **Next:** step 3, bot style presets; then the style matrix and tuning.
+
+## 2026-10-08 (5) · Bot styles and the balance loop (D-228), passes 0–1
+- **Done (branch `gameplay-changes`):** bot styles, front map, deficit spending, adaptation; bench `--matrix`, `--ladder`, seats `level:style[:locked]`, new measures (commit `a26dd8d`).
+- **Matrix at Normal, 4 seeds per ordered pair** (points % of the row; overall mean against the other three):
+
+  | pass | change | wide | tall | rush | bal | unfinished | lead ch. | comeback |
+  |---|---|---|---|---|---|---|---|---|
+  | 0 | baseline | 33 | 53 | 53 | 58 | 56 % | 0.4 | 4/64 |
+  | 1a | `establish_threshold` 0.1 → 0.3 (a new species must grow before it counts) | 27 | 53 | 62 | 56 | 25 % | 4.2 | 13/64 |
+  | 1b | + land-heavy bots claim free ground ahead of their border; home `deepen` alternates tallest / fastest | 47 | 51 | 49 | 49 | 20 % | 2.8 | 10/64 |
+  | – | raids with smaller herds for army-heavy bots (reverted: rush 43, feeds hunters) | 51 | 53 | 43 | 49 | 28 % | 2.7 | 10/64 |
+
+  Pass 1b cycle: tall > wide 62, wide > rush 56, rush = tall 50 (target 55–65). Fingerprints at 10 min: wide land 51 % vs tall 42 % (1.21×); species per cell at 20 min tall 1.55 vs wide 1.70 (tall saves for tree unlocks: 8 000 points banked at 10 min).
+- **Side effects of 0.3, accepted:** animals need established habitat plants (about 13 s after a first planting); a cell just conquered has its species at the threshold and is the front's weakest point. Tests adapted (scenario raids after 60 s; the grazing test asserts the front breaks).
+
+## 2026-10-08 (6) · Balance loop passes 2–6, final measures, client style choice (D-228, D-229)
+- **Passes** (matrix at Normal, 4 seeds per ordered pair; mean points % wide/tall/rush/bal; unfinished; lead changes):
+
+  | pass | change | result | kept |
+  |---|---|---|---|
+  | 2 | `smother_rate` 0.15 → 0.25 | 53/29/62/53; 56 %; 2.7 | no |
+  | 3 | `natural_death_s` 3600 → 1800 | identical to 1b (trees too late to matter) | no |
+  | 4 | great tit `spawn_cost` 200 → 400 | 56/41/49/51; 10 %; 1.4; rush > tall 68, wide > rush 62 | **yes** |
+  | 5 | `div_gain` 0.05 → 0.10 | 43/41/58/56; 15 %; 5.0; wide > rush 43 | no |
+  | 6 | tree unlocks −33 % | 64/35/51/47; 18 %; 1.2 | no |
+
+- **Final measure, 8 seeds** (D-229): wide 48, tall 40, rush 55, balanced 54; cycle rush > tall 71, tall > wide 46, wide > rush 53; unfinished 24 %, seat bias −9, lead changes 3.0, comebacks 16 %. Ladder: H > N 59 %, N > E 81 %, H > E 93 %. Adaptive hard vs locked 46 %.
+- **Met:** style means within 40–60 %; lead changes ≥ 2; normal > easy and hard > easy; decision time ≤ 1 ms; ≥ 75 % of animals called; every plant card used; distinct spending splits (wide 40 % land, tall 61 % depth, rush 65 % army).
+- **Missed:** tall > wide (46), rush > tall too strong (71), wide > rush (53); unfinished 24 % (≤ 10); seat bias −9; comebacks 16 % (25–40); hard > normal 59 % (70–85); adaptation gains nothing; great tit 35 % of calls (≤ 25); fingerprints: wide land 1.04× tall at 10 min (≥ 1.3), tall species per cell below wide.
+- **Client:** bot style choice in the AI setup (random by default), revealed on the end screen; "Medium" label (commit `250fb2d`).
+- **Not re-run:** `pyramid_report` (no fauna rule or diet changed), trophic survival at 20 min (no bench measure yet).
+- **Next (user):** choose how to continue (see the session report).
+
+## 2026-10-08 (7) · First playtest feedback: conquest hold, opening, shrub and tree costs (D-230)
+- **Feedback (user, matches against the styles at medium):** the update works; the start is a bit slow; shrubs unlocked at 5 min; the front line flickers.
+- **Done:** `hold_s` 20 (conquest hold, both flora paths, display push); lichen and grass +15 % growth and yield; shrubs +10 %, trees +15 % (unlock and spawn); bench "flips back" measure. Tests: the hold (held, then pushed again; fast = reference), the flips-back counter; the balance-hash test follows the new grass value.
+- **Checks:** rs:test, clippy, fmt, wasm:check, relay:test, client check and test, all green. No bench matrix this round (user).
+- **Next (user):** extended balance tests in the browser.
+
+## 2026-10-08 (8) · Playtest round 2 (D-231)
+- **Feedback (user):** the herb boost of D-230 was too strong; slower trees whose models grow with their cover; middle tiers a little dearer; a larger starting budget.
+- **Done:** data per D-231; tree models scaled by the tree cover (layout `scale`, `grow`); tests: tree scale follows the cover with a seedling floor, other strata stay at 1; `grow` halves a tree about its root; the balance-hash test follows grasses 1.26.
+- **Checks:** rs:test, clippy, fmt, wasm:check, relay:test, client check, test and lint green. No bench (user).
+- **Next (user):** extended balance tests in the browser.

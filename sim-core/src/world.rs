@@ -191,13 +191,14 @@ impl World {
             (self.flora.growth, self.fauna.speed, self.fauna.bite) = self.weather.factors();
             self.fauna
                 .act(&self.flora.p, &mut self.state, &mut self.rng);
+            self.flora.residents = self.fauna.residents(self.state.n); // D-225
             self.flora.step(&mut self.state);
             // Dead wood (D-127): old trees die standing; standing dead wood rots.
             self.flora.rot_deadwood(&mut self.state);
             self.flora.natural_deaths(&mut self.state, &mut self.rng);
             self.catastrophes
                 .act(&self.flora, &mut self.state, &mut self.rng); // D-129
-            self.economy.update(&self.flora.p, &self.state, &self.fauna);
+            self.economy.update(&self.flora, &self.state, &self.fauna);
             if self.result.is_none() {
                 self.result = self.judge();
             }
@@ -739,8 +740,9 @@ mod tests {
 
     #[test]
     fn animals_spawn_by_command_live_in_the_hash_and_refusals_leave_a_notice() {
+        // Tick 200: the lichen planted at 0 is established, so its land is a habitat (D-225).
         let spawn = |seq: u32, species: &str| Command {
-            tick: 100,
+            tick: 200,
             player: 1,
             seq,
             payload: Payload::Spawn {
@@ -751,7 +753,7 @@ mod tests {
         };
         let mut cmds = orders();
         cmds.push(Command {
-            tick: 99,
+            tick: 199,
             player: 1,
             seq: 4,
             payload: Payload::Unlock {

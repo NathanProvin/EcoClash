@@ -1,28 +1,31 @@
 <script lang="ts">
   // Strategic icons (D-078, D-114): the family pictogram of the build bar with a head count over
   // each large group of your animals, at a fixed screen size, so the whole army reads at a
-  // glance. Clicking one selects the group (swarms cannot be ordered: their icons only show).
+  // glance. Clicking one selects the group (swarms and the enemy's are only highlighted: they
+  // take no orders) and lights its prey and predators on the build bar (D-232). Icons keep their
+  // key while their group's members change, so the hover holds (D-232).
   // The enemy's groups show too (D-146), with a solid red ring (D-158): where the threat is.
   import { label, MEDAL } from "../game/species";
   import type { Species } from "../replay/replay";
   import FamilyIcon from "./FamilyIcon.svelte";
 
+  type Icon = {
+    key: string;
+    x: number;
+    y: number;
+    s: Species;
+    count: number;
+    ids: number[];
+    order: boolean;
+    enemy: boolean;
+  };
   let {
     icons,
     onSelect,
     onHover,
   }: {
-    icons: {
-      key: string;
-      x: number;
-      y: number;
-      s: Species;
-      count: number;
-      ids: number[];
-      order: boolean;
-      enemy: boolean;
-    }[];
-    onSelect: (ids: number[]) => void;
+    icons: Icon[];
+    onSelect: (icon: Icon) => void;
     /** The group under the pointer (D-161: its unit card shows), or null on leaving. */
     onHover?: (ids: number[] | null) => void;
   } = $props();
@@ -35,12 +38,10 @@
     class:enemy={i.enemy}
     style:--x="{i.x}px"
     style:--y="{i.y}px"
-    title="{i.enemy ? 'Enemy ' : ''}{label(i.s.name)} ×{i.count}{i.enemy
-      ? ''
-      : i.order
-        ? ' · click to select the group'
-        : ' · a swarm: it cannot be ordered'}"
-    onclick={() => i.order && onSelect(i.ids)}
+    title="{i.enemy ? 'Enemy ' : ''}{label(i.s.name)} ×{i.count}{i.order
+      ? ' · click to select the group and see its prey and predators'
+      : ' · click to see it and its prey and predators'}"
+    onclick={() => onSelect(i)}
     onpointerenter={() => onHover?.(i.ids)}
     onpointerleave={() => onHover?.(null)}
   >
@@ -71,7 +72,6 @@
     --player: var(--threat);
     outline: 2px solid var(--threat);
     outline-offset: 3px;
-    cursor: var(--cursor);
   }
   .icon:hover {
     scale: 1.1;
@@ -98,7 +98,6 @@
     line-height: 1.4;
   }
   .icon.swarm {
-    cursor: var(--cursor);
     opacity: 0.85;
     box-shadow:
       0 0 0 2px var(--player),

@@ -7,7 +7,7 @@
   // Home = reset view, Space = play, T = tech tree, Esc = cancel / close / clear selection.
   import { onDestroy, onMount } from "svelte";
   import { SvelteMap, SvelteSet } from "svelte/reactivity";
-  import { strategicGroups } from "./game/groups";
+  import { stableKeys, strategicGroups } from "./game/groups";
   import {
     botSpec,
     cleanCode,
@@ -231,6 +231,10 @@
 
   /** The groups the icons stand for (map cells), regrouped ~10 times a second. */
   let iconGroups: (Omit<(typeof icons)[number], "x" | "y"> & { row: number; col: number })[] = [];
+  /** Each icon's animals at the last regrouping, by key, and the next fresh key (D-232): a group
+   *  keeps its key, and its icon its hover, while its members come and go. */
+  let iconKeys = new Map<string, readonly number[]>();
+  const iconSerial = { n: 0 };
 
   /** Icons over sizeable groups: regroup the animals (10 Hz, in `frame`). */
   function placeIcons() {
@@ -244,16 +248,39 @@
     // Yours, then the enemy's (D-146): see where the threat is; theirs only show.
     const mine = live ? me : player;
     const animals = v.visibleAnimals();
-    iconGroups = [mine, 3 - mine].flatMap((owner) =>
+    const found = [mine, 3 - mine].flatMap((owner) =>
       strategicGroups(animals, owner, swarm).flatMap((g) => {
         const s = fauna[g.species];
-        if (!s) return [];
-        const key = `${owner}:${g.species}:${g.ids[0] ?? 0}`;
-        const enemy = owner !== mine;
-        const order = !enemy && !swarm[g.species];
-        return [{ key, row: g.row, col: g.col, s, count: g.count, ids: g.ids, order, enemy }];
+        return s ? [{ owner, g, s, prefix: `${owner}:${g.species}` }] : [];
       }),
     );
+    const keys = stableKeys(
+      iconKeys,
+      found.map((f) => ({ prefix: f.prefix, ids: f.g.ids })),
+      iconSerial,
+    );
+    iconKeys = new Map(found.map((f, i) => [keys[i] ?? "", f.g.ids]));
+    iconGroups = found.map(({ owner, g, s }, i) => {
+      const enemy = owner !== mine;
+      const order = !enemy && !swarm[g.species];
+      const key = keys[i] ?? "";
+      return { key, row: g.row, col: g.col, s, count: g.count, ids: g.ids, order, enemy };
+    });
+  }
+
+  /** The species whose food web the build bar lights (D-232): set by clicking a strategic icon,
+   *  cleared with the selection. */
+  let focus = $state<Species | null>(null);
+
+  /** A strategic icon clicked (D-232): select your group, or only highlight a swarm or the
+   *  enemy's (they take no orders); and light its prey and predators on the build bar. */
+  function pickIcon(i: (typeof icons)[number]) {
+    if (i.order) select(i.ids);
+    else {
+      select([]);
+      viewer?.setSelection(i.ids);
+    }
+    focus = i.s;
   }
 
   /** Every frame (D-171): the icons follow the camera smoothly; regrouping alone at 10 Hz made
@@ -658,6 +685,15 @@
     return viewer?.visibleAnimals() ?? [];
   });
   let hoverIds = $state<number[] | null>(null);
+  /** Species of the selected animals: the unit list outlines them (D-232). */
+  const selectedNames = $derived(
+    new Set(
+      listAnimals.flatMap((a) => {
+        const name = selection.has(a.id) ? replay?.meta.fauna.names[a.species] : undefined;
+        return name ? [name] : [];
+      }),
+    ),
+  );
   const unit = $derived.by(() => {
     void tick;
     const ids = hoverIds ?? unitIds;
@@ -897,6 +933,7 @@
   }
 
   function select(ids: number[]) {
+    focus = null; // a new selection ends the food-web focus (D-232)
     selection = new Set(ids);
     viewer?.setSelection(selection);
     if (ids.length) speak(ids, SELECT_CALL); // D-182
@@ -1301,6 +1338,7 @@
       onUnlock={unlock}
       {popped}
       onPickSpecies={pickSpecies}
+      {focus}
       onClear={() => select([])}
       catastrophes={live?.catastrophes ?? []}
       waits={catastropheWaits}
@@ -1328,7 +1366,7 @@
       </p>
     {/if}
     <div class="p{live ? me : player}" style:display="contents">
-      <StrategicIcons {icons} onSelect={(ids) => select(ids)} onHover={(ids) => (hoverIds = ids)} />
+      <StrategicIcons {icons} onSelect={pickIcon} onHover={(ids) => (hoverIds = ids)} />
     </div>
     {#if showPerf && perfDetail}
       <pre class="perf-detail">{perfDetail}</pre>
@@ -1348,6 +1386,7 @@
         species={replay?.meta.species ?? []}
         fauna={replay?.meta.fauna.names ?? []}
         {me}
+        selected={selectedNames}
         onPick={(name) => pickSpecies(name)}
       />
     {/if}

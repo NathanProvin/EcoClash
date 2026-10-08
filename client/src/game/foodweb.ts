@@ -70,3 +70,13 @@ export function counters(all: readonly Species[], enemy: ReadonlySet<string>): S
     all.filter((s) => foodsOf(s, all).some((f) => enemy.has(f.name))).map((s) => s.name),
   );
 }
+
+/** A focused species' food web on the build bar (D-232): its foods are "prey", its eaters
+ *  "predator" (a species that is both is shown as a predator: the danger first). */
+export function webRoles(s: Species, all: readonly Species[]): Map<string, "prey" | "predator"> {
+  const { foods, eaters } = related(s, all);
+  const roles = new Map<string, "prey" | "predator">();
+  for (const f of foods) roles.set(f.s.name, "prey");
+  for (const e of eaters) roles.set(e.s.name, "predator");
+  return roles;
+}

@@ -288,51 +288,47 @@ export const RECIPES: Record<string, Recipe> = {
       tone(c, o, t, { f0: 140 * p, f1: 90 * p, dur: 0.18, gain: 0.12 });
     },
   },
-  // Game feel (D-233). The income pulse: a deep, soft thump, felt more than heard.
+  // The biomass yield tick (D-233, D-234): a deep heartbeat, lub-dub, felt more than heard.
   "fx.pulse": {
     bus: "fx",
     ms: 900,
     vary: 0.02,
     play: (c, o, t, p, n) => {
-      tone(c, o, t, { f0: 64 * p, f1: 46 * p, dur: 0.6, gain: 0.34, attack: 0.02 });
-      tone(c, o, t, { f0: 128 * p, f1: 92 * p, dur: 0.3, gain: 0.06, attack: 0.01 });
-      hiss(c, o, t, n, { type: "lowpass", f0: 260, f1: 120, dur: 0.28, gain: 0.05 });
+      tone(c, o, t, { f0: 60 * p, f1: 42 * p, dur: 0.25, gain: 0.36, attack: 0.006 });
+      tone(c, o, t + 0.24, { f0: 52 * p, f1: 38 * p, dur: 0.3, gain: 0.26, attack: 0.006 });
+      hiss(c, o, t, n, { type: "lowpass", f0: 200, f1: 90, dur: 0.2, gain: 0.04 });
     },
   },
-  // A cell gained: a soft, dreamy note; the pitch (a pentatonic step) comes from the caller.
+  // A cell gained (D-234): a low step in the humus, a soft thump and a damped crunch; the
+  // caller's pitch walks a pentatonic scale low down, so a wave of captures beats a deep rhythm
+  // under the music's register instead of a melody.
   "fx.capture": {
     bus: "fx",
-    ms: 1300,
+    ms: 450,
     vary: 0,
-    play: (c, o, t, p) => {
-      tone(c, o, t, { f0: 523.25 * p, dur: 1.1, gain: 0.07, attack: 0.03 });
-      tone(c, o, t, {
-        type: "triangle",
-        f0: 523.25 * p * 1.004,
-        dur: 0.9,
-        gain: 0.03,
-        attack: 0.04,
-        lp: 1800,
-      });
-      tone(c, o, t + 0.02, { f0: 1046.5 * p, dur: 0.5, gain: 0.012, attack: 0.05 });
+    play: (c, o, t, p, n) => {
+      tone(c, o, t, { f0: 72 * p, f1: 50 * p, dur: 0.22, gain: 0.3, attack: 0.004 });
+      hiss(c, o, t, n, { type: "lowpass", f0: 420, f1: 160, dur: 0.14, gain: 0.1 });
+      tone(c, o, t + 0.15, { f0: 58 * p, f1: 44 * p, dur: 0.18, gain: 0.12, attack: 0.006 });
     },
   },
-  // A cell lost: a low, sad note sagging a little.
+  // A cell lost (D-234): stone grinding deep in the mountain, a low rumble falling away.
   "fx.loss": {
     bus: "fx",
-    ms: 1200,
+    ms: 900,
     vary: 0,
-    play: (c, o, t, p) => {
+    play: (c, o, t, p, n) => {
       tone(c, o, t, {
         type: "triangle",
-        f0: 220 * p,
-        f1: 208 * p,
-        dur: 1.0,
-        gain: 0.08,
-        attack: 0.04,
-        lp: 900,
+        f0: 82 * p,
+        f1: 52 * p,
+        dur: 0.7,
+        gain: 0.16,
+        attack: 0.02,
+        lp: 300,
       });
-      tone(c, o, t, { f0: 110 * p, f1: 104 * p, dur: 0.9, gain: 0.05, attack: 0.05 });
+      hiss(c, o, t, n, { type: "bandpass", f0: 180, q: 1.2, dur: 0.6, gain: 0.09 });
+      tone(c, o, t + 0.05, { f0: 41 * p, dur: 0.8, gain: 0.12, attack: 0.03 });
     },
   },
   // The biodiversity combo rose: a bright rising arpeggio; fell: two falling minor notes.
@@ -390,21 +386,14 @@ export const RECIPES: Record<string, Recipe> = {
       tone(c, o, t + 0.2, { f0: 1400 * p, f1: 800 * p, dur: 0.18, gain: 0.05, attack: 0.005 });
     },
   },
-  // Shrubs and trees planted: a woody, barky knock under the sprinkle.
-  "fx.plant.wood": {
+  // A shrub or tree planted as a sapling (D-234): a woody pop, then the body of the wood.
+  "fx.plant.sapling": {
     bus: "fx",
     ms: 380,
     play: (c, o, t, p, n) => {
-      tone(c, o, t, {
-        type: "triangle",
-        f0: 210 * p,
-        f1: 150 * p,
-        dur: 0.09,
-        gain: 0.18,
-        lp: 1200,
-      });
-      hiss(c, o, t, n, { type: "bandpass", f0: 600 * p, q: 4, dur: 0.05, gain: 0.12 });
-      tone(c, o, t + 0.01, { f0: 95 * p, f1: 68 * p, dur: 0.2, gain: 0.12 });
+      tone(c, o, t, { type: "triangle", f0: 320 * p, f1: 180 * p, dur: 0.07, gain: 0.2, lp: 1600 });
+      hiss(c, o, t, n, { type: "bandpass", f0: 900 * p, q: 3, dur: 0.04, gain: 0.14 });
+      tone(c, o, t + 0.02, { f0: 110 * p, f1: 70 * p, dur: 0.18, gain: 0.14 });
     },
   },
   // A higher-tier card planted: a faint glitter, longer for gold.

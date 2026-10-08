@@ -288,6 +288,136 @@ export const RECIPES: Record<string, Recipe> = {
       tone(c, o, t, { f0: 140 * p, f1: 90 * p, dur: 0.18, gain: 0.12 });
     },
   },
+  // Game feel (D-233). The income pulse: a deep, soft thump, felt more than heard.
+  "fx.pulse": {
+    bus: "fx",
+    ms: 900,
+    vary: 0.02,
+    play: (c, o, t, p, n) => {
+      tone(c, o, t, { f0: 64 * p, f1: 46 * p, dur: 0.6, gain: 0.34, attack: 0.02 });
+      tone(c, o, t, { f0: 128 * p, f1: 92 * p, dur: 0.3, gain: 0.06, attack: 0.01 });
+      hiss(c, o, t, n, { type: "lowpass", f0: 260, f1: 120, dur: 0.28, gain: 0.05 });
+    },
+  },
+  // A cell gained: a soft, dreamy note; the pitch (a pentatonic step) comes from the caller.
+  "fx.capture": {
+    bus: "fx",
+    ms: 1300,
+    vary: 0,
+    play: (c, o, t, p) => {
+      tone(c, o, t, { f0: 523.25 * p, dur: 1.1, gain: 0.07, attack: 0.03 });
+      tone(c, o, t, {
+        type: "triangle",
+        f0: 523.25 * p * 1.004,
+        dur: 0.9,
+        gain: 0.03,
+        attack: 0.04,
+        lp: 1800,
+      });
+      tone(c, o, t + 0.02, { f0: 1046.5 * p, dur: 0.5, gain: 0.012, attack: 0.05 });
+    },
+  },
+  // A cell lost: a low, sad note sagging a little.
+  "fx.loss": {
+    bus: "fx",
+    ms: 1200,
+    vary: 0,
+    play: (c, o, t, p) => {
+      tone(c, o, t, {
+        type: "triangle",
+        f0: 220 * p,
+        f1: 208 * p,
+        dur: 1.0,
+        gain: 0.08,
+        attack: 0.04,
+        lp: 900,
+      });
+      tone(c, o, t, { f0: 110 * p, f1: 104 * p, dur: 0.9, gain: 0.05, attack: 0.05 });
+    },
+  },
+  // The biodiversity combo rose: a bright rising arpeggio; fell: two falling minor notes.
+  "ui.combo.up": {
+    bus: "ui",
+    ms: 700,
+    vary: 0,
+    play: (c, o, t, p) => {
+      [784, 988, 1175, 1568].forEach((f, i) => {
+        tone(c, o, t + i * 0.06, { f0: f * p, dur: 0.35, gain: 0.08, attack: 0.005 });
+      });
+    },
+  },
+  "ui.combo.down": {
+    bus: "ui",
+    ms: 800,
+    vary: 0,
+    play: (c, o, t, p) => {
+      tone(c, o, t, {
+        type: "triangle",
+        f0: 466 * p,
+        f1: 440 * p,
+        dur: 0.35,
+        gain: 0.09,
+        lp: 1400,
+      });
+      tone(c, o, t + 0.25, {
+        type: "triangle",
+        f0: 370 * p,
+        f1: 349 * p,
+        dur: 0.5,
+        gain: 0.09,
+        lp: 1200,
+      });
+    },
+  },
+  // Your hunter's kill: a crunchy, conquering bite.
+  "fx.bite": {
+    bus: "fx",
+    ms: 350,
+    vary: 0.1,
+    play: (c, o, t, p, n) => {
+      hiss(c, o, t, n, { type: "bandpass", f0: 1900 * p, q: 1.5, dur: 0.06, gain: 0.26 });
+      hiss(c, o, t + 0.04, n, { type: "bandpass", f0: 900 * p, q: 2, dur: 0.08, gain: 0.18 });
+      tone(c, o, t, { type: "triangle", f0: 190 * p, f1: 70 * p, dur: 0.13, gain: 0.2 });
+    },
+  },
+  // Your animal caught: a short distress call, twice.
+  "fx.distress": {
+    bus: "fx",
+    ms: 600,
+    vary: 0.1,
+    play: (c, o, t, p) => {
+      tone(c, o, t, { f0: 1500 * p, f1: 900 * p, dur: 0.16, gain: 0.06, attack: 0.005 });
+      tone(c, o, t + 0.2, { f0: 1400 * p, f1: 800 * p, dur: 0.18, gain: 0.05, attack: 0.005 });
+    },
+  },
+  // Shrubs and trees planted: a woody, barky knock under the sprinkle.
+  "fx.plant.wood": {
+    bus: "fx",
+    ms: 380,
+    play: (c, o, t, p, n) => {
+      tone(c, o, t, {
+        type: "triangle",
+        f0: 210 * p,
+        f1: 150 * p,
+        dur: 0.09,
+        gain: 0.18,
+        lp: 1200,
+      });
+      hiss(c, o, t, n, { type: "bandpass", f0: 600 * p, q: 4, dur: 0.05, gain: 0.12 });
+      tone(c, o, t + 0.01, { f0: 95 * p, f1: 68 * p, dur: 0.2, gain: 0.12 });
+    },
+  },
+  // A higher-tier card planted: a faint glitter, longer for gold.
+  "fx.sparkle": {
+    bus: "fx",
+    ms: 700,
+    play: (c, o, t, p) => {
+      for (let i = 0; i < 5; i++) {
+        const f = (2600 + Math.random() * 2400) * p;
+        tone(c, o, t + i * 0.07, { f0: f, dur: 0.12, gain: 0.022, attack: 0.004 });
+      }
+    },
+  },
   "fx.plant.water": {
     bus: "fx",
     ms: 520,

@@ -2688,3 +2688,17 @@ Template:
   - **Food-web focus:** clicking a strategic icon lights its species' web on the build bar, with rings in the tutorial pointer's pulsing style. Predators wear red (`--threat`), prey a deep mossy green (#3f6b2a), and every other family and tile drops to 60 % saturation. A family takes the strongest role among its species (predator, then prey). Any new selection or Esc ends the focus (`webRoles`).
   - **Unit list:** the species of the selected animals wear a bright gold-white outline.
   - **Cell card:** on owned cells, "Strength x vs y push" in species, the push in red when it wins; from a new `strengthFrame` (tenths of a species, `Flora::fronts`). The hold of D-230 shows through the existing lock chip.
+
+## D-233 · 2026-10-08 · Game feel: income pulse, capture melody, combo badge, kills and crumbs, sprouts
+- **Status:** accepted (user's UX list; per 4×4 patch for the income numbers; all six steps at once)
+- **Decision:**
+  - **Sim views (never hashed):** `Fauna::kills` / `World::take_kills` (hunter, prey owner and species, cell), `World::income_frame` (each cell's plant income, hundredths of a point per second), `World::best_factor` (a player's best biodiversity factor ×100); `Economy::cell_income` is shared with the income update.
+  - **Income pulse:** every 3 s, one floating number per 4×4 patch of your land on screen (the points it made, speed included; at most 40, the largest), from light clear green and small to mossy green and large, with a deep soft thump (`fx.pulse`). Nothing while paused.
+  - **Capture melody:** at each field frame, up to 4 gained cells play a soft note climbing a major pentatonic scale (the phrase restarts after 2.5 s quiet), up to 2 lost cells a low note falling a minor pentatonic (`fx.capture`, `fx.loss`).
+  - **Combo badge:** "×1.35" over the centre of the tug-of-war bar: your best cell's income factor. A rise: a green pulse, shake and glow, and a bright arpeggio (`ui.combo.up`). A fall: a red flash and shake, and two falling notes (`ui.combo.down`).
+  - **Kills and crumbs:**
+    - your hunter's kill: snapping jaws and a gold flash, a crunchy bite (`fx.bite`);
+    - your animal caught: a red ring and a shaking "!", a distress call (`fx.distress`);
+    - grazers on the other side's land throw crumbs in the colour of the plants' owner (up to 8 every 0.4 s).
+  - **Sprouts:** planting pops a springy shoot in the plant's colour, with sparkles by tier (1 bronze, 3 silver, 6 gold stars; `fx.sparkle`). Shrubs and trees add a woody knock (`fx.plant.wood`) to the existing layered plant sounds.
+  - Logic in `game/juice.ts` (tested), marks in `ui/Juice.svelte` (CSS animations, at most 140 at once, reduced motion respected), wiring in `App.feel`.

@@ -33,7 +33,21 @@
     type Toast,
   } from "./game/alerts";
   import { cardState, isSwarm, label, unlockedNow } from "./game/species";
-  import { plantColor, WORLD } from "./render/palette";
+  import { plantColor, PLAYER, WORLD } from "./render/palette";
+  import Juice from "./ui/Juice.svelte";
+  import {
+    captures,
+    comboChange,
+    FALL,
+    incomePops,
+    killKind,
+    MAX_POPS,
+    Phrase,
+    popStyle,
+    PULSE_MS,
+    ratio,
+    RISE,
+  } from "./game/juice";
   import { Viewer, type CameraKeys, type Layer } from "./render/viewer";
   import { loadQuality, saveQuality, type Quality } from "./render/quality";
   import { censusText, frameStats, Sections } from "./game/perf";
@@ -266,6 +280,104 @@
       const key = keys[i] ?? "";
       return { key, row: g.row, col: g.col, s, count: g.count, ids: g.ids, order, enemy };
     });
+  }
+
+  // Game feel (D-233): the income pulse, the capture melody, the biodiversity combo, kills and
+  // raid crumbs, run once per frame by `feel`; the overlay shows the marks.
+  let juice: Juice | undefined = $state();
+  let lastPulse = 0;
+  let pulseTick = -1;
+  let ownerFrame = -1;
+  let prevOwner: Uint8Array | null = null;
+  const rise = new Phrase(RISE, 2500);
+  const fall = new Phrase(FALL, 2500);
+  let lastCombo: number | null = null;
+  /** The combo for the top bar: its value, its last move, and a counter that replays the
+   *  animation on every move. */
+  let combo = $state<{ value: number; move: "up" | "down" | null; n: number } | null>(null);
+  let lastCrumbs = 0;
+  /** Crumbs every this many ms, from at most CRUMBS grazers on the other side's land. */
+  const CRUMB_MS = 400;
+  const CRUMBS = 8;
+
+  function feel(now: number) {
+    const l = live;
+    const v = viewer;
+    if (!l || !v || outcome || perfBench) return;
+    const f = l.fields();
+    const n = l.meta.n;
+    const place = (at: { x: number; inView: boolean }) => ({ ...at, width: canvas.clientWidth });
+    // A new field frame: the cells you gained play a rising pentatonic phrase, the cells you
+    // lost sad low notes (a few per frame); the combo reports its move.
+    if (f.frame !== ownerFrame) {
+      if (prevOwner && prevOwner.length === f.owner.length) {
+        const { gained, lost } = captures(prevOwner, f.owner, me);
+        gained.slice(0, 4).forEach((_, i) =>
+          setTimeout(() => {
+            const pitch = ratio(rise.next(performance.now()));
+            audio.play("fx.capture", { pitch, cooldown: 60 });
+          }, i * 120),
+        );
+        lost.slice(0, 2).forEach((_, i) =>
+          setTimeout(() => {
+            const pitch = ratio(fall.next(performance.now()));
+            audio.play("fx.loss", { pitch, cooldown: 200 });
+          }, i * 320),
+        );
+      }
+      prevOwner = f.owner.slice();
+      ownerFrame = f.frame;
+      const value = l.factor[me - 1] ?? 1;
+      const move = lastCombo === null ? null : comboChange(lastCombo, value);
+      if (move) audio.play(move === "up" ? "ui.combo.up" : "ui.combo.down");
+      if (lastCombo === null || move) combo = { value, move, n: (combo?.n ?? 0) + 1 };
+      lastCombo = value;
+    }
+    // The income pulse: what each patch of your land made over the last PULSE_MS (none while
+    // paused).
+    if (now - lastPulse >= PULSE_MS) {
+      lastPulse = now;
+      if (l.tick !== pulseTick && !homeless) {
+        pulseTick = l.tick;
+        const pops = incomePops(f.owner, l.cellIncome, n, me, (PULSE_MS / 1000) * speed)
+          .flatMap((p) => {
+            const at = v.screenPoint({ row: p.row, col: p.col });
+            return at.inView ? [{ ...p, at }] : [];
+          })
+          .slice(0, MAX_POPS);
+        const max = pops[0]?.value ?? 0;
+        for (const p of pops) {
+          const style = popStyle(p.value, max);
+          const text = `+${p.value < 10 ? p.value.toFixed(1) : Math.round(p.value)}`;
+          juice?.income({ x: p.at.x, y: p.at.y, text, ...style });
+        }
+        if (pops.length) audio.play("fx.pulse", { gain: 0.9 });
+      }
+    }
+    // Kills: your hunters' bites, your animals' panic.
+    for (const k of l.takeKills()) {
+      const kind = killKind(k, me);
+      const at = kind ? v.screenPoint(k) : null;
+      if (!kind || !at?.inView) continue;
+      juice?.kill(kind, at.x, at.y);
+      audio.play(kind === "won" ? "fx.bite" : "fx.distress", { at: place(at), cooldown: 250 });
+    }
+    // Crumbs where grazers feed on the other side's land, in the colour of the plants' owner.
+    if (now - lastCrumbs >= CRUMB_MS) {
+      lastCrumbs = now;
+      let shown = 0;
+      for (const a of v.visibleAnimals()) {
+        if (shown >= CRUMBS) break;
+        if (fauna[a.species]?.role !== "herbivore") continue;
+        const cell = { row: Math.floor(a.y), col: Math.floor(a.x) };
+        const o = f.owner[cell.row * n + cell.col];
+        if ((o !== 1 && o !== 2) || o === a.owner) continue;
+        const at = v.screenPoint(cell);
+        if (!at.inView) continue;
+        juice?.crumb(at.x, at.y, PLAYER[o].base);
+        shown++;
+      }
+    }
   }
 
   /** The species whose food web the build bar lights (D-232): set by clicking a strategic icon,
@@ -816,6 +928,7 @@
             audio.play("fx.rumble", { gain: 0.8 }); // D-185
           }
         }
+        feel(now); // D-233
       }
       if (Math.floor(frameTick) !== tick) tick = Math.floor(frameTick);
       const before = performance.now();
@@ -1019,8 +1132,15 @@
       if (armedKind === "flora") {
         live.plant(me, planting, at.row, at.col);
         const s = live.meta.species.find((x) => x.name === planting);
-        viewer.plantFeedback(at, live.plantRadius, plantColor(planting, s?.level ?? 1, me));
+        const rgb = plantColor(planting, s?.level ?? 1, me);
+        viewer.plantFeedback(at, live.plantRadius, rgb);
         audio.play(plantSound(s), { at: placeOf(at), gain: 1.4 });
+        // D-233: a springy sprout with tier sparkles; shrubs and trees knock like wood.
+        const sp = viewer.screenPoint(at);
+        if (sp.inView) juice?.sprout(sp.x, sp.y, `rgb(${rgb.join(",")})`, s?.tier ?? 1);
+        if ((s?.level ?? 1) >= 3) audio.play("fx.plant.wood", { at: placeOf(at) });
+        if ((s?.tier ?? 1) >= 2)
+          audio.play("fx.sparkle", { at: placeOf(at), gain: 0.4 * (s?.tier ?? 1) });
       } else {
         live.spawn(me, planting, at.row, at.col);
         const place = placeOf(at);
@@ -1298,6 +1418,7 @@
     <TopBar
       {replay}
       {tick}
+      combo={live ? combo : null}
       victory={victoryNow}
       bind:player
       onTech={() => (techOpen = true)}
@@ -1366,6 +1487,7 @@
       </p>
     {/if}
     <div class="p{live ? me : player}" style:display="contents">
+      <Juice bind:this={juice} />
       <StrategicIcons {icons} onSelect={pickIcon} onHover={(ids) => (hoverIds = ids)} />
     </div>
     {#if showPerf && perfDetail}

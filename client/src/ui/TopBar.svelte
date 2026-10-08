@@ -44,6 +44,7 @@
     overlay = $bindable(),
     names = ["Player 1", "Player 2"],
     weather,
+    combo = null,
   }: {
     replay: Source;
     tick: number;
@@ -67,6 +68,9 @@
     names?: [string, string];
     /** The map overlay shown (D-135), or none. */
     overlay: OverlayId | null;
+    /** Your best biodiversity factor (D-233), its last move, and a counter that replays the
+     *  animation on each move (live matches). */
+    combo?: { value: number; move: "up" | "down" | null; n: number } | null;
   } = $props();
 
   let menu = $state(false);
@@ -137,6 +141,18 @@
           ></span>
         {/if}
       </span>
+      {#if combo}
+        <!-- The biodiversity combo (D-233): your best cell's income factor, over the tug bar;
+             it pulses green when it rises, flashes red when it falls. -->
+        {#key combo.n}
+          <span
+            class="combo {combo.move ?? ''}"
+            title="Biodiversity combo: your richest cell earns ×{combo.value.toFixed(
+              2,
+            )} (more species in a cell, more income)">×{combo.value.toFixed(2)}</span
+          >
+        {/key}
+      {/if}
       <div class="res" title="Land: your share of the map">
         <Icon name="land" />
         <span class="value num">{((land[player - 1] ?? 0) * 100).toFixed(0)}%</span>
@@ -605,5 +621,67 @@
     border: 0;
     border-top: 1px solid var(--line);
     margin: 2px 0;
+  }
+  .combo {
+    position: absolute;
+    left: 50%;
+    top: -15px;
+    z-index: 2;
+    translate: -50% 0;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: rgba(20, 28, 18, 0.88);
+    box-shadow: 0 0 0 1px rgba(127, 220, 106, 0.55);
+    color: #b9f09c;
+    font-weight: 900;
+    font-size: 1.05em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.5;
+    pointer-events: auto;
+  }
+  .combo.up {
+    animation: combo-up 0.9s ease-out;
+  }
+  .combo.down {
+    animation: combo-down 0.9s ease-out;
+  }
+  @keyframes combo-up {
+    0% {
+      scale: 1;
+    }
+    20% {
+      scale: 1.45;
+      rotate: -4deg;
+      box-shadow: 0 0 18px #7fdc6a;
+    }
+    40% {
+      rotate: 4deg;
+    }
+    60% {
+      scale: 1.1;
+      rotate: 0deg;
+      box-shadow: 0 0 10px #7fdc6a;
+    }
+    100% {
+      scale: 1;
+    }
+  }
+  @keyframes combo-down {
+    0%,
+    100% {
+      translate: -50% 0;
+    }
+    15% {
+      color: #ff7a66;
+      box-shadow: 0 0 14px #ff5a44;
+      translate: calc(-50% - 4px) 0;
+    }
+    35% {
+      translate: calc(-50% + 4px) 0;
+    }
+    55% {
+      color: #ff7a66;
+      translate: calc(-50% - 2px) 0;
+    }
   }
 </style>

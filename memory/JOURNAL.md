@@ -959,3 +959,8 @@
 - **Tests:** `stableKeys` (members change, fresh keys, one key per group), `webRoles`, `fronts`; fixtures updated.
 - **Checks:** Rust, WASM hash, relay, client check, test and lint green. Not yet checked by eye in the browser.
 - **Next (user):** look at it in the browser; more UI/UX items, then Alpha 1.3.0.
+
+## 2026-10-08 (11) · Game feel (D-233), branch `ui-ux`
+- **Done:** kill events, cell income and the best biodiversity factor as sim views; the income pulse, capture melody, combo badge, kills/bites/crumbs and sprouts; 8 new procedural sounds. Tests: `kills_are_reported`, `income_frame_and_best_factor_follow_the_plants`, `juice.test.ts` (patches, styles, captures, phrases, combo moves, kill kinds).
+- **Checks:** Rust tests, clippy, WASM hash, client check, lint, tests, build green. Not checked by eye or ear yet.
+- **Next (user):** play and tune the feel (volumes, sizes, rates), then Alpha 1.3.0.

@@ -987,3 +987,14 @@
   - front line drawn on the water surface;
   - player-coloured strength line.
 - **Tests:** drawn sizes. Client check, lint, tests, build green.
+
+## 2026-10-08 (14) · Alpha 1.3 released
+- **Today, in short:**
+  - herb rendering trimmed (D-224);
+  - conquest by strength and push replaced the level rule (D-225); the Python parity was retired (D-226); dead trees lock only their former owner (D-227);
+  - bot styles (wide, tall, rush, balanced) with adaptation and the style-matrix bench (D-228);
+  - six balance passes, two kept (D-229), and two playtest rounds (D-230 conquest hold; D-231 herb pace, slower trees that grow visibly);
+  - UI/UX: icons that hold and click, food-web focus, strength on the cell card (D-232); game feel (D-233); round 3 and round 4 fixes (D-234, D-235).
+- **Release:** menu label "Alpha 1.3"; `ui-ux` merged into main and pushed; CI deploys Cloudflare Pages and the relay.
+- **Open:** D-229 targets partly missed (the cycle, unfinished share, hard vs normal, adaptation); balance runs not repeated after D-230/D-231; animal and sound feel to confirm in play.
+- **Next (user):** playtest feedback.

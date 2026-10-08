@@ -2656,6 +2656,6 @@ Template:
 
 ## D-229 · 2026-10-08 · Balance pass under the strength rule (6 passes, not converged)
 - **Status:** accepted for the kept values; targets partly missed (reported to the user)
-- **Kept:** `establish_threshold` 0.1 → 0.3 (a new species must grow before it counts; fronts no longer freeze: unfinished 56 % → 20 %); great tit `spawn_cost` 200 → 400 (the universal swarm answer; rush > tall and wide > rush appear).
+- **Kept:** `establish_threshold` 0.1 → 0.3 (a new species must grow before it counts; fronts no longer freeze: unfinished 56 % → 20 %); great tit `spawn_cost` 200 → 400 (the universal swarm answer; rush > tall and wide > rush appear), and the frog (tier 2 of the same family) 300 → 400 so no tier is cheaper than the one below (`food_web` test).
 - **Tried and reverted:** `smother_rate` 0.25 (unfinished 56 %, tall 29 %); `natural_death_s` 1800 (no effect: trees come too late); `div_gain` 0.10 (breaks wide > rush); tree unlocks −33 % (tall 35 %, wide 64 %); smaller raid herds for army-heavy bots (rush 43 %).
 - **Final measure** (style matrix at Normal, 8 seeds per ordered pair, 128 matches): wide 48, tall 40, rush 55, balanced 54 (mean points %); rush > tall 71, tall > wide 46, wide > rush 53; unfinished 24 %; seat bias −9; lead changes 3.0; comebacks 16 %; roster 25/33 animals called, great tit 35 % of calls. Ladder (balanced): hard > normal 59 %, normal > easy 81 %, hard > easy 93 %. Adaptive hard vs locked hard 46 %. Decision time 150–270 µs.

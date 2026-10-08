@@ -763,7 +763,7 @@ rest = 0.2
 
 [fauna.frog]
 growth = 60
-spawn_cost = 300
+spawn_cost = 400
 unlock_cost = 2500
 yield = 0.06
 cap = 120

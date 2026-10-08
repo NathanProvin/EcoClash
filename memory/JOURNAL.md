@@ -865,3 +865,12 @@
 
   Client check and lint green.
 - **Next (user):** set `RELAY_URL` to `wss://ecoclash-relay.nanonathcry2.workers.dev` (optional now) and let CI redeploy.
+
+## 2026-10-08 · Herb polygons; gameplay-feel research
+- **Done:**
+  - Herb chunks are hidden at each field frame where their herb has no share (chunk plus one border cell, both blended frames; D-224). Exact, no visual change.
+  - Wildflower heads are domes: 4 triangles and 5 vertices instead of 8 and 6 (the lower half faced away from the camera).
+  - Researched game feel, juice, short-session hooks and comeback design; proposed ideas to the user (in the session reply), none built yet.
+
+  Client test, check and lint green. Not measured on the reference laptop yet (`?perf=1`).
+- **Next (user):** a `?perf=1` run; pick the gameplay ideas to build.

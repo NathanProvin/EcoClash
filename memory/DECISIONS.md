@@ -2602,3 +2602,10 @@ Template:
   - alpha-leaf overdraw on integrated GPUs;
   - licences that forbid web redistribution;
   - the late-game frame is CPU-bound today (D-214), which the extra per-instance animation work adds to.
+
+## D-224 · 2026-10-08 · Herb culling per chunk, dome flower heads
+- **Status:** accepted (user: optimize the herbaceous polygons)
+- **Decision:**
+  - At each field frame, a herb chunk mesh (grasses, lichen and moss, wildflowers; D-155) is hidden when no cell of its chunk, nor one cell of border (the shader samples the herb mix bilinearly), has a share of that herb in the two frames being blended (`herbIn`, `HerbGroup.cull`). Exact: those tufts were all collapsed in the shader, but their vertices still ran.
+  - Wildflower heads are the top half of the octahedron (5 vertices, 4 triangles instead of 6 and 8): the camera looks down, so the lower half was back faces. The rim sits a little lower so the head keeps its height.
+- **Why:** wildflowers were the heaviest herb (27 vertices and 30 triangles per tuft, as many vertices per cell as the grass) and every herb ran its full vertex shader over the whole map, empty land included. Heads now cost 24 vertices and 18 triangles per tuft; early game most chunks draw nothing, and wildflowers only draw where they grow.

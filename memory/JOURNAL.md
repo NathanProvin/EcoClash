@@ -1083,3 +1083,13 @@
   - bot-balance pass (style fingerprint test ignored; bots rarely raid or plant trees; recyclers unused for soil);
   - the red planting ring and new shrubs to see in play.
 - **Next (user):** play tests.
+
+## 2026-10-09 (8) · CI fix after the Alpha 1.4 push
+- **Failures:**
+  - Python prototype tests (38): the retired prototype still required the first soil type to be "loam"; D-240 named it "none". With that fixed, two rule tests still failed on D-239's per-species water needs.
+  - Relay lockstep test: its script buys wildflowers at tick 250, now 1500 (user tuning) against an 1100 start bank, so 4 unlocks instead of 5. The lockstep itself was in sync.
+- **Fix:**
+  - the prototype accepts "loam" or "none";
+  - the test helper `uncapped()` gives land plants the neutral V1 water need, so the rule tests check mechanisms, not tuned data;
+  - the relay test checks that both players bought the same cards and at least two, not a price-dependent count.
+- **Lesson:** run every CI step before pushing (`py:test`, `npm run test -w relay`, `relay:lint`, `rs:wasm`, `client:build`), not just the Rust and client suites.

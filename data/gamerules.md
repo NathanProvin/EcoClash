@@ -119,8 +119,13 @@ It rises toward the site's **suitability**, so poor sites fill slower and cap lo
 
 Plants reproduce and spread **from cell to cell**, into the 4 neighbouring cells. For each own cell whose species has enough biomass to spread (above `spread_threshold`), each neighbour is evaluated as follows:
 
-**Strength and push (D-225).** Conquest of enemy land compares numbers, not plant levels:
-- A cell's **strength** = (its owner's plant species established in it, above `establish_threshold`, + its owner's animal species living in it) × (1 + `fert_gain` × soil fertility). Soil fertility is the cell's soil development, 0 to 1.
+**Strength and push (D-225, D-236).** Conquest of enemy land compares numbers, not plant levels:
+- A cell's **strength** = vigor × canopy × side shade × fertility × biodiversity:
+  - **Vigor** = `vigor_floor` + (1 − `vigor_floor`) × the mean fill of the owner's layers that have a species above `establish_threshold`. A layer's fill is its species' summed cover, at most 1 (the cell card's layer bars). Each layer weighs its species' spread rate × cover × the light they get, so fast spreaders count most and young or shaded layers little.
+  - **Canopy** = 1 + `canopy_gain` × the shade the cell's own shrubs and trees cast on its ground.
+  - **Side shade** = 1 − `edge_shade` × the ground shade of the darkest enemy neighbour × the cell's own open ground. Trees and shrubs on a front shade the enemy's open cells next to them; a cell under its own canopy barely feels it.
+  - **Fertility** = 1 + `fert_gain` × soil development (0 to 1).
+  - **Biodiversity** = 1 + `div_gain` × species (the owner's plant species established in it + its animal species living in it), at most `div_cap`. (Income has its own pair, §7.)
 - The **push** on a cell = the sum of the strengths of its enemy neighbours (4 sides). Push comes from the plants spreading; animals add to it only as part of their own cell's strength. An enemy animal standing in the cell adds nothing (animals attack by grazing, §6.1).
 
 | Neighbour cell state | Result |
@@ -139,11 +144,12 @@ Plants reproduce and spread **from cell to cell**, into the 4 neighbouring cells
 ### 3.1 Design consequences
 
 - **A front holds only while both sides are equal.** Any change moves it: growth, a new species, fertile soil, dead trees, weather, a raid. Ways to push:
-  1. **Diversity:** more species per cell (tall play). A cell with grasses, ferns, elder, oak and a resident squirrel has strength 5.
+  1. **Depth:** more species per cell, and a canopy over them (tall play). A full cell with grasses, ferns, elder, oak and a resident squirrel has strength about 3 on bare soil, a grass cell 1.25.
   2. **Geometry:** a cell touching 2 or 3 of your cells takes all their strengths. A bulge into your land is pushed back at its tip, and encirclement wins (wide play).
-  3. **Grazing:** herbivores eat species out of an enemy cell, which lowers its strength, or eat it bare, which opens it to your spread (rush play).
-  4. **Fertility:** recyclers and litter raise soil development, which multiplies strength.
-- **Monocultures are weak.** A beech wall alone in its cells has strength 1 per cell, whatever its height.
+  3. **Grazing:** herbivores thin an enemy cell's layers, which lowers its vigor, eat species out of it, or eat it bare, which opens it to your spread (rush play).
+  4. **Shade:** a forest edge shades the enemy's open cells next to it down; their answer is a canopy of their own, or shade-tolerant plants.
+  5. **Fertility:** recyclers and litter raise soil development, which multiplies strength.
+- **Monocultures are weak.** A full beech wall alone has strength about 1.8 per cell: its canopy counts, but one species gets little biodiversity.
 
 ### 3.2 Territory demarcation line
 

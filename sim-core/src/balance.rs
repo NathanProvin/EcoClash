@@ -38,6 +38,18 @@ pub struct FloraRules {
     pub shade: bool,
     /// Strength gain at full soil development (D-225): strength x (1 + fert_gain x soil).
     pub fert_gain: f64,
+    /// Strength gain under a closed canopy (D-236): strength x (1 + canopy_gain x the shade the
+    /// cell casts on its ground).
+    pub canopy_gain: f64,
+    /// Side shade (D-236): strength x (1 - edge_shade x the strongest enemy neighbour's ground
+    /// shade x this cell's own open ground).
+    pub edge_shade: f64,
+    /// Vigor floor (D-236): vigor = vigor_floor + (1 - vigor_floor) x the mean layer fill, so a
+    /// cell just taken (layers at the establish threshold) is not defenceless.
+    pub vigor_floor: f64,
+    /// Strength biodiversity (D-236): strength x (1 + div_gain x species), at most x div_cap.
+    pub div_gain: f64,
+    pub div_cap: f64,
     /// Conquest hold (D-230): real seconds during which a cell just conquered cannot be pushed
     /// by its former owner.
     pub hold_s: f64,
@@ -633,6 +645,15 @@ impl Balance {
             "[flora] fert_gain must be in 0..4".into(),
         )?;
         check(f.hold_s >= 0.0, "[flora] hold_s must be >= 0".into())?;
+        check(
+            (0.0..=4.0).contains(&f.canopy_gain)
+                && (0.0..=1.0).contains(&f.edge_shade)
+                && (0.0..=1.0).contains(&f.vigor_floor)
+                && (0.0..=1.0).contains(&f.div_gain)
+                && (1.0..=8.0).contains(&f.div_cap),
+            "[flora] canopy_gain must be in 0..4, edge_shade, vigor_floor and div_gain in 0..1,              div_cap in 1..8"
+                .into(),
+        )?;
         check(
             (0.0..=1.0).contains(&self.economy.div_gain)
                 && (1.0..=8.0).contains(&self.economy.div_cap),

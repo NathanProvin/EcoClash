@@ -2733,3 +2733,24 @@ Template:
   - **Food-web focus:** unrelated families and tiles at 20 % saturation (−80 %); left-clicking any animal also focuses its species.
   - **Front line on the water:** the water surface draws the front lines from the frontier texture (`frontLine`, shared with the ground; v flipped), with near-opaque water under the line. The ground still hides its own line under the water (D-212).
   - **Cell card:** "Strength 2.5 vs 3.8", larger (1.15 em), each number in its player's colour, a glow when the push wins; the word "push" dropped.
+
+## D-236 · 2026-10-09 · Strength as biological vigor
+- **Status:** accepted (user's formula, reviewed; Alpha 1.4)
+- **Context:** strength counted established species only (D-225): a cell with grass at 30 % was as strong as a full meadow, and spread rate, fill and trees did not count.
+- **Decision:** strength = vigor × canopy × side shade × fertility × biodiversity (`Flora::strength`, `Flora::strengths`):
+  - **Vigor** = `vigor_floor` (0.5) + (1 − floor) × the weighted arithmetic mean of the fill of the owner's established layers. Fill = the layer's summed cover, at most 1 (the cell card's bars). Weight = Σ of its species' spread rate × cover × light, so young or shaded layers weigh little and planting a new species never lowers strength.
+  - **Canopy** = 1 + `canopy_gain` (0.5) × the shade the cell casts on its ground.
+  - **Side shade** = 1 − `edge_shade` (1) × the darkest enemy neighbour's ground shade × own open ground: trees and shrubs on a front shade the enemy's open cells; a cell under its own canopy barely feels it.
+  - **Fertility** = 1 + `fert_gain` × soil (unchanged).
+  - **Biodiversity** = 1 + `[flora] div_gain` (0.25) × species (plants established + resident animals), at most `[flora] div_cap` (3). Income keeps its own `[economy]` pair (0.05, 1.5).
+- **Rejected:**
+  - A geometric mean: it needs a fixed-point log/exp table, and with these weights it gives nearly the same values.
+  - Weights by spread rate alone: a young layer pulled the mean down.
+  - Shade as a penalty on the values: it lowered strength whenever trees grew.
+- **Why a floor and side shade:** without them a fresh tree conquest (layers at 30 %, strength 0.63) lost to one grass neighbour (1.56) once the hold ended, because oak takes minutes to fill. With them, a fresh cell (≈1.37) holds against shaded grass (≈1.21), and a full forest front advances.
+- **Bot:** `one()` (a species' worth) is the biodiversity loss of one species fewer; `front()` reads one `fronts` pass.
+- **Measured** (Normal; mirror 8 seeds, matrix 4 seeds per pair; main → new):
+  - mirror: median end 34:49 → 22:39; trees planted (never → median 27:00); lead changes 1.2 → 0.6;
+  - style means: tall 43 → 56, rush 60 → 41, wide 43, balanced 51 → 58;
+  - cycle: rush > tall 75 → 50, tall > wide 50 → 68, wide > rush 56 → 75;
+  - bot think 354 → 747 µs (≤ 1 ms); a full-map flora tick 816 → 896 µs. The worst tick, 8.6 ms, was already 8.8 ms on main.

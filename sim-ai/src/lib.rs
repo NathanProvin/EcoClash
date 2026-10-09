@@ -614,9 +614,16 @@ impl Bot {
         (secs * ARMY_REF.unsigned_abs() / army).clamp(PACE_S.0, PACE_S.1)
     }
 
-    /// One species' worth of strength in cell `k` (Q16): its strength over its species count.
+    /// One species' worth of strength in cell `k` (Q16): what its biodiversity factor loses
+    /// with one species fewer (D-236; its layers kept full).
     fn one(v: &View, k: usize) -> i64 {
-        v.strength[k] / v.w.flora.species_count(&v.w.state, k).max(1)
+        let p = &v.w.flora.p;
+        let d = |c: i64| (i64::from(ONE) + p.div * c).min(p.div_cap);
+        let c = v.w.flora.species_count(&v.w.state, k);
+        if c == 0 {
+            return 0;
+        }
+        v.strength[k] - v.strength[k] * d(c - 1) / d(c)
     }
 
     /// Read the map (D-191): enemy animals on own land, near own animals they eat, anywhere;
@@ -1485,8 +1492,12 @@ fn category(w: &World, i: usize) -> Option<usize> {
 fn front(w: &World, me: u8) -> (Vec<i64>, Vec<i64>, Vec<i64>) {
     let n = w.state.n;
     let n2 = n * n;
-    let strength: Vec<i64> = (0..n2).map(|k| w.flora.strength(&w.state, k)).collect();
-    let push = w.flora.push(&w.state);
+    let (strength, push): (Vec<i64>, Vec<i64>) = w
+        .flora
+        .fronts(&w.state)
+        .into_iter()
+        .map(|[s, p]| (s, (p - s).max(0)))
+        .unzip();
     let margin = (0..n2)
         .map(|k| {
             if w.state.owner[k] == 3 - me {

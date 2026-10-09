@@ -998,3 +998,14 @@
 - **Release:** menu label "Alpha 1.3"; `ui-ux` merged into main and pushed; CI deploys Cloudflare Pages and the relay.
 - **Open:** D-229 targets partly missed (the cycle, unfinished share, hard vs normal, adaptation); balance runs not repeated after D-230/D-231; animal and sound feel to confirm in play.
 - **Next (user):** playtest feedback.
+
+## 2026-10-09 (1) · Alpha 1.4: strength as biological vigor (D-236)
+- **Done:**
+  - branch `alpha-1.4`;
+  - strength = vigor (floored mean layer fill, weighted by spread rate × cover × light) × canopy × side shade × fertility × biodiversity (cap 3, strength only);
+  - the bot's species worth and front read the new strength;
+  - tooltip, gamerules §3/§3.1, INSTRUCTIONS §5.2.
+- **Found while testing:** without a floor, fresh tree conquests fell back to grass after the hold. The user chose side shade from enemy trees plus a vigor floor of 0.5.
+- **Tests:** new strength tests (exact factors, cap, grazing, young layer, canopy, side shade). Workspace tests, lint and native = WASM green. Client check, lint and tests green.
+- **Bench vs main:** tall up (43 → 56), rush down (60 → 41); trees now planted; median end 22:39. Lead changes fell (0.6) and the cycle is still off target. Bot think 747 µs.
+- **Open:** playtest the new fronts; lead changes and the cycle (D-229 targets); `smother_rate` not retuned (one lever per pass).

@@ -1,8 +1,7 @@
 <script lang="ts">
   // Strategic icons (D-078, D-114): the family pictogram of the build bar with a head count over
   // each large group of your animals, at a fixed screen size, so the whole army reads at a
-  // glance. Clicking one selects the group (swarms and the enemy's are only highlighted: they
-  // take no orders) and lights its prey and predators on the build bar (D-232). Icons keep their
+  // glance. Clicking one selects the group, swarms too (D-238; the enemy's are only highlighted) and lights its prey and predators on the build bar (D-232). Icons keep their
   // key while their group's members change, so the hover holds (D-232).
   // The enemy's groups show too (D-146), with a solid red ring (D-158): where the threat is.
   import { label, MEDAL } from "../game/species";

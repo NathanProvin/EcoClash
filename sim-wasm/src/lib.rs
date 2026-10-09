@@ -238,8 +238,8 @@ impl Sim {
         self.world.generate_terrain(&self.terrain, self.seed);
     }
 
-    /// The map for renderers (D-083): elevation (0..=255), then the ground class (0 land,
-    /// 1 shallow, 2 deep, 3 rock), `n * n` bytes each.
+    /// The map for renderers (D-083): elevation (0..=255), the ground class (0 land, 1 shallow,
+    /// 2 deep, 3 rock), then the bedrock (D-240, index in `terrain::BEDROCKS`), `n * n` bytes each.
     #[wasm_bindgen(js_name = terrainFrame)]
     pub fn terrain_frame(&self) -> Vec<u8> {
         let st = &self.world.state;
@@ -247,6 +247,7 @@ impl Sim {
             .iter()
             .map(|&e| u8::try_from(e >> 8).unwrap_or(u8::MAX))
             .chain(st.ground.iter().copied())
+            .chain(st.soil_type.iter().copied()) // bedrock (D-240)
             .collect()
     }
 
@@ -489,6 +490,25 @@ impl Sim {
             .collect()
     }
 
+    /// Plant orders since the last call (D-241), as flat (player, species, row, col, taken)
+    /// quintuples; taken is 1 when the order planted, 0 when it was refused.
+    #[wasm_bindgen(js_name = takePlantings)]
+    pub fn take_plantings(&mut self) -> Vec<u32> {
+        self.world
+            .take_plantings()
+            .into_iter()
+            .flat_map(|(p, s, r, c, ok)| {
+                [
+                    u32::from(p),
+                    u32::try_from(s).unwrap_or(0),
+                    r,
+                    c,
+                    u32::from(ok),
+                ]
+            })
+            .collect()
+    }
+
     /// Catastrophes cast since the last call, as flat (player, card, row, col) quadruples.
     #[wasm_bindgen(js_name = takeEffects)]
     pub fn take_effects(&mut self) -> Vec<u32> {
@@ -522,6 +542,7 @@ fn weather_table(b: &Balance) -> String {
         .to_string()
 }
 
+#[allow(clippy::float_arithmetic)] // display metadata (soil_need), never simulation state
 fn species_table(b: &Balance) -> String {
     let flora = b.flora_species.iter().map(|(name, s)| {
         serde_json::json!({
@@ -530,6 +551,12 @@ fn species_table(b: &Balance) -> String {
             "stats": {
                 "growth": s.growth, "spawn_cost": s.spawn_cost, "unlock_cost": s.unlock_cost,
                 "yield": s.yield_, "cap": s.cap, "effect": s.effect,
+                "water": s.water_optimum, "water_tolerance": s.water_tolerance,
+                "bedrock": s.bedrock, "bedrock_boost": b.flora.bedrock_boost,
+                "soil_gain": s.soil_gain, "shade_cast": s.shade_cast,
+                "soil_need": if s.pioneer { 0.0 } else {
+                    (b.flora.soil_min_level[usize::from(s.level) - 1] - b.flora.soil_ramp).max(0.0)
+                },
             },
         })
     });

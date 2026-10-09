@@ -498,6 +498,12 @@ export class Viewer {
     this.selected = new Set(ids);
   }
 
+  /** Owner rings under every animal (D-241), shown with the strategic icons; selected animals
+   *  keep their ring either way. */
+  setRings(on: boolean): void {
+    this.animals.rings = on;
+  }
+
   /** The grid cell under a screen point (CSS pixels of the canvas), or null off the map. */
   pickCell(x: number, y: number): { row: number; col: number } | null {
     const { clientWidth: w, clientHeight: h } = this.canvas;
@@ -668,11 +674,18 @@ export class Viewer {
     this.ghost.set(spec);
   }
 
+  /** A refused order (D-241): the drop cursor pulses red. */
+  denyGhost(): void {
+    this.ghost.deny(performance.now() / 1000);
+  }
+
   /** Move the drop cursor to a screen point (null: off the canvas). Returns the cell and whether
-   *  it lies off the armed player's land, or null off the map. */
+   *  it lies off the armed player's land, or null off the map. `canPlant` (D-242): for a plant,
+   *  whether the planting there would take; the ring turns red when it would not. */
   aimGhost(
     x: number | null,
     y = 0,
+    canPlant?: (cell: { row: number; col: number }) => boolean,
   ): { cell: { row: number; col: number }; offLand: boolean } | null {
     const spec = this.ghostSpec;
     const cell = spec && x !== null ? this.pickCell(x, y) : null;
@@ -686,7 +699,9 @@ export class Viewer {
     const disaster = spec.kind === "catastrophe"; // D-129: the disc it will hit
     // Plants: the disc planted. Animals: the landing spot at home, the drop area elsewhere.
     const cells = animal ? (offLand ? spec.radius : 0.5) : spec.radius + 0.5;
-    const color = disaster || (animal && offLand) ? WORLD.alert : PLAYER[spec.player].base;
+    const refused = spec.kind === "flora" && canPlant !== undefined && !canPlant(cell);
+    const color =
+      disaster || (animal && offLand) || refused ? WORLD.alert : PLAYER[spec.player].base;
     const at = this.centre(cell);
     const least = this.camera.position.distanceTo(at) * GHOST_SIZE;
     this.ghost.aim(at, cells * CELL, color, least);
@@ -854,12 +869,12 @@ export class Viewer {
     const o = OVERLAYS.find((x) => x.id === this.overlay);
     if (!o) return;
     const n = this.replay.meta.n;
-    const values = overlayValues(o.id, fields, this.shown, n);
+    const values = overlayValues(o.id, fields, this.shown, n, this.replay.terrain);
     // Texture row 0 is the near edge (+z); grid row 0 the far edge: flip rows, as the ground.
     const flipped = new Float32Array(n * n);
     for (let k = 0; k < n * n; k++)
       flipped[(n - 1 - Math.floor(k / n)) * n + (k % n)] = values[k] ?? 0;
-    paintOverlay(flipped, OVERLAY_RAMPS[o.ramp], this.overlayData);
+    paintOverlay(flipped, OVERLAY_RAMPS[o.ramp], this.overlayData, o.classes !== undefined);
     this.overlayTex.needsUpdate = true;
   }
 
@@ -912,6 +927,7 @@ export class Viewer {
     const dt = Math.min(now - (this.lastTime || now), 0.1);
     this.lastTime = now;
     this.now.value = now;
+    this.ghost.pulse(performance.now() / 1000); // D-241
     const fields = this.replay.fields(tick);
     if (fields.frame !== this.lastFrame) {
       // Moving forward blends the grass in; the first frame or a scrub back shows at once.

@@ -52,14 +52,24 @@ pub struct FloraParams {
     pub w_tol: Vec<i64>,
     pub l_opt: Vec<i64>,
     pub l_tol: Vec<i64>,
-    /// Soil-type affinity per species (Q16), indexed `[species][soil type]`.
-    pub aff: Vec<Vec<i64>>,
+    /// Favourite bedrock per species (index in `terrain::BEDROCKS`; 0: none) and the growth
+    /// boost on it (Q16, D-240).
+    pub rock: Vec<u8>,
+    pub rock_boost: i64,
     /// Share of the map's cells each player may hold, per species (Q16; D-029, D-045).
     pub cap: Vec<i64>,
     pub succession: bool,
     pub shade: bool,
     /// Strength gain at full soil development (Q16, D-225).
     pub fert: i64,
+    /// Strength gain under a full canopy, biodiversity gain per species and its cap (Q16, D-236).
+    pub canopy: i64,
+    pub edge: i64,
+    pub floor: i64,
+    /// Least moisture response in the shallows (Q16, D-239).
+    pub seep: i64,
+    pub div: i64,
+    pub div_cap: i64,
     /// Conquest hold (D-230), in flora ticks.
     pub hold: i64,
     /// Dead wood (D-127), per flora tick (Q16): the chance a tree stand dies of old age, the
@@ -108,14 +118,14 @@ impl FloraParams {
                 }
             })
             .collect();
-        let aff = sp
+        let rock = sp
             .iter()
             .map(|s| {
-                b.terrain
-                    .soil_types
-                    .iter()
-                    .map(|t| round(s.soil_affinity.get(t).copied().unwrap_or(1.0) * one))
-                    .collect()
+                let at = s
+                    .bedrock
+                    .as_ref()
+                    .and_then(|t| b.terrain.soil_types.iter().position(|u| u == t));
+                at.and_then(|i| u8::try_from(i).ok()).unwrap_or(0)
             })
             .collect();
         FloraParams {
@@ -141,12 +151,19 @@ impl FloraParams {
             w_tol: v(col(&|s| s.water_tolerance, u16f)),
             l_opt: v(col(&|s| s.light_optimum, u16f)),
             l_tol: v(col(&|s| s.light_tolerance, u16f)),
-            aff,
+            rock,
+            rock_boost: round(f.bedrock_boost * one),
             cap: v(col(&|s| s.cap, one)),
             level,
             succession: f.succession,
             shade: f.shade,
             fert: round(f.fert_gain * one),
+            canopy: round(f.canopy_gain * one),
+            edge: round(f.edge_shade * one),
+            floor: round(f.vigor_floor * one),
+            seep: round(f.shallow_seep * one),
+            div: round(f.div_gain * one),
+            div_cap: round(f.div_cap * one),
             hold: round(f.hold_s * f64::from(b.sim.tick_hz) / f64::from(b.sim.flora_every_ticks)),
             death: round(dt / b.deadwood.natural_death_s * one),
             wood_share: round(b.deadwood.wood_share * one),
@@ -197,9 +214,7 @@ impl FloraParams {
         ] {
             h.i64s(v);
         }
-        for row in &self.aff {
-            h.i64s(row);
-        }
+        h.bytes(&self.rock);
         h.i64(self.alpha)
             .i64(self.death)
             .i64(self.wood_share)
@@ -209,6 +224,12 @@ impl FloraParams {
             .i64(self.water0)
             .i64(self.light0)
             .i64(self.fert)
+            .i64(self.canopy)
+            .i64(self.edge)
+            .i64(self.floor)
+            .i64(self.seep)
+            .i64(self.div)
+            .i64(self.div_cap)
             .i64(self.hold);
         h.bytes(&[u8::from(self.succession), u8::from(self.shade)]);
     }
@@ -487,16 +508,22 @@ impl Flora {
         light
     }
 
+    /// Whether cell `k` lies on species `s`'s favourite bedrock (D-240).
+    #[must_use]
+    pub fn favoured(&self, st: &FloraState, s: usize, k: usize) -> bool {
+        self.p.rock[s] != 0 && st.soil_type[k] == self.p.rock[s]
+    }
+
     /// The single site modifier (gamerules §2.3): f_dev x f_soil x f_water x f_light, 0..=ONE.
     #[must_use]
     pub fn suitability(&self, st: &FloraState, s: usize, k: usize) -> i64 {
         let p = &self.p;
-        // Rock and deep water: nothing takes root (D-084). Shallows only through the water
-        // response below.
+        // Rock and deep water: nothing takes root (D-084). Shallows through the water response
+        // below, at least `seep` (D-239).
         if matches!(st.ground[k], crate::terrain::ROCK | crate::terrain::DEEP) {
             return 0;
         }
-        let mut suit = p.aff[s][usize::from(st.soil_type[k])];
+        let mut suit = ONE_I;
         if p.succession {
             let dev = div(
                 (st.soil[k] - (p.soil_min[s] - p.soil_ramp)) * ONE_I,
@@ -506,7 +533,11 @@ impl Flora {
         }
         // A neutral response is ONE, and div(x * ONE, ONE) == x exactly: skip it.
         if p.w_tol[s] > 0 {
-            suit = div(suit * response(st.water[k], p.w_opt[s], p.w_tol[s]), ONE_I);
+            let mut r = response(st.water[k], p.w_opt[s], p.w_tol[s]);
+            if st.ground[k] == crate::terrain::SHALLOW {
+                r = r.max(p.seep);
+            }
+            suit = div(suit * r, ONE_I);
         }
         if p.l_tol[s] > 0 {
             suit = div(suit * response(st.light[k], p.l_opt[s], p.l_tol[s]), ONE_I);
@@ -550,11 +581,6 @@ impl Flora {
         st.snag[k] > 0 && usize::from(self.p.level[s]) == LEVELS && st.snag_owner[k] == player
     }
 
-    /// Strength from a species count (D-225): `count` x (1 + fert x soil development), Q16.
-    fn strength_of(&self, count: i64, soil: i64) -> i64 {
-        count * (ONE_I + div(self.p.fert * soil, U16))
-    }
-
     /// The species that count in cell `k` for its owner (D-225): its plants established there
     /// plus its animal species living there; 0 on a neutral cell.
     #[must_use]
@@ -571,10 +597,97 @@ impl Flora {
         i64::try_from(plants).unwrap_or(0) + i64::from(animals)
     }
 
-    /// Strength of cell `k` for its owner (Q16, D-225).
+    /// The shade cell `k`'s plants cast on its ground (Q16, 0..=ONE).
+    fn ground_shade(&self, st: &FloraState, k: usize) -> i64 {
+        let cells = st.n * st.n;
+        let casts = self.casts(|s| div(st.bio[s * cells + k] * ONE_I, self.p.kmax[s]));
+        ONE_I - Self::light(&casts, 1, 0)
+    }
+
+    /// Strength of cell `k` for its owner (Q16, D-236): vigor x canopy x side shade x fertility
+    /// x biodiversity. Vigor: `floor` + (1 - `floor`) x the mean fill of the owner's established
+    /// layers (each layer's summed cover, at most 1), weighted by its species' spread rate x
+    /// cover x light, so young or shaded layers weigh little. Canopy: 1 + `canopy` x the shade
+    /// cast on the ground. Side shade: 1 - `edge` x the strongest enemy neighbour's ground shade
+    /// x own open ground. Fertility: 1 + `fert` x soil development. Biodiversity: 1 + `div` x
+    /// species, at most `div_cap`.
     #[must_use]
     pub fn strength(&self, st: &FloraState, k: usize) -> i64 {
-        self.strength_of(self.species_count(st, k), st.soil[k])
+        self.strength_with(st, k, |m| self.ground_shade(st, m))
+    }
+
+    /// Every cell's strength (Q16, D-236), each cell's ground shade computed once.
+    #[must_use]
+    pub fn strengths(&self, st: &FloraState) -> Vec<i64> {
+        let cells = st.n * st.n;
+        let shade: Vec<i64> = (0..cells).map(|k| self.ground_shade(st, k)).collect();
+        (0..cells)
+            .map(|k| self.strength_with(st, k, |m| shade[m]))
+            .collect()
+    }
+
+    /// `strength`, with the neighbours' ground shade from `shade`.
+    fn strength_with(&self, st: &FloraState, k: usize, shade: impl Fn(usize) -> i64) -> i64 {
+        let (p, n, cells) = (&self.p, st.n, st.n * st.n);
+        let o = st.owner[k];
+        if o == 0 {
+            return 0;
+        }
+        let mut cov = [0i64; 64]; // at most 64 species (the step's presence bitmask)
+        let mut est = 0u64;
+        for s in 0..p.species() {
+            let b = st.bio[s * cells + k];
+            if b > 0 {
+                cov[s] = div(b * ONE_I, p.kmax[s]);
+                est |= u64::from(b >= p.est_thr[s]) << s;
+            }
+        }
+        let cover = |s: usize| cov[s];
+        let casts = self.casts(cover);
+        let (mut num, mut den) = (0i64, 0i64);
+        for (l, strat) in p.strata.iter().enumerate() {
+            if !strat.iter().any(|&s| est >> s & 1 == 1) {
+                continue;
+            }
+            let level = u8::try_from(l + 1).unwrap_or(u8::MAX);
+            let fill = strat.iter().map(|&s| cover(s)).sum::<i64>().min(ONE_I);
+            let weight: i64 = strat
+                .iter()
+                .map(|&s| {
+                    let light = Self::light(&casts, level, p.tol[s]);
+                    div(div(p.rate[s] * cover(s), ONE_I) * light, ONE_I)
+                })
+                .sum();
+            num += weight * fill;
+            den += weight;
+        }
+        if den <= 0 {
+            return 0;
+        }
+        let vigor = p.floor + div((ONE_I - p.floor) * div(num, den), ONE_I);
+        let open = Self::light(&casts, 1, 0);
+        let canopy = ONE_I + div(p.canopy * (ONE_I - open), ONE_I);
+        let (y, x) = (k / n, k % n);
+        let side = [
+            (y > 0).then(|| k - n),
+            (y + 1 < n).then(|| k + n),
+            (x > 0).then(|| k - 1),
+            (x + 1 < n).then(|| k + 1),
+        ]
+        .into_iter()
+        .flatten()
+        .filter(|&m| st.owner[m] != 0 && st.owner[m] != o)
+        .map(shade)
+        .max()
+        .unwrap_or(0);
+        let shaded = (ONE_I - div(div(p.edge * side, ONE_I) * open, ONE_I)).max(0);
+        let fert = ONE_I + div(p.fert * st.soil[k], U16);
+        let animals = self.residents.get(k).map_or(0, |r| r[usize::from(o) - 1]);
+        let species = i64::from(est.count_ones()) + i64::from(animals);
+        let diversity = (ONE_I + p.div * species).min(p.div_cap);
+        [canopy, shaded, fert, diversity]
+            .into_iter()
+            .fold(vigor, |v, m| div(v * m, ONE_I))
     }
 
     /// Each owned cell's strength and the enemy's push on it (Q16, D-225): the summed strength
@@ -583,7 +696,7 @@ impl Flora {
     #[must_use]
     pub fn fronts(&self, st: &FloraState) -> Vec<[i64; 2]> {
         let (n, cells) = (st.n, st.n * st.n);
-        let strength: Vec<i64> = (0..cells).map(|k| self.strength(st, k)).collect();
+        let strength = self.strengths(st);
         (0..cells)
             .map(|k| {
                 let enemy = match st.owner[k] {
@@ -625,32 +738,42 @@ impl Flora {
     /// Seed species `s` on own or empty `cells` (gamerules §8), alongside what already grows
     /// there, up to its cell cap (first cells in the given order). Returns the cells planted.
     pub fn plant(&self, st: &mut FloraState, player: u8, s: usize, cells: &[usize]) -> usize {
-        let p = &self.p;
+        let (p, n2) = (&self.p, st.n * st.n);
+        let ok = self.plantable(st, player, s, cells);
+        for &k in &ok {
+            let i = s * n2 + k;
+            st.owner[k] = player;
+            st.bio[i] = st.bio[i].max(p.seed_b[s]);
+            st.gauge[i] = st.gauge[i].max(p.plant_g);
+        }
+        ok.len()
+    }
+
+    /// The cells of `cells` that `plant` would seed, without changing anything (D-241): free or
+    /// own land, not barred, suitable, not under the player's dead trees, within the cell cap.
+    #[must_use]
+    pub fn plantable(&self, st: &FloraState, player: u8, s: usize, cells: &[usize]) -> Vec<usize> {
         let n2 = st.n * st.n;
         let held = (0..n2)
             .filter(|&k| st.bio[s * n2 + k] > 0 && st.owner[k] == player)
             .count();
-        let mut room = p.cap_cells(s, n2) - i64::try_from(held).unwrap_or(i64::MAX);
-        let mut planted = 0;
+        let mut room = self.p.cap_cells(s, n2) - i64::try_from(held).unwrap_or(i64::MAX);
+        let mut ok = Vec::new();
         for &k in cells {
             let barred = st.lock[k] > 0 && st.lock_p[k] == player; // D-098
             let free = (st.owner[k] == 0 && !barred) || st.owner[k] == player;
             if !free || self.suitability(st, s, k) <= 0 || self.tree_barred(st, s, k, player) {
                 continue;
             }
-            let i = s * n2 + k;
-            if st.bio[i] == 0 {
+            if st.bio[s * n2 + k] == 0 {
                 if room <= 0 {
                     continue;
                 }
                 room -= 1;
             }
-            st.owner[k] = player;
-            st.bio[i] = st.bio[i].max(p.seed_b[s]);
-            st.gauge[i] = st.gauge[i].max(p.plant_g);
-            planted += 1;
+            ok.push(k);
         }
-        planted
+        ok
     }
 
     /// Advance one flora tick: the same rules and results as the prototype's quant mode
@@ -679,14 +802,13 @@ impl Flora {
         // species.
         let mut held = [vec![0i64; ns], vec![0i64; ns]];
         for k in 0..cells {
-            let (mut mask, mut dom, mut count) = (0u64, 0u8, 0i64);
+            let (mut mask, mut dom) = (0u64, 0u8);
             for s in 0..ns {
                 let i = s * cells + k;
                 let b = st.bio[i];
                 sc.cover[i] = if b > 0 { div(b * ONE_I, p.kmax[s]) } else { 0 };
                 if b >= p.est_thr[s] {
                     dom = dom.max(p.level[s]);
-                    count += 1;
                 }
                 if b > 0 {
                     mask |= 1 << s;
@@ -697,14 +819,8 @@ impl Flora {
             }
             sc.present[k] = mask;
             sc.dom[k] = dom;
-            sc.strength[k] = match st.owner[k] {
-                o @ 1..=2 => {
-                    let animals = self.residents.get(k).map_or(0, |r| r[usize::from(o) - 1]);
-                    self.strength_of(count + i64::from(animals), st.soil[k])
-                }
-                _ => 0,
-            };
         }
+        sc.strength = self.strengths(st);
         let full: [Vec<bool>; 2] = [0, 1].map(|pi| {
             (0..ns)
                 .map(|s| held[pi][s] >= p.cap_cells(s, cells))
@@ -763,6 +879,9 @@ impl Flora {
                 growth[s] = grow_div(p.rdt[s] * bio[i] * (cap - comp), cap * ONE_I);
                 if growth[s] > 0 && self.growth != ONE_I {
                     growth[s] = grow_div(growth[s] * self.growth, ONE_I); // weather (D-132)
+                }
+                if growth[s] > 0 && self.favoured(st, s, k) {
+                    growth[s] = grow_div(growth[s] * (ONE_I + p.rock_boost), ONE_I); // D-240
                 }
             }
 
@@ -995,6 +1114,9 @@ impl Flora {
                     let cap = div(shade[i] * st.gauge[i], ONE_I).max(1);
                     let comp = cover[i] + div(p.alpha * (total - cover[i]), ONE_I);
                     growth[i] = grow_div(p.rdt[s] * bio[i] * (cap - comp), cap * ONE_I);
+                    if growth[i] > 0 && self.favoured(st, s, k) {
+                        growth[i] = grow_div(growth[i] * (ONE_I + p.rock_boost), ONE_I); // D-240
+                    }
                 }
             }
         }
@@ -1018,7 +1140,7 @@ impl Flora {
                 suit[at(s, k)]
             }
         };
-        let strength: Vec<i64> = (0..cells).map(|k| self.strength(st, k)).collect();
+        let strength: Vec<i64> = self.strengths(st);
         let mut pressure = [vec![0i64; ns * cells], vec![0i64; ns * cells]];
         let mut attack = [vec![0i64; cells], vec![0i64; cells]];
         let mut seeds = [vec![false; ns * cells], vec![false; ns * cells]];
@@ -1396,6 +1518,42 @@ mod tests {
         assert_eq!(st.owner[bare], 1, "the grazed-bare cell is taken");
     }
 
+    /// D-239: plants have their own ground: lichen beats ferns on dry ground, ferns beat lichen on
+    /// moist ground.
+    #[test]
+    fn dry_and_wet_ground_favour_different_plants() {
+        let f = flora();
+        let (lichen, ferns) = (
+            f.p.index("lichen_and_moss").unwrap(),
+            f.p.index("ferns").unwrap(),
+        );
+        let mut st = FloraState::new(&f.p, 2);
+        st.soil.fill(U16);
+        (st.water[0], st.water[1]) = (U16 / 5, U16 * 7 / 10);
+        let suit = |s, k| f.suitability(&st, s, k);
+        assert!(suit(lichen, 0) > suit(ferns, 0), "dry: lichen");
+        assert!(suit(ferns, 1) > suit(lichen, 1), "moist: ferns");
+    }
+
+    /// D-240: a plant grows `bedrock_boost` faster on its favourite bedrock than elsewhere.
+    #[test]
+    fn a_plant_grows_faster_on_its_favourite_bedrock() {
+        let mut f = flora();
+        let grasses = f.p.index("grasses").unwrap();
+        let fav = f.p.rock[grasses];
+        assert_ne!(fav, 0, "grasses have a favourite bedrock");
+        let mut st = FloraState::new(&f.p, 2);
+        st.soil.fill(U16);
+        st.soil_type[0] = fav;
+        st.soil_type[1] = if fav == 1 { 2 } else { 1 };
+        f.plant(&mut st, 1, grasses, &[0, 1]);
+        for _ in 0..4 {
+            f.step(&mut st);
+        }
+        let (on, off) = (st.bio[grasses * 4], st.bio[grasses * 4 + 1]);
+        assert!(on > off, "favourite bedrock: {on} vs {off}");
+    }
+
     /// D-127, D-227: dead trees. Killed trees leave standing dead wood (the rest falls as litter)
     /// and the cell turns neutral if nothing else grows there; its former owner's trees do not
     /// take root while the wood stands, the enemy's may; it rots to litter, and the bar lifts.
@@ -1462,21 +1620,75 @@ mod tests {
 
     const MEADOW: [&str; 2] = ["grasses", "lichen_and_moss"];
 
-    /// D-225: strength counts the owner's established species (plants and resident animals),
-    /// times the fertility factor; the push is the enemy neighbours' summed strength.
+    /// D-236: a full cell's strength is fertility x biodiversity (species: plants established
+    /// and the owner's resident animals), the biodiversity factor capped at `div_cap`.
     #[test]
-    fn strength_counts_species_animals_and_fertility() {
+    fn strength_is_fertility_times_capped_biodiversity() {
         let mut f = flora();
         let n = 4;
         let mut st = split_map(&f, n, 2, &MEADOW, &MEADOW);
         let fert = ONE_I + f.p.fert; // full soil
+        let d = |species: i64| (ONE_I + f.p.div * species).min(f.p.div_cap);
         assert_eq!(f.species_count(&st, 0), 2);
-        assert_eq!(f.strength(&st, 0), 2 * fert);
+        assert_eq!(f.strength(&st, 0), div(fert * d(2), ONE_I));
         f.residents = vec![[0; 2]; n * n];
         f.residents[0] = [3, 1]; // P1's three species count on P1's cell, P2's one does not
         assert_eq!(f.species_count(&st, 0), 5);
         st.soil[0] = 0;
-        assert_eq!(f.strength(&st, 0), 5 * ONE_I, "no fertility: x 1");
+        assert_eq!(f.strength(&st, 0), d(5), "no fertility: x 1");
+        f.residents[0] = [20, 0];
+        assert_eq!(f.strength(&st, 0), f.p.div_cap, "biodiversity capped");
+    }
+
+    /// D-236: strength follows the layers' fill (grazing lowers it), a young layer adds to it
+    /// (no dip), a canopy raises it, and an enemy canopy next door shades an open cell down
+    /// while a cell under its own canopy barely feels it.
+    #[test]
+    fn strength_follows_fill_canopy_and_side_shade() {
+        let f = flora();
+        let n = 4;
+        let id = |name: &str| f.p.index(name).unwrap();
+        let base = split_map(&f, n, 2, &MEADOW, &MEADOW);
+        let full = f.strength(&base, 0);
+
+        let mut grazed = base.clone();
+        for s in MEADOW.map(id) {
+            grazed.bio[s * n * n] = f.p.kmax[s] / 3; // the layer at 2/3
+        }
+        assert!(f.strength(&grazed, 0) < full, "grazed: weaker");
+
+        let mut young = base.clone();
+        young.bio[id("ferns") * n * n] = f.p.est_thr[id("ferns")];
+        assert!(f.strength(&young, 0) > full, "a young layer adds strength");
+
+        let mut forest = base.clone();
+        forest.bio[id("oak") * n * n] = f.p.kmax[id("oak")];
+        let canopy = f.strength(&forest, 0);
+        let d3 = (ONE_I + 3 * f.p.div).min(f.p.div_cap);
+        assert!(
+            canopy > div(div(full, ONE_I + 2 * f.p.div) * d3, ONE_I),
+            "a canopy adds more than its species"
+        );
+
+        // k = 1 is P1's front cell; its enemy neighbour k = 2 grows a dense canopy.
+        let (k, e) = (1, 2);
+        let mut shaded = base.clone();
+        for t in ["oak", "hawthorn"].map(id) {
+            shaded.bio[t * n * n + e] = f.p.kmax[t];
+        }
+        let open_drop = f.strength(&base, k) - f.strength(&shaded, k);
+        assert!(
+            open_drop > f.strength(&base, k) / 4,
+            "open ground: shaded down"
+        );
+        let (mut own, mut both) = (base.clone(), shaded);
+        own.bio[id("beech") * n * n + k] = f.p.kmax[id("beech")];
+        both.bio[id("beech") * n * n + k] = f.p.kmax[id("beech")];
+        let canopy_drop = f.strength(&own, k) - f.strength(&both, k);
+        assert!(
+            canopy_drop * 4 < open_drop,
+            "own canopy: barely ({canopy_drop} vs {open_drop})"
+        );
     }
 
     /// D-225: a straight front between equal sides holds; fertility tips it.
@@ -1664,7 +1876,8 @@ mod tests {
         for s in [g, oak] {
             st.bio[s * n * n + k] = f.p.kmax[s];
         }
-        assert_eq!(f.push(&st)[k], 4 * f.strength(&st, 0) - f.strength(&st, k));
+        let push: i64 = [1, 3, 5, 7].map(|m| f.strength(&st, m)).iter().sum();
+        assert_eq!(f.push(&st)[k], push - f.strength(&st, k));
         assert!(f.kill_trees(&mut st, k), "P1's stand dies");
         assert_eq!(st.owner[k], 1, "its grass still holds the cell, for now");
         let mut grew = false;

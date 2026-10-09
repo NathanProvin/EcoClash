@@ -110,6 +110,8 @@ export const OVERLAY_RAMPS = {
   diversity: ["#f1e2f3", "#b45fb5", "#5a1a63"],
   moisture: ["#dcecf7", "#5d9fd3", "#1c4f8a"],
   shade: ["#ececec", "#7a7a7a", "#2b2b2b"],
+  /** Bedrock (D-240): clay-limestone, schist-granite, silt-sand, at 0, 0.5 and 1. */
+  bedrock: ["#e2d6b4", "#7d8084", "#ecebe5"], // muted, a mid grey (D-241)
 } as const;
 
 /** Natural colour of each plant species (D-067); unknown species fall back per stratum. */
@@ -122,7 +124,7 @@ export const FLORA: Record<string, string> = {
   bramble: "#5d6b3b",
   elder: "#6f9148",
   hazel: "#8aa35a",
-  hawthorn: "#56703a",
+  hawthorn: "#3f5a2c", // D-242: darker, under white blossom
   oak: "#5b7936",
   beech: "#7c9d3d",
   chestnut: "#4c6a2d",

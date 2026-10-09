@@ -9,7 +9,12 @@ import {
   eatersOf,
   families,
   foodsOf,
+  groundOf,
   label,
+  rockOf,
+  statTone,
+  discCells,
+  suitAt,
   quickStats,
   unlockedAt,
 } from "./species";
@@ -78,6 +83,70 @@ describe("species helpers", () => {
   });
 });
 
+describe("ground hint (D-239)", () => {
+  it("names the ground a plant wants, nothing for animals", () => {
+    const at = (water: number) => {
+      const s = sp("x", "flora", 1, 1, 0);
+      return groundOf({ ...s, stats: { ...s.stats, water } });
+    };
+    expect(at(0.3)).toBe("Grows best on dry ground");
+    expect(at(0.5)).toBe("Grows on most ground");
+    expect(at(0.65)).toBe("Grows best on moist ground");
+    expect(at(0.8)).toBe("Grows best on wet ground");
+    expect(at(0.9)).toBe("Grows in water");
+    expect(groundOf(sp("fox", "fauna", 0, 1, 0))).toBeUndefined();
+  });
+});
+
+describe("planting cost and stat colours (D-242)", () => {
+  it("shows the cost of a full planting: per cell times the disc's cells", () => {
+    expect(discCells(2)).toBe(13);
+    expect(discCells(1)).toBe(5);
+    const s = sp("grasses", "flora", 1, 1, 0); // spawn_cost 1
+    expect(quickStats(s, 1, discCells(2))[0]?.value).toBe("13");
+  });
+  it("colours a stat green above the mean, red below; cheaper is better", () => {
+    const at = (cost: number, yld: number) => {
+      const s = sp("x", "flora", 1, 1, 0);
+      return { ...s, stats: { ...s.stats, spawn_cost: cost, yield: yld } };
+    };
+    const [cheap, dear] = [at(10, 2), at(40, 0.5)];
+    const all = [cheap, dear];
+    const green = (c: string | undefined) => Number(c?.split(",")[1]); // the G channel
+    const red = (c: string | undefined) => Number(c?.slice(4).split(",")[0]);
+    expect(green(statTone("biomass", cheap, all))).toBeGreaterThan(
+      green(statTone("biomass", dear, all)),
+    );
+    expect(red(statTone("coin", dear, all))).toBeGreaterThan(red(statTone("coin", cheap, all)));
+  });
+});
+
+describe("bedrock suiting (D-240)", () => {
+  const fern = (() => {
+    const s = sp("ferns", "flora", 2, 1, 0);
+    return {
+      ...s,
+      stats: {
+        ...s.stats,
+        water: 0.7,
+        water_tolerance: 0.35,
+        bedrock: "schist_granite",
+        bedrock_boost: 0.15,
+      },
+    };
+  })();
+  it("peaks on moist granite, falls with dryness and off its rock", () => {
+    expect(suitAt(fern, 0.7, 2)).toBeCloseTo(1);
+    expect(suitAt(fern, 0.7, 3)).toBeCloseTo(1 / 1.15);
+    expect(suitAt(fern, 0.35, 2)).toBeCloseTo(0);
+    expect(suitAt(sp("fox", "fauna", 0, 1, 0), 0.5, 2)).toBeUndefined();
+  });
+  it("names the favourite bedrock", () => {
+    expect(rockOf(fern)).toBe("Favours schist-granite");
+    expect(rockOf(sp("x", "flora", 1, 1, 0))).toBeUndefined();
+  });
+});
+
 describe("food web (D-122)", () => {
   it("lists foods in rank order and finds who eats a species", () => {
     const grass = sp("grasses", "flora", 1, 2, 0);
@@ -117,7 +186,7 @@ describe("build card helpers", () => {
 
   it("gives each card a few quick stats, in real seconds (D-106)", () => {
     const grass = quickStats(sp("grasses", "flora", 1, 1, 0));
-    expect(grass.map((q) => q.icon)).toEqual(["coin", "biomass", "spread", "cap"]);
+    expect(grass.map((q) => q.icon)).toEqual(["coin", "biomass", "spread", "cap", "soil", "shade"]);
     const fox = sp("fox", "fauna", 5, 1, 0);
     expect(quickStats(fox).map((q) => q.icon)).toEqual(["coin", "biomass", "egg", "cap"]);
     const breeds = (pace: number) => parseFloat(quickStats(fox, pace)[2]?.value ?? "");

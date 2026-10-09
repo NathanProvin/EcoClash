@@ -2733,3 +2733,122 @@ Template:
   - **Food-web focus:** unrelated families and tiles at 20 % saturation (−80 %); left-clicking any animal also focuses its species.
   - **Front line on the water:** the water surface draws the front lines from the frontier texture (`frontLine`, shared with the ground; v flipped), with near-opaque water under the line. The ground still hides its own line under the water (D-212).
   - **Cell card:** "Strength 2.5 vs 3.8", larger (1.15 em), each number in its player's colour, a glow when the push wins; the word "push" dropped.
+
+## D-236 · 2026-10-09 · Strength as biological vigor
+- **Status:** accepted (user's formula, reviewed; Alpha 1.4)
+- **Context:** strength counted established species only (D-225): a cell with grass at 30 % was as strong as a full meadow, and spread rate, fill and trees did not count.
+- **Decision:** strength = vigor × canopy × side shade × fertility × biodiversity (`Flora::strength`, `Flora::strengths`):
+  - **Vigor** = `vigor_floor` (0.5) + (1 − floor) × the weighted arithmetic mean of the fill of the owner's established layers. Fill = the layer's summed cover, at most 1 (the cell card's bars). Weight = Σ of its species' spread rate × cover × light, so young or shaded layers weigh little and planting a new species never lowers strength.
+  - **Canopy** = 1 + `canopy_gain` (0.5) × the shade the cell casts on its ground.
+  - **Side shade** = 1 − `edge_shade` (1) × the darkest enemy neighbour's ground shade × own open ground: trees and shrubs on a front shade the enemy's open cells; a cell under its own canopy barely feels it.
+  - **Fertility** = 1 + `fert_gain` × soil (unchanged).
+  - **Biodiversity** = 1 + `[flora] div_gain` (0.25) × species (plants established + resident animals), at most `[flora] div_cap` (3). Income keeps its own `[economy]` pair (0.05, 1.5).
+- **Rejected:**
+  - A geometric mean: it needs a fixed-point log/exp table, and with these weights it gives nearly the same values.
+  - Weights by spread rate alone: a young layer pulled the mean down.
+  - Shade as a penalty on the values: it lowered strength whenever trees grew.
+- **Why a floor and side shade:** without them a fresh tree conquest (layers at 30 %, strength 0.63) lost to one grass neighbour (1.56) once the hold ended, because oak takes minutes to fill. With them, a fresh cell (≈1.37) holds against shaded grass (≈1.21), and a full forest front advances.
+- **Bot:** `one()` (a species' worth) is the biodiversity loss of one species fewer; `front()` reads one `fronts` pass.
+- **Measured** (Normal; mirror 8 seeds, matrix 4 seeds per pair; main → new):
+  - mirror: median end 34:49 → 22:39; trees planted (never → median 27:00); lead changes 1.2 → 0.6;
+  - style means: tall 43 → 56, rush 60 → 41, wide 43, balanced 51 → 58;
+  - cycle: rush > tall 75 → 50, tall > wide 50 → 68, wide > rush 56 → 75;
+  - bot think 354 → 747 µs (≤ 1 ms); a full-map flora tick 816 → 896 µs. The worst tick, 8.6 ms, was already 8.8 ms on main.
+
+## D-237 · 2026-10-09 · Trees live longer; slow soil, built by recyclers
+- **Status:** accepted (user, Alpha 1.4)
+- **Decision:**
+  - `[deadwood] natural_death_s` 3600 → 7200: trees die of old age half as often.
+  - Every plant's `soil_gain` ÷ 5. Measured: a lichen + grass cell alone builds full soil in 27.5 min real (it was 5.6 min); the user's target was 25–30 min.
+  - `[fauna] soil_per_dead` 0.5 → 1.5. Recyclers become the fast way to fertile soil. 1.0 was tried first: trees came even later.
+- **Measured** (Normal; mirror 8 seeds, matrix 4 per pair; D-236 → D-237):
+  - shrubs median 30:31 → 17:19; trees still rare (13 → 15 sides of 16 never plant them);
+  - median end 22:39 → 24:00; lead changes 0.6 → 0.9;
+  - style means: wide 43 → 26, tall 56 → 58, rush 41 → 47, balanced 58 → 66.
+- **Open:**
+  - the bot does not yet call more recyclers to speed its soil (earthworm calls unchanged);
+  - the tree soil gate (`soil_min_level` 0.6) is rarely reached before a match ends;
+  - wide is weak.
+
+## D-238 · 2026-10-09 · Swarms take orders
+- **Status:** accepted (user, Alpha 1.4); supersedes the "not units to order" part of D-065
+- **Decision:**
+  - Swarms (insects, soil life) are selected from the unit list or their strategic icon and take move, attack-move and stop orders like units. Clicking or dragging over the map still picks units only.
+  - A selected swarm's dots are drawn twice as large, in the highlight colour.
+  - The sim already accepted these orders.
+  - **Bot:** a swarm counts toward the raid herd as one card (its animals / its group); an army-heavy style (rush) no longer prefers units over swarms when choosing a raider.
+- **Measured:** no visible effect at Normal (rush 47 → 43, within noise). Under the user's species tuning (`39e2e57`) the bots rarely get a raid onto enemy land at all.
+
+## D-239 · 2026-10-09 · Moisture that matters
+- **Status:** accepted (user, Alpha 1.4)
+- **Context:** every land plant had water optimum 0.5 and tolerance 0.6, and land moisture spanned only 0.30–0.75. Moisture slowed every species alike and never changed which plant to choose.
+- **Decision:**
+  - **Map moisture:** `moisture_dry` 0.15, `moisture_wet` 0.85, plus a symmetric value noise of ±`moisture_noise` (0.2) on `moisture_cells` (6) cells: wet hollows and dry knolls. It is the generator's last random draw, so relief, water and rock are unchanged per seed.
+  - **Plant water needs** (optimum / tolerance):
+    - dry ground: wildflowers 0.35/0.40, hawthorn 0.35/0.45, chestnut 0.35/0.40;
+    - middle: grasses 0.45/0.50, bramble 0.50/0.55, hazel 0.55/0.40, oak 0.50/0.45;
+    - moist ground: ferns 0.70/0.35, nettle 0.65/0.40, elder 0.65/0.40, beech 0.60/0.35;
+    - lichen 0.40/0.90: hardy everywhere. At 0.30/0.70 it fell to 45 % of grasses' founding pace on flat maps.
+  - **`[flora] shallow_seep` (0.15):** the least moisture response in the shallows, so land plants still seep across slowly (D-084) despite their narrower tolerances. Drowning still reads the raw response.
+  - Species cards say "Grows best on dry / moist / wet ground" (`groundOf`, from `water_optimum` exported in the species table).
+- **Measured:** confounded with the user's species tuning. Bots raid little; median end 30–35 min; seat bias swings (+19).
+
+## D-240 · 2026-10-09 · Bedrock: three terroirs
+- **Status:** accepted (user, Alpha 1.4; elder moved to granite by the user)
+- **Decision:**
+  - **Rock types:** `[terrain] soil_types` = none (flat maps), clay-limestone, schist-granite, silt-sand. They reuse the hashed `soil_type` field; the unused `soil_affinity` table is removed.
+  - **Generation** (`terrain::bedrock`):
+    - each cell ranks the three types over the map (clay: low ground and water near; granite: high ground and rock near; silt: broad flats, steepness averaged over radius 2);
+    - plus a symmetric noise per type (`bedrock_cells` 14, `bedrock_noise` 0.35), averaged over radius 3, and the best type wins;
+    - a majority filter, then patches under `bedrock_min_patch` (10 %) join their largest neighbour, except each type's largest patch and its mirror twin;
+    - a final mirror copy.
+
+    About 5 patches per map, all three types on most maps.
+  - **Moisture:** `bedrock_moisture` shifts it by type (silt +0.12, granite −0.12).
+  - **Favourite bedrock** per plant (`bedrock` in `species.toml`): positive growth × (1 + `[flora] bedrock_boost` 0.15) in both flora step paths. Favourites:
+    - clay-limestone: wildflowers, bramble, hawthorn, oak;
+    - schist-granite: lichen, ferns, elder, chestnut;
+    - silt-sand: grasses, nettle, hazel, beech, the aquatic plants.
+  - **Client:**
+    - the terrain frame carries the bedrock;
+    - a Bedrock overlay with categorical colours (creamy yellow, dark grey, white) and a named legend;
+    - the cell card shows Moisture (with a word) and Bedrock;
+    - with a cell card open, plant tiles take `saturate(0.2 + 0.8 × suit)`, where suit is the moisture response × the bedrock boost over its best (`suitAt`); the food-web focus takes precedence;
+    - species cards say "Favours …".
+- **Balance:** judged by the user's play tests (no bot tuning).
+
+## D-241 · 2026-10-09 · UI comfort round; planting is all or nothing
+- **Status:** accepted (user's play test of D-240)
+- **Decision:**
+  - **Planting** (`world.rs`, `Flora::plantable`): an order plants every cell of its disc that can take the species, paid in full, or nothing.
+    - No cell able to take it: notice "nothing can take root here". Bank short: notice "not enough biomass (needs N)".
+    - Before, a short bank planted what it could, and the client animated at the click.
+    - Plant orders are logged (`World::plantings`, not hashed; wasm `takePlantings`). The client plays the sowing or sapling effects only when the sim reports the order taken. A refused order plays `ui.error`, re-arms the species and pulses the cursor ghost red (`Ghost.deny`).
+  - **Bots:** each play of a decision now deducts its cost from the spare bank (`book`): several plays used to be checked against the same unspent bank. `deepen` checks the whole plantable disc. The style fingerprint test (tall deeper than wide) ties 146/146 and is ignored until the bot-balance pass (user's choice).
+  - **Map menu:**
+    - three overlay rows: L1–L4; Bedrock, Moisture, Soil; Diversity, Shade, Borders (the territory lines toggle);
+    - removed: the "Show" row, and the View and Source selects (with the replay list fetch).
+  - **Bedrock colours** muted: `#e2d6b4`, `#7d8084` (a mid grey), `#ecebe5`.
+  - **Plant hover:** the ground hint is two icons in the stats row: a bedrock swatch in its overlay colour, and 1–3 drops for dry, fresh, or moist/wet ground (`dropsOf`). Their titles keep the text.
+  - **Unit list:** Ctrl, Shift or Cmd + click adds a species to the selection, or removes it when all of it is already selected.
+  - **Owner rings** under animals show only with the strategic icons (I). Selected animals keep their white ring. The group icons now default to off.
+  - **Layout:** the toast stack starts at 94 px, below the combo badge; the "Choose your spawn" hint sits above the build bar.
+
+## D-242 · 2026-10-09 · Shrub looks and stands, larger animals, build-bar rework, true order cost, planting cursor check
+- **Status:** accepted (user's play test of D-241)
+- **Decision:**
+  - **Shrubs:**
+    - hawthorn darker (`#3f5a2c`) with 5–7 white blossom flecks on its crown;
+    - hazel an open coppice: 4–6 bark stems with small leaf blobs at three tips;
+    - elder unchanged.
+  - **Shrub stands:** density −10 % (`DENSITY` `[0, 0.81]`) and patch noise every 4 cells (was 2). Shrub slots may sit near the cell edge (`SHRUB_EDGE` 0.2 of the radius) and slide up to 0.35 cell toward the denser side of the patch (`shrubDrift`), so bushes clump across cells.
+  - **Animals:** `ANIMAL_SCALE` 5.25, `LARGE` 1.125 (×1.5 each, as D-235): small animals ×1.5, a 2 m animal ×1.15.
+  - **Build-bar flyout:** tiers bottom (bronze) to top (gold); the medal is a thicker left edge of the tile's tier ring; the hint opens to the right of the tile, the name in its tier's metal.
+  - **Plant stats in the hint:**
+    - the bedrock swatch gets a short name (Clay, Granite, Silt);
+    - two new stats: soil build-up (%/min at full cover) and shade cast;
+    - each plant stat is coloured red → neutral → mossy green by its log ratio to the mean over all plants (clamped at ×½ and ×2), cheaper being better (`statTone`).
+  - **Cost:** the coin stat shows a full planting: the per-cell cost × the disc's cells (13 at radius 2, `discCells`). It used to show the per-cell price, while an order paid up to 13 times that. The tech tree shows the same.
+  - **Cell card:** a "Front" section (strength vs push, enemy push) first, under the header.
+  - **Planting cursor:** the ring turns alert red when the planting would not take (`game/planting.ts` `plantable`): no own or free unlocked land, rock or deep water, soil under the species' need (`soil_need` exported), dry or wet beyond its tolerance (the shallows seep), or a bank short of every plantable cell. The cap and the dead-wood bar are left to the sim.
+  - The build bar's dock stacks above map banners, so its hints are never hidden.

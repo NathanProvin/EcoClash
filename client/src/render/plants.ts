@@ -23,6 +23,7 @@ import { GrowingMesh, type Pose } from "./growth";
 import {
   CELL,
   cellSlots,
+  shrubDrift,
   densityAt,
   formOf,
   MAX_MODELS,
@@ -87,6 +88,12 @@ const FERN = { fronds: 5, length: 1.2, height: 0.9 } as const;
 const NETTLE_STEMS = { least: 4, most: 6, height: 2.1 } as const;
 const BRAMBLE = { canes: 4, length: 1.5, color: "#6e3b4a" } as const;
 
+/** Shrubs told apart (D-242): hawthorn's white blossom flecks (count range, size x the bush
+ *  radius, colour); hazel's coppice of thin stems (count range, height x the radius, stem radius
+ *  in m) with small leaf blobs at their tips. Both stay within the cattail meshes' 7 per model. */
+const HAWTHORN = { flecks: [5, 7], size: 0.11, color: "#f1eee4" } as const;
+const HAZEL = { stems: [4, 6], height: 1.6, radius: 0.04, leaf: 0.42 } as const;
+
 /** Blob sizes beyond the first one, relative to the main blob, and their spread. */
 const BLOB = { size: 0.62, spread: 0.5 } as const;
 
@@ -143,6 +150,7 @@ export class LowPolyPlants implements PlantStyle {
     { geometry: caneGeometry(), roughness: 0.8, perModel: [BRAMBLE.canes, 0, 0, 0] },
   ] satisfies PlantStyle["meshes"];
   private readonly head = new THREE.Color(CATTAIL_HEAD);
+  private readonly blossom = new THREE.Color(HAWTHORN.color);
   private readonly beechBark = new THREE.Color(BEECH_BARK);
   private readonly reedStraw = new THREE.Color(REED_STRAW);
   private readonly reedBrown = new THREE.Color(REED_BROWN);
@@ -248,6 +256,29 @@ export class LowPolyPlants implements PlantStyle {
       }
       return out;
     }
+    if (stratum === "shrub" && name === "hazel") {
+      // An open coppice (D-242): stems fanning from the stool, leaf blobs at their tips.
+      const stems = HAZEL.stems[0] + Math.floor(m.seed * (HAZEL.stems[1] - HAZEL.stems[0] + 1));
+      for (let i = 0; i < stems && i < 3; i++) {
+        // the first three stems carry a leaf blob (mesh 0 holds 3 per shrub)
+        const a = m.angle + (i * Math.PI * 2) / 3 + 0.5 * (rand(i, salt) - 0.5);
+        const d = r * 0.55 * (0.6 + 0.4 * rand(i + 4, salt));
+        const top = r * HAZEL.height * (0.8 + 0.3 * rand(i + 8, salt));
+        const rb = r * HAZEL.leaf * (0.85 + 0.3 * rand(i + 12, salt));
+        const shade = 0.85 + 0.2 * rand(i + 16, salt);
+        const [bx, bz] = [x + Math.cos(a) * d, z + Math.sin(a) * d];
+        out.push({ mesh: 0, x: bx, y: top, z: bz, w: rb, h: rb * 1.2, angle: a, shade });
+      }
+      for (let i = 0; i < stems; i++) {
+        const a = m.angle + (i * Math.PI * 2) / stems + 0.4 * (rand(i + 20, salt) - 0.5);
+        const d = r * 0.3 * rand(i + 24, salt);
+        const h = r * HAZEL.height * (0.85 + 0.3 * rand(i + 28, salt));
+        const [sx, sz] = [x + Math.cos(a) * d, z + Math.sin(a) * d];
+        const color = this.bark;
+        out.push({ mesh: 6, x: sx, y: 0, z: sz, w: HAZEL.radius, h, angle: a, shade: 1, color });
+      }
+      return out;
+    }
     if (stratum === "shrub") {
       const [w, h] = [r * form.w, r * form.h];
       out.push({ mesh: 0, x, y: h * 0.6, z, w, h, angle: m.angle, shade: 0.9 + 0.2 * m.seed });
@@ -257,6 +288,29 @@ export class LowPolyPlants implements PlantStyle {
         const [bw, bh] = [rb * form.w, rb * form.h];
         const shade = 0.82 + 0.2 * rand(b, salt);
         out.push({ mesh: 0, x: p.x, y: bh * 0.5, z: p.z, w: bw, h: bh, angle: p.a, shade });
+      }
+      if (name === "hawthorn") {
+        // White blossom flecks over the crown (D-242).
+        const [lo, hi] = HAWTHORN.flecks;
+        const flecks = lo + Math.floor(m.seed * (hi - lo + 1));
+        const f = r * HAWTHORN.size;
+        for (let i = 0; i < flecks; i++) {
+          const a = m.angle + i * 2.4; // golden-angle spread over the crown
+          const d = w * 0.75 * Math.sqrt((i + 0.5) / flecks);
+          const y = h * 0.6 + h * 0.95 * Math.sqrt(1 - (d / w) ** 2); // on the crown
+          const [fx, fz] = [x + Math.cos(a) * d, z + Math.sin(a) * d];
+          out.push({
+            mesh: 7,
+            x: fx,
+            y,
+            z: fz,
+            w: f,
+            h: f * 0.7,
+            angle: a,
+            shade: 1,
+            color: this.blossom,
+          });
+        }
       }
       return out;
     }
@@ -566,7 +620,7 @@ export class PlantView {
       this.prev[c] = [];
       return;
     }
-    const slots = (this.slots[c] ??= cellSlots(c));
+    const slots = (this.slots[c] ??= cellSlots(c, shrubDrift(c, n)));
     const models = plantLayout(c, present, this.prev[c], slots, densityAt(c, n));
     this.prev[c] = models.map((list) => list.map((m) => m.species));
     const x0 = ((c % n) - n / 2) * CELL;

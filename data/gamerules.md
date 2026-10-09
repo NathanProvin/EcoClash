@@ -21,7 +21,7 @@ Victory conditions are defined in `INSTRUCTIONS.md` §2.3 (territory share or to
 
 ### 1.1 V1 scope
 
-- **Terrain:** a generated map with relief, a river, ponds and rock outcrops (§2.3, D-083); one basic soil type.
+- **Terrain:** a generated map with relief, a river, ponds and rock outcrops (§2.3, D-083); three bedrock types (D-240).
 - **Start (author's decision, D-095):** the whole map is **bare soil** and nobody owns a cell. Each player starts with a biomass budget; the clock runs from the start, and a player's first planting, anywhere on land, is their **spawn point**: water, relief and rocks around it are a strategic choice. Only lichen & moss is unlocked at start (D-118; grasses cost 200, earthworms 250). Either pioneer can found a colony: lichen & moss spread at about 3/4 the pace of grasses (D-104).
 - **Progression:** the landscape emerges through succession, **bare soil → meadow → increasingly developed shrub strata → forest**.
 - **Out of V1:** wet meadow and the other biomes (§2.2); pollinators and fire (`INSTRUCTIONS.md` §2.5).
@@ -49,7 +49,7 @@ Aquatic plants (family W) sit in the stratum of their height: they want the wate
 - **[Proposed] Complementarity.** Species of one stratum compete with partial niche overlap (`niche_overlap` in `balance.toml`, below 1), so a mixed stand holds more biomass than a monoculture.
 - A cell's **dominant level** is the highest level among the strata present in it, counting only strata whose biomass is above `establish_threshold`. It sets shade and succession; conquest uses strength (§3, D-225).
 - **[Proposed] Shade.** Higher strata in a cell reduce the growth of the owner's lower strata in that same cell. Shade-tolerant species suffer less.
-- **[Proposed] Succession (soil development).** Each cell has a **soil development** value (organic matter), which starts at 0 on bare soil. Plants raise it over time, pioneers fastest. Each level needs a minimum value to establish: pioneers none, the rest of L1 low, L2 lower-medium, L3 medium, L4 high. This drives the V1 progression bare soil → meadow → shrubs → forest. It is independent of the soil *type* (§2.3).
+- **[Proposed] Succession (soil development).** Each cell has a **soil development** value (organic matter), which starts at 0 on bare soil. Plants raise it slowly, pioneers fastest: a lichen + grass cell alone takes about 28 min to reach full soil. Recyclers are the fast way: they turn litter and dead wood into soil (`soil_per_dead`), several times faster than the plants on a litter-rich cell (D-237). Each level needs a minimum value to establish: pioneers none, the rest of L1 low, L2 lower-medium, L3 medium, L4 high. This drives the V1 progression bare soil → meadow → shrubs → forest. It is independent of the soil *type* (§2.3).
 
 ### 2.2 Biomes [Post-V1]
 
@@ -61,9 +61,9 @@ Aquatic plants (family W) sit in the stratum of their height: they want the wate
 | **Wet meadow** | High water, medium nutrients | Sphagnum, sedges & rushes, cattails, alder | Slugs & snails, voles, frogs & toads, grey heron |
 | **Meadow & bocage** (hedgerow farmland) | Medium water and nutrients; lines of hedgerow cells | Grasses, wildflowers, nettle, bramble, elder, hawthorn & blackthorn, hedgerow oaks | Grasshoppers, pollinators, rabbits, hedgehog, buzzard, weasel, fox |
 
-### 2.3 Terrain modifiers [Placeholder — do NOT implement in V1]
+### 2.3 Terrain modifiers
 
-**V1:** one basic soil (loam); soil type and light modifiers equal 1.0.
+**Built:** moisture per species (D-239) and the bedrock (D-240, below). Light modifiers equal 1.0.
 
 **Terrain (author's decision, D-083, D-084):** every match has a generated map, the same for both players (180° symmetry):
 - **Relief (D-096):** hills, plateaus and winding valleys, with cliffs (rock bands broken by passes) on the steep steps. It shapes moisture: valleys and banks are wet, hills dry. There is no movement penalty.
@@ -75,13 +75,20 @@ Aquatic plants (family W) sit in the stratum of their height: they want the wate
 - **Territory:** rock and deep water are never owned, so borders stop at them.
 - **Homes** are kept dry, flat and rock-free.
 
-**Planned soil types:**
+**Bedrock (D-240).** Every generated map has a bedrock of three rock types, in a few large patches (about 4 to 6, in mirrored pairs) that follow the land:
 
-| Soil type | Properties | Favours | Penalises |
+| Rock type | Where | Moisture | Favoured by (+15 % growth) |
 |---|---|---|---|
-| Basic loam (V1 default) | Reference soil | — | — |
-| Sandy | Drains fast, low nutrients, acidic | Lichen, grasses, chestnut | Clover, hazel, beech |
-| Clay-limestone | Rich, retains water, alkaline | Beech, hawthorn, hazel, wildflowers | Chestnut (avoids limestone) |
+| **Clay-limestone** (alkaline, calcium-rich) | Low ground, along rivers and lakes | By relief alone (about half wet) | Wildflowers, bramble, hawthorn, oak |
+| **Schist-granite** (acidic, quick-draining) | High ground, around rock outcrops | Drier (−0.12) | Lichen & moss, ferns, elder, chestnut |
+| **Silt-sand** (deep, water-retentive) | Broad flats: valley floors and plateaus | Wetter (+0.12) | Grasses, nettle, hazel, beech, aquatic plants |
+
+- A plant on its favourite bedrock grows `bedrock_boost` (15 %) faster; elsewhere it grows normally.
+- Flat maps (sandbox, tests) have no bedrock.
+- **Read it:**
+  - the Bedrock overlay (creamy yellow, dark grey, white);
+  - the cell card's Moisture and Bedrock rows;
+  - with a cell card open, the build bar's plant tiles keep their colour where they suit that cell (moisture and bedrock) and fade where they do not.
 
 **Planned topography**, from an elevation field:
 - **Water:** accumulates in valley bottoms (flow accumulation) and is scarce on ridges and hilltops.
@@ -119,8 +126,13 @@ It rises toward the site's **suitability**, so poor sites fill slower and cap lo
 
 Plants reproduce and spread **from cell to cell**, into the 4 neighbouring cells. For each own cell whose species has enough biomass to spread (above `spread_threshold`), each neighbour is evaluated as follows:
 
-**Strength and push (D-225).** Conquest of enemy land compares numbers, not plant levels:
-- A cell's **strength** = (its owner's plant species established in it, above `establish_threshold`, + its owner's animal species living in it) × (1 + `fert_gain` × soil fertility). Soil fertility is the cell's soil development, 0 to 1.
+**Strength and push (D-225, D-236).** Conquest of enemy land compares numbers, not plant levels:
+- A cell's **strength** = vigor × canopy × side shade × fertility × biodiversity:
+  - **Vigor** = `vigor_floor` + (1 − `vigor_floor`) × the mean fill of the owner's layers that have a species above `establish_threshold`. A layer's fill is its species' summed cover, at most 1 (the cell card's layer bars). Each layer weighs its species' spread rate × cover × the light they get, so fast spreaders count most and young or shaded layers little.
+  - **Canopy** = 1 + `canopy_gain` × the shade the cell's own shrubs and trees cast on its ground.
+  - **Side shade** = 1 − `edge_shade` × the ground shade of the darkest enemy neighbour × the cell's own open ground. Trees and shrubs on a front shade the enemy's open cells next to them; a cell under its own canopy barely feels it.
+  - **Fertility** = 1 + `fert_gain` × soil development (0 to 1).
+  - **Biodiversity** = 1 + `div_gain` × species (the owner's plant species established in it + its animal species living in it), at most `div_cap`. (Income has its own pair, §7.)
 - The **push** on a cell = the sum of the strengths of its enemy neighbours (4 sides). Push comes from the plants spreading; animals add to it only as part of their own cell's strength. An enemy animal standing in the cell adds nothing (animals attack by grazing, §6.1).
 
 | Neighbour cell state | Result |
@@ -139,11 +151,12 @@ Plants reproduce and spread **from cell to cell**, into the 4 neighbouring cells
 ### 3.1 Design consequences
 
 - **A front holds only while both sides are equal.** Any change moves it: growth, a new species, fertile soil, dead trees, weather, a raid. Ways to push:
-  1. **Diversity:** more species per cell (tall play). A cell with grasses, ferns, elder, oak and a resident squirrel has strength 5.
+  1. **Depth:** more species per cell, and a canopy over them (tall play). A full cell with grasses, ferns, elder, oak and a resident squirrel has strength about 3 on bare soil, a grass cell 1.25.
   2. **Geometry:** a cell touching 2 or 3 of your cells takes all their strengths. A bulge into your land is pushed back at its tip, and encirclement wins (wide play).
-  3. **Grazing:** herbivores eat species out of an enemy cell, which lowers its strength, or eat it bare, which opens it to your spread (rush play).
-  4. **Fertility:** recyclers and litter raise soil development, which multiplies strength.
-- **Monocultures are weak.** A beech wall alone in its cells has strength 1 per cell, whatever its height.
+  3. **Grazing:** herbivores thin an enemy cell's layers, which lowers its vigor, eat species out of it, or eat it bare, which opens it to your spread (rush play).
+  4. **Shade:** a forest edge shades the enemy's open cells next to it down; their answer is a canopy of their own, or shade-tolerant plants.
+  5. **Fertility:** recyclers and litter raise soil development, which multiplies strength.
+- **Monocultures are weak.** A full beech wall alone has strength about 1.8 per cell: its canopy counts, but one species gets little biodiversity.
 
 ### 3.2 Territory demarcation line
 
@@ -220,7 +233,7 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
     Plants follow the same rule: tier-1 and tier-2 plants are eaten by 2–3 grazers, tier-3 plants by 1–2.
   - **Superpredators (S, D-197):** they eat the hunters below them, so a defence can be answered: the hawk eats tits, the wildcat eats weasels and hawks, the eagle-owl eats foxes, hawks and herons.
   - **Guard test:** `sim-core/tests/food_web.rs` checks the tier rule and the eater counts.
-- **Swarms (D-065):** earthworms, fungi, grasshoppers, slugs & snails, caterpillars, bark beetles and larvae are drawn as swarms, not units.
+- **Swarms (D-065):** earthworms, fungi, grasshoppers, slugs & snails, caterpillars, bark beetles and larvae are drawn as swarms, not units. They take orders like units (D-238): select a swarm from the unit list or its strategic icon, then move or attack-move it; clicking or dragging over the map picks units only.
 - **Movement (author's direction, D-088):** insects keep a Brownian flutter; small herbivores are calm and slow and graze stop-and-go; large herbivores move slowly and steadily; hunters are fast when they hunt and calm when idle; birds drift lightly.
 
 ### 4.4 Costs [Proposed]
@@ -298,7 +311,7 @@ All dead organisms, plants and animals, feed `Dead biomass`.
 - Predators cannot attack species outside their diet. A fox ignores slugs, for example.
 - **Refuge (D-023):** a player's small fauna inside own cells with dense hawthorn & blackthorn or bramble, or in the water dense cattails (D-125), cannot be hunted. Predators are otherwise kept in check by their own predators (§5.2).
 - **Dead trees (D-127, D-227):** a cell's tree stand dies:
-  - of old age, at a base rate (`natural_death_s`, a mean life of 1 h of ecology time; D-152);
+  - of old age, at a base rate (`natural_death_s`, a mean life of 2 h of ecology time; D-152, D-237);
   - or by a catastrophe or weather: processionary caterpillars, the violent storm (windthrow), drought.
 
   A dead tree model replaces the living one and stays until the dead wood is gone: it rots away slowly (`rot_s`), and recyclers clear it faster, the black woodpecker best of all (dead wood is its primary food).

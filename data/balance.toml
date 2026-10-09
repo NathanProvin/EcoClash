@@ -42,13 +42,13 @@ input_delay_ticks = 2    # §10: 200 ms at 10 Hz
 stall_timeout_s = 30     # §10: a silent peer is dropped after this (D-221; 30 s, user)
 hash_every_ticks = 10    # §10: desync check once per second
 
-# Terrain (gamerules §2.3). V1: flat, loam, constant water and light. Species may add optional
-# water_optimum / water_tolerance, light_optimum / light_tolerance (0..1; tolerance 0 = indifferent)
-# and soil_affinity = { sandy = 1.2, ... }; absent keys are neutral (D-024).
+# Terrain (gamerules §2.3). Species may add optional water_optimum / water_tolerance,
+# light_optimum / light_tolerance (0..1; tolerance 0 = indifferent) and a favourite bedrock
+# (bedrock = "silt_sand", D-240); absent keys are neutral (D-024).
 [terrain]
 water = 0.5              # moisture of a flat map (and the land species' water optimum)
 light = 1.0
-soil_types = ["loam", "sandy", "clay_limestone"]
+soil_types = ["none", "clay_limestone", "schist_granite", "silt_sand"]  # bedrock types (D-240); "none" on flat maps
 # Map generator (D-083, D-096): relief with valleys and cliffs; one water layout per seed (a
 # river crossing the map, a central lake fed by streams, scattered ponds, or dry highlands),
 # rivers following the low ground; rock bands on cliffs and outcrops; moisture. Every map has
@@ -68,8 +68,14 @@ lake_radius = 3          # cells; the central lake (radius 2 or 3)
 home_clear = 4           # cells around each home kept dry, rock-free and flatter
 water_level = 0.1        # height of every water bed, as a share of the map's relief
 bank_rise = 0.1          # banks rise this share of the map's relief per cell away from water
-moisture_dry = 0.3       # land moisture on the highest ground ...
-moisture_wet = 0.75      # ... and in the lowest land / next to water (water cells: 1)
+moisture_dry = 0.15      # land moisture on the highest ground ...
+moisture_wet = 0.85      # ... and in the lowest land / next to water (water cells: 1) (D-239: was 0.3 / 0.75)
+moisture_noise = 0.2     # +/- local moisture: wet hollows and dry knolls, even on flat maps (D-239)
+moisture_cells = 6       # size of those patches, in cells
+bedrock_cells = 14       # bedrock (D-240): size of each rock type's noise, in cells (large: few, big patches)
+bedrock_noise = 0.35     # how much that noise outweighs the land (0: bedrock follows relief exactly)
+bedrock_min_patch = 0.1  # smaller patches (share of the map) join their largest neighbour
+bedrock_moisture = { silt_sand = 0.12, schist_granite = -0.12 }  # moisture shift per rock type
 bank_cells = 4           # water raises land moisture over this many cells
 relief_m = 16.0          # render only: metres of relief of a map type with relief = 1
 
@@ -172,7 +178,16 @@ ponds = 1
 seed_fraction = 0.1        # seed rain: biomass added per unit of gauge gained, as a fraction of k_max
 establish_threshold = 0.3  # a species counts (dominant level, strength) from this fraction of k_max
 smother_rate = 0.15        # enemy species lose this fraction of k_max per second, per point of push over strength (D-225)
-fert_gain = 0.25           # strength x (1 + fert_gain x soil development), soil 0..1 (D-225)
+# Strength (D-236) = vigor x canopy x fertility x biodiversity. Vigor: the mean fill of the owner's
+# established layers, each weighted by its species' spread rate x cover x light.
+fert_gain = 0.25           # x (1 + fert_gain x soil development), soil 0..1 (D-225)
+canopy_gain = 0.5          # x (1 + canopy_gain x the shade the cell casts on its ground)
+edge_shade = 1.0           # x (1 - edge_shade x the strongest enemy neighbour's ground shade x own open ground)
+bedrock_boost = 0.15       # positive growth x (1 + bedrock_boost) on a plant's favourite bedrock (D-240)
+shallow_seep = 0.15        # in the shallows a plant's moisture response is at least this: land plants seep across slowly (D-084, D-239)
+vigor_floor = 0.5          # vigor = vigor_floor + (1 - vigor_floor) x mean fill: a cell just taken holds
+div_gain = 0.25            # x (1 + div_gain x species: plants established + resident animals) ...
+div_cap = 3.0              # ... at most x div_cap (strength only; income has its own, [economy])
 hold_s = 20                # real seconds a conquered cell cannot be pushed by its former owner (D-230)
 litter_fraction = 0.1      # litter per second = this x biomass_rate x biomass (turnover)
 niche_overlap = 0.5        # [Proposed] competition between species of one stratum (1 = full overlap, D-022)
@@ -186,7 +201,7 @@ shade = true
 
 # Fauna agents (gamerules §5.2, §6; D-023, D-026). Species stats are in species.toml.
 [deadwood]
-natural_death_s = 3600  # mean life of a tree stand (ecology seconds, 1 h; D-152: was 3 h): trees die of old age, standing (D-127)
+natural_death_s = 7200  # mean life of a tree stand (ecology seconds, 2 h; D-237: was 1 h, D-152: 3 h): trees die of old age, standing (D-127)
 wood_share = 0.3        # share of a dead stand that stays standing as dead wood; the rest falls as litter
 rot_s = 600             # time for standing dead wood to rot away without recyclers (ecology seconds)
 
@@ -269,7 +284,7 @@ transfer = 0.1          # share of eaten biomass that becomes the eater's energy
 diet_yield = [1.0, 0.75, 0.5]  # energy from a primary, secondary, tertiary food, as a share of the transfer (D-123)
 own_graze = 0.2         # bite on own flora, relative to enemy flora (gamerules §10)
 graze_damage = 4.0      # enemy plants lose this many times what a grazer eats; the rest is trampled to litter (D-152)
-soil_per_dead = 0.5     # soil development (u16 units) per unit of dead biomass decomposed
+soil_per_dead = 1.5     # soil development (u16 units) per unit of dead biomass decomposed (D-237: was 0.5)
 lockout_s = 30          # a cell grazed bare turns neutral; its former owner may not retake it for this long (D-098)
 herbivore_range = 10    # prototype only (tools/prototype): sim-core drops herbivores near the click
 drop_radius = 4         # a drop (herbivores off own land, predators) lands within this many cells of the click (D-061)

@@ -69,6 +69,8 @@ describe("Replay", () => {
       lock: null,
       front: null, // replays carry no strength frame
       deadwood: 0,
+      moisture: null,
+      bedrock: 0,
       plants: [],
       animals: [{ name: "rabbits", owner: 1, count: 1 }],
     });

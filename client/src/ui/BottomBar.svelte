@@ -19,8 +19,15 @@
     MEDAL,
     quickStats,
     roleName,
+    dropsOf,
+    groundOf,
+    rockIndex,
+    rockOf,
+    BEDROCK_SHORT,
+    discCells,
   } from "../game/species";
   import type { Source, Species } from "../replay/replay";
+  import { OVERLAY_RAMPS } from "../render/palette";
   import type { Catastrophe } from "../game/catastrophes";
   import CatastropheDeck from "./CatastropheDeck.svelte";
   import FamilyIcon from "./FamilyIcon.svelte";
@@ -44,6 +51,8 @@
     onCast = () => {},
     popped = null,
     focus = null,
+    suit = null,
+    plantRadius = 2,
   }: {
     replay: Source;
     tick: number;
@@ -64,6 +73,10 @@
     popped?: string | null;
     /** The species whose food web the bar lights (D-232). */
     focus?: Species | null;
+    /** How well each plant suits the selected cell, 0..1 (D-240): tiles desaturate with it. */
+    suit?: ReadonlyMap<string, number> | null;
+    /** The planting disc's radius (D-242): plant costs are shown per full planting. */
+    plantRadius?: number;
   } = $props();
 
   const TIERS = [1, 2, 3] as const;
@@ -90,6 +103,12 @@
         : r.includes("")
           ? ""
           : "dim";
+  };
+  /** A tile's saturation for the selected cell (D-240), when no food-web focus is shown. */
+  const tint = (names: string[]) => {
+    if (roles || !suit) return undefined;
+    const v = names.map((n) => suit.get(n)).filter((x) => x !== undefined);
+    return v.length ? `saturate(${(0.2 + 0.8 * Math.max(...v)).toFixed(2)})` : undefined;
   };
   const counts = $derived(replay.counts(tick, player));
   const count = (s: Species) => counts[species.indexOf(s)] ?? 0;
@@ -157,7 +176,8 @@
   function show(e: PointerEvent, s: Species) {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const d = dock?.getBoundingClientRect() ?? { left: 0, top: 0 };
-    hover = { s, x: r.left + r.width / 2 - d.left, y: r.top - 10 - d.top }; // above the tile
+    // To the right of the tile (D-242), its middle level with the tile's.
+    hover = { s, x: r.right + 10 - d.left, y: r.top + r.height / 2 - d.top };
   }
 </script>
 
@@ -188,6 +208,7 @@
       <div class="group" role="group" onpointerenter={() => enter(g.name)} onpointerleave={leave}>
         <button
           class="item web-{webOf(g.species.map((s) => s.name))}"
+          style:filter={tint(g.species.map((s) => s.name))}
           class:open={open === g.name}
           class:armed={g.species.some((s) => s.name === planting)}
           class:pop={g.species.some((s) => s.name === popped)}
@@ -211,12 +232,12 @@
               {#each TIERS as t (t)}
                 {@const list = g.species.filter((s) => s.tier === t)}
                 {#if list.length}
-                  <div class="tier">
-                    <span class="medal {MEDAL[t - 1]}" title={MEDAL_NAME[t - 1]}></span>
+                  <div class="tier" title={MEDAL_NAME[t - 1]}>
                     {#each list as s (s.name)}
                       {@const state = cardOf(s)}
                       <button
                         class="tile {state} {MEDAL[s.tier - 1] ?? 'bronze'} web-{web(s.name)}"
+                        style:filter={tint([s.name])}
                         class:armed={planting === s.name}
                         class:pop={popped === s.name}
                         class:none={count(s) === 0 && state === "unlocked"}
@@ -266,15 +287,30 @@
     {@const s = hover.s}
     {@const state = cardOf(s)}
     <div class="tip panel" style:left="{hover.x}px" style:top="{hover.y}px" role="tooltip">
-      <span class="head">
-        <span class="medal {MEDAL[s.tier - 1]}"></span>
+      <span class="head {MEDAL[s.tier - 1] ?? 'bronze'}">
         <strong>{label(s.name)}</strong>
         <span class="sub">{s.kind === "flora" ? "plant" : roleName(s.role)}</span>
       </span>
       <span class="stats">
-        {#each quickStats(s, replay.meta.pace) as q (q.icon)}
-          <span class="stat" title={q.title}><Icon name={q.icon} size={13} />{q.value}</span>
+        {#each quickStats(s, replay.meta.pace, discCells(plantRadius), species) as q (q.icon)}
+          <span class="stat" title={q.title} style:color={q.tone}
+            ><Icon name={q.icon} size={13} />{q.value}</span
+          >
         {/each}
+        <!-- Ground at a glance (D-241): the favourite bedrock in its overlay colour, and the
+             moisture need as one to three drops. -->
+        {#if rockIndex(s)}
+          <span class="stat rock" title={rockOf(s)}
+            ><i style:background={OVERLAY_RAMPS.bedrock[rockIndex(s) - 1]}></i>{BEDROCK_SHORT[
+              rockIndex(s)
+            ]}</span
+          >
+        {/if}
+        {#if dropsOf(s)}
+          <span class="stat drops" title={groundOf(s)}>
+            {#each [1, 2, 3].slice(0, dropsOf(s)) as i (i)}<Icon name="water" size={12} />{/each}
+          </span>
+        {/if}
       </span>
       {#if s.kind === "fauna"}
         <!-- D-122: foods in rank order, primary largest. -->
@@ -329,6 +365,7 @@
     left: 50%;
     bottom: 12px;
     transform: translateX(-50%);
+    z-index: 3; /* its flyouts and hints above the map banners (D-242) */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -390,19 +427,22 @@
     white-space: nowrap;
     color: var(--ink-soft);
   }
+  /* Tiers bottom to top, bronze to gold (D-242). */
   .tiers {
     display: flex;
-    gap: 8px;
+    flex-direction: column-reverse;
+    gap: 6px;
   }
   .tier {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
+    justify-content: center;
+    gap: 6px;
   }
-  /* Tier rings (D-106); the medal colours are in app.css. */
+  /* Tier rings (D-106), the medal merged in as a thicker left edge (D-242); colours in app.css. */
   .tile {
-    box-shadow: inset 0 0 0 1.5px var(--medal);
+    box-shadow:
+      inset 0 0 0 1.5px var(--medal),
+      inset 4px 0 0 0 var(--medal);
   }
   .lock {
     position: absolute;
@@ -506,7 +546,7 @@
   }
   .tip {
     position: absolute;
-    transform: translate(-50%, -100%);
+    transform: translateY(-50%); /* right of the tile (D-242) */
     z-index: 5;
     display: flex;
     flex-direction: column;
@@ -524,6 +564,7 @@
   }
   .head strong {
     font-size: 1.08em;
+    color: var(--medal); /* the tier's metal (D-242) */
   }
   .stats {
     display: grid;
@@ -540,6 +581,20 @@
   }
   .stat :global(svg) {
     color: var(--ink-soft);
+  }
+  /* Ground at a glance (D-241): a bedrock swatch, and one to three drops close together. */
+  .stat.rock i {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45);
+  }
+  .stat.drops {
+    gap: 0;
+  }
+  .stat.drops :global(svg) {
+    color: #7fb6e0;
+    margin-right: -3px;
   }
   .sub,
   .dim,

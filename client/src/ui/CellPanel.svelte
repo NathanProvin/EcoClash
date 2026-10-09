@@ -1,10 +1,12 @@
 <script lang="ts">
   // Cell card (D-031, D-100, D-163): the core facts of a cell at a glance, titles only. A header
-  // in the owner's colour (whose, ground, health, lock and dead-wood chips), one full-width bar
-  // per height layer, soil and enemy push, then the plants and the animals on the cell, yours
-  // and the enemy's apart. Details in tooltips.
+  // in the owner's colour (whose, ground, health, lock and dead-wood chips); the front first
+  // (strength vs push, enemy push; D-242); one full-width bar per height layer; soil, moisture
+  // and bedrock (D-240); then the plants and the animals on the cell, yours and the enemy's
+  // apart. Details in tooltips.
   import { cellStatus, STATUS_TEXT, type CellStatus } from "../game/cell";
-  import { label } from "../game/species";
+  import { BEDROCK_NAMES, label, wetness } from "../game/species";
+  import { OVERLAY_RAMPS } from "../render/palette";
   import type { CellInfo, Species } from "../replay/replay";
   import Icon from "./Icon.svelte";
   import SpeciesIcon from "./SpeciesIcon.svelte";
@@ -94,6 +96,30 @@
     </button>
   </header>
 
+  <!-- The front first (D-242): strength against the enemy's push, then the push bar. -->
+  <section>
+    <h4>Front</h4>
+    {#if info.front}
+      {@const over = info.front.push > info.front.strength}
+      {@const enemy = info.owner === 1 ? 2 : 1}
+      <div
+        class="row strength"
+        title="Strength: how full the owner's layers are (fast spreaders count most), raised by a canopy overhead, fertile soil and many species (plants and resident animals), lowered by an enemy canopy next door. Push: the summed strength of the enemy's cells next to it. When the push beats the strength, the cell's plants are smothered; a cell just taken is held for a while (D-236, D-230)."
+      >
+        <span class="name">Strength</span>
+        <span class="vs"
+          ><strong class="v{info.owner}">{info.front.strength.toFixed(1)}</strong> vs
+          <strong class="v{enemy}" class:over>{info.front.push.toFixed(1)}</strong></span
+        >
+      </div>
+    {/if}
+    <div class="row" title="How hard the other side pushes into this cell">
+      <span class="name">Enemy push</span>
+      <span class="bar push"><span style:width={css(info.push)}></span></span>
+      <span class="num">{pct(info.push)}</span>
+    </div>
+  </section>
+
   <section>
     <h4>Layers</h4>
     {#each LAYERS as l, i (l.name)}
@@ -113,25 +139,23 @@
       <span class="bar soil"><span style:width={css(info.soil)}></span></span>
       <span class="num">{pct(info.soil)}</span>
     </div>
-    {#if info.front}
-      {@const over = info.front.push > info.front.strength}
-      {@const enemy = info.owner === 1 ? 2 : 1}
-      <div
-        class="row strength"
-        title="Strength: the owner's species on this cell (plants established and resident animals), times the soil's fertility. Push: the summed strength of the enemy's cells next to it. When the push beats the strength, the cell's plants are smothered; a cell just taken is held for a while (D-225, D-230)."
-      >
-        <span class="name">Strength</span>
-        <span class="vs"
-          ><strong class="v{info.owner}">{info.front.strength.toFixed(1)}</strong> vs
-          <strong class="v{enemy}" class:over>{info.front.push.toFixed(1)}</strong></span
+    {#if info.moisture !== null}
+      <div class="row" title="Moisture: each plant grows best at its own (D-239)">
+        <span class="name">Moisture</span>
+        <span class="bar moist"><span style:width={css(info.moisture)}></span></span>
+        <span class="num">{wetness(info.moisture)}</span>
+      </div>
+    {/if}
+    {#if info.bedrock}
+      <div class="row" title="Bedrock: plants that favour it grow 15 % faster here (D-240)">
+        <span class="name">Bedrock</span>
+        <span class="rock"
+          ><i style:background={OVERLAY_RAMPS.bedrock[info.bedrock - 1]}></i>{BEDROCK_NAMES[
+            info.bedrock
+          ]}</span
         >
       </div>
     {/if}
-    <div class="row" title="How hard the other side pushes into this cell">
-      <span class="name">Enemy push</span>
-      <span class="bar push"><span style:width={css(info.push)}></span></span>
-      <span class="num">{pct(info.push)}</span>
-    </div>
   </section>
 
   {#if info.plants.length}
@@ -263,6 +287,23 @@
   }
   .bar.soil > span {
     background: linear-gradient(90deg, #8b6a43, #c49a5c);
+  }
+  .bar.moist > span {
+    background: linear-gradient(90deg, #8fb8d8, #2f6fa8);
+  }
+  /* The bedrock (D-240): its overlay swatch and its name, in the bar's column. */
+  .rock {
+    grid-column: span 2;
+    font-size: 0.9em;
+  }
+  .rock i {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+    border-radius: 2px;
+    vertical-align: -1px;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
   }
   .bar.push > span {
     background: linear-gradient(90deg, #b8402e, #e2452b);

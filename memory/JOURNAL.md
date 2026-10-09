@@ -998,3 +998,88 @@
 - **Release:** menu label "Alpha 1.3"; `ui-ux` merged into main and pushed; CI deploys Cloudflare Pages and the relay.
 - **Open:** D-229 targets partly missed (the cycle, unfinished share, hard vs normal, adaptation); balance runs not repeated after D-230/D-231; animal and sound feel to confirm in play.
 - **Next (user):** playtest feedback.
+
+## 2026-10-09 (1) · Alpha 1.4: strength as biological vigor (D-236)
+- **Done:**
+  - branch `alpha-1.4`;
+  - strength = vigor (floored mean layer fill, weighted by spread rate × cover × light) × canopy × side shade × fertility × biodiversity (cap 3, strength only);
+  - the bot's species worth and front read the new strength;
+  - tooltip, gamerules §3/§3.1, INSTRUCTIONS §5.2.
+- **Found while testing:** without a floor, fresh tree conquests fell back to grass after the hold. The user chose side shade from enemy trees plus a vigor floor of 0.5.
+- **Tests:** new strength tests (exact factors, cap, grazing, young layer, canopy, side shade). Workspace tests, lint and native = WASM green. Client check, lint and tests green.
+- **Bench vs main:** tall up (43 → 56), rush down (60 → 41); trees now planted; median end 22:39. Lead changes fell (0.6) and the cycle is still off target. Bot think 747 µs.
+- **Open:** playtest the new fronts; lead changes and the cycle (D-229 targets); `smother_rate` not retuned (one lever per pass).
+
+## 2026-10-09 (2) · Alpha 1.4: tree life, slow soil (D-237)
+- **Done:**
+  - trees live twice as long;
+  - plant soil gain ÷ 5 (calibrated by a one-cell run: lichen + grass, full soil in 27.5 min);
+  - recyclers' soil per dead biomass ×3 (0.5 → 1.5, after a 1.0 pass).
+- **Tests:** workspace green, native = WASM.
+- **Bench:** shrubs earlier, trees rare, wide weak (26), balanced strong (66).
+- **Open:** the bot does not use recyclers for soil; trees rarely reach soil 0.6.
+
+## 2026-10-09 (3) · Alpha 1.4: controllable swarms (D-238), moisture (D-239)
+- **Done:**
+  - swarms selectable from the unit list and icons, highlighted dots; bot raids count swarm cards;
+  - wider, noisier moisture; per-species water needs; shallow seep floor; ground hint on cards.
+- **Tests:** raid with swarm cards; moisture span per map; dry and wet ground favour different plants; ground hint. Hash and unlock tests made independent of tuned values.
+- **Bench:** the user's species tuning (`39e2e57`) moved the bots most: wide 68, seat bias −15, almost no raids reach enemy land. Swarm control alone: no visible change.
+- **Open:**
+  - `food_web` test: grasses' `spawn_cost` (30) is above wildflowers' (20), the tier above (user's tuning);
+  - bots barely raid;
+  - trees never planted in the bench.
+
+## 2026-10-09 (4) · Alpha 1.4: bedrock terroirs (D-240)
+- **Done:**
+  - bedrock generation (ranked leanings, blurred, merged into a few patches with every type kept);
+  - moisture shift by rock type; favourite-bedrock growth boost;
+  - Bedrock overlay; cell card Moisture and Bedrock rows; build-bar suiting tint; "Favours …" on cards.
+- **Tuning of the generator:**
+  - the raw scores let granite win every map, so they became ranks;
+  - silt came out in specks, so flatness is averaged over radius 2;
+  - the merge erased whole types, so each type now keeps its largest patch;
+  - a blur radius of 3 passes the checks.
+- **Tests:** patches ≤ 6, symmetric, clay lower than granite, silt wetter than granite, a favourite grows faster; client: `suitAt`, `rockOf`, bedrock overlay classes. Workspace green, native = WASM, client green.
+- **Note:** the user's wildflowers `spawn_cost` 20 → 40 went into the sim commit (it was in the working tree).
+- **Open:** user play tests of the terroirs.
+
+## 2026-10-09 (5) · Alpha 1.4: UI comfort round, all-or-nothing planting (D-241)
+- **Done:** everything in D-241.
+- **Checked in the browser:**
+  - the menu rows;
+  - the muted bedrock overlay;
+  - the hover icons (granite swatch, one drop for lichen);
+  - the cell card's Moisture and Bedrock rows;
+  - toasts below the combo badge;
+  - a planting refused for want of biomass: no spend, a red "need more" toast, the species re-armed.
+
+  Not seen: the error sound and the ghost pulse.
+- **Tests:** Rust all-or-nothing planting; TS plantings decoding. Render test enables rings. Bot fingerprint test ignored for the bot pass.
+- **Open:** bot-balance pass (style fingerprint, refusals of animal drops).
+
+## 2026-10-09 (6) · Alpha 1.4: final pass of the day (D-242)
+- **Done:** everything in D-242.
+- **Checked in the browser:**
+  - the vertical tiers, and the hint on the right (lichen: 260 cost, coloured stats, Granite);
+  - the ring blue where some cells can take.
+
+  The tab closed before the red cases and the shrubs on screen could be seen; unit tests cover the red cases.
+- **Tests:** shrub drift; size constants; `discCells`; `statTone`; `plantable` cases. Client 160, workspace green, lint clean.
+- **Open:** see the new shrubs and the red ring in play.
+
+## 2026-10-09 (7) · Alpha 1.4 released
+- **Today, in short:**
+  - strength as biological vigor, with canopy, side shade and biodiversity (D-236);
+  - trees live longer, soil builds slowly and recyclers speed it (D-237);
+  - swarms take orders (D-238);
+  - per-species water needs on varied moisture maps (D-239);
+  - three bedrock terroirs with an overlay and build-bar suiting (D-240);
+  - UI comfort round and all-or-nothing planting (D-241);
+  - shrub looks and stands, larger animals, build-bar rework, true order cost, front-first cell card, planting cursor check (D-242);
+  - the user's hand tuning of `species.toml` (three commits).
+- **Release:** menu label "Alpha 1.4"; `alpha-1.4` merged into main and pushed; CI deploys Cloudflare Pages and the relay.
+- **Open:**
+  - bot-balance pass (style fingerprint test ignored; bots rarely raid or plant trees; recyclers unused for soil);
+  - the red planting ring and new shrubs to see in play.
+- **Next (user):** play tests.

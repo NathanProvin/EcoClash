@@ -95,6 +95,7 @@ function loop() {
     const kills = [...s.takeKills()]; // D-233
     const waits = [[...s.catastropheWait(1)], [...s.catastropheWait(2)]]; // D-129, in ticks
     const effects = [...s.takeEffects()];
+    const plantings = [...s.takePlantings()]; // D-241
     const weather = [...s.weather()]; // D-132
     post(
       {
@@ -110,6 +111,7 @@ function loop() {
         kills,
         waits,
         effects,
+        plantings,
         weather,
       },
       [agents],

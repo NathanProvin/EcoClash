@@ -28,9 +28,13 @@ const TWO_TREES = 0.15;
 
 /** Patchy stands (D-151): per model stratum, the density multiplier's range over the patch
  *  noise (null: no patches). Shrubs average 0.85 (15 % fewer, in clumps); undergrowth 1. */
-export const DENSITY = [[0.4, 1.6], [0, 0.9], null, null] as const; // shrubs halved (D-173)
-/** Cells per step of each stratum's patch noise: shrubs in smaller, more scattered stands. */
-const PATCHES = [3, 2, 3, 3] as const;
+export const DENSITY = [[0.4, 1.6], [0, 0.81], null, null] as const; // shrubs: D-173, −10 % D-242
+/** Cells per step of each stratum's patch noise: shrubs in broad stands and gaps (D-242: 2 → 4). */
+const PATCHES = [3, 4, 3, 3] as const;
+/** Shrubs (D-242): the share of the bush radius kept clear of the cell edge (bushes reach over
+ *  it), and the most a slot slides toward the denser side of its patch (share of a cell). */
+export const SHRUB_EDGE = 0.2;
+const SHRUB_DRIFT = 0.35;
 /** Cells per step of the patch noise lattice. */
 const PATCH = 3;
 
@@ -53,6 +57,24 @@ export function densityAt(cell: number, n: number): number[] {
   return DENSITY.map((range, s) =>
     range ? range[0] + (range[1] - range[0]) * patchiness(cell, n, 4100 + 97 * s, PATCHES[s]) : 1,
   );
+}
+
+/** Where a cell's shrubs slide (D-242), in metres: toward the denser side of the shrub patch, so
+ *  bushes gather into clumps across cell borders instead of one per cell on a grid. */
+export function shrubDrift(cell: number, n: number): { x: number; z: number } {
+  const [row, col] = [Math.floor(cell / n), cell % n];
+  const p = (r: number, c: number) =>
+    patchiness(
+      Math.min(Math.max(r, 0), n - 1) * n + Math.min(Math.max(c, 0), n - 1),
+      n,
+      4100 + 97,
+      PATCHES[1],
+    );
+  const [gx, gz] = [p(row, col + 1) - p(row, col - 1), p(row + 1, col) - p(row - 1, col)];
+  const g = Math.hypot(gx, gz);
+  if (g === 0) return { x: 0, z: 0 };
+  const d = SHRUB_DRIFT * CELL * Math.min(1, g * PATCHES[1]);
+  return { x: (gx / g) * d, z: (gz / g) * d };
 }
 
 /** Trees a cell holds at full cover (D-109): 1, or 2 on some cells (TWO_TREES). */
@@ -143,7 +165,7 @@ export function rand(cell: number, salt: number): number {
 }
 
 /** The fixed slots of a cell per model stratum ([low, shrub, tree, pad]), in fill order. */
-export function cellSlots(cell: number): Slot[][] {
+export function cellSlots(cell: number, drift = { x: 0, z: 0 }): Slot[][] {
   const side = CELL / TREE_GRID;
   const trees: Slot[] = [];
   const grid = Array.from({ length: TREE_GRID * TREE_GRID }, (_, i) => i);
@@ -161,11 +183,21 @@ export function cellSlots(cell: number): Slot[][] {
     });
   }
   // Dart-throwing: up to `count` slots of radius r, `gap` apart, `clearance` from every trunk.
-  const darts = (count: number, r: number, gap: number, clearance: number, salt: number) => {
+  // `edge`: the share of r kept from the cell edge; `shift`: where the slots slide (shrubs).
+  const darts = (
+    count: number,
+    r: number,
+    gap: number,
+    clearance: number,
+    salt: number,
+    edge = 1,
+    shift = { x: 0, z: 0 },
+  ) => {
     const out: Slot[] = [];
+    const m = r * edge;
     for (let d = 0; d < DARTS && out.length < count; d++) {
-      const x = r + rand(cell, salt + 2 * d) * (CELL - 2 * r);
-      const z = r + rand(cell, salt + 1 + 2 * d) * (CELL - 2 * r);
+      const x = m + rand(cell, salt + 2 * d) * (CELL - 2 * m) + shift.x;
+      const z = m + rand(cell, salt + 1 + 2 * d) * (CELL - 2 * m) + shift.z;
       const clear = (o: { x: number; z: number }, g: number) => Math.hypot(o.x - x, o.z - z) >= g;
       if (!trees.every((t) => clear(t, clearance))) continue;
       if (!out.every((b) => clear(b, gap))) continue;
@@ -174,7 +206,7 @@ export function cellSlots(cell: number): Slot[][] {
     }
     return out;
   };
-  const shrubs = darts(SHRUB_SLOTS, SHRUB.max, SHRUB_GAP, TRUNK_CLEAR, 2000);
+  const shrubs = darts(SHRUB_SLOTS, SHRUB.max, SHRUB_GAP, TRUNK_CLEAR, 2000, SHRUB_EDGE, drift);
   const low = darts(LOW_SLOTS, LOW.max, LOW_GAP, LOW_CLEAR, 4000);
   return [low, shrubs, trees, low];
 }

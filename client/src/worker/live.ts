@@ -59,7 +59,7 @@ export type ToMain =
       timeLimitS: number;
       maxAgents: number;
       balanceHash: string;
-      terrain: ArrayBuffer; // elevation (0..255) then ground class, n * n bytes each
+      terrain: ArrayBuffer; // elevation (0..255), ground class, bedrock (D-240): n * n bytes each
       reliefM: number;
       botStyles: string; // each bot's style, "player:style" comma-separated (D-228)
     }
@@ -76,6 +76,7 @@ export type ToMain =
       kills: number[]; // hunters' kills: flat (hunter, prey owner, prey species, row, col) (D-233)
       waits: number[][]; // per player, ticks before each catastrophe card is ready (D-129)
       effects: number[]; // catastrophes just cast: flat (player, card, row, col) quadruples
+      plantings: number[]; // plant orders: flat (player, species, row, col, taken) (D-241)
       weather: number[]; // [kind + 1 (0: none), phase (0 clear, 1 alert, 2 active), ticks left] (D-132)
     }
   | {
@@ -113,6 +114,25 @@ export interface Notice {
 /** The animal record of `Fauna::frame` (sim-core): u32 count, then u32 id, u16 y, u16 x (1/256
  *  cell), u8 species, u8 owner, u8 fullness (0..255), u8 order (0 free, 1 move, 2 attack) per
  *  animal, little endian (D-161). */
+/** A plant order's result (D-241): planted, or refused with nothing planted or paid. */
+export interface Planting {
+  player: number;
+  species: string;
+  row: number;
+  col: number;
+  taken: boolean;
+}
+
+/** Plant orders from the worker: flat (player, species index, row, col, taken) quintuples. */
+export function decodePlantings(flat: readonly number[], names: readonly string[]): Planting[] {
+  const out: Planting[] = [];
+  for (let i = 0; i + 4 < flat.length; i += 5) {
+    const [player = 0, s = 0, row = 0, col = 0, taken = 0] = flat.slice(i, i + 5);
+    out.push({ player, species: names[s] ?? "", row, col, taken: taken === 1 });
+  }
+  return out;
+}
+
 export const AGENT_BYTES = 12;
 export function decodeAgents(buf: ArrayBuffer): Animal[] {
   const v = new DataView(buf);
@@ -170,6 +190,7 @@ export class Live implements Source {
   readonly weatherKinds: WeatherKind[];
   weather: WeatherNow = CLEAR;
   private effects: { player: number; card: number; row: number; col: number }[] = [];
+  private plantings: Planting[] = [];
   /** Hunters' kills not yet shown (D-233). */
   private kills: Kill[] = [];
   /** Per cell, plant income in hundredths of a point per second; per player, the best
@@ -201,6 +222,7 @@ export class Live implements Source {
     this.terrain = {
       elevation: map.subarray(0, cells),
       ground: map.subarray(cells, 2 * cells),
+      bedrock: map.subarray(2 * cells, 3 * cells),
       reliefM: ready.reliefM,
     };
     this.victory = ready.victory;
@@ -297,6 +319,13 @@ export class Live implements Source {
     return out;
   }
 
+  /** Plant orders since the last call (D-241): taken, or refused (nothing planted or paid). */
+  takePlantings(): Planting[] {
+    const out = this.plantings;
+    this.plantings = [];
+    return out;
+  }
+
   takeEffects(): { player: number; card: number; row: number; col: number }[] {
     const out = this.effects;
     this.effects = [];
@@ -366,6 +395,7 @@ export class Live implements Source {
         ];
         this.effects.push({ player, card, row, col });
       }
+      this.plantings.push(...decodePlantings(m.plantings, this.meta.flora.names));
       this.weather = decodeWeather(m.weather, this.weatherKinds, this.tickHz);
       if (m.result && !this.result) this.result = JSON.parse(m.result) as Outcome;
     } else if (m.type === "fields") {

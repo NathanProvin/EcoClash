@@ -49,7 +49,7 @@
 <style>
   .stack {
     position: absolute;
-    top: 64px;
+    top: 94px; /* below the combo badge under the tug bar (D-241) */
     left: 50%;
     transform: translateX(-50%);
     z-index: 6;

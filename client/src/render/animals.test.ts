@@ -65,6 +65,7 @@ describe("AnimalView parachute drops (D-080)", () => {
     } satisfies ReplayMeta;
     const scene = new THREE.Scene();
     const view = new AnimalView(scene, meta, 4);
+    view.rings = true; // owner rings show with the strategic icons (D-241)
     const vole = [{ id: 7, y: 1, x: 1, species: 0, owner: 1 }];
     const meshes = () => scene.children as THREE.InstancedMesh[];
     const heightOf = (m: THREE.InstancedMesh) => (m.instanceMatrix.array as Float32Array)[13];
@@ -148,13 +149,13 @@ describe("gait (D-116)", () => {
   });
 });
 
-describe("drawn sizes (D-235)", () => {
+describe("drawn sizes (D-235, D-242)", () => {
   it("draws animals larger, small species most, large ones less", () => {
-    expect(ANIMAL_SCALE).toBe(3.5);
+    expect(ANIMAL_SCALE).toBe(5.25);
     const vole = formOf("bank_vole", "herbivore");
     const deer = formOf("red_deer", "herbivore");
     const gain = (f: AnimalForm) => drawnLength(f) / f.length;
-    expect(drawnLength(vole)).toBeCloseTo((0.1 * 3.5) / (1 + 0.75 * 0.1));
+    expect(drawnLength(vole)).toBeCloseTo((0.1 * 5.25) / (1 + 1.125 * 0.1)); // D-242
     expect(gain(vole)).toBeGreaterThan(gain(deer));
     expect(drawnLength(deer)).toBeGreaterThan(drawnLength(vole));
   });

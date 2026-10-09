@@ -32,7 +32,7 @@
     type Severity,
     type Toast,
   } from "./game/alerts";
-  import { cardState, isSwarm, label, unlockedNow } from "./game/species";
+  import { cardState, isSwarm, label, suitAt, unlockedNow } from "./game/species";
   import { plantColor, PLAYER, WORLD } from "./render/palette";
   import Juice from "./ui/Juice.svelte";
   import {
@@ -56,6 +56,7 @@
   import UnitPanel from "./ui/UnitPanel.svelte";
   import UnitList from "./ui/UnitList.svelte";
   import { shortNotice } from "./game/notices";
+  import { plantable } from "./game/planting";
   import { audio } from "./audio/engine";
   import { ambience, moodOf } from "./audio/ambience";
   import { unlockSound, voiceOf } from "./audio/sounds";
@@ -76,8 +77,6 @@
   import TopBar from "./ui/TopBar.svelte";
 
   let canvas: HTMLCanvasElement;
-  let replays: string[] = $state([]);
-  let chosen = $state("");
   let replay: Source | undefined = $state();
   let live: Live | undefined = $state();
   let simMs = $state(0);
@@ -225,9 +224,9 @@
 
   function loadIcons(): boolean {
     try {
-      return localStorage.getItem(ICONS_KEY) !== "off";
+      return localStorage.getItem(ICONS_KEY) === "on"; // off by default (D-241)
     } catch {
-      return true;
+      return false;
     }
   }
   // No live blur behind the HUD in a match (D-202): it was recomputed over the moving scene every
@@ -236,6 +235,7 @@
     document.documentElement.classList.toggle("in-match", !!replay && !inMenu);
   });
   $effect(() => {
+    viewer?.setRings(showIcons); // owner rings come and go with the icons (D-241)
     try {
       localStorage.setItem(ICONS_KEY, showIcons ? "on" : "off");
     } catch {
@@ -276,7 +276,7 @@
     iconKeys = new Map(found.map((f, i) => [keys[i] ?? "", f.g.ids]));
     iconGroups = found.map(({ owner, g, s }, i) => {
       const enemy = owner !== mine;
-      const order = !enemy && !swarm[g.species];
+      const order = !enemy; // swarms too (D-238)
       const key = keys[i] ?? "";
       return { key, row: g.row, col: g.col, s, count: g.count, ids: g.ids, order, enemy };
     });
@@ -378,8 +378,8 @@
    *  cleared with the selection. */
   let focus = $state<Species | null>(null);
 
-  /** A strategic icon clicked (D-232): select your group, or only highlight a swarm or the
-   *  enemy's (they take no orders); and light its prey and predators on the build bar. */
+  /** A strategic icon clicked (D-232): select your group (swarms too, D-238), or only highlight
+   *  the enemy's; and light its prey and predators on the build bar. */
   function pickIcon(i: (typeof icons)[number]) {
     if (i.order) select(i.ids);
     else {
@@ -622,7 +622,7 @@
     }).length;
     if (tutorial) {
       const n = l.meta.n;
-      // Swarms cannot be selected or ordered: the tutorial teaches with animals that can.
+      // The tutorial counts units, not swarms (taken from the unit list or an icon, D-238).
       const mine = v.visibleAnimals().filter((a) => {
         const sp = fauna[a.species];
         return a.owner === me && sp !== undefined && !isSwarm(sp);
@@ -777,6 +777,19 @@
   );
   let cell = $state<{ row: number; col: number } | null>(null);
   const cellInfo = $derived(replay && cell ? replay.cell(tick, cell.row, cell.col) : null);
+  /** How well each plant suits the selected cell (D-240), for the build bar; none without a cell
+   *  card or on a flat map. */
+  const suit = $derived.by(() => {
+    const info = cellInfo;
+    if (!info || info.moisture === null || !info.bedrock) return null;
+    const { moisture, bedrock } = info;
+    return new Map(
+      (replay?.meta.species ?? []).flatMap((s) => {
+        const v = suitAt(s, moisture, bedrock);
+        return v === undefined ? [] : [[s.name, v] as const];
+      }),
+    );
+  });
   // The unit card (D-161): the clicked or box-selected animals, or the strategic icon under the
   // pointer while hovered; it follows them every tick and goes when they are gone.
   let unitIds = $state<number[]>([]);
@@ -863,6 +876,17 @@
       if (live.error) error = live.error;
       if (live.stalled !== stalled) stalled = live.stalled;
       if (live.result !== outcome) outcome = live.result;
+      for (const p of live.takePlantings()) {
+        if (p.player !== me) continue;
+        if (p.taken) plantFx(p, p.species);
+        else {
+          // Refused, nothing planted or paid (D-241): an error sound, the species armed again
+          // and its cursor pulsing; the sim's notice says why.
+          audio.play("ui.error");
+          planting = p.species;
+          viewer?.denyGhost();
+        }
+      }
       for (const n of live.notices) {
         if (n.player !== me || n.at <= seenNotice) continue;
         seenNotice = n.at;
@@ -1048,16 +1072,47 @@
     if (ids.length) speak(ids, SELECT_CALL); // D-182
   }
 
-  /** Select all the viewed player's animals of one species on screen (from the unit bar). */
-  function pickSpecies(name: string) {
+  /** Whether planting the armed species at `cell` would take (D-242): the cursor ring's colour. */
+  function canPlantAt(cell: { row: number; col: number }): boolean {
+    const s = planting ? live?.meta.species.find((x) => x.name === planting) : undefined;
+    if (!live || !s || s.kind !== "flora") return true;
+    const bank = live.meta.series[`bank_p${me}`]?.at(-1) ?? 0;
+    const f = live.fields();
+    return plantable(s, cell, live.plantRadius, live.meta.n, me, f, live.terrain, bank).ok;
+  }
+
+  /** A plant order the sim took (D-241): shrubs and trees spring up as saplings with a woody
+   *  pop; herbs and undergrowth are sown, seeds scattering (D-233, D-234). Sparkles: as many as
+   *  the layer, in the tier's colour. */
+  function plantFx(at: { row: number; col: number }, name: string) {
+    if (!live || !viewer) return;
+    const s = live.meta.species.find((x) => x.name === name);
+    const rgb = plantColor(name, s?.level ?? 1, me);
+    const level = s?.level ?? 1;
+    const woody = level >= 3 && s?.family !== "W";
+    if (!woody) viewer.plantFeedback(at, live.plantRadius, rgb);
+    audio.play(woody ? "fx.plant.sapling" : plantSound(s), {
+      at: placeOf(at),
+      gain: woody ? 1 : 1.4,
+    });
+    juice?.sprout(at, `rgb(${rgb.join(",")})`, s?.tier ?? 1, woody ? level : Math.min(level, 2));
+    audio.play("fx.sparkle", { at: placeOf(at), gain: 0.25 + 0.15 * level });
+  }
+
+  /** Select all the viewed player's animals of one species on screen (from the unit bar). With
+   *  `add` (Ctrl or Shift, D-241) the species joins the selection, or leaves it when all of its
+   *  animals are already in. */
+  function pickSpecies(name: string, add = false) {
     if (!replay || !viewer) return;
     const fauna = replay.meta.fauna.names;
-    select(
-      viewer
-        .visibleAnimals()
-        .filter((a) => a.owner === player && fauna[a.species] === name)
-        .map((a) => a.id),
-    );
+    const ids = viewer
+      .visibleAnimals()
+      .filter((a) => a.owner === player && fauna[a.species] === name)
+      .map((a) => a.id);
+    if (!add) return select(ids);
+    const all = ids.length > 0 && ids.every((id) => selection.has(id));
+    const keep = [...selection].filter((id) => !all || !ids.includes(id));
+    select(all ? keep : [...new Set([...keep, ...ids])]);
   }
 
   /** Order the selected animals (live match only). */
@@ -1089,7 +1144,7 @@
     const r = canvas.getBoundingClientRect();
     const [x, y] = [e.clientX - r.left, e.clientY - r.top];
     if (planting && viewer) {
-      const aim = viewer.aimGhost(x, y);
+      const aim = viewer.aimGhost(x, y, canPlantAt);
       dropTag = aim?.offLand && armedKind === "fauna" ? { x, y } : null;
     }
     if (!box) return;
@@ -1126,25 +1181,8 @@
     if (at && planting && live) {
       // Shift keeps the order armed, like RTS build orders.
       if (armedKind === "flora") {
+        // The planting plays when the sim takes the order (D-241, `plantFx`).
         live.plant(me, planting, at.row, at.col);
-        const s = live.meta.species.find((x) => x.name === planting);
-        const rgb = plantColor(planting, s?.level ?? 1, me);
-        const level = s?.level ?? 1;
-        // Shrubs and trees are planted as saplings with a woody pop; herbs and undergrowth are
-        // sown, seeds scattering (D-233, D-234). Sparkles: as many as the layer, the tier's colour.
-        const woody = level >= 3 && s?.family !== "W";
-        if (!woody) viewer.plantFeedback(at, live.plantRadius, rgb);
-        audio.play(woody ? "fx.plant.sapling" : plantSound(s), {
-          at: placeOf(at),
-          gain: woody ? 1 : 1.4,
-        });
-        juice?.sprout(
-          at,
-          `rgb(${rgb.join(",")})`,
-          s?.tier ?? 1,
-          woody ? level : Math.min(level, 2),
-        );
-        audio.play("fx.sparkle", { at: placeOf(at), gain: 0.25 + 0.15 * level });
       } else {
         live.spawn(me, planting, at.row, at.col);
         const place = placeOf(at);
@@ -1241,15 +1279,6 @@
 
   const resize = () => viewer?.resize();
 
-  async function start() {
-    try {
-      const res = await fetch("replays/index.json");
-      replays = [LIVE, ...(res.ok ? ((await res.json()) as string[]) : [])];
-    } catch {
-      replays = [LIVE];
-    }
-  }
-
   /** A weak GPU (D-208): when the render scale has sat at its floor for LOW_HINT_MS on Medium or
    *  High, suggest the Low preset, once per browser. */
   const LOW_HINT_MS = 30_000;
@@ -1320,7 +1349,6 @@
     raidOrdered = false;
     if (!asTutorial) saveSetup(setup);
     inMenu = false;
-    chosen = LIVE;
     await open(LIVE);
   }
 
@@ -1364,7 +1392,6 @@
     if (import.meta.env.DEV)
       Object.assign(window, { ecoAudio: audio, ecoAmbience: ambience, ecoMusic: music });
     raf = requestAnimationFrame(frame);
-    void start();
     // An invite link (?join=CODE, D-219): straight into that online room.
     const invited = cleanCode(new URLSearchParams(location.search).get("join") ?? "");
     if (invited) {
@@ -1431,7 +1458,7 @@
       {tick}
       combo={live ? combo : null}
       victory={victoryNow}
-      bind:player
+      {player}
       onTech={() => (techOpen = true)}
       onMenu={askMenu}
       {layers}
@@ -1440,9 +1467,6 @@
       onQuality={setQuality}
       bind:perf={showPerf}
       bind:icons={showIcons}
-      {replays}
-      bind:chosen
-      onChoose={open}
       weather={live ? { now: weather, kinds: live.weatherKinds } : undefined}
       bind:overlay
       {names}
@@ -1471,6 +1495,8 @@
       {popped}
       onPickSpecies={pickSpecies}
       {focus}
+      {suit}
+      plantRadius={live?.plantRadius ?? 2}
       onClear={() => select([])}
       catastrophes={live?.catastrophes ?? []}
       waits={catastropheWaits}
@@ -1520,7 +1546,7 @@
         fauna={replay?.meta.fauna.names ?? []}
         {me}
         selected={selectedNames}
-        onPick={(name) => pickSpecies(name)}
+        onPick={(name, add) => pickSpecies(name, add)}
       />
     {/if}
     <div class="cards">
@@ -1553,6 +1579,7 @@
         {player}
         onClose={() => (techOpen = false)}
         onUnlock={mine ? unlock : undefined}
+        plantRadius={live?.plantRadius ?? 2}
       />
     {/if}
   {/if}
@@ -1724,7 +1751,7 @@
   }
   .found {
     position: absolute;
-    top: 74px;
+    bottom: 96px; /* just above the build bar it points to, clear of the toasts (D-241) */
     left: 50%;
     transform: translateX(-50%);
     margin: 0;

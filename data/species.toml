@@ -33,10 +33,10 @@
 #   defaulting to [fauna]; rest = chance to stay put at an idle decision (stop-and-go).
 
 [flora.lichen_and_moss]
-growth = 1.06
+growth = 1.01
 spawn_cost = 20
 unlock_cost = 0
-yield = 0.06
+yield = 0.04
 cap = 0.75
 effect = "Pioneer: spreads a little slower than grasses, carpets shaded ground; fastest soil development."
 family = "L1"
@@ -47,15 +47,15 @@ biomass_rate = 0.18
 k_max = 2500
 shade_cast = 0.0
 shade_tolerance = 0.9
-soil_gain = 0.0009
+soil_gain = 0.0004
 water_optimum = 0.5
 water_tolerance = 0.6
 
 [flora.grasses]
-growth = 1.26
-spawn_cost = 20
-unlock_cost = 200
-yield = 0.21
+growth = 1.1
+spawn_cost = 30
+unlock_cost = 300
+yield = 0.12
 cap = 0.75
 effect = "Pioneer: fastest spread; the main early income."
 family = "L1"
@@ -66,16 +66,16 @@ biomass_rate = 0.25
 k_max = 8000
 shade_cast = 0.0
 shade_tolerance = 0.1
-soil_gain = 0.00048
+soil_gain = 0.0005
 water_optimum = 0.5
 water_tolerance = 0.6
 
 [flora.wildflowers]
 growth = 0.6
 spawn_cost = 20
-unlock_cost = 300
-yield = 0.3
-cap = 0.3
+unlock_cost = 1000
+yield = 0.2
+cap = 0.4
 effect = "Flowering meadow: the best herbaceous income."
 family = "L1"
 tier = 3
@@ -90,10 +90,10 @@ water_optimum = 0.5
 water_tolerance = 0.6
 
 [flora.ferns]
-growth = 0.36
-spawn_cost = 31.5
-unlock_cost = 630
-yield = 0.12
+growth = 0.3
+spawn_cost = 35
+unlock_cost = 800
+yield = 0.14
 cap = 0.45
 effect = "Shade-tolerant understory on bare or shaded ground; slugs, voles and boars graze it."
 family = "L2"
@@ -110,9 +110,9 @@ water_tolerance = 0.6
 
 [flora.nettle]
 growth = 0.7
-spawn_cost = 31.5
-unlock_cost = 945
-yield = 0.18
+spawn_cost = 60
+unlock_cost = 1400
+yield = 0.16
 cap = 0.3
 effect = "Stinging: most grazers leave it alone; dense on developed soil."
 family = "L2"
@@ -129,9 +129,9 @@ water_tolerance = 0.6
 
 [flora.bramble]
 growth = 0.8
-spawn_cost = 31.5
-unlock_cost = 3150
-yield = 0.22
+spawn_cost = 60
+unlock_cost = 3200
+yield = 0.18
 cap = 0.3
 effect = "Thorny refuge: own small animals inside cannot be hunted."
 family = "L2"
@@ -147,10 +147,10 @@ water_optimum = 0.5
 water_tolerance = 0.6
 
 [flora.elder]
-growth = 0.7
-spawn_cost = 69.3
-unlock_cost = 2887.5
-yield = 0.3
+growth = 0.6
+spawn_cost = 100
+unlock_cost = 3000
+yield = 0.2
 cap = 0.35
 effect = "Fastest shrub, short-lived: the first shrub foothold."
 family = "L3"
@@ -166,10 +166,10 @@ water_optimum = 0.5
 water_tolerance = 0.6
 
 [flora.hawthorn]
-growth = 0.48
-spawn_cost = 69.3
-unlock_cost = 5775
-yield = 0.35
+growth = 0.5
+spawn_cost = 120
+unlock_cost = 6000
+yield = 0.25
 cap = 0.35
 effect = "Thorny refuge: own small animals inside cannot be hunted."
 family = "L3"
@@ -185,10 +185,10 @@ water_optimum = 0.5
 water_tolerance = 0.6
 
 [flora.hazel]
-growth = 0.72
-spawn_cost = 69.3
-unlock_cost = 8662.5
-yield = 0.45
+growth = 0.7
+spawn_cost = 150
+unlock_cost = 9000
+yield = 0.3
 cap = 0.35
 effect = "Shade-tolerant shrub: grows under own trees; its nuts feed squirrels."
 family = "L3"
@@ -204,9 +204,9 @@ water_optimum = 0.5
 water_tolerance = 0.6
 
 [flora.oak]
-growth = 0.24
-spawn_cost = 173
-unlock_cost = 10350
+growth = 0.3
+spawn_cost = 200
+unlock_cost = 12000
 yield = 0.8
 cap = 0.3
 effect = "Light canopy: the understory thrives beneath it."
@@ -223,10 +223,10 @@ water_optimum = 0.5
 water_tolerance = 0.6
 
 [flora.chestnut]
-growth = 0.48
-spawn_cost = 173
-unlock_cost = 13800
-yield = 0.85
+growth = 0.5
+spawn_cost = 220
+unlock_cost = 15000
+yield = 0.9
 cap = 0.3
 effect = "Fastest-growing tree."
 family = "L4"
@@ -242,10 +242,10 @@ water_optimum = 0.5
 water_tolerance = 0.6
 
 [flora.beech]
-growth = 0.288
-spawn_cost = 173
-unlock_cost = 18400
-yield = 0.9
+growth = 0.4
+spawn_cost = 250
+unlock_cost = 18000
+yield = 1
 cap = 0.3
 effect = "Deep shade: suppresses the understory beneath it."
 family = "L4"
@@ -263,7 +263,7 @@ water_tolerance = 0.6
 [flora.algae_and_lilies]
 growth = 1.0
 spawn_cost = 20
-unlock_cost = 400
+unlock_cost = 500
 yield = 0.15
 cap = 0.3
 effect = "Aquatic pioneer: carpets the shallows, never dry land."
@@ -282,7 +282,7 @@ water_tolerance = 0.25
 [flora.reeds]
 growth = 0.7
 spawn_cost = 30
-unlock_cost = 800
+unlock_cost = 1200
 yield = 0.25
 cap = 0.2
 effect = "Reed beds: the shallows and wet banks; a crossing point on the river."

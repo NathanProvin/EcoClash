@@ -1,5 +1,12 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { AGENT_BYTES, decodeAgents, Live, type ToMain, type ToWorker } from "./live";
+import {
+  AGENT_BYTES,
+  decodeAgents,
+  decodePlantings,
+  Live,
+  type ToMain,
+  type ToWorker,
+} from "./live";
 
 /** Stands in for the sim worker: answers "start" with "ready", and lets the test post frames. */
 class FakeWorker {
@@ -142,6 +149,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     kills: [],
     waits: [[50], [0]], // P1's storm: 5 s to go at 10 Hz (D-129)
     effects: [2, 0, 3, 4], // P2 cast a storm at (3, 4)
+    plantings: [],
     weather: [1, 2, 600], // a flood at work for 60 s more (D-132)
   };
   worker.emit({ type: "tick", tick: 8, agents: agents([[1, 0, 0, 0, 1]]), ...tick });
@@ -209,4 +217,11 @@ test("live source decodes frames into census, HUD series, animals and cells", as
   live.result = null; // the other player leaves: this one wins
   worker.emit({ type: "net", event: "left", tick: 0 });
   expect(live.result).toMatchObject({ winner: 1, reason: "left" });
+});
+
+test("plant orders decode to species names and taken flags (D-241)", () => {
+  expect(decodePlantings([1, 1, 4, 5, 1, 2, 0, 7, 8, 0], ["lichen", "grasses"])).toEqual([
+    { player: 1, species: "grasses", row: 4, col: 5, taken: true },
+    { player: 2, species: "lichen", row: 7, col: 8, taken: false },
+  ]);
 });

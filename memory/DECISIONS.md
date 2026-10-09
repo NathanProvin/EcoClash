@@ -2816,3 +2816,20 @@ Template:
     - with a cell card open, plant tiles take `saturate(0.2 + 0.8 × suit)`, where suit is the moisture response × the bedrock boost over its best (`suitAt`); the food-web focus takes precedence;
     - species cards say "Favours …".
 - **Balance:** judged by the user's play tests (no bot tuning).
+
+## D-241 · 2026-10-09 · UI comfort round; planting is all or nothing
+- **Status:** accepted (user's play test of D-240)
+- **Decision:**
+  - **Planting** (`world.rs`, `Flora::plantable`): an order plants every cell of its disc that can take the species, paid in full, or nothing.
+    - No cell able to take it: notice "nothing can take root here". Bank short: notice "not enough biomass (needs N)".
+    - Before, a short bank planted what it could, and the client animated at the click.
+    - Plant orders are logged (`World::plantings`, not hashed; wasm `takePlantings`). The client plays the sowing or sapling effects only when the sim reports the order taken. A refused order plays `ui.error`, re-arms the species and pulses the cursor ghost red (`Ghost.deny`).
+  - **Bots:** each play of a decision now deducts its cost from the spare bank (`book`): several plays used to be checked against the same unspent bank. `deepen` checks the whole plantable disc. The style fingerprint test (tall deeper than wide) ties 146/146 and is ignored until the bot-balance pass (user's choice).
+  - **Map menu:**
+    - three overlay rows: L1–L4; Bedrock, Moisture, Soil; Diversity, Shade, Borders (the territory lines toggle);
+    - removed: the "Show" row, and the View and Source selects (with the replay list fetch).
+  - **Bedrock colours** muted: `#e2d6b4`, `#7d8084` (a mid grey), `#ecebe5`.
+  - **Plant hover:** the ground hint is two icons in the stats row: a bedrock swatch in its overlay colour, and 1–3 drops for dry, fresh, or moist/wet ground (`dropsOf`). Their titles keep the text.
+  - **Unit list:** Ctrl, Shift or Cmd + click adds a species to the selection, or removes it when all of it is already selected.
+  - **Owner rings** under animals show only with the strategic icons (I). Selected animals keep their white ring. The group icons now default to off.
+  - **Layout:** the toast stack starts at 94 px, below the combo badge; the "Choose your spawn" hint sits above the build bar.

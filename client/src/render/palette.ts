@@ -111,7 +111,7 @@ export const OVERLAY_RAMPS = {
   moisture: ["#dcecf7", "#5d9fd3", "#1c4f8a"],
   shade: ["#ececec", "#7a7a7a", "#2b2b2b"],
   /** Bedrock (D-240): clay-limestone, schist-granite, silt-sand, at 0, 0.5 and 1. */
-  bedrock: ["#efdca4", "#4a4d50", "#f6f4ec"],
+  bedrock: ["#e2d6b4", "#7d8084", "#ecebe5"], // muted, a mid grey (D-241)
 } as const;
 
 /** Natural colour of each plant species (D-067); unknown species fall back per stratum. */

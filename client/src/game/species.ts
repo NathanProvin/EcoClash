@@ -170,6 +170,22 @@ export function wetness(w: number): "dry" | "fresh" | "moist" | "wet" {
   return "fresh";
 }
 
+/** A plant's moisture need as 1, 2 or 3 drops (D-241): dry, fresh, moist or wet ground (in water
+ *  too); undefined for animals. */
+export function dropsOf(s: Species): 1 | 2 | 3 | undefined {
+  const w = s.stats.water;
+  if (s.kind !== "flora" || w === undefined) return undefined;
+  const word = wetness(w);
+  return word === "dry" ? 1 : word === "fresh" ? 2 : 3;
+}
+
+/** The index of a plant's favourite bedrock in the terrain frame (D-240); 0 when none. */
+export const rockIndex = (s: Species): number =>
+  Math.max(
+    BEDROCK_KEYS.findIndex((k) => k === s.stats.bedrock),
+    0,
+  );
+
 /** Where a plant grows best, from its water optimum (D-239); undefined for animals. */
 export function groundOf(s: Species): string | undefined {
   const w = s.stats.water;

@@ -490,6 +490,25 @@ impl Sim {
             .collect()
     }
 
+    /// Plant orders since the last call (D-241), as flat (player, species, row, col, taken)
+    /// quintuples; taken is 1 when the order planted, 0 when it was refused.
+    #[wasm_bindgen(js_name = takePlantings)]
+    pub fn take_plantings(&mut self) -> Vec<u32> {
+        self.world
+            .take_plantings()
+            .into_iter()
+            .flat_map(|(p, s, r, c, ok)| {
+                [
+                    u32::from(p),
+                    u32::try_from(s).unwrap_or(0),
+                    r,
+                    c,
+                    u32::from(ok),
+                ]
+            })
+            .collect()
+    }
+
     /// Catastrophes cast since the last call, as flat (player, card, row, col) quadruples.
     #[wasm_bindgen(js_name = takeEffects)]
     pub fn take_effects(&mut self) -> Vec<u32> {

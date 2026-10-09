@@ -738,32 +738,42 @@ impl Flora {
     /// Seed species `s` on own or empty `cells` (gamerules §8), alongside what already grows
     /// there, up to its cell cap (first cells in the given order). Returns the cells planted.
     pub fn plant(&self, st: &mut FloraState, player: u8, s: usize, cells: &[usize]) -> usize {
-        let p = &self.p;
+        let (p, n2) = (&self.p, st.n * st.n);
+        let ok = self.plantable(st, player, s, cells);
+        for &k in &ok {
+            let i = s * n2 + k;
+            st.owner[k] = player;
+            st.bio[i] = st.bio[i].max(p.seed_b[s]);
+            st.gauge[i] = st.gauge[i].max(p.plant_g);
+        }
+        ok.len()
+    }
+
+    /// The cells of `cells` that `plant` would seed, without changing anything (D-241): free or
+    /// own land, not barred, suitable, not under the player's dead trees, within the cell cap.
+    #[must_use]
+    pub fn plantable(&self, st: &FloraState, player: u8, s: usize, cells: &[usize]) -> Vec<usize> {
         let n2 = st.n * st.n;
         let held = (0..n2)
             .filter(|&k| st.bio[s * n2 + k] > 0 && st.owner[k] == player)
             .count();
-        let mut room = p.cap_cells(s, n2) - i64::try_from(held).unwrap_or(i64::MAX);
-        let mut planted = 0;
+        let mut room = self.p.cap_cells(s, n2) - i64::try_from(held).unwrap_or(i64::MAX);
+        let mut ok = Vec::new();
         for &k in cells {
             let barred = st.lock[k] > 0 && st.lock_p[k] == player; // D-098
             let free = (st.owner[k] == 0 && !barred) || st.owner[k] == player;
             if !free || self.suitability(st, s, k) <= 0 || self.tree_barred(st, s, k, player) {
                 continue;
             }
-            let i = s * n2 + k;
-            if st.bio[i] == 0 {
+            if st.bio[s * n2 + k] == 0 {
                 if room <= 0 {
                     continue;
                 }
                 room -= 1;
             }
-            st.owner[k] = player;
-            st.bio[i] = st.bio[i].max(p.seed_b[s]);
-            st.gauge[i] = st.gauge[i].max(p.plant_g);
-            planted += 1;
+            ok.push(k);
         }
-        planted
+        ok
     }
 
     /// Advance one flora tick: the same rules and results as the prototype's quant mode

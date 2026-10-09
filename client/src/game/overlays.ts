@@ -18,28 +18,31 @@ export interface Overlay {
   ramp: keyof typeof OVERLAY_RAMPS;
   /** Needs fields that only a live match sends. */
   live?: boolean;
+  /** Row in the map menu (D-241): 1 the plant layers, 2 the ground, 3 the rest. */
+  row: 1 | 2 | 3;
   /** Categories instead of a scale (D-240): one colour each, at even opacity; the legend names
    *  them. Their values are 0, 0.5 and 1 on the ramp; cells without a category stay clear. */
   classes?: readonly string[];
 }
 
 export const OVERLAYS: Overlay[] = [
-  { id: "soil", label: "Soil", high: "fertile soil", ramp: "soil" },
-  { id: "L1", label: "Herbs", high: "dense herbs", ramp: "cover" },
-  { id: "L2", label: "Undergrowth", high: "dense undergrowth", ramp: "cover" },
-  { id: "L3", label: "Shrubs", high: "dense shrubs", ramp: "cover" },
-  { id: "L4", label: "Trees", high: "dense trees", ramp: "cover" },
-  { id: "diversity", label: "Diversity", high: "many species", ramp: "diversity" },
-  { id: "moisture", label: "Moisture", high: "wet ground", ramp: "moisture", live: true },
-  { id: "shade", label: "Shade", high: "deep shade", ramp: "shade", live: true },
+  { id: "L1", label: "Herbs", high: "dense herbs", ramp: "cover", row: 1 },
+  { id: "L2", label: "Undergrowth", high: "dense undergrowth", ramp: "cover", row: 1 },
+  { id: "L3", label: "Shrubs", high: "dense shrubs", ramp: "cover", row: 1 },
+  { id: "L4", label: "Trees", high: "dense trees", ramp: "cover", row: 1 },
   {
     id: "bedrock",
     label: "Bedrock",
     high: "rock type",
     ramp: "bedrock",
     live: true,
+    row: 2,
     classes: BEDROCK_NAMES.slice(1),
   },
+  { id: "moisture", label: "Moisture", high: "wet ground", ramp: "moisture", live: true, row: 2 },
+  { id: "soil", label: "Soil", high: "fertile soil", ramp: "soil", row: 2 },
+  { id: "diversity", label: "Diversity", high: "many species", ramp: "diversity", row: 3 },
+  { id: "shade", label: "Shade", high: "deep shade", ramp: "shade", live: true, row: 3 },
 ];
 
 /** Opacity of the overlay at value 0 and at value 1 (0..255); categories use one opacity. */

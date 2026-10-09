@@ -1,7 +1,8 @@
 <script lang="ts">
   // Resource bar (D-030, D-048, D-064): land (with a P1 / P2 tug-of-war gauge), species alive,
   // biomass and its rate, for the viewed player. Icon buttons on the right: tech tree, view and
-  // display (layers, quality, viewed player, source, performance readout), full screen, main menu.
+  // display (overlays in rows, borders, quality, group icons, performance; D-241), full screen,
+  // main menu.
   import type { Source } from "../replay/replay";
   import type { Layer } from "../render/viewer";
   import type { Quality } from "../render/quality";
@@ -28,7 +29,7 @@
   let {
     replay,
     tick,
-    player = $bindable(),
+    player,
     victory = null,
     onTech,
     onMenu,
@@ -38,9 +39,6 @@
     onQuality,
     perf = $bindable(),
     icons = $bindable(),
-    replays,
-    chosen = $bindable(),
-    onChoose,
     overlay = $bindable(),
     names = ["Player 1", "Player 2"],
     weather,
@@ -59,9 +57,6 @@
     onQuality: (q: Quality) => void;
     perf: boolean;
     icons: boolean;
-    replays: string[];
-    chosen: string;
-    onChoose: (name: string) => void;
     /** Live matches: the weather now and its kinds (D-132; its badge is by the clock, D-215). */
     weather?: { now: WeatherNow; kinds: WeatherKind[] } | undefined;
     /** The players' names, P1 then P2 (D-215). */
@@ -79,15 +74,6 @@
   const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
   const rate = $derived(value(`yield_p${player}`));
   const land = $derived([value("territory_p1"), value("territory_p2")]);
-  /** Show / hide the map's pieces (D-135): territory lines, each stratum's models, animals. */
-  const layerNames: [Layer, string][] = [
-    ["territory", "Territory lines"],
-    ["L1", "Herbs"],
-    ["L2", "Undergrowth"],
-    ["L3", "Shrubs"],
-    ["L4", "Trees"],
-    ["animals", "Animals"],
-  ];
   const OVERLAY_ICON = {
     soil: "soil",
     diversity: "diversity",
@@ -204,53 +190,49 @@
       {#if menu}
         <div class="drop panel" role="menu">
           <span class="fh">Map overlay</span>
-          <div class="grid">
-            {#each OVERLAYS as o (o.id)}
-              {@const off = o.live === true && !weather}
-              <button
-                class="tog"
-                class:on={overlay === o.id}
-                disabled={off}
-                aria-pressed={overlay === o.id}
-                data-tour="overlay-{o.id}"
-                title={off
-                  ? "Live matches only"
-                  : o.classes
-                    ? `${o.label}: ${o.classes.join(", ")}`
-                    : `${o.label}: darker where ${o.high}`}
-                onclick={() => (overlay = overlay === o.id ? null : o.id)}
-              >
-                <span class="disc">
-                  {#if o.id.startsWith("L")}
-                    <FamilyIcon family={o.id} size={18} bare />
-                  {:else}
-                    <Icon name={OVERLAY_ICON[o.id as keyof typeof OVERLAY_ICON]} size={18} />
-                  {/if}
-                </span>
-                <span class="lab">{o.label}</span>
-              </button>
-            {/each}
-          </div>
+          {#each [1, 2, 3] as row (row)}
+            <div class="grid">
+              {#each OVERLAYS.filter((o) => o.row === row) as o (o.id)}
+                {@const off = o.live === true && !weather}
+                <button
+                  class="tog"
+                  class:on={overlay === o.id}
+                  disabled={off}
+                  aria-pressed={overlay === o.id}
+                  data-tour="overlay-{o.id}"
+                  title={off
+                    ? "Live matches only"
+                    : o.classes
+                      ? `${o.label}: ${o.classes.join(", ")}`
+                      : `${o.label}: darker where ${o.high}`}
+                  onclick={() => (overlay = overlay === o.id ? null : o.id)}
+                >
+                  <span class="disc">
+                    {#if o.id.startsWith("L")}
+                      <FamilyIcon family={o.id} size={18} bare />
+                    {:else}
+                      <Icon name={OVERLAY_ICON[o.id as keyof typeof OVERLAY_ICON]} size={18} />
+                    {/if}
+                  </span>
+                  <span class="lab">{o.label}</span>
+                </button>
+              {/each}
+              {#if row === 3}
+                <!-- The territory lines (D-241: the one "show" toggle left). -->
+                <button
+                  class="tog"
+                  class:on={layers.territory}
+                  aria-pressed={layers.territory}
+                  title="{layers.territory ? 'Hide' : 'Show'} territory lines"
+                  onclick={() => toggle("territory")}
+                >
+                  <span class="disc"><Icon name="land" size={18} /></span>
+                  <span class="lab">Borders</span>
+                </button>
+              {/if}
+            </div>
+          {/each}
           {#if shown}{@render legend(shown)}{/if}
-          <hr />
-          <span class="fh">Show</span>
-          <div class="row">
-            {#each layerNames as [layer, name] (layer)}
-              <button
-                class="mini"
-                class:on={layers[layer]}
-                aria-pressed={layers[layer]}
-                title="{layers[layer] ? 'Hide' : 'Show'} {name.toLowerCase()}"
-                onclick={() => toggle(layer)}
-              >
-                {#if layer === "territory"}
-                  <Icon name="land" size={15} />
-                {:else}
-                  <FamilyIcon family={layer === "animals" ? "P3" : layer} size={15} bare />
-                {/if}
-              </button>
-            {/each}
-          </div>
           <hr />
           <div class="pair">
             Quality
@@ -270,25 +252,6 @@
               {/each}
             </span>
           </div>
-          <label class="pair">
-            View
-            <select bind:value={player} aria-label="Viewed player">
-              <option value={1}>Player 1</option>
-              <option value={2}>Player 2</option>
-            </select>
-          </label>
-          {#if replays.length > 1}
-            <label class="pair">
-              Source
-              <select
-                bind:value={chosen}
-                onchange={(e) => onChoose(e.currentTarget.value)}
-                aria-label="Replay"
-              >
-                {#each replays as name (name)}<option value={name}>{name}</option>{/each}
-              </select>
-            </label>
-          {/if}
           <div class="row two">
             <button
               class="tog"
@@ -626,25 +589,10 @@
     padding: 6px 10px 7px;
     font-size: 0.85em;
   }
-  .drop label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: var(--cursor-pointer);
-  }
   .drop .pair {
     display: flex;
     align-items: center;
     justify-content: space-between;
-  }
-  .drop select {
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: var(--well);
-    padding: 2px 6px;
-  }
-  .drop select option {
-    background: #1f2823;
   }
   hr {
     width: 100%;

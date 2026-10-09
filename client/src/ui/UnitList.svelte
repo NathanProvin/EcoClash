@@ -23,7 +23,8 @@
     me: number;
     /** Species of the selected animals (D-232). */
     selected?: ReadonlySet<string>;
-    onPick: (name: string) => void;
+    /** `add` (Ctrl, Shift or Cmd held, D-241): toggle that species in the selection. */
+    onPick: (name: string, add: boolean) => void;
   } = $props();
 
   const order = $derived(
@@ -50,8 +51,8 @@
         class="unit"
         class:on={selected.has(r.s.name)}
         aria-pressed={selected.has(r.s.name)}
-        onclick={() => onPick(r.s.name)}
-        title="{label(r.s.name)}: select all"
+        onclick={(e) => onPick(r.s.name, e.ctrlKey || e.shiftKey || e.metaKey)}
+        title="{label(r.s.name)}: select all (Ctrl or Shift + click: add or remove)"
         aria-label="Select all {label(r.s.name)}"
       >
         <SpeciesIcon s={r.s} size={30} />

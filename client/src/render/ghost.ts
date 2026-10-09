@@ -38,6 +38,9 @@ export class Ghost {
   private readonly model = new THREE.Group();
   private readonly style: PlantStyle = new LowPolyPlants();
   private size = 1; // the model's largest dimension (m)
+  private scale = 1; // the model's scale before any refusal pulse
+  private color = "";
+  private denied = -Infinity; // when the last refusal pulse started (s)
 
   /** `height`: the ground (or water surface) under a world point, for the ring (D-097). */
   constructor(
@@ -125,7 +128,25 @@ export class Ghost {
     this.group.position.copy(at);
     this.ring.scale.set(radius, 1, radius);
     drape(this.ring, this.height, RING_LIFT);
-    this.model.scale.setScalar(Math.max(1, least / this.size));
-    (this.ring.material as THREE.MeshBasicNodeMaterial).color.set(color);
+    this.scale = Math.max(1, least / this.size);
+    this.color = color;
+    this.pulse(performance.now() / 1000);
+  }
+
+  /** A refused order (D-241): the model bounces and the ring flashes red for `DENY.s`. */
+  deny(now: number): void {
+    this.denied = now;
+  }
+
+  /** Every frame: the refusal pulse, if one is running, else the plain model and ring. */
+  pulse(now: number): void {
+    const t = (now - this.denied) / DENY.s;
+    const on = t >= 0 && t < 1;
+    const bounce = on ? 1 + DENY.swell * Math.sin(Math.PI * t * DENY.beats) ** 2 : 1;
+    this.model.scale.setScalar(this.scale * bounce);
+    (this.ring.material as THREE.MeshBasicNodeMaterial).color.set(on ? DENY.color : this.color);
   }
 }
+
+/** The refusal pulse (D-241): length (s), swell of the model, number of beats, ring colour. */
+const DENY = { s: 0.45, swell: 0.35, beats: 2, color: "#ff5a3c" } as const;

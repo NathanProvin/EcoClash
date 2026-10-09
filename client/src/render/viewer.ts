@@ -498,6 +498,12 @@ export class Viewer {
     this.selected = new Set(ids);
   }
 
+  /** Owner rings under every animal (D-241), shown with the strategic icons; selected animals
+   *  keep their ring either way. */
+  setRings(on: boolean): void {
+    this.animals.rings = on;
+  }
+
   /** The grid cell under a screen point (CSS pixels of the canvas), or null off the map. */
   pickCell(x: number, y: number): { row: number; col: number } | null {
     const { clientWidth: w, clientHeight: h } = this.canvas;
@@ -666,6 +672,11 @@ export class Viewer {
   setGhost(spec: GhostSpec | null): void {
     this.ghostSpec = spec;
     this.ghost.set(spec);
+  }
+
+  /** A refused order (D-241): the drop cursor pulses red. */
+  denyGhost(): void {
+    this.ghost.deny(performance.now() / 1000);
   }
 
   /** Move the drop cursor to a screen point (null: off the canvas). Returns the cell and whether
@@ -912,6 +923,7 @@ export class Viewer {
     const dt = Math.min(now - (this.lastTime || now), 0.1);
     this.lastTime = now;
     this.now.value = now;
+    this.ghost.pulse(performance.now() / 1000); // D-241
     const fields = this.replay.fields(tick);
     if (fields.frame !== this.lastFrame) {
       // Moving forward blends the grass in; the first frame or a scrub back shows at once.

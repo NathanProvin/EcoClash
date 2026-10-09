@@ -35,10 +35,10 @@
 #   defaulting to [fauna]; rest = chance to stay put at an idle decision (stop-and-go).
 
 [flora.lichen_and_moss]
-growth = 1.01
+growth = 1.2
 spawn_cost = 20
 unlock_cost = 0
-yield = 0.04
+yield = 0.05
 cap = 0.75
 effect = "Pioneer: spreads a little slower than grasses, carpets shaded ground; fastest soil development."
 family = "L1"
@@ -55,9 +55,9 @@ water_tolerance = 0.9
 bedrock = "schist_granite"
 
 [flora.grasses]
-growth = 1.1
+growth = 1.15
 spawn_cost = 30
-unlock_cost = 300
+unlock_cost = 280
 yield = 0.12
 cap = 0.75
 effect = "Pioneer: fastest spread; the main early income."
@@ -75,7 +75,7 @@ water_tolerance = 0.5
 bedrock = "silt_sand"
 
 [flora.wildflowers]
-growth = 0.6
+growth = 0.8
 spawn_cost = 40
 unlock_cost = 1000
 yield = 0.2

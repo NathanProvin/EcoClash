@@ -65,6 +65,7 @@ describe("AnimalView parachute drops (D-080)", () => {
     } satisfies ReplayMeta;
     const scene = new THREE.Scene();
     const view = new AnimalView(scene, meta, 4);
+    view.rings = true; // owner rings show with the strategic icons (D-241)
     const vole = [{ id: 7, y: 1, x: 1, species: 0, owner: 1 }];
     const meshes = () => scene.children as THREE.InstancedMesh[];
     const heightOf = (m: THREE.InstancedMesh) => (m.instanceMatrix.array as Float32Array)[13];

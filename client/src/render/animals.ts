@@ -2,8 +2,8 @@
 // bodies.ts, scaled to the species' size and turned to face where it goes. Legs swing, bodies bob,
 // wings flap and tails wag with the distance walked (the gait shader below). Birds fly above the
 // canopy; fish swim under the water surface, and amphibious animals float on it (D-087). A ring on
-// the ground, in the owner's colour, marks every controllable animal (white when selected). Soil
-// life and insects stay faint dots (D-065). AnimalView is the seam where skinned or
+// the ground, in the owner's colour, marks every animal while the strategic icons show (D-241),
+// and the selected ones always (white). Soil life and insects stay faint dots (D-065). AnimalView is the seam where skinned or
 // vertex-animated models can replace these bodies later (D-072).
 
 import * as THREE from "three/webgpu";
@@ -137,6 +137,8 @@ export interface Drawn {
 
 /** The animals of a match: one instanced mesh per species, their rings, the swarm dots. */
 export class AnimalView {
+  /** Owner rings under unselected animals (D-241): off unless the strategic icons are on. */
+  rings = false;
   /** Where each animal was drawn this frame, for click picking (swarms excluded, D-238). */
   drawn: Drawn[] = [];
   private readonly bodies: (THREE.InstancedMesh | undefined)[];
@@ -147,7 +149,7 @@ export class AnimalView {
   private readonly farMotions: (THREE.InstancedBufferAttribute | undefined)[];
   /** The frame each heading entry was last touched, to drop the dead (no per-frame Map). */
   private stamp = 0;
-  private readonly rings: THREE.InstancedMesh;
+  private readonly ringMesh: THREE.InstancedMesh;
   private readonly swarm: THREE.InstancedMesh;
   private readonly canopies: THREE.InstancedMesh;
   private readonly canopyColor = new THREE.Color(FALL.canopy);
@@ -210,7 +212,7 @@ export class AnimalView {
     const faint = (opacity: number) =>
       new THREE.MeshBasicNodeMaterial({ transparent: true, opacity, depthWrite: false });
     const ring = new THREE.RingGeometry(1 - RING.width, 1, 28).rotateX(-Math.PI / 2);
-    this.rings = instanced(scene, ring, capacity, faint(0.85));
+    this.ringMesh = instanced(scene, ring, capacity, faint(0.85));
     this.swarm = instanced(
       scene,
       new THREE.SphereGeometry(1, 6, 4),
@@ -240,7 +242,7 @@ export class AnimalView {
   }
 
   setVisible(on: boolean): void {
-    const all = [this.rings, this.swarm, this.canopies, this.shadows, this.dusts];
+    const all = [this.ringMesh, this.swarm, this.canopies, this.shadows, this.dusts];
     for (const m of [...this.bodies, ...this.far, ...all]) {
       if (!m) continue;
       m.visible = on;
@@ -367,11 +369,14 @@ export class AnimalView {
         const d = Math.max(0.6, size) * (1 + 1.5 * t);
         put(this.dusts, dusts++, x, ground + 0.08, z, d, d, 0, this.dustColor);
       }
-      const ringColor = selected.has(a.id)
-        ? HIGHLIGHT
-        : this.ringColor[owner][this.predatorOf[a.species] ? "predator" : "animal"];
-      const r = form ? ringRadius(form) : RING.min;
-      put(this.rings, rings++, x, ground + 0.06, z, r, r, 0, ringColor);
+      const picked = selected.has(a.id);
+      if (picked || this.rings) {
+        const ringColor = picked
+          ? HIGHLIGHT
+          : this.ringColor[owner][this.predatorOf[a.species] ? "predator" : "animal"];
+        const r = form ? ringRadius(form) : RING.min;
+        put(this.ringMesh, rings++, x, ground + 0.06, z, r, r, 0, ringColor);
+      }
       this.drawn.push({ id: a.id, owner: a.owner, x, y: y + size * 0.3, z });
     }
     for (const [id, h] of this.heading) if (h.seen !== stamp) this.heading.delete(id);
@@ -391,7 +396,7 @@ export class AnimalView {
         }
       });
     }
-    finish(this.rings, rings);
+    finish(this.ringMesh, rings);
     finish(this.swarm, swarms);
     finish(this.canopies, canopies);
     finish(this.shadows, shadows);

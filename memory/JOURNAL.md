@@ -1043,3 +1043,17 @@
 - **Tests:** patches ≤ 6, symmetric, clay lower than granite, silt wetter than granite, a favourite grows faster; client: `suitAt`, `rockOf`, bedrock overlay classes. Workspace green, native = WASM, client green.
 - **Note:** the user's wildflowers `spawn_cost` 20 → 40 went into the sim commit (it was in the working tree).
 - **Open:** user play tests of the terroirs.
+
+## 2026-10-09 (5) · Alpha 1.4: UI comfort round, all-or-nothing planting (D-241)
+- **Done:** everything in D-241.
+- **Checked in the browser:**
+  - the menu rows;
+  - the muted bedrock overlay;
+  - the hover icons (granite swatch, one drop for lichen);
+  - the cell card's Moisture and Bedrock rows;
+  - toasts below the combo badge;
+  - a planting refused for want of biomass: no spend, a red "need more" toast, the species re-armed.
+
+  Not seen: the error sound and the ghost pulse.
+- **Tests:** Rust all-or-nothing planting; TS plantings decoding. Render test enables rings. Bot fingerprint test ignored for the bot pass.
+- **Open:** bot-balance pass (style fingerprint, refusals of animal drops).

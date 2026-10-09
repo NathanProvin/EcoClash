@@ -19,10 +19,13 @@
     MEDAL,
     quickStats,
     roleName,
+    dropsOf,
     groundOf,
+    rockIndex,
     rockOf,
   } from "../game/species";
   import type { Source, Species } from "../replay/replay";
+  import { OVERLAY_RAMPS } from "../render/palette";
   import type { Catastrophe } from "../game/catastrophes";
   import CatastropheDeck from "./CatastropheDeck.svelte";
   import FamilyIcon from "./FamilyIcon.svelte";
@@ -288,6 +291,18 @@
         {#each quickStats(s, replay.meta.pace) as q (q.icon)}
           <span class="stat" title={q.title}><Icon name={q.icon} size={13} />{q.value}</span>
         {/each}
+        <!-- Ground at a glance (D-241): the favourite bedrock in its overlay colour, and the
+             moisture need as one to three drops. -->
+        {#if rockIndex(s)}
+          <span class="stat rock" title={rockOf(s)}
+            ><i style:background={OVERLAY_RAMPS.bedrock[rockIndex(s) - 1]}></i></span
+          >
+        {/if}
+        {#if dropsOf(s)}
+          <span class="stat drops" title={groundOf(s)}>
+            {#each [1, 2, 3].slice(0, dropsOf(s)) as i (i)}<Icon name="water" size={12} />{/each}
+          </span>
+        {/if}
       </span>
       {#if s.kind === "fauna"}
         <!-- D-122: foods in rank order, primary largest. -->
@@ -314,8 +329,6 @@
         <span class="act dim"><Icon name="lock" size={12} /> {lockText(s, species)}</span>
       {/if}
       <em>{s.stats.effect}</em>
-      {#if groundOf(s)}<span class="act">{groundOf(s)}</span>{/if}
-      {#if rockOf(s)}<span class="act">{rockOf(s)}</span>{/if}
     </div>
   {/if}
 </footer>
@@ -555,6 +568,20 @@
   }
   .stat :global(svg) {
     color: var(--ink-soft);
+  }
+  /* Ground at a glance (D-241): a bedrock swatch, and one to three drops close together. */
+  .stat.rock i {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45);
+  }
+  .stat.drops {
+    gap: 0;
+  }
+  .stat.drops :global(svg) {
+    color: #7fb6e0;
+    margin-right: -3px;
   }
   .sub,
   .dim,

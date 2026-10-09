@@ -73,6 +73,9 @@ pub struct World {
     /// Why recent orders did nothing, for the UI: (player, text). Not part of the state hash;
     /// callers drain it (`take_notices`).
     pub notices: Vec<(u8, String)>,
+    /// Plant orders since the last `take_plantings`, as (player, species, row, col, taken), for
+    /// the planting animation or the refusal (D-241). A view, never hashed.
+    pub plantings: Vec<(u8, usize, u32, u32, bool)>,
     /// Animals placed by spawn commands since the last `take_drops`, as (first id, count): the
     /// renderer parachutes them in (D-080). A view, never hashed, like the notices.
     pub drops: Vec<(u32, u32)>,
@@ -146,6 +149,7 @@ impl World {
             catastrophes: Catastrophes::new(CatastropheParams::from_balance(balance)),
             weather: Weather::new(WeatherParams::from_balance(balance), seed),
             notices: Vec::new(),
+            plantings: Vec::new(),
             drops: Vec::new(),
             result: None,
             victory: Victory::from_balance(balance),
@@ -237,32 +241,34 @@ impl World {
                     self.notices.push((c.player, format!("{species}: {why}")));
                     return;
                 }
-                // Cell by cell, paying `spawn_cost` for each cell planted, while the bank allows.
+                // All or nothing (D-241): every cell that can take the species, paid
+                // `spawn_cost` each, or none at all.
                 let unit = self.economy.unit_cost(s, false);
-                let mut planted = 0;
-                let mut broke = false;
-                for k in disc(n, *row, *col, *radius) {
-                    if self.economy.affordable(c.player, unit) == 0 {
-                        broke = true;
-                        break;
+                let cells = disc(n, *row, *col, *radius);
+                let ok = self.flora.plantable(&self.state, c.player, s, &cells);
+                let count = i64::try_from(ok.len()).unwrap_or(i64::MAX);
+                let refusal = if ok.is_empty() {
+                    Some(
+                        "nothing can take root here (soil too poor, land taken, or cap reached)"
+                            .to_string(),
+                    )
+                } else if self.economy.affordable(c.player, unit) < count {
+                    let need = div_round(unit * count, i64::from(ONE));
+                    Some(format!("not enough biomass (needs {need})"))
+                } else {
+                    None
+                };
+                let took = refusal.is_none();
+                if let Some(why) = refusal {
+                    self.notices.push((c.player, format!("{species}: {why}")));
+                } else {
+                    self.flora.plant(&mut self.state, c.player, s, &ok);
+                    self.economy.pay(c.player, unit * count);
+                    for &k in &ok {
+                        self.fields.mark_cell(k);
                     }
-                    let got = self.flora.plant(&mut self.state, c.player, s, &[k]);
-                    self.economy
-                        .pay(c.player, unit * i64::try_from(got).unwrap_or(0));
-                    planted += got;
-                    self.fields.mark_cell(k);
                 }
-                if broke {
-                    self.notices.push((
-                        c.player,
-                        format!("{species}: not enough biomass for more cells"),
-                    ));
-                } else if planted == 0 {
-                    self.notices.push((
-                        c.player,
-                        format!("{species}: nothing took there (soil too poor, land taken, or cap reached)"),
-                    ));
-                }
+                self.plantings.push((c.player, s, *row, *col, took));
             }
             Payload::Catastrophe { kind, row, col } => {
                 let n = self.state.n;
@@ -500,6 +506,11 @@ impl World {
     /// (D-129).
     pub fn take_effects(&mut self) -> Vec<(u8, usize, u32, u32)> {
         std::mem::take(&mut self.catastrophes.effects)
+    }
+
+    /// Plant orders since the last call (D-241).
+    pub fn take_plantings(&mut self) -> Vec<(u8, usize, u32, u32, bool)> {
+        std::mem::take(&mut self.plantings)
     }
 
     pub fn take_drops(&mut self) -> Vec<(u32, u32)> {
@@ -763,6 +774,45 @@ mod tests {
             seq,
             payload,
         }
+    }
+
+    /// D-241: a plant order is all or nothing. Too little biomass: nothing planted, nothing paid,
+    /// a notice; enough: every plantable cell, paid exactly; no cell able to take it: nothing.
+    #[test]
+    fn planting_is_all_or_nothing() {
+        let mut w = World::new(&balance(), 1, 16);
+        let s = w.flora.p.index("lichen_and_moss").unwrap();
+        let unit = w.economy.unit_cost(s, false);
+        w.economy.bank[0] = unit * 3; // a radius-2 disc has 13 cells
+        w.submit(plant(0, 1, 0, "lichen_and_moss", 8, 8));
+        w.step();
+        assert_eq!(w.economy.bank[0], unit * 3, "nothing paid");
+        assert_eq!(w.territory()[0], 0, "nothing planted");
+        assert!(
+            w.take_notices()
+                .iter()
+                .any(|(_, t)| t.contains("not enough biomass"))
+        );
+        assert_eq!(w.take_plantings(), vec![(1, s, 8, 8, false)]);
+
+        w.economy.bank[0] = unit * 100;
+        w.submit(plant(1, 1, 1, "lichen_and_moss", 8, 8));
+        w.step();
+        let cells = w.territory()[0];
+        assert!(cells > 0);
+        assert_eq!(w.economy.bank[0], unit * (100 - cells));
+        assert_eq!(w.take_plantings(), vec![(1, s, 8, 8, true)]);
+
+        let oak = w.flora.p.index("oak").unwrap();
+        w.economy.sandbox = true; // every card unlocked
+        w.submit(plant(2, 1, 2, "oak", 2, 2)); // bare soil: trees cannot take root
+        w.step();
+        assert_eq!(w.take_plantings(), vec![(1, oak, 2, 2, false)]);
+        assert!(
+            w.take_notices()
+                .iter()
+                .any(|(_, t)| t.contains("nothing can take root"))
+        );
     }
 
     /// Two players, a few orders, `ticks` ticks: the hash of every tick.

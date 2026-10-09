@@ -2754,3 +2754,18 @@ Template:
   - style means: tall 43 → 56, rush 60 → 41, wide 43, balanced 51 → 58;
   - cycle: rush > tall 75 → 50, tall > wide 50 → 68, wide > rush 56 → 75;
   - bot think 354 → 747 µs (≤ 1 ms); a full-map flora tick 816 → 896 µs. The worst tick, 8.6 ms, was already 8.8 ms on main.
+
+## D-237 · 2026-10-09 · Trees live longer; slow soil, built by recyclers
+- **Status:** accepted (user, Alpha 1.4)
+- **Decision:**
+  - `[deadwood] natural_death_s` 3600 → 7200: trees die of old age half as often.
+  - Every plant's `soil_gain` ÷ 5. Measured: a lichen + grass cell alone builds full soil in 27.5 min real (it was 5.6 min); the user's target was 25–30 min.
+  - `[fauna] soil_per_dead` 0.5 → 1.5. Recyclers become the fast way to fertile soil. 1.0 was tried first: trees came even later.
+- **Measured** (Normal; mirror 8 seeds, matrix 4 per pair; D-236 → D-237):
+  - shrubs median 30:31 → 17:19; trees still rare (13 → 15 sides of 16 never plant them);
+  - median end 22:39 → 24:00; lead changes 0.6 → 0.9;
+  - style means: wide 43 → 26, tall 56 → 58, rush 41 → 47, balanced 58 → 66.
+- **Open:**
+  - the bot does not yet call more recyclers to speed its soil (earthworm calls unchanged);
+  - the tree soil gate (`soil_min_level` 0.6) is rarely reached before a match ends;
+  - wide is weak.

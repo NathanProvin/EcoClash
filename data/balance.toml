@@ -193,7 +193,7 @@ shade = true
 
 # Fauna agents (gamerules §5.2, §6; D-023, D-026). Species stats are in species.toml.
 [deadwood]
-natural_death_s = 3600  # mean life of a tree stand (ecology seconds, 1 h; D-152: was 3 h): trees die of old age, standing (D-127)
+natural_death_s = 7200  # mean life of a tree stand (ecology seconds, 2 h; D-237: was 1 h, D-152: 3 h): trees die of old age, standing (D-127)
 wood_share = 0.3        # share of a dead stand that stays standing as dead wood; the rest falls as litter
 rot_s = 600             # time for standing dead wood to rot away without recyclers (ecology seconds)
 
@@ -276,7 +276,7 @@ transfer = 0.1          # share of eaten biomass that becomes the eater's energy
 diet_yield = [1.0, 0.75, 0.5]  # energy from a primary, secondary, tertiary food, as a share of the transfer (D-123)
 own_graze = 0.2         # bite on own flora, relative to enemy flora (gamerules §10)
 graze_damage = 4.0      # enemy plants lose this many times what a grazer eats; the rest is trampled to litter (D-152)
-soil_per_dead = 0.5     # soil development (u16 units) per unit of dead biomass decomposed
+soil_per_dead = 1.5     # soil development (u16 units) per unit of dead biomass decomposed (D-237: was 0.5)
 lockout_s = 30          # a cell grazed bare turns neutral; its former owner may not retake it for this long (D-098)
 herbivore_range = 10    # prototype only (tools/prototype): sim-core drops herbivores near the click
 drop_radius = 4         # a drop (herbivores off own land, predators) lands within this many cells of the click (D-061)

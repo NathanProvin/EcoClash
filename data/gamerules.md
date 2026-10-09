@@ -49,7 +49,7 @@ Aquatic plants (family W) sit in the stratum of their height: they want the wate
 - **[Proposed] Complementarity.** Species of one stratum compete with partial niche overlap (`niche_overlap` in `balance.toml`, below 1), so a mixed stand holds more biomass than a monoculture.
 - A cell's **dominant level** is the highest level among the strata present in it, counting only strata whose biomass is above `establish_threshold`. It sets shade and succession; conquest uses strength (§3, D-225).
 - **[Proposed] Shade.** Higher strata in a cell reduce the growth of the owner's lower strata in that same cell. Shade-tolerant species suffer less.
-- **[Proposed] Succession (soil development).** Each cell has a **soil development** value (organic matter), which starts at 0 on bare soil. Plants raise it over time, pioneers fastest. Each level needs a minimum value to establish: pioneers none, the rest of L1 low, L2 lower-medium, L3 medium, L4 high. This drives the V1 progression bare soil → meadow → shrubs → forest. It is independent of the soil *type* (§2.3).
+- **[Proposed] Succession (soil development).** Each cell has a **soil development** value (organic matter), which starts at 0 on bare soil. Plants raise it slowly, pioneers fastest: a lichen + grass cell alone takes about 28 min to reach full soil. Recyclers are the fast way: they turn litter and dead wood into soil (`soil_per_dead`), several times faster than the plants on a litter-rich cell (D-237). Each level needs a minimum value to establish: pioneers none, the rest of L1 low, L2 lower-medium, L3 medium, L4 high. This drives the V1 progression bare soil → meadow → shrubs → forest. It is independent of the soil *type* (§2.3).
 
 ### 2.2 Biomes [Post-V1]
 
@@ -304,7 +304,7 @@ All dead organisms, plants and animals, feed `Dead biomass`.
 - Predators cannot attack species outside their diet. A fox ignores slugs, for example.
 - **Refuge (D-023):** a player's small fauna inside own cells with dense hawthorn & blackthorn or bramble, or in the water dense cattails (D-125), cannot be hunted. Predators are otherwise kept in check by their own predators (§5.2).
 - **Dead trees (D-127, D-227):** a cell's tree stand dies:
-  - of old age, at a base rate (`natural_death_s`, a mean life of 1 h of ecology time; D-152);
+  - of old age, at a base rate (`natural_death_s`, a mean life of 2 h of ecology time; D-152, D-237);
   - or by a catastrophe or weather: processionary caterpillars, the violent storm (windthrow), drought.
 
   A dead tree model replaces the living one and stays until the dead wood is gone: it rots away slowly (`rot_s`), and recyclers clear it faster, the black woodpecker best of all (dead wood is its primary food).

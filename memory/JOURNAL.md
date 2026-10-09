@@ -1009,3 +1009,12 @@
 - **Tests:** new strength tests (exact factors, cap, grazing, young layer, canopy, side shade). Workspace tests, lint and native = WASM green. Client check, lint and tests green.
 - **Bench vs main:** tall up (43 → 56), rush down (60 → 41); trees now planted; median end 22:39. Lead changes fell (0.6) and the cycle is still off target. Bot think 747 µs.
 - **Open:** playtest the new fronts; lead changes and the cycle (D-229 targets); `smother_rate` not retuned (one lever per pass).
+
+## 2026-10-09 (2) · Alpha 1.4: tree life, slow soil (D-237)
+- **Done:**
+  - trees live twice as long;
+  - plant soil gain ÷ 5 (calibrated by a one-cell run: lichen + grass, full soil in 27.5 min);
+  - recyclers' soil per dead biomass ×3 (0.5 → 1.5, after a 1.0 pass).
+- **Tests:** workspace green, native = WASM.
+- **Bench:** shrubs earlier, trees rare, wide weak (26), balanced strong (66).
+- **Open:** the bot does not use recyclers for soil; trees rarely reach soil 0.6.

@@ -24,7 +24,8 @@
 #   water_optimum / water_tolerance = moisture response (0..1; land plants 0.5 / 0.6: neutral on a
 #   flat map, slow in the shallows, D-084; aquatic plants want the water); biomass_rate = logistic
 #   r (1/s); k_max = biomass capacity of a cell (u16); shade_cast / shade_tolerance 0..1;
-#   soil_gain = soil development per second at full cover.
+#   soil_gain = soil development per second at full cover (D-237: slow, a lichen + grass cell
+#   alone builds full soil in about 28 min; recyclers speed it up).
 #   Animals: role, eats, habitat, small = can hide in a refuge, swarm = drawn as a swarm, not a
 #   unit (D-065), body (energy capacity), bite (1/s), upkeep (share of body per s), speed and
 #   sight (cells), group (animals per spawned card), medium = walk, swim, amphibious or fly (D-084).
@@ -46,7 +47,7 @@ biomass_rate = 0.18
 k_max = 2500
 shade_cast = 0.0
 shade_tolerance = 0.9
-soil_gain = 0.0045
+soil_gain = 0.0009
 water_optimum = 0.5
 water_tolerance = 0.6
 
@@ -65,7 +66,7 @@ biomass_rate = 0.25
 k_max = 8000
 shade_cast = 0.0
 shade_tolerance = 0.1
-soil_gain = 0.0024
+soil_gain = 0.00048
 water_optimum = 0.5
 water_tolerance = 0.6
 
@@ -84,7 +85,7 @@ biomass_rate = 0.15
 k_max = 6000
 shade_cast = 0.0
 shade_tolerance = 0.2
-soil_gain = 0.003
+soil_gain = 0.0006
 water_optimum = 0.5
 water_tolerance = 0.6
 
@@ -103,7 +104,7 @@ biomass_rate = 0.06
 k_max = 7000
 shade_cast = 0.1
 shade_tolerance = 0.9
-soil_gain = 0.0018
+soil_gain = 0.00036
 water_optimum = 0.5
 water_tolerance = 0.6
 
@@ -122,7 +123,7 @@ biomass_rate = 0.2
 k_max = 9000
 shade_cast = 0.1
 shade_tolerance = 0.5
-soil_gain = 0.002
+soil_gain = 0.0004
 water_optimum = 0.5
 water_tolerance = 0.6
 
@@ -141,7 +142,7 @@ biomass_rate = 0.2
 k_max = 10000
 shade_cast = 0.2
 shade_tolerance = 0.4
-soil_gain = 0.0024
+soil_gain = 0.00048
 water_optimum = 0.5
 water_tolerance = 0.6
 
@@ -160,7 +161,7 @@ biomass_rate = 0.08
 k_max = 20000
 shade_cast = 0.3
 shade_tolerance = 0.3
-soil_gain = 0.0024
+soil_gain = 0.00048
 water_optimum = 0.5
 water_tolerance = 0.6
 
@@ -179,7 +180,7 @@ biomass_rate = 0.04
 k_max = 25000
 shade_cast = 0.5
 shade_tolerance = 0.3
-soil_gain = 0.0024
+soil_gain = 0.00048
 water_optimum = 0.5
 water_tolerance = 0.6
 
@@ -198,7 +199,7 @@ biomass_rate = 0.05
 k_max = 22000
 shade_cast = 0.4
 shade_tolerance = 0.8
-soil_gain = 0.0024
+soil_gain = 0.00048
 water_optimum = 0.5
 water_tolerance = 0.6
 
@@ -217,7 +218,7 @@ biomass_rate = 0.0135
 k_max = 60000
 shade_cast = 0.4
 shade_tolerance = 0.2
-soil_gain = 0.0015
+soil_gain = 0.0003
 water_optimum = 0.5
 water_tolerance = 0.6
 
@@ -236,7 +237,7 @@ biomass_rate = 0.027
 k_max = 62000
 shade_cast = 0.6
 shade_tolerance = 0.4
-soil_gain = 0.0015
+soil_gain = 0.0003
 water_optimum = 0.5
 water_tolerance = 0.6
 
@@ -255,7 +256,7 @@ biomass_rate = 0.018
 k_max = 65000
 shade_cast = 0.85
 shade_tolerance = 0.8
-soil_gain = 0.0015
+soil_gain = 0.0003
 water_optimum = 0.5
 water_tolerance = 0.6
 
@@ -274,7 +275,7 @@ biomass_rate = 0.2
 k_max = 6000
 shade_cast = 0.0
 shade_tolerance = 0.3
-soil_gain = 0.003
+soil_gain = 0.0006
 water_optimum = 1.0
 water_tolerance = 0.25
 
@@ -293,7 +294,7 @@ biomass_rate = 0.15
 k_max = 12000
 shade_cast = 0.2
 shade_tolerance = 0.4
-soil_gain = 0.0024
+soil_gain = 0.00048
 water_optimum = 0.9
 water_tolerance = 0.35
 
@@ -312,7 +313,7 @@ biomass_rate = 0.08
 k_max = 20000
 shade_cast = 0.35
 shade_tolerance = 0.4
-soil_gain = 0.002
+soil_gain = 0.0004
 water_optimum = 0.9
 water_tolerance = 0.35
 

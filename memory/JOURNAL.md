@@ -1067,3 +1067,19 @@
   The tab closed before the red cases and the shrubs on screen could be seen; unit tests cover the red cases.
 - **Tests:** shrub drift; size constants; `discCells`; `statTone`; `plantable` cases. Client 160, workspace green, lint clean.
 - **Open:** see the new shrubs and the red ring in play.
+
+## 2026-10-09 (7) · Alpha 1.4 released
+- **Today, in short:**
+  - strength as biological vigor, with canopy, side shade and biodiversity (D-236);
+  - trees live longer, soil builds slowly and recyclers speed it (D-237);
+  - swarms take orders (D-238);
+  - per-species water needs on varied moisture maps (D-239);
+  - three bedrock terroirs with an overlay and build-bar suiting (D-240);
+  - UI comfort round and all-or-nothing planting (D-241);
+  - shrub looks and stands, larger animals, build-bar rework, true order cost, front-first cell card, planting cursor check (D-242);
+  - the user's hand tuning of `species.toml` (three commits).
+- **Release:** menu label "Alpha 1.4"; `alpha-1.4` merged into main and pushed; CI deploys Cloudflare Pages and the relay.
+- **Open:**
+  - bot-balance pass (style fingerprint test ignored; bots rarely raid or plant trees; recyclers unused for soil);
+  - the red planting ring and new shrubs to see in play.
+- **Next (user):** play tests.

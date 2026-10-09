@@ -112,12 +112,14 @@ test("two players stay in sync for 5 minutes through the relay", async () => {
   assert.equal(st.desync, null);
   assert.ok(st.checked >= TICKS / 10 - 1, `hash checks: ${st.checked}`);
   assert.deepEqual([a.player, b.player].sort(), [1, 2]);
-  // The orders really played: both players called animals and bought four cards.
+  // The orders really played: both players called animals and bought the same cards. Which of
+  // the scripted unlocks the bank affords depends on the tuned prices, not on the lockstep.
   const fresh = [...new Sim(BALANCE, SPECIES, 1n, N).unlocked(1)].filter(Boolean).length;
   for (const p of [a, b]) {
     assert.ok(p.animals.length > 0, `P${p.player} animals`);
-    assert.equal(p.unlocked, fresh + 4, `P${p.player} unlocks`);
+    assert.ok(p.unlocked >= fresh + 2, `P${p.player} unlocks: ${p.unlocked - fresh}`);
   }
+  assert.equal(a.unlocked, b.unlocked, "both bought the same cards");
 });
 
 test("a divergence is caught at the next hash check", async () => {

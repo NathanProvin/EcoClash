@@ -90,7 +90,9 @@ class Flora:
         self.names = [k for k, v in f.items() if isinstance(v, dict)]
         sp = [f[n] for n in self.names]  # species index = table order
         soil_types = terrain["soil_types"]
-        assert soil_types[0] == "loam" and 0 <= f["niche_overlap"] <= 1 and f["soil_ramp"] > 0
+        # The neutral first soil: "loam" before the bedrock, "none" (flat maps) since D-240.
+        neutral = soil_types[0] in ("loam", "none")
+        assert neutral and 0 <= f["niche_overlap"] <= 1 and f["soil_ramp"] > 0
         for n, s in zip(self.names, sp, strict=True):
             assert 1 <= s["level"] <= STRATA, n
             assert 0 < s["k_max"] <= U16, n

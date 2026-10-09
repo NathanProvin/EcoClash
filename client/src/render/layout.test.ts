@@ -14,7 +14,9 @@ import {
   rand,
   share,
   SHRUB,
+  SHRUB_EDGE,
   SHRUB_GAP,
+  shrubDrift,
   stratumOf,
   treesIn,
   TREE,
@@ -51,7 +53,7 @@ describe("cellSlots", () => {
         expect(pads).toBe(low); // pads float where clumps would stand
         if (shrubs.length >= BASE_MODELS[1]) full++;
         for (const s of shrubs) {
-          expect(inside(s, SHRUB.max)).toBe(true);
+          expect(inside(s, SHRUB.max * SHRUB_EDGE)).toBe(true); // bushes may reach over the edge
           for (const t of trees) expect(dist(s, t)).toBeGreaterThanOrEqual(TRUNK_CLEAR);
           for (const o of shrubs) if (o !== s) expect(dist(s, o)).toBeGreaterThanOrEqual(SHRUB_GAP);
         }
@@ -69,6 +71,23 @@ describe("cellSlots", () => {
       expect(full / 4000).toBeGreaterThan(0.97);
     },
   );
+
+  it("slides shrubs toward the denser side of their patch, never past the slide limit (D-242)", () => {
+    const n = 40;
+    let moved = 0;
+    for (let cell = 0; cell < n * n; cell++) {
+      const d = shrubDrift(cell, n);
+      expect(Math.hypot(d.x, d.z)).toBeLessThanOrEqual(0.35 * CELL + 1e-9);
+      if (Math.hypot(d.x, d.z) > 0.1) moved++;
+      const plain = cellSlots(cell)[1] ?? [];
+      const slid = cellSlots(cell, d)[1] ?? [];
+      // the same darts, shifted, as long as the shift keeps them clear of the trunks
+      if (plain.length && slid.length && plain[0]?.seed === slid[0]?.seed) {
+        expect(slid[0]?.x).toBeCloseTo((plain[0]?.x ?? 0) + d.x);
+      }
+    }
+    expect(moved / (n * n)).toBeGreaterThan(0.5); // most cells lean toward a clump
+  });
 
   it("does not put shrubs on a grid", () => {
     const xs = new Set<string>();

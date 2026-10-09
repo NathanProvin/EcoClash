@@ -124,7 +124,7 @@ export const FLORA: Record<string, string> = {
   bramble: "#5d6b3b",
   elder: "#6f9148",
   hazel: "#8aa35a",
-  hawthorn: "#56703a",
+  hawthorn: "#3f5a2c", // D-242: darker, under white blossom
   oak: "#5b7936",
   beech: "#7c9d3d",
   chestnut: "#4c6a2d",

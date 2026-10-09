@@ -47,6 +47,9 @@ pub struct FloraRules {
     /// Vigor floor (D-236): vigor = vigor_floor + (1 - vigor_floor) x the mean layer fill, so a
     /// cell just taken (layers at the establish threshold) is not defenceless.
     pub vigor_floor: f64,
+    /// Shallows (D-084, D-239): a plant's moisture response there is at least this, so land
+    /// plants seep across slowly whatever their water needs.
+    pub shallow_seep: f64,
     /// Strength biodiversity (D-236): strength x (1 + div_gain x species), at most x div_cap.
     pub div_gain: f64,
     pub div_cap: f64,
@@ -312,6 +315,10 @@ pub struct Terrain {
     pub bank_rise: f64,
     pub moisture_dry: f64,
     pub moisture_wet: f64,
+    /// Local moisture variation (D-239): +/- this share around the relief value, on a value
+    /// noise of `moisture_cells` cells.
+    pub moisture_noise: f64,
+    pub moisture_cells: u32,
     pub bank_cells: u32,
     /// Render only: metres from the lowest to the highest ground of the most rugged map.
     pub relief_m: f64,
@@ -589,10 +596,12 @@ impl Balance {
                 && share(t.bank_rise)
                 && share(t.moisture_dry)
                 && share(t.moisture_wet)
+                && share(t.moisture_noise)
+                && t.moisture_cells > 0
                 && t.bank_cells > 0
                 && t.relief_m >= 0.0,
             "[terrain] generator: noise cells > 0, weights >= 0 (not all 0), river width >= 1, \
-             shares in [0, 1], bank_cells > 0"
+             shares in [0, 1], moisture_cells and bank_cells > 0"
                 .into(),
         )?;
         check(
@@ -649,9 +658,10 @@ impl Balance {
             (0.0..=4.0).contains(&f.canopy_gain)
                 && (0.0..=1.0).contains(&f.edge_shade)
                 && (0.0..=1.0).contains(&f.vigor_floor)
+                && (0.0..=1.0).contains(&f.shallow_seep)
                 && (0.0..=1.0).contains(&f.div_gain)
                 && (1.0..=8.0).contains(&f.div_cap),
-            "[flora] canopy_gain must be in 0..4, edge_shade, vigor_floor and div_gain in 0..1,              div_cap in 1..8"
+            "[flora] canopy_gain in 0..4; edge_shade, vigor_floor, shallow_seep, div_gain in 0..1; div_cap in 1..8"
                 .into(),
         )?;
         check(

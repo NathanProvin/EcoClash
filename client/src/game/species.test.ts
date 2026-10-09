@@ -9,6 +9,7 @@ import {
   eatersOf,
   families,
   foodsOf,
+  groundOf,
   label,
   quickStats,
   unlockedAt,
@@ -75,6 +76,21 @@ describe("species helpers", () => {
     expect(cardState(meta, elder, p1)).toBe("available"); // tier 1 of L3
     expect(cardState(meta, fox, p1)).toBe("locked"); // needs an L3 plant
     expect(cardState(meta, fox, unlockedAt(meta, 2, 300))).toBe("available");
+  });
+});
+
+describe("ground hint (D-239)", () => {
+  it("names the ground a plant wants, nothing for animals", () => {
+    const at = (water: number) => {
+      const s = sp("x", "flora", 1, 1, 0);
+      return groundOf({ ...s, stats: { ...s.stats, water } });
+    };
+    expect(at(0.3)).toBe("Grows best on dry ground");
+    expect(at(0.5)).toBe("Grows on most ground");
+    expect(at(0.65)).toBe("Grows best on moist ground");
+    expect(at(0.8)).toBe("Grows best on wet ground");
+    expect(at(0.9)).toBe("Grows in water");
+    expect(groundOf(sp("fox", "fauna", 0, 1, 0))).toBeUndefined();
   });
 });
 

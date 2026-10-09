@@ -136,9 +136,20 @@ export function sectionOf(family: string, kind: Species["kind"]): Section {
 }
 const ORDER = Object.keys(FAMILY);
 
-/** Swarms (D-065): faint dots that show they are there, not units to select or order: soil life
- *  and insects (`swarm` in species.toml). */
+/** Swarms (D-065): faint dots, soil life and insects (`swarm` in species.toml). They are selected
+ *  from the unit list or their strategic icon, not by clicking a dot (D-238). */
 export const isSwarm = (s: Species): boolean => s.kind === "fauna" && s.swarm === true;
+
+/** Where a plant grows best, from its water optimum (D-239); undefined for animals. */
+export function groundOf(s: Species): string | undefined {
+  const w = s.stats.water;
+  if (s.kind !== "flora" || w === undefined) return undefined;
+  if (w >= 0.85) return "Grows in water";
+  if (w >= 0.75) return "Grows best on wet ground";
+  if (w > 0.55) return "Grows best on moist ground";
+  if (w < 0.45) return "Grows best on dry ground";
+  return "Grows on most ground";
+}
 
 /** Display name of a family. */
 export const familyName = (key: string): string => FAMILY[key] ?? key;

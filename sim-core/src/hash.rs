@@ -221,13 +221,20 @@ mod tests {
     fn balance_hash_ignores_formatting_but_not_values() {
         let base = hash_of(BALANCE, SPECIES);
         let crlf = SPECIES.replace('\n', "\r\n");
-        let noisy = SPECIES.replace("growth = 1.26\n", "growth   =   1.26   # comment\n");
+        // The first species' growth line, whatever its tuned value.
+        let line = SPECIES
+            .lines()
+            .find(|l| l.starts_with("growth = "))
+            .unwrap();
+        let v: f64 = line["growth = ".len()..].parse().unwrap();
+        let swap = |to: &str| SPECIES.replacen(&format!("{line}\n"), &format!("{to}\n"), 1);
+        let noisy = swap(&format!("growth   =   {v}   # comment"));
         assert_eq!(hash_of(BALANCE, &crlf), base, "line endings");
         assert_eq!(hash_of(BALANCE, &noisy), base, "spacing and comments");
         // Below the fixed-point resolution (1 / 65536 of the per-tick scale): same values.
-        let tiny = SPECIES.replacen("growth = 1.26\n", "growth = 1.260000001\n", 1);
+        let tiny = swap(&format!("growth = {v}000000001"));
         assert_eq!(hash_of(BALANCE, &tiny), base, "sub-resolution change");
-        let real = SPECIES.replacen("growth = 1.26\n", "growth = 1.33\n", 1);
+        let real = swap(&format!("growth = {}", v + 0.07));
         assert_ne!(hash_of(BALANCE, &real), base, "a real change");
         let rule = BALANCE.replace("smother_rate = 0.15", "smother_rate = 0.2");
         assert_ne!(hash_of(&rule, SPECIES), base, "a rule change");

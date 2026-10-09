@@ -27,6 +27,7 @@
     roleName,
     unlockedNow,
     type Family,
+    groundOf,
   } from "../game/species";
   import type { Source, Species } from "../replay/replay";
   import FamilyIcon from "./FamilyIcon.svelte";
@@ -314,6 +315,7 @@
           <p class="muted">Needs {focused.habitat.map(label).join(" or ")} on your land.</p>
         {/if}
         <p class="effect">{focused.stats.effect}</p>
+        {#if groundOf(focused)}<p class="muted">{groundOf(focused)}.</p>{/if}
         {@const state = cardState(meta, focused, unlocked)}
         {#if state === "unlocked"}
           <p class="muted">Unlocked · you have {count(focused)}</p>

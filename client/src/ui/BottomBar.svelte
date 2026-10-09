@@ -19,6 +19,7 @@
     MEDAL,
     quickStats,
     roleName,
+    groundOf,
   } from "../game/species";
   import type { Source, Species } from "../replay/replay";
   import type { Catastrophe } from "../game/catastrophes";
@@ -301,6 +302,7 @@
         <span class="act dim"><Icon name="lock" size={12} /> {lockText(s, species)}</span>
       {/if}
       <em>{s.stats.effect}</em>
+      {#if groundOf(s)}<span class="act">{groundOf(s)}</span>{/if}
     </div>
   {/if}
 </footer>

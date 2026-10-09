@@ -84,6 +84,8 @@ pub struct TerrainParams {
     bank_rise: i64,
     dry: i64,
     wet: i64,
+    damp: i64,
+    damp_cells: i64,
     bank_cells: i64,
     /// The map types (D-102), converted.
     pub types: Vec<MapTypeParams>,
@@ -131,6 +133,8 @@ impl TerrainParams {
             bank_rise: r(t.bank_rise * u16f),
             dry: r(t.moisture_dry * u16f),
             wet: r(t.moisture_wet * u16f),
+            damp: r(t.moisture_noise * u16f),
+            damp_cells: i64::from(t.moisture_cells),
             bank_cells: i64::from(t.bank_cells),
             types: t
                 .map_types
@@ -177,6 +181,8 @@ impl TerrainParams {
                 self.bank_rise,
                 self.dry,
                 self.wet,
+                self.damp,
+                self.damp_cells,
                 self.bank_cells,
             ]);
         for t in &self.types {
@@ -400,8 +406,15 @@ pub fn generate(p: &TerrainParams, n: usize, seed: u64) -> Map {
 
     connect(n, &mut ground, home);
 
-    // Moisture: water cells full; land from dry (its highest) to wet (its lowest), wetter near
-    // water. Heights count relative to this map's own relief.
+    // Moisture: water cells full; land from dry (its highest) to wet (its lowest), plus or minus
+    // a symmetric noise (wet hollows, dry knolls; D-239), wetter near water. Heights count
+    // relative to this map's own relief. The noise is the generator's last draw, so the relief,
+    // water and rock of a seed do not depend on it.
+    let mut damp = noise(n, p.damp_cells, &mut rng);
+    for k in 0..cells {
+        let v = (damp[k] + damp[mirror(k)]) / 2;
+        (damp[k], damp[mirror(k)]) = (v, v);
+    }
     let to_water = bfs(n, |k| is_water(ground[k]));
     let land: Vec<i64> = (0..cells)
         .filter(|&k| !is_water(ground[k]))
@@ -415,6 +428,7 @@ pub fn generate(p: &TerrainParams, n: usize, seed: u64) -> Map {
             }
             let wet = div_round((high - elevation[k]) * U16, (high - low).max(1)); // 1 at the lowest
             let base = p.dry + div_round((p.wet - p.dry) * wet, U16);
+            let base = (base + div_round(p.damp * (2 * damp[k] - ONE_I), ONE_I)).clamp(0, U16);
             let near = (p.bank_cells - to_water[k]).max(0);
             base + div_round((p.wet - base) * near, p.bank_cells)
         })
@@ -921,13 +935,26 @@ mod tests {
                     assert_eq!(m.water[k], U16);
                     assert_eq!(m.elevation[k], level, "water beds share one level");
                 } else {
-                    assert!(
-                        m.water[k] >= p.dry && m.water[k] <= p.wet,
-                        "land moisture in range"
-                    );
+                    assert!((0..=U16).contains(&m.water[k]), "land moisture in range");
                     assert!(m.elevation[k] > level, "land stands above the water");
                 }
             }
+        }
+    }
+
+    /// D-239: land moisture spans more than half the range on every map (relief, banks and the
+    /// moisture noise), so dry- and wet-ground plants both find their place.
+    #[test]
+    fn land_moisture_varies() {
+        let p = params();
+        for seed in 1..13 {
+            let m = generate(&p, N, seed);
+            let land: Vec<i64> = (0..N * N)
+                .filter(|&k| !is_water(m.ground[k]))
+                .map(|k| m.water[k])
+                .collect();
+            let (lo, hi) = (min(&land), max(&land));
+            assert!(hi - lo > U16 / 2, "seed {seed}: moisture spans {lo}..{hi}");
         }
     }
 }

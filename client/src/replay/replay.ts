@@ -30,6 +30,8 @@ export interface Species {
     effect: string;
     /** Animals: top speed, cells per second (D-161). */
     speed?: number;
+    /** Plants: the moisture they grow best at, 0..1 (D-239). */
+    water?: number;
   };
 }
 

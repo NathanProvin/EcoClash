@@ -21,9 +21,10 @@
 #
 # Model (second block):
 #   Plants: level = height stratum 1..4 (shade and competition act between strata);
-#   water_optimum / water_tolerance = moisture response (0..1; land plants 0.5 / 0.6: neutral on a
-#   flat map, slow in the shallows, D-084; aquatic plants want the water); biomass_rate = logistic
-#   r (1/s); k_max = biomass capacity of a cell (u16); shade_cast / shade_tolerance 0..1;
+#   water_optimum / water_tolerance = moisture response (0..1; growth falls to 0 at optimum +/-
+#   tolerance; slow in the shallows, D-084; aquatic plants want the water; D-239: each layer has
+#   dry-ground species, e.g. lichen, hawthorn, chestnut, and moist ones, e.g. ferns, nettle, elder,
+#   beech); biomass_rate = logistic r (1/s); k_max = biomass capacity of a cell (u16); shade_cast / shade_tolerance 0..1;
 #   soil_gain = soil development per second at full cover (D-237: slow, a lichen + grass cell
 #   alone builds full soil in about 28 min; recyclers speed it up).
 #   Animals: role, eats, habitat, small = can hide in a refuge, swarm = drawn as a swarm, not a
@@ -48,8 +49,8 @@ k_max = 2500
 shade_cast = 0.0
 shade_tolerance = 0.9
 soil_gain = 0.0004
-water_optimum = 0.5
-water_tolerance = 0.6
+water_optimum = 0.4
+water_tolerance = 0.9
 
 [flora.grasses]
 growth = 1.1
@@ -67,8 +68,8 @@ k_max = 8000
 shade_cast = 0.0
 shade_tolerance = 0.1
 soil_gain = 0.0005
-water_optimum = 0.5
-water_tolerance = 0.6
+water_optimum = 0.45
+water_tolerance = 0.5
 
 [flora.wildflowers]
 growth = 0.6
@@ -86,8 +87,8 @@ k_max = 6000
 shade_cast = 0.0
 shade_tolerance = 0.2
 soil_gain = 0.0006
-water_optimum = 0.5
-water_tolerance = 0.6
+water_optimum = 0.35
+water_tolerance = 0.4
 
 [flora.ferns]
 growth = 0.3
@@ -105,8 +106,8 @@ k_max = 7000
 shade_cast = 0.1
 shade_tolerance = 0.9
 soil_gain = 0.00036
-water_optimum = 0.5
-water_tolerance = 0.6
+water_optimum = 0.7
+water_tolerance = 0.35
 
 [flora.nettle]
 growth = 0.7
@@ -124,8 +125,8 @@ k_max = 9000
 shade_cast = 0.1
 shade_tolerance = 0.5
 soil_gain = 0.0004
-water_optimum = 0.5
-water_tolerance = 0.6
+water_optimum = 0.65
+water_tolerance = 0.4
 
 [flora.bramble]
 growth = 0.8
@@ -144,7 +145,7 @@ shade_cast = 0.2
 shade_tolerance = 0.4
 soil_gain = 0.00048
 water_optimum = 0.5
-water_tolerance = 0.6
+water_tolerance = 0.55
 
 [flora.elder]
 growth = 0.6
@@ -162,8 +163,8 @@ k_max = 20000
 shade_cast = 0.3
 shade_tolerance = 0.3
 soil_gain = 0.00048
-water_optimum = 0.5
-water_tolerance = 0.6
+water_optimum = 0.65
+water_tolerance = 0.4
 
 [flora.hawthorn]
 growth = 0.5
@@ -181,8 +182,8 @@ k_max = 25000
 shade_cast = 0.5
 shade_tolerance = 0.3
 soil_gain = 0.00048
-water_optimum = 0.5
-water_tolerance = 0.6
+water_optimum = 0.35
+water_tolerance = 0.45
 
 [flora.hazel]
 growth = 0.7
@@ -200,8 +201,8 @@ k_max = 22000
 shade_cast = 0.4
 shade_tolerance = 0.8
 soil_gain = 0.00048
-water_optimum = 0.5
-water_tolerance = 0.6
+water_optimum = 0.55
+water_tolerance = 0.4
 
 [flora.oak]
 growth = 0.3
@@ -220,7 +221,7 @@ shade_cast = 0.4
 shade_tolerance = 0.2
 soil_gain = 0.0003
 water_optimum = 0.5
-water_tolerance = 0.6
+water_tolerance = 0.45
 
 [flora.chestnut]
 growth = 0.5
@@ -238,8 +239,8 @@ k_max = 62000
 shade_cast = 0.6
 shade_tolerance = 0.4
 soil_gain = 0.0003
-water_optimum = 0.5
-water_tolerance = 0.6
+water_optimum = 0.35
+water_tolerance = 0.4
 
 [flora.beech]
 growth = 0.4
@@ -257,8 +258,8 @@ k_max = 65000
 shade_cast = 0.85
 shade_tolerance = 0.8
 soil_gain = 0.0003
-water_optimum = 0.5
-water_tolerance = 0.6
+water_optimum = 0.6
+water_tolerance = 0.35
 
 [flora.algae_and_lilies]
 growth = 1.0

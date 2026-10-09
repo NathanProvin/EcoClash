@@ -530,6 +530,7 @@ fn species_table(b: &Balance) -> String {
             "stats": {
                 "growth": s.growth, "spawn_cost": s.spawn_cost, "unlock_cost": s.unlock_cost,
                 "yield": s.yield_, "cap": s.cap, "effect": s.effect,
+                "water": s.water_optimum,
             },
         })
     });

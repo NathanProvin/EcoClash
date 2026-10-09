@@ -2769,3 +2769,26 @@ Template:
   - the bot does not yet call more recyclers to speed its soil (earthworm calls unchanged);
   - the tree soil gate (`soil_min_level` 0.6) is rarely reached before a match ends;
   - wide is weak.
+
+## D-238 · 2026-10-09 · Swarms take orders
+- **Status:** accepted (user, Alpha 1.4); supersedes the "not units to order" part of D-065
+- **Decision:**
+  - Swarms (insects, soil life) are selected from the unit list or their strategic icon and take move, attack-move and stop orders like units. Clicking or dragging over the map still picks units only.
+  - A selected swarm's dots are drawn twice as large, in the highlight colour.
+  - The sim already accepted these orders.
+  - **Bot:** a swarm counts toward the raid herd as one card (its animals / its group); an army-heavy style (rush) no longer prefers units over swarms when choosing a raider.
+- **Measured:** no visible effect at Normal (rush 47 → 43, within noise). Under the user's species tuning (`39e2e57`) the bots rarely get a raid onto enemy land at all.
+
+## D-239 · 2026-10-09 · Moisture that matters
+- **Status:** accepted (user, Alpha 1.4)
+- **Context:** every land plant had water optimum 0.5 and tolerance 0.6, and land moisture spanned only 0.30–0.75. Moisture slowed every species alike and never changed which plant to choose.
+- **Decision:**
+  - **Map moisture:** `moisture_dry` 0.15, `moisture_wet` 0.85, plus a symmetric value noise of ±`moisture_noise` (0.2) on `moisture_cells` (6) cells: wet hollows and dry knolls. It is the generator's last random draw, so relief, water and rock are unchanged per seed.
+  - **Plant water needs** (optimum / tolerance):
+    - dry ground: wildflowers 0.35/0.40, hawthorn 0.35/0.45, chestnut 0.35/0.40;
+    - middle: grasses 0.45/0.50, bramble 0.50/0.55, hazel 0.55/0.40, oak 0.50/0.45;
+    - moist ground: ferns 0.70/0.35, nettle 0.65/0.40, elder 0.65/0.40, beech 0.60/0.35;
+    - lichen 0.40/0.90: hardy everywhere. At 0.30/0.70 it fell to 45 % of grasses' founding pace on flat maps.
+  - **`[flora] shallow_seep` (0.15):** the least moisture response in the shallows, so land plants still seep across slowly (D-084) despite their narrower tolerances. Drowning still reads the raw response.
+  - Species cards say "Grows best on dry / moist / wet ground" (`groundOf`, from `water_optimum` exported in the species table).
+- **Measured:** confounded with the user's species tuning. Bots raid little; median end 30–35 min; seat bias swings (+19).

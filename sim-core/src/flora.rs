@@ -64,6 +64,8 @@ pub struct FloraParams {
     pub canopy: i64,
     pub edge: i64,
     pub floor: i64,
+    /// Least moisture response in the shallows (Q16, D-239).
+    pub seep: i64,
     pub div: i64,
     pub div_cap: i64,
     /// Conquest hold (D-230), in flora ticks.
@@ -156,6 +158,7 @@ impl FloraParams {
             canopy: round(f.canopy_gain * one),
             edge: round(f.edge_shade * one),
             floor: round(f.vigor_floor * one),
+            seep: round(f.shallow_seep * one),
             div: round(f.div_gain * one),
             div_cap: round(f.div_cap * one),
             hold: round(f.hold_s * f64::from(b.sim.tick_hz) / f64::from(b.sim.flora_every_ticks)),
@@ -223,6 +226,7 @@ impl FloraParams {
             .i64(self.canopy)
             .i64(self.edge)
             .i64(self.floor)
+            .i64(self.seep)
             .i64(self.div)
             .i64(self.div_cap)
             .i64(self.hold);
@@ -507,8 +511,8 @@ impl Flora {
     #[must_use]
     pub fn suitability(&self, st: &FloraState, s: usize, k: usize) -> i64 {
         let p = &self.p;
-        // Rock and deep water: nothing takes root (D-084). Shallows only through the water
-        // response below.
+        // Rock and deep water: nothing takes root (D-084). Shallows through the water response
+        // below, at least `seep` (D-239).
         if matches!(st.ground[k], crate::terrain::ROCK | crate::terrain::DEEP) {
             return 0;
         }
@@ -522,7 +526,11 @@ impl Flora {
         }
         // A neutral response is ONE, and div(x * ONE, ONE) == x exactly: skip it.
         if p.w_tol[s] > 0 {
-            suit = div(suit * response(st.water[k], p.w_opt[s], p.w_tol[s]), ONE_I);
+            let mut r = response(st.water[k], p.w_opt[s], p.w_tol[s]);
+            if st.ground[k] == crate::terrain::SHALLOW {
+                r = r.max(p.seep);
+            }
+            suit = div(suit * r, ONE_I);
         }
         if p.l_tol[s] > 0 {
             suit = div(suit * response(st.light[k], p.l_opt[s], p.l_tol[s]), ONE_I);
@@ -1485,6 +1493,23 @@ mod tests {
             held(&st)
         );
         assert_eq!(st.owner[bare], 1, "the grazed-bare cell is taken");
+    }
+
+    /// D-239: plants have their own ground: lichen beats ferns on dry ground, ferns beat lichen on
+    /// moist ground.
+    #[test]
+    fn dry_and_wet_ground_favour_different_plants() {
+        let f = flora();
+        let (lichen, ferns) = (
+            f.p.index("lichen_and_moss").unwrap(),
+            f.p.index("ferns").unwrap(),
+        );
+        let mut st = FloraState::new(&f.p, 2);
+        st.soil.fill(U16);
+        (st.water[0], st.water[1]) = (U16 / 5, U16 * 7 / 10);
+        let suit = |s, k| f.suitability(&st, s, k);
+        assert!(suit(lichen, 0) > suit(ferns, 0), "dry: lichen");
+        assert!(suit(ferns, 1) > suit(lichen, 1), "moist: ferns");
     }
 
     /// D-127, D-227: dead trees. Killed trees leave standing dead wood (the rest falls as litter)

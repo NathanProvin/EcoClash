@@ -319,6 +319,7 @@ mod tests {
         let p = FloraParams::from_balance(&b);
         let fp = FaunaParams::from_balance(&b);
         let mut e = Economy::new(&b, &fp);
+        e.bank = [1_000_000 * ONE_I; 2]; // enough for every card, whatever the tuned costs
         let idx = |name: &str| {
             p.index(name)
                 .or_else(|| fp.index(name).map(|s| p.species() + s))

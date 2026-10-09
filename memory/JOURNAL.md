@@ -1018,3 +1018,14 @@
 - **Tests:** workspace green, native = WASM.
 - **Bench:** shrubs earlier, trees rare, wide weak (26), balanced strong (66).
 - **Open:** the bot does not use recyclers for soil; trees rarely reach soil 0.6.
+
+## 2026-10-09 (3) · Alpha 1.4: controllable swarms (D-238), moisture (D-239)
+- **Done:**
+  - swarms selectable from the unit list and icons, highlighted dots; bot raids count swarm cards;
+  - wider, noisier moisture; per-species water needs; shallow seep floor; ground hint on cards.
+- **Tests:** raid with swarm cards; moisture span per map; dry and wet ground favour different plants; ground hint. Hash and unlock tests made independent of tuned values.
+- **Bench:** the user's species tuning (`39e2e57`) moved the bots most: wide 68, seat bias −15, almost no raids reach enemy land. Swarm control alone: no visible change.
+- **Open:**
+  - `food_web` test: grasses' `spawn_cost` (30) is above wildflowers' (20), the tier above (user's tuning);
+  - bots barely raid;
+  - trees never planted in the bench.

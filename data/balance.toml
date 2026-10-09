@@ -68,8 +68,10 @@ lake_radius = 3          # cells; the central lake (radius 2 or 3)
 home_clear = 4           # cells around each home kept dry, rock-free and flatter
 water_level = 0.1        # height of every water bed, as a share of the map's relief
 bank_rise = 0.1          # banks rise this share of the map's relief per cell away from water
-moisture_dry = 0.3       # land moisture on the highest ground ...
-moisture_wet = 0.75      # ... and in the lowest land / next to water (water cells: 1)
+moisture_dry = 0.15      # land moisture on the highest ground ...
+moisture_wet = 0.85      # ... and in the lowest land / next to water (water cells: 1) (D-239: was 0.3 / 0.75)
+moisture_noise = 0.2     # +/- local moisture: wet hollows and dry knolls, even on flat maps (D-239)
+moisture_cells = 6       # size of those patches, in cells
 bank_cells = 4           # water raises land moisture over this many cells
 relief_m = 16.0          # render only: metres of relief of a map type with relief = 1
 
@@ -177,6 +179,7 @@ smother_rate = 0.15        # enemy species lose this fraction of k_max per secon
 fert_gain = 0.25           # x (1 + fert_gain x soil development), soil 0..1 (D-225)
 canopy_gain = 0.5          # x (1 + canopy_gain x the shade the cell casts on its ground)
 edge_shade = 1.0           # x (1 - edge_shade x the strongest enemy neighbour's ground shade x own open ground)
+shallow_seep = 0.15        # in the shallows a plant's moisture response is at least this: land plants seep across slowly (D-084, D-239)
 vigor_floor = 0.5          # vigor = vigor_floor + (1 - vigor_floor) x mean fill: a cell just taken holds
 div_gain = 0.25            # x (1 + div_gain x species: plants established + resident animals) ...
 div_cap = 3.0              # ... at most x div_cap (strength only; income has its own, [economy])

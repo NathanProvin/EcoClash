@@ -42,13 +42,13 @@ input_delay_ticks = 2    # §10: 200 ms at 10 Hz
 stall_timeout_s = 30     # §10: a silent peer is dropped after this (D-221; 30 s, user)
 hash_every_ticks = 10    # §10: desync check once per second
 
-# Terrain (gamerules §2.3). V1: flat, loam, constant water and light. Species may add optional
-# water_optimum / water_tolerance, light_optimum / light_tolerance (0..1; tolerance 0 = indifferent)
-# and soil_affinity = { sandy = 1.2, ... }; absent keys are neutral (D-024).
+# Terrain (gamerules §2.3). Species may add optional water_optimum / water_tolerance,
+# light_optimum / light_tolerance (0..1; tolerance 0 = indifferent) and a favourite bedrock
+# (bedrock = "silt_sand", D-240); absent keys are neutral (D-024).
 [terrain]
 water = 0.5              # moisture of a flat map (and the land species' water optimum)
 light = 1.0
-soil_types = ["loam", "sandy", "clay_limestone"]
+soil_types = ["none", "clay_limestone", "schist_granite", "silt_sand"]  # bedrock types (D-240); "none" on flat maps
 # Map generator (D-083, D-096): relief with valleys and cliffs; one water layout per seed (a
 # river crossing the map, a central lake fed by streams, scattered ponds, or dry highlands),
 # rivers following the low ground; rock bands on cliffs and outcrops; moisture. Every map has
@@ -72,6 +72,10 @@ moisture_dry = 0.15      # land moisture on the highest ground ...
 moisture_wet = 0.85      # ... and in the lowest land / next to water (water cells: 1) (D-239: was 0.3 / 0.75)
 moisture_noise = 0.2     # +/- local moisture: wet hollows and dry knolls, even on flat maps (D-239)
 moisture_cells = 6       # size of those patches, in cells
+bedrock_cells = 14       # bedrock (D-240): size of each rock type's noise, in cells (large: few, big patches)
+bedrock_noise = 0.35     # how much that noise outweighs the land (0: bedrock follows relief exactly)
+bedrock_min_patch = 0.1  # smaller patches (share of the map) join their largest neighbour
+bedrock_moisture = { silt_sand = 0.12, schist_granite = -0.12 }  # moisture shift per rock type
 bank_cells = 4           # water raises land moisture over this many cells
 relief_m = 16.0          # render only: metres of relief of a map type with relief = 1
 
@@ -179,6 +183,7 @@ smother_rate = 0.15        # enemy species lose this fraction of k_max per secon
 fert_gain = 0.25           # x (1 + fert_gain x soil development), soil 0..1 (D-225)
 canopy_gain = 0.5          # x (1 + canopy_gain x the shade the cell casts on its ground)
 edge_shade = 1.0           # x (1 - edge_shade x the strongest enemy neighbour's ground shade x own open ground)
+bedrock_boost = 0.15       # positive growth x (1 + bedrock_boost) on a plant's favourite bedrock (D-240)
 shallow_seep = 0.15        # in the shallows a plant's moisture response is at least this: land plants seep across slowly (D-084, D-239)
 vigor_floor = 0.5          # vigor = vigor_floor + (1 - vigor_floor) x mean fill: a cell just taken holds
 div_gain = 0.25            # x (1 + div_gain x species: plants established + resident animals) ...

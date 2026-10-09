@@ -50,6 +50,8 @@ pub struct FloraRules {
     /// Shallows (D-084, D-239): a plant's moisture response there is at least this, so land
     /// plants seep across slowly whatever their water needs.
     pub shallow_seep: f64,
+    /// Growth on a plant's favourite bedrock: positive growth x (1 + bedrock_boost) (D-240).
+    pub bedrock_boost: f64,
     /// Strength biodiversity (D-236): strength x (1 + div_gain x species), at most x div_cap.
     pub div_gain: f64,
     pub div_cap: f64,
@@ -319,6 +321,13 @@ pub struct Terrain {
     /// noise of `moisture_cells` cells.
     pub moisture_noise: f64,
     pub moisture_cells: u32,
+    /// Bedrock (D-240): lattice spacing (cells) and amplitude of each rock type's noise, the
+    /// smallest patch (share of the map), and the moisture shift per rock type.
+    pub bedrock_cells: u32,
+    pub bedrock_noise: f64,
+    pub bedrock_min_patch: f64,
+    #[serde(default)]
+    pub bedrock_moisture: BTreeMap<String, f64>,
     pub bank_cells: u32,
     /// Render only: metres from the lowest to the highest ground of the most rugged map.
     pub relief_m: f64,
@@ -400,8 +409,9 @@ pub struct FloraSpecies {
     pub light_optimum: f64,
     #[serde(default)]
     pub light_tolerance: f64,
+    /// The bedrock it grows best on (D-240), one of `[terrain] soil_types` but "none".
     #[serde(default)]
-    pub soil_affinity: BTreeMap<String, f64>,
+    pub bedrock: Option<String>,
 }
 
 /// One animal species of `species.toml` (`[fauna.<name>]`).
@@ -575,8 +585,21 @@ impl Balance {
             "[sim] grid_size and chunk_size must be > 0 (edge chunks may be partial)".into(),
         )?;
         check(
-            self.terrain.soil_types.first().is_some_and(|t| t == "loam"),
-            "[terrain] first soil type must be loam".into(),
+            self.terrain.soil_types == crate::terrain::BEDROCKS,
+            format!(
+                "[terrain] soil_types must be {:?} (D-240)",
+                crate::terrain::BEDROCKS
+            ),
+        )?;
+        check(
+            self.terrain.bedrock_cells > 0
+                && (0.0..=1.0).contains(&self.terrain.bedrock_noise)
+                && (0.0..=0.5).contains(&self.terrain.bedrock_min_patch)
+                && self.terrain.bedrock_moisture.iter().all(|(t, v)| {
+                    self.terrain.soil_types.contains(t) && (-1.0..=1.0).contains(v)
+                }),
+            "[terrain] bedrock_cells > 0, bedrock_noise in 0..1, bedrock_min_patch in 0..0.5,              bedrock_moisture: known types, -1..1"
+                .into(),
         )?;
         let t = &self.terrain;
         let share = |v: f64| (0.0..=1.0).contains(&v);
@@ -659,9 +682,10 @@ impl Balance {
                 && (0.0..=1.0).contains(&f.edge_shade)
                 && (0.0..=1.0).contains(&f.vigor_floor)
                 && (0.0..=1.0).contains(&f.shallow_seep)
+                && (0.0..=1.0).contains(&f.bedrock_boost)
                 && (0.0..=1.0).contains(&f.div_gain)
                 && (1.0..=8.0).contains(&f.div_cap),
-            "[flora] canopy_gain in 0..4; edge_shade, vigor_floor, shallow_seep, div_gain in 0..1; div_cap in 1..8"
+            "[flora] canopy_gain in 0..4; edge_shade, vigor_floor, shallow_seep, bedrock_boost, div_gain in 0..1; div_cap in 1..8"
                 .into(),
         )?;
         check(
@@ -705,10 +729,10 @@ impl Balance {
                 s.growth * dt <= 1.0,
                 format!("{n}: growth * dt must stay <= 1"),
             )?;
-            for t in s.soil_affinity.keys() {
+            if let Some(t) = &s.bedrock {
                 check(
-                    self.terrain.soil_types.contains(t),
-                    format!("{n}: unknown soil type {t}"),
+                    t != "none" && self.terrain.soil_types.contains(t),
+                    format!("{n}: unknown bedrock {t}"),
                 )?;
             }
         }

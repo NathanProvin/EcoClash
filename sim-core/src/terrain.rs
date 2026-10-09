@@ -16,8 +16,13 @@
 //! - Rock: bands on the steep steps, broken by gaps (cliffs with passes), and outcrops on the
 //!   high ground. The two home clearings stay dry and rock-free, and every walkable cell stays
 //!   reachable on foot. The rules for each ground class live in `flora.rs` and `fauna.rs`.
+//! - Bedrock (D-240), into the flora `soil_type` field: a few large patches of three rock types,
+//!   following the land: clay-limestone in the low ground and along water, schist-granite on the
+//!   heights and around rock, silt-sand on flat ground; a coarse noise per type keeps it from
+//!   copying the relief.
 //! - Moisture, into the flora `water` field: highest in the water, falling with the distance to it
-//!   and with height: valleys and banks wet, hills dry.
+//!   and with height: valleys and banks wet, hills dry; shifted by the bedrock (silt wetter,
+//!   granite drier).
 
 #![allow(clippy::needless_range_loop)] // grids indexed by cell, with their mirrors
 
@@ -34,6 +39,19 @@ pub const LAND: u8 = 0;
 pub const SHALLOW: u8 = 1;
 pub const DEEP: u8 = 2;
 pub const ROCK: u8 = 3;
+
+/// Bedrock types (D-240), in `[terrain] soil_types` order: "none" (flat maps), then the three
+/// rock types of a generated map.
+pub const BEDROCKS: [&str; 4] = ["none", "clay_limestone", "schist_granite", "silt_sand"];
+pub const CLAY: u8 = 1;
+pub const GRANITE: u8 = 2;
+pub const SILT: u8 = 3;
+/// Bedrock scoring: water and rock pull clay and granite within this many cells; majority-filter
+/// passes that round the patches off.
+const BED_REACH: i64 = 6;
+const BED_SMOOTH: usize = 3;
+/// Radius (cells) over which each rock type's score is averaged before the cells choose.
+const BED_BLUR: usize = 3;
 
 /// Water layouts (D-096, D-102), set by the map type.
 pub const NO_WATER: u8 = 0;
@@ -86,6 +104,10 @@ pub struct TerrainParams {
     wet: i64,
     damp: i64,
     damp_cells: i64,
+    bed_cells: i64,
+    bed_noise: i64,
+    bed_min: i64,
+    bed_moist: [i64; 4],
     bank_cells: i64,
     /// The map types (D-102), converted.
     pub types: Vec<MapTypeParams>,
@@ -135,6 +157,11 @@ impl TerrainParams {
             wet: r(t.moisture_wet * u16f),
             damp: r(t.moisture_noise * u16f),
             damp_cells: i64::from(t.moisture_cells),
+            bed_cells: i64::from(t.bedrock_cells),
+            bed_noise: r(t.bedrock_noise * one),
+            bed_min: r(t.bedrock_min_patch * one),
+            bed_moist: BEDROCKS
+                .map(|b| r(t.bedrock_moisture.get(b).copied().unwrap_or(0.0) * u16f)),
             bank_cells: i64::from(t.bank_cells),
             types: t
                 .map_types
@@ -183,8 +210,12 @@ impl TerrainParams {
                 self.wet,
                 self.damp,
                 self.damp_cells,
+                self.bed_cells,
+                self.bed_noise,
+                self.bed_min,
                 self.bank_cells,
-            ]);
+            ])
+            .i64s(&self.bed_moist);
         for t in &self.types {
             h.u64(t.name.len() as u64).bytes(t.name.as_bytes()).i64s(&[
                 i64::from(t.weight),
@@ -209,6 +240,8 @@ pub struct Map {
     pub elevation: Vec<i64>,
     pub ground: Vec<u8>,
     pub water: Vec<i64>,
+    /// Bedrock type per cell (index in `BEDROCKS`, D-240).
+    pub bedrock: Vec<u8>,
     pub kind: usize,
 }
 
@@ -416,6 +449,7 @@ pub fn generate(p: &TerrainParams, n: usize, seed: u64) -> Map {
         (damp[k], damp[mirror(k)]) = (v, v);
     }
     let to_water = bfs(n, |k| is_water(ground[k]));
+    let bedrock = bedrock(p, n, &elevation, &ground, &to_water, &mut rng);
     let land: Vec<i64> = (0..cells)
         .filter(|&k| !is_water(ground[k]))
         .map(|k| elevation[k])
@@ -428,7 +462,10 @@ pub fn generate(p: &TerrainParams, n: usize, seed: u64) -> Map {
             }
             let wet = div_round((high - elevation[k]) * U16, (high - low).max(1)); // 1 at the lowest
             let base = p.dry + div_round((p.wet - p.dry) * wet, U16);
-            let base = (base + div_round(p.damp * (2 * damp[k] - ONE_I), ONE_I)).clamp(0, U16);
+            let base = base
+                + div_round(p.damp * (2 * damp[k] - ONE_I), ONE_I)
+                + p.bed_moist[usize::from(bedrock[k])];
+            let base = base.clamp(0, U16);
             let near = (p.bank_cells - to_water[k]).max(0);
             base + div_round((p.wet - base) * near, p.bank_cells)
         })
@@ -437,8 +474,197 @@ pub fn generate(p: &TerrainParams, n: usize, seed: u64) -> Map {
         elevation,
         ground,
         water,
+        bedrock,
         kind,
     }
+}
+
+/// The bedrock of a map (D-240). Each cell scores the three rock types on the land (clay: low
+/// ground and water near; granite: high ground, rock near, steep; silt: flat), plus a coarse
+/// symmetric noise per type, and takes the best. A majority filter rounds the patches off, patches
+/// under `bed_min` of the map join their largest neighbour, and a mirror copy keeps the symmetry.
+fn bedrock(
+    p: &TerrainParams,
+    n: usize,
+    elevation: &[i64],
+    ground: &[u8],
+    to_water: &[i64],
+    rng: &mut Pcg32,
+) -> Vec<u8> {
+    let cells = n * n;
+    let mirror = |k: usize| cells - 1 - k;
+    let noise3: Vec<Vec<i64>> = (0..3)
+        .map(|_| {
+            let mut v = noise(n, p.bed_cells, rng);
+            for k in 0..cells {
+                let m = (v[k] + v[mirror(k)]) / 2;
+                (v[k], v[mirror(k)]) = (m, m);
+            }
+            v
+        })
+        .collect();
+    let to_rock = bfs(n, |k| ground[k] == ROCK);
+    let near = |d: i64| div_round((BED_REACH - d).max(0) * ONE_I, BED_REACH);
+    let steep: Vec<i64> = (0..cells)
+        .map(|k| {
+            neighbours(k, n)
+                .map(|m| (elevation[k] - elevation[m]).abs())
+                .max()
+                .unwrap_or(0)
+        })
+        .collect();
+    let (low, high) = (min(elevation), max(elevation));
+    let range = (high - low).max(1);
+    let h = |k: usize| div_round((elevation[k] - low) * ONE_I, range);
+    // Steepness averaged over a radius-2 square: plateaus and valley floors are broad flats.
+    let rough = box_mean(n, &steep, 2);
+    // Raw leanings, then each as a percentile over the map (so no type wins every map by scale),
+    // plus its noise.
+    let raw: [Vec<i64>; 3] = [
+        (0..cells)
+            .map(|k| ONE_I - h(k) + near(to_water[k]) / 2)
+            .collect(),
+        (0..cells).map(|k| h(k) + near(to_rock[k]) / 2).collect(),
+        (0..cells).map(|k| -rough[k]).collect(),
+    ];
+    let rank: Vec<Vec<i64>> = raw
+        .iter()
+        .map(|r| {
+            let mut sorted = r.clone();
+            sorted.sort_unstable();
+            let total = i64::try_from(cells).unwrap_or(1).max(1);
+            r.iter()
+                .map(|&v| {
+                    // Ties share their middle rank (flat ground is often one value).
+                    let lo = sorted.partition_point(|&u| u < v);
+                    let hi = sorted.partition_point(|&u| u <= v);
+                    div_round(i64::try_from(lo + hi).unwrap_or(0) * ONE_I, 2 * total)
+                })
+                .collect()
+        })
+        .collect();
+    // Each type's score, averaged over a square of radius BED_BLUR: broad leanings, broad patches.
+    let score: Vec<Vec<i64>> = (0..3)
+        .map(|t| {
+            let raw: Vec<i64> = (0..cells)
+                .map(|k| rank[t][k] + div_round(p.bed_noise * (2 * noise3[t][k] - ONE_I), ONE_I))
+                .collect();
+            box_mean(n, &raw, BED_BLUR)
+        })
+        .collect();
+    let mut bed: Vec<u8> = (0..cells)
+        .map(|k| {
+            let best = (0..3)
+                .max_by_key(|&t| (score[t][k], Reverse(t)))
+                .unwrap_or(0);
+            CLAY + u8::try_from(best).unwrap_or(0)
+        })
+        .collect();
+    for _ in 0..BED_SMOOTH {
+        bed = (0..cells)
+            .map(|k| {
+                let (y, x) = (k / n, k % n);
+                let mut count = [0usize; 4];
+                for yy in y.saturating_sub(1)..(y + 2).min(n) {
+                    for xx in x.saturating_sub(1)..(x + 2).min(n) {
+                        count[usize::from(bed[yy * n + xx])] += 1;
+                    }
+                }
+                let top = (1..4).max_by_key(|&t| (count[t], Reverse(t))).unwrap_or(1);
+                if count[top] > count[usize::from(bed[k])] {
+                    u8::try_from(top).unwrap_or(CLAY)
+                } else {
+                    bed[k]
+                }
+            })
+            .collect();
+    }
+    let least = usize::try_from(div_round(
+        p.bed_min * i64::try_from(cells).unwrap_or(0),
+        ONE_I,
+    ))
+    .unwrap_or(0);
+    // Small patches join their largest neighbouring type, smallest first, until none is left.
+    for _ in 0..cells {
+        let parts = patches(n, &bed);
+        // A type's largest patches (a patch and its mirror twin) always stay: every type keeps
+        // its ground.
+        let mut largest = [0usize; 4];
+        for c in &parts {
+            let t = usize::from(bed[c[0]]);
+            largest[t] = largest[t].max(c.len());
+        }
+        let Some(part) = parts
+            .iter()
+            .filter(|c| c.len() < least && c.len() < largest[usize::from(bed[c[0]])])
+            .min_by_key(|c| (c.len(), c[0]))
+        else {
+            break;
+        };
+        let mut border = [0usize; 4];
+        for &k in part {
+            for m in neighbours(k, n) {
+                if bed[m] != bed[k] {
+                    border[usize::from(bed[m])] += 1;
+                }
+            }
+        }
+        let Some(to) = (1..4)
+            .filter(|&t| border[t] > 0)
+            .max_by_key(|&t| (border[t], Reverse(t)))
+        else {
+            break;
+        };
+        for &k in part {
+            bed[k] = u8::try_from(to).unwrap_or(CLAY);
+        }
+    }
+    for k in 0..cells / 2 {
+        bed[mirror(k)] = bed[k];
+    }
+    bed
+}
+
+/// The mean of `v` over the square of radius `r` around each cell (clipped at the map edge).
+fn box_mean(n: usize, v: &[i64], r: usize) -> Vec<i64> {
+    (0..n * n)
+        .map(|k| {
+            let (y, x) = (k / n, k % n);
+            let (mut sum, mut count) = (0, 0);
+            for yy in y.saturating_sub(r)..(y + r + 1).min(n) {
+                for xx in x.saturating_sub(r)..(x + r + 1).min(n) {
+                    sum += v[yy * n + xx];
+                    count += 1;
+                }
+            }
+            sum / count.max(1)
+        })
+        .collect()
+}
+
+/// The 4-connected patches of one bedrock type, each as its cells in scan order.
+fn patches(n: usize, bed: &[u8]) -> Vec<Vec<usize>> {
+    let mut seen = vec![false; n * n];
+    let mut out = Vec::new();
+    for start in 0..n * n {
+        if seen[start] {
+            continue;
+        }
+        seen[start] = true;
+        let (mut part, mut todo) = (vec![start], vec![start]);
+        while let Some(k) = todo.pop() {
+            for m in neighbours(k, n) {
+                if !seen[m] && bed[m] == bed[start] {
+                    seen[m] = true;
+                    part.push(m);
+                    todo.push(m);
+                }
+            }
+        }
+        part.sort_unstable();
+        out.push(part);
+    }
+    out
 }
 
 /// Flood the lowest ground (D-102): the lowest `share` (Q16) of the map outside the homes goes
@@ -940,6 +1166,83 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// Prints the bedrock (D-240): `c` clay-limestone, `G` schist-granite, `.` silt-sand, `~`
+    /// water. Run: `cargo test -p sim-core -- --ignored --nocapture bedrock_preview`.
+    #[test]
+    #[ignore = "preview, not a check"]
+    fn bedrock_preview() {
+        let (p, n) = (params(), 38);
+        for seed in 1..=6 {
+            let m = generate(&p, n, seed);
+            println!(
+                "seed {seed}, {}, {} patches",
+                p.types[m.kind].name,
+                patches(n, &m.bedrock).len()
+            );
+            for y in 0..n {
+                let row: String = (0..n)
+                    .map(|x| {
+                        let k = y * n + x;
+                        match (is_water(m.ground[k]), m.bedrock[k]) {
+                            (true, _) => '~',
+                            (_, CLAY) => 'c',
+                            (_, GRANITE) => 'G',
+                            _ => '.',
+                        }
+                    })
+                    .collect();
+                println!("{row}");
+            }
+        }
+    }
+
+    /// D-240: the bedrock comes in a few large patches, symmetric, that follow the land: clay
+    /// lower than granite, silt wetter than granite.
+    #[test]
+    fn bedrock_is_few_large_patches_that_follow_the_land() {
+        let p = params();
+        let n = 38;
+        let mean = |m: &Map, t: u8, v: &[i64]| {
+            let c: Vec<i64> = (0..n * n)
+                .filter(|&k| m.bedrock[k] == t)
+                .map(|k| v[k])
+                .collect();
+            (!c.is_empty()).then(|| c.iter().sum::<i64>() / i64::try_from(c.len()).unwrap())
+        };
+        let (mut lower, mut wetter, mut maps) = (0, 0, 0);
+        for seed in 1..=16 {
+            let m = generate(&p, n, seed);
+            let parts = patches(n, &m.bedrock);
+            assert!(parts.len() <= 6, "seed {seed}: {} patches", parts.len());
+            for k in 0..n * n {
+                assert_eq!(
+                    m.bedrock[k],
+                    m.bedrock[n * n - 1 - k],
+                    "seed {seed}: symmetric"
+                );
+                assert!((CLAY..=SILT).contains(&m.bedrock[k]));
+            }
+            if let (Some(c), Some(g), Some(s)) = (
+                mean(&m, CLAY, &m.elevation),
+                mean(&m, GRANITE, &m.elevation),
+                mean(&m, SILT, &m.water),
+            ) {
+                maps += 1;
+                lower += usize::from(c < g);
+                wetter += usize::from(s > mean(&m, GRANITE, &m.water).unwrap_or(0));
+            }
+        }
+        assert!(maps >= 8, "most maps have all three types ({maps})");
+        assert!(
+            lower * 4 >= maps * 3,
+            "clay lower than granite: {lower}/{maps}"
+        );
+        assert!(
+            wetter * 4 >= maps * 3,
+            "silt wetter than granite: {wetter}/{maps}"
+        );
     }
 
     /// D-239: land moisture spans more than half the range on every map (relief, banks and the

@@ -52,8 +52,10 @@ pub struct FloraParams {
     pub w_tol: Vec<i64>,
     pub l_opt: Vec<i64>,
     pub l_tol: Vec<i64>,
-    /// Soil-type affinity per species (Q16), indexed `[species][soil type]`.
-    pub aff: Vec<Vec<i64>>,
+    /// Favourite bedrock per species (index in `terrain::BEDROCKS`; 0: none) and the growth
+    /// boost on it (Q16, D-240).
+    pub rock: Vec<u8>,
+    pub rock_boost: i64,
     /// Share of the map's cells each player may hold, per species (Q16; D-029, D-045).
     pub cap: Vec<i64>,
     pub succession: bool,
@@ -116,14 +118,14 @@ impl FloraParams {
                 }
             })
             .collect();
-        let aff = sp
+        let rock = sp
             .iter()
             .map(|s| {
-                b.terrain
-                    .soil_types
-                    .iter()
-                    .map(|t| round(s.soil_affinity.get(t).copied().unwrap_or(1.0) * one))
-                    .collect()
+                let at = s
+                    .bedrock
+                    .as_ref()
+                    .and_then(|t| b.terrain.soil_types.iter().position(|u| u == t));
+                at.and_then(|i| u8::try_from(i).ok()).unwrap_or(0)
             })
             .collect();
         FloraParams {
@@ -149,7 +151,8 @@ impl FloraParams {
             w_tol: v(col(&|s| s.water_tolerance, u16f)),
             l_opt: v(col(&|s| s.light_optimum, u16f)),
             l_tol: v(col(&|s| s.light_tolerance, u16f)),
-            aff,
+            rock,
+            rock_boost: round(f.bedrock_boost * one),
             cap: v(col(&|s| s.cap, one)),
             level,
             succession: f.succession,
@@ -211,9 +214,7 @@ impl FloraParams {
         ] {
             h.i64s(v);
         }
-        for row in &self.aff {
-            h.i64s(row);
-        }
+        h.bytes(&self.rock);
         h.i64(self.alpha)
             .i64(self.death)
             .i64(self.wood_share)
@@ -507,6 +508,12 @@ impl Flora {
         light
     }
 
+    /// Whether cell `k` lies on species `s`'s favourite bedrock (D-240).
+    #[must_use]
+    pub fn favoured(&self, st: &FloraState, s: usize, k: usize) -> bool {
+        self.p.rock[s] != 0 && st.soil_type[k] == self.p.rock[s]
+    }
+
     /// The single site modifier (gamerules §2.3): f_dev x f_soil x f_water x f_light, 0..=ONE.
     #[must_use]
     pub fn suitability(&self, st: &FloraState, s: usize, k: usize) -> i64 {
@@ -516,7 +523,7 @@ impl Flora {
         if matches!(st.ground[k], crate::terrain::ROCK | crate::terrain::DEEP) {
             return 0;
         }
-        let mut suit = p.aff[s][usize::from(st.soil_type[k])];
+        let mut suit = ONE_I;
         if p.succession {
             let dev = div(
                 (st.soil[k] - (p.soil_min[s] - p.soil_ramp)) * ONE_I,
@@ -863,6 +870,9 @@ impl Flora {
                 if growth[s] > 0 && self.growth != ONE_I {
                     growth[s] = grow_div(growth[s] * self.growth, ONE_I); // weather (D-132)
                 }
+                if growth[s] > 0 && self.favoured(st, s, k) {
+                    growth[s] = grow_div(growth[s] * (ONE_I + p.rock_boost), ONE_I); // D-240
+                }
             }
 
             // 3. Soil development.
@@ -1094,6 +1104,9 @@ impl Flora {
                     let cap = div(shade[i] * st.gauge[i], ONE_I).max(1);
                     let comp = cover[i] + div(p.alpha * (total - cover[i]), ONE_I);
                     growth[i] = grow_div(p.rdt[s] * bio[i] * (cap - comp), cap * ONE_I);
+                    if growth[i] > 0 && self.favoured(st, s, k) {
+                        growth[i] = grow_div(growth[i] * (ONE_I + p.rock_boost), ONE_I); // D-240
+                    }
                 }
             }
         }
@@ -1510,6 +1523,25 @@ mod tests {
         let suit = |s, k| f.suitability(&st, s, k);
         assert!(suit(lichen, 0) > suit(ferns, 0), "dry: lichen");
         assert!(suit(ferns, 1) > suit(lichen, 1), "moist: ferns");
+    }
+
+    /// D-240: a plant grows `bedrock_boost` faster on its favourite bedrock than elsewhere.
+    #[test]
+    fn a_plant_grows_faster_on_its_favourite_bedrock() {
+        let mut f = flora();
+        let grasses = f.p.index("grasses").unwrap();
+        let fav = f.p.rock[grasses];
+        assert_ne!(fav, 0, "grasses have a favourite bedrock");
+        let mut st = FloraState::new(&f.p, 2);
+        st.soil.fill(U16);
+        st.soil_type[0] = fav;
+        st.soil_type[1] = if fav == 1 { 2 } else { 1 };
+        f.plant(&mut st, 1, grasses, &[0, 1]);
+        for _ in 0..4 {
+            f.step(&mut st);
+        }
+        let (on, off) = (st.bio[grasses * 4], st.bio[grasses * 4 + 1]);
+        assert!(on > off, "favourite bedrock: {on} vs {off}");
     }
 
     /// D-127, D-227: dead trees. Killed trees leave standing dead wood (the rest falls as litter)

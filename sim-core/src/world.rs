@@ -169,6 +169,7 @@ impl World {
         self.state.elevation = map.elevation;
         self.state.ground = map.ground;
         self.state.water = map.water;
+        self.state.soil_type = map.bedrock; // D-240
         self.fields.mark_all();
     }
 

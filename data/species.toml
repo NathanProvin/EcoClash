@@ -25,6 +25,7 @@
 #   tolerance; slow in the shallows, D-084; aquatic plants want the water; D-239: each layer has
 #   dry-ground species, e.g. lichen, hawthorn, chestnut, and moist ones, e.g. ferns, nettle, elder,
 #   beech); biomass_rate = logistic r (1/s); k_max = biomass capacity of a cell (u16); shade_cast / shade_tolerance 0..1;
+#   bedrock = favourite rock type, growth x (1 + [flora] bedrock_boost) on it (D-240);
 #   soil_gain = soil development per second at full cover (D-237: slow, a lichen + grass cell
 #   alone builds full soil in about 28 min; recyclers speed it up).
 #   Animals: role, eats, habitat, small = can hide in a refuge, swarm = drawn as a swarm, not a
@@ -51,6 +52,7 @@ shade_tolerance = 0.9
 soil_gain = 0.0004
 water_optimum = 0.4
 water_tolerance = 0.9
+bedrock = "schist_granite"
 
 [flora.grasses]
 growth = 1.1
@@ -70,10 +72,11 @@ shade_tolerance = 0.1
 soil_gain = 0.0005
 water_optimum = 0.45
 water_tolerance = 0.5
+bedrock = "silt_sand"
 
 [flora.wildflowers]
 growth = 0.6
-spawn_cost = 20
+spawn_cost = 40
 unlock_cost = 1000
 yield = 0.2
 cap = 0.4
@@ -89,6 +92,7 @@ shade_tolerance = 0.2
 soil_gain = 0.0006
 water_optimum = 0.35
 water_tolerance = 0.4
+bedrock = "clay_limestone"
 
 [flora.ferns]
 growth = 0.3
@@ -108,6 +112,7 @@ shade_tolerance = 0.9
 soil_gain = 0.00036
 water_optimum = 0.7
 water_tolerance = 0.35
+bedrock = "schist_granite"
 
 [flora.nettle]
 growth = 0.7
@@ -127,6 +132,7 @@ shade_tolerance = 0.5
 soil_gain = 0.0004
 water_optimum = 0.65
 water_tolerance = 0.4
+bedrock = "silt_sand"
 
 [flora.bramble]
 growth = 0.8
@@ -146,6 +152,7 @@ shade_tolerance = 0.4
 soil_gain = 0.00048
 water_optimum = 0.5
 water_tolerance = 0.55
+bedrock = "clay_limestone"
 
 [flora.elder]
 growth = 0.6
@@ -165,6 +172,7 @@ shade_tolerance = 0.3
 soil_gain = 0.00048
 water_optimum = 0.65
 water_tolerance = 0.4
+bedrock = "schist_granite"
 
 [flora.hawthorn]
 growth = 0.5
@@ -184,6 +192,7 @@ shade_tolerance = 0.3
 soil_gain = 0.00048
 water_optimum = 0.35
 water_tolerance = 0.45
+bedrock = "clay_limestone"
 
 [flora.hazel]
 growth = 0.7
@@ -203,6 +212,7 @@ shade_tolerance = 0.8
 soil_gain = 0.00048
 water_optimum = 0.55
 water_tolerance = 0.4
+bedrock = "silt_sand"
 
 [flora.oak]
 growth = 0.3
@@ -222,6 +232,7 @@ shade_tolerance = 0.2
 soil_gain = 0.0003
 water_optimum = 0.5
 water_tolerance = 0.45
+bedrock = "clay_limestone"
 
 [flora.chestnut]
 growth = 0.5
@@ -241,6 +252,7 @@ shade_tolerance = 0.4
 soil_gain = 0.0003
 water_optimum = 0.35
 water_tolerance = 0.4
+bedrock = "schist_granite"
 
 [flora.beech]
 growth = 0.4
@@ -260,6 +272,7 @@ shade_tolerance = 0.8
 soil_gain = 0.0003
 water_optimum = 0.6
 water_tolerance = 0.35
+bedrock = "silt_sand"
 
 [flora.algae_and_lilies]
 growth = 1.0
@@ -279,6 +292,7 @@ shade_tolerance = 0.3
 soil_gain = 0.0006
 water_optimum = 1.0
 water_tolerance = 0.25
+bedrock = "silt_sand"
 
 [flora.reeds]
 growth = 0.7
@@ -298,6 +312,7 @@ shade_tolerance = 0.4
 soil_gain = 0.00048
 water_optimum = 0.9
 water_tolerance = 0.35
+bedrock = "silt_sand"
 
 [flora.cattails]
 growth = 0.5
@@ -317,6 +332,7 @@ shade_tolerance = 0.4
 soil_gain = 0.0004
 water_optimum = 0.9
 water_tolerance = 0.35
+bedrock = "silt_sand"
 
 [fauna.earthworms]
 growth = 20

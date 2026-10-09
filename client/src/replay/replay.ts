@@ -36,6 +36,11 @@ export interface Species {
     /** Plants: the bedrock they grow best on, and the growth gained there (D-240). */
     bedrock?: string | null;
     bedrock_boost?: number;
+    /** Plants (D-242): soil development per ecology second at full cover, shade cast (0..1), and
+     *  the soil they need to take root (soil_min less the ramp, 0..1). */
+    soil_gain?: number;
+    shade_cast?: number;
+    soil_need?: number;
   };
 }
 

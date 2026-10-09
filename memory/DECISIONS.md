@@ -2833,3 +2833,22 @@ Template:
   - **Unit list:** Ctrl, Shift or Cmd + click adds a species to the selection, or removes it when all of it is already selected.
   - **Owner rings** under animals show only with the strategic icons (I). Selected animals keep their white ring. The group icons now default to off.
   - **Layout:** the toast stack starts at 94 px, below the combo badge; the "Choose your spawn" hint sits above the build bar.
+
+## D-242 · 2026-10-09 · Shrub looks and stands, larger animals, build-bar rework, true order cost, planting cursor check
+- **Status:** accepted (user's play test of D-241)
+- **Decision:**
+  - **Shrubs:**
+    - hawthorn darker (`#3f5a2c`) with 5–7 white blossom flecks on its crown;
+    - hazel an open coppice: 4–6 bark stems with small leaf blobs at three tips;
+    - elder unchanged.
+  - **Shrub stands:** density −10 % (`DENSITY` `[0, 0.81]`) and patch noise every 4 cells (was 2). Shrub slots may sit near the cell edge (`SHRUB_EDGE` 0.2 of the radius) and slide up to 0.35 cell toward the denser side of the patch (`shrubDrift`), so bushes clump across cells.
+  - **Animals:** `ANIMAL_SCALE` 5.25, `LARGE` 1.125 (×1.5 each, as D-235): small animals ×1.5, a 2 m animal ×1.15.
+  - **Build-bar flyout:** tiers bottom (bronze) to top (gold); the medal is a thicker left edge of the tile's tier ring; the hint opens to the right of the tile, the name in its tier's metal.
+  - **Plant stats in the hint:**
+    - the bedrock swatch gets a short name (Clay, Granite, Silt);
+    - two new stats: soil build-up (%/min at full cover) and shade cast;
+    - each plant stat is coloured red → neutral → mossy green by its log ratio to the mean over all plants (clamped at ×½ and ×2), cheaper being better (`statTone`).
+  - **Cost:** the coin stat shows a full planting: the per-cell cost × the disc's cells (13 at radius 2, `discCells`). It used to show the per-cell price, while an order paid up to 13 times that. The tech tree shows the same.
+  - **Cell card:** a "Front" section (strength vs push, enemy push) first, under the header.
+  - **Planting cursor:** the ring turns alert red when the planting would not take (`game/planting.ts` `plantable`): no own or free unlocked land, rock or deep water, soil under the species' need (`soil_need` exported), dry or wet beyond its tolerance (the shallows seep), or a bank short of every plantable cell. The cap and the dead-wood bar are left to the sim.
+  - The build bar's dock stacks above map banners, so its hints are never hidden.

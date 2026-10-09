@@ -680,10 +680,12 @@ export class Viewer {
   }
 
   /** Move the drop cursor to a screen point (null: off the canvas). Returns the cell and whether
-   *  it lies off the armed player's land, or null off the map. */
+   *  it lies off the armed player's land, or null off the map. `canPlant` (D-242): for a plant,
+   *  whether the planting there would take; the ring turns red when it would not. */
   aimGhost(
     x: number | null,
     y = 0,
+    canPlant?: (cell: { row: number; col: number }) => boolean,
   ): { cell: { row: number; col: number }; offLand: boolean } | null {
     const spec = this.ghostSpec;
     const cell = spec && x !== null ? this.pickCell(x, y) : null;
@@ -697,7 +699,9 @@ export class Viewer {
     const disaster = spec.kind === "catastrophe"; // D-129: the disc it will hit
     // Plants: the disc planted. Animals: the landing spot at home, the drop area elsewhere.
     const cells = animal ? (offLand ? spec.radius : 0.5) : spec.radius + 0.5;
-    const color = disaster || (animal && offLand) ? WORLD.alert : PLAYER[spec.player].base;
+    const refused = spec.kind === "flora" && canPlant !== undefined && !canPlant(cell);
+    const color =
+      disaster || (animal && offLand) || refused ? WORLD.alert : PLAYER[spec.player].base;
     const at = this.centre(cell);
     const least = this.camera.position.distanceTo(at) * GHOST_SIZE;
     this.ghost.aim(at, cells * CELL, color, least);

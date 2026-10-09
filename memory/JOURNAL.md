@@ -1057,3 +1057,13 @@
   Not seen: the error sound and the ghost pulse.
 - **Tests:** Rust all-or-nothing planting; TS plantings decoding. Render test enables rings. Bot fingerprint test ignored for the bot pass.
 - **Open:** bot-balance pass (style fingerprint, refusals of animal drops).
+
+## 2026-10-09 (6) · Alpha 1.4: final pass of the day (D-242)
+- **Done:** everything in D-242.
+- **Checked in the browser:**
+  - the vertical tiers, and the hint on the right (lichen: 260 cost, coloured stats, Granite);
+  - the ring blue where some cells can take.
+
+  The tab closed before the red cases and the shrubs on screen could be seen; unit tests cover the red cases.
+- **Tests:** shrub drift; size constants; `discCells`; `statTone`; `plantable` cases. Client 160, workspace green, lint clean.
+- **Open:** see the new shrubs and the red ring in play.

@@ -1,8 +1,9 @@
 <script lang="ts">
   // Cell card (D-031, D-100, D-163): the core facts of a cell at a glance, titles only. A header
-  // in the owner's colour (whose, ground, health, lock and dead-wood chips), one full-width bar
-  // per height layer, soil, moisture, bedrock (D-240) and enemy push, then the plants and the animals on the cell, yours
-  // and the enemy's apart. Details in tooltips.
+  // in the owner's colour (whose, ground, health, lock and dead-wood chips); the front first
+  // (strength vs push, enemy push; D-242); one full-width bar per height layer; soil, moisture
+  // and bedrock (D-240); then the plants and the animals on the cell, yours and the enemy's
+  // apart. Details in tooltips.
   import { cellStatus, STATUS_TEXT, type CellStatus } from "../game/cell";
   import { BEDROCK_NAMES, label, wetness } from "../game/species";
   import { OVERLAY_RAMPS } from "../render/palette";
@@ -95,6 +96,30 @@
     </button>
   </header>
 
+  <!-- The front first (D-242): strength against the enemy's push, then the push bar. -->
+  <section>
+    <h4>Front</h4>
+    {#if info.front}
+      {@const over = info.front.push > info.front.strength}
+      {@const enemy = info.owner === 1 ? 2 : 1}
+      <div
+        class="row strength"
+        title="Strength: how full the owner's layers are (fast spreaders count most), raised by a canopy overhead, fertile soil and many species (plants and resident animals), lowered by an enemy canopy next door. Push: the summed strength of the enemy's cells next to it. When the push beats the strength, the cell's plants are smothered; a cell just taken is held for a while (D-236, D-230)."
+      >
+        <span class="name">Strength</span>
+        <span class="vs"
+          ><strong class="v{info.owner}">{info.front.strength.toFixed(1)}</strong> vs
+          <strong class="v{enemy}" class:over>{info.front.push.toFixed(1)}</strong></span
+        >
+      </div>
+    {/if}
+    <div class="row" title="How hard the other side pushes into this cell">
+      <span class="name">Enemy push</span>
+      <span class="bar push"><span style:width={css(info.push)}></span></span>
+      <span class="num">{pct(info.push)}</span>
+    </div>
+  </section>
+
   <section>
     <h4>Layers</h4>
     {#each LAYERS as l, i (l.name)}
@@ -131,25 +156,6 @@
         >
       </div>
     {/if}
-    {#if info.front}
-      {@const over = info.front.push > info.front.strength}
-      {@const enemy = info.owner === 1 ? 2 : 1}
-      <div
-        class="row strength"
-        title="Strength: how full the owner's layers are (fast spreaders count most), raised by a canopy overhead, fertile soil and many species (plants and resident animals), lowered by an enemy canopy next door. Push: the summed strength of the enemy's cells next to it. When the push beats the strength, the cell's plants are smothered; a cell just taken is held for a while (D-236, D-230)."
-      >
-        <span class="name">Strength</span>
-        <span class="vs"
-          ><strong class="v{info.owner}">{info.front.strength.toFixed(1)}</strong> vs
-          <strong class="v{enemy}" class:over>{info.front.push.toFixed(1)}</strong></span
-        >
-      </div>
-    {/if}
-    <div class="row" title="How hard the other side pushes into this cell">
-      <span class="name">Enemy push</span>
-      <span class="bar push"><span style:width={css(info.push)}></span></span>
-      <span class="num">{pct(info.push)}</span>
-    </div>
   </section>
 
   {#if info.plants.length}

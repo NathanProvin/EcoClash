@@ -23,6 +23,8 @@
     groundOf,
     rockIndex,
     rockOf,
+    BEDROCK_SHORT,
+    discCells,
   } from "../game/species";
   import type { Source, Species } from "../replay/replay";
   import { OVERLAY_RAMPS } from "../render/palette";
@@ -50,6 +52,7 @@
     popped = null,
     focus = null,
     suit = null,
+    plantRadius = 2,
   }: {
     replay: Source;
     tick: number;
@@ -72,6 +75,8 @@
     focus?: Species | null;
     /** How well each plant suits the selected cell, 0..1 (D-240): tiles desaturate with it. */
     suit?: ReadonlyMap<string, number> | null;
+    /** The planting disc's radius (D-242): plant costs are shown per full planting. */
+    plantRadius?: number;
   } = $props();
 
   const TIERS = [1, 2, 3] as const;
@@ -171,7 +176,8 @@
   function show(e: PointerEvent, s: Species) {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const d = dock?.getBoundingClientRect() ?? { left: 0, top: 0 };
-    hover = { s, x: r.left + r.width / 2 - d.left, y: r.top - 10 - d.top }; // above the tile
+    // To the right of the tile (D-242), its middle level with the tile's.
+    hover = { s, x: r.right + 10 - d.left, y: r.top + r.height / 2 - d.top };
   }
 </script>
 
@@ -226,8 +232,7 @@
               {#each TIERS as t (t)}
                 {@const list = g.species.filter((s) => s.tier === t)}
                 {#if list.length}
-                  <div class="tier">
-                    <span class="medal {MEDAL[t - 1]}" title={MEDAL_NAME[t - 1]}></span>
+                  <div class="tier" title={MEDAL_NAME[t - 1]}>
                     {#each list as s (s.name)}
                       {@const state = cardOf(s)}
                       <button
@@ -282,20 +287,23 @@
     {@const s = hover.s}
     {@const state = cardOf(s)}
     <div class="tip panel" style:left="{hover.x}px" style:top="{hover.y}px" role="tooltip">
-      <span class="head">
-        <span class="medal {MEDAL[s.tier - 1]}"></span>
+      <span class="head {MEDAL[s.tier - 1] ?? 'bronze'}">
         <strong>{label(s.name)}</strong>
         <span class="sub">{s.kind === "flora" ? "plant" : roleName(s.role)}</span>
       </span>
       <span class="stats">
-        {#each quickStats(s, replay.meta.pace) as q (q.icon)}
-          <span class="stat" title={q.title}><Icon name={q.icon} size={13} />{q.value}</span>
+        {#each quickStats(s, replay.meta.pace, discCells(plantRadius), species) as q (q.icon)}
+          <span class="stat" title={q.title} style:color={q.tone}
+            ><Icon name={q.icon} size={13} />{q.value}</span
+          >
         {/each}
         <!-- Ground at a glance (D-241): the favourite bedrock in its overlay colour, and the
              moisture need as one to three drops. -->
         {#if rockIndex(s)}
           <span class="stat rock" title={rockOf(s)}
-            ><i style:background={OVERLAY_RAMPS.bedrock[rockIndex(s) - 1]}></i></span
+            ><i style:background={OVERLAY_RAMPS.bedrock[rockIndex(s) - 1]}></i>{BEDROCK_SHORT[
+              rockIndex(s)
+            ]}</span
           >
         {/if}
         {#if dropsOf(s)}
@@ -357,6 +365,7 @@
     left: 50%;
     bottom: 12px;
     transform: translateX(-50%);
+    z-index: 3; /* its flyouts and hints above the map banners (D-242) */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -418,19 +427,22 @@
     white-space: nowrap;
     color: var(--ink-soft);
   }
+  /* Tiers bottom to top, bronze to gold (D-242). */
   .tiers {
     display: flex;
-    gap: 8px;
+    flex-direction: column-reverse;
+    gap: 6px;
   }
   .tier {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
+    justify-content: center;
+    gap: 6px;
   }
-  /* Tier rings (D-106); the medal colours are in app.css. */
+  /* Tier rings (D-106), the medal merged in as a thicker left edge (D-242); colours in app.css. */
   .tile {
-    box-shadow: inset 0 0 0 1.5px var(--medal);
+    box-shadow:
+      inset 0 0 0 1.5px var(--medal),
+      inset 4px 0 0 0 var(--medal);
   }
   .lock {
     position: absolute;
@@ -534,7 +546,7 @@
   }
   .tip {
     position: absolute;
-    transform: translate(-50%, -100%);
+    transform: translateY(-50%); /* right of the tile (D-242) */
     z-index: 5;
     display: flex;
     flex-direction: column;
@@ -552,6 +564,7 @@
   }
   .head strong {
     font-size: 1.08em;
+    color: var(--medal); /* the tier's metal (D-242) */
   }
   .stats {
     display: grid;

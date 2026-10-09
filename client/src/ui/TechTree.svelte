@@ -29,6 +29,7 @@
     type Family,
     groundOf,
     rockOf,
+    discCells,
   } from "../game/species";
   import type { Source, Species } from "../replay/replay";
   import FamilyIcon from "./FamilyIcon.svelte";
@@ -40,12 +41,14 @@
     player,
     onClose,
     onUnlock,
+    plantRadius = 2,
   }: {
     replay: Source;
     tick: number;
     player: 1 | 2;
     onClose: () => void;
     onUnlock?: (name: string) => void; // live matches: buy an available card
+    plantRadius?: number; // plant costs per full planting (D-242)
   } = $props();
 
   const RANK = ["Primary", "Secondary", "Tertiary"] as const;
@@ -275,8 +278,10 @@
           </span>
         </span>
         <span class="stats">
-          {#each quickStats(focused, meta.pace) as q (q.icon)}
-            <span class="stat" title={q.title}><Icon name={q.icon} size={13} />{q.value}</span>
+          {#each quickStats(focused, meta.pace, discCells(plantRadius), meta.species) as q (q.icon)}
+            <span class="stat" title={q.title} style:color={q.tone}
+              ><Icon name={q.icon} size={13} />{q.value}</span
+            >
           {/each}
         </span>
         {#if focused.kind === "fauna"}

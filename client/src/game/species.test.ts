@@ -12,6 +12,8 @@ import {
   groundOf,
   label,
   rockOf,
+  statTone,
+  discCells,
   suitAt,
   quickStats,
   unlockedAt,
@@ -96,6 +98,29 @@ describe("ground hint (D-239)", () => {
   });
 });
 
+describe("planting cost and stat colours (D-242)", () => {
+  it("shows the cost of a full planting: per cell times the disc's cells", () => {
+    expect(discCells(2)).toBe(13);
+    expect(discCells(1)).toBe(5);
+    const s = sp("grasses", "flora", 1, 1, 0); // spawn_cost 1
+    expect(quickStats(s, 1, discCells(2))[0]?.value).toBe("13");
+  });
+  it("colours a stat green above the mean, red below; cheaper is better", () => {
+    const at = (cost: number, yld: number) => {
+      const s = sp("x", "flora", 1, 1, 0);
+      return { ...s, stats: { ...s.stats, spawn_cost: cost, yield: yld } };
+    };
+    const [cheap, dear] = [at(10, 2), at(40, 0.5)];
+    const all = [cheap, dear];
+    const green = (c: string | undefined) => Number(c?.split(",")[1]); // the G channel
+    const red = (c: string | undefined) => Number(c?.slice(4).split(",")[0]);
+    expect(green(statTone("biomass", cheap, all))).toBeGreaterThan(
+      green(statTone("biomass", dear, all)),
+    );
+    expect(red(statTone("coin", dear, all))).toBeGreaterThan(red(statTone("coin", cheap, all)));
+  });
+});
+
 describe("bedrock suiting (D-240)", () => {
   const fern = (() => {
     const s = sp("ferns", "flora", 2, 1, 0);
@@ -161,7 +186,7 @@ describe("build card helpers", () => {
 
   it("gives each card a few quick stats, in real seconds (D-106)", () => {
     const grass = quickStats(sp("grasses", "flora", 1, 1, 0));
-    expect(grass.map((q) => q.icon)).toEqual(["coin", "biomass", "spread", "cap"]);
+    expect(grass.map((q) => q.icon)).toEqual(["coin", "biomass", "spread", "cap", "soil", "shade"]);
     const fox = sp("fox", "fauna", 5, 1, 0);
     expect(quickStats(fox).map((q) => q.icon)).toEqual(["coin", "biomass", "egg", "cap"]);
     const breeds = (pace: number) => parseFloat(quickStats(fox, pace)[2]?.value ?? "");

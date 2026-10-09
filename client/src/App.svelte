@@ -56,6 +56,7 @@
   import UnitPanel from "./ui/UnitPanel.svelte";
   import UnitList from "./ui/UnitList.svelte";
   import { shortNotice } from "./game/notices";
+  import { plantable } from "./game/planting";
   import { audio } from "./audio/engine";
   import { ambience, moodOf } from "./audio/ambience";
   import { unlockSound, voiceOf } from "./audio/sounds";
@@ -1071,6 +1072,15 @@
     if (ids.length) speak(ids, SELECT_CALL); // D-182
   }
 
+  /** Whether planting the armed species at `cell` would take (D-242): the cursor ring's colour. */
+  function canPlantAt(cell: { row: number; col: number }): boolean {
+    const s = planting ? live?.meta.species.find((x) => x.name === planting) : undefined;
+    if (!live || !s || s.kind !== "flora") return true;
+    const bank = live.meta.series[`bank_p${me}`]?.at(-1) ?? 0;
+    const f = live.fields();
+    return plantable(s, cell, live.plantRadius, live.meta.n, me, f, live.terrain, bank).ok;
+  }
+
   /** A plant order the sim took (D-241): shrubs and trees spring up as saplings with a woody
    *  pop; herbs and undergrowth are sown, seeds scattering (D-233, D-234). Sparkles: as many as
    *  the layer, in the tier's colour. */
@@ -1134,7 +1144,7 @@
     const r = canvas.getBoundingClientRect();
     const [x, y] = [e.clientX - r.left, e.clientY - r.top];
     if (planting && viewer) {
-      const aim = viewer.aimGhost(x, y);
+      const aim = viewer.aimGhost(x, y, canPlantAt);
       dropTag = aim?.offLand && armedKind === "fauna" ? { x, y } : null;
     }
     if (!box) return;
@@ -1486,6 +1496,7 @@
       onPickSpecies={pickSpecies}
       {focus}
       {suit}
+      plantRadius={live?.plantRadius ?? 2}
       onClear={() => select([])}
       catastrophes={live?.catastrophes ?? []}
       waits={catastropheWaits}
@@ -1568,6 +1579,7 @@
         {player}
         onClose={() => (techOpen = false)}
         onUnlock={mine ? unlock : undefined}
+        plantRadius={live?.plantRadius ?? 2}
       />
     {/if}
   {/if}

@@ -143,6 +143,7 @@ export const isSwarm = (s: Species): boolean => s.kind === "fauna" && s.swarm ==
 /** Bedrock keys and display names (D-240), by index in the terrain frame. */
 export const BEDROCK_KEYS = ["none", "clay_limestone", "schist_granite", "silt_sand"] as const;
 export const BEDROCK_NAMES = ["", "Clay-limestone", "Schist-granite", "Silt-sand"] as const;
+export const BEDROCK_SHORT = ["", "Clay", "Granite", "Silt"] as const;
 
 /** The bedrock a plant favours, in words (D-240); undefined when none. */
 export function rockOf(s: Species): string | undefined {
@@ -237,30 +238,99 @@ export const MEDAL = ["bronze", "silver", "gold"] as const;
 
 /** One quick stat of a species tooltip (D-106): an icon, a short value, the words on hover. */
 export interface QuickStat {
-  icon: "coin" | "biomass" | "spread" | "egg" | "cap";
+  icon: "coin" | "biomass" | "spread" | "egg" | "cap" | "soil" | "shade";
   value: string;
   title: string;
+  /** For plants (D-242): how this value compares to the mean of all plants, as a colour from red
+   *  (worse) to mossy green (better); undefined for animals. */
+  tone?: string;
+}
+
+/** Cells in a planting disc of `radius` (D-242): the same disc as the sim's `commands::disc`. */
+export function discCells(radius: number): number {
+  let n = 0;
+  for (let y = -radius; y <= radius; y++)
+    for (let x = -radius; x <= radius; x++) if (x * x + y * y <= radius * radius) n++;
+  return n;
+}
+
+/** Plant stats that `statTone` rates (D-242), each as a raw value, and whether lower is better. */
+const PLANT_STATS = {
+  coin: { of: (s: Species) => s.stats.spawn_cost, lowBetter: true },
+  biomass: { of: (s: Species) => s.stats.yield, lowBetter: false },
+  spread: { of: (s: Species) => s.stats.growth, lowBetter: false },
+  cap: { of: (s: Species) => s.stats.cap, lowBetter: false },
+  soil: { of: (s: Species) => s.stats.soil_gain ?? 0, lowBetter: false },
+  shade: { of: (s: Species) => s.stats.shade_cast ?? 0, lowBetter: false },
+} as const;
+const TONE = { bad: [200, 85, 61], mid: [214, 208, 190], good: [134, 176, 72] } as const;
+
+/** The colour of a plant's stat against the mean of `plants` (D-242): its log2 ratio to the mean,
+ *  clamped to [-1, 1] (half to double), from red through a neutral to mossy green; lower is
+ *  better for the cost. */
+export function statTone(key: keyof typeof PLANT_STATS, s: Species, plants: readonly Species[]) {
+  const { of, lowBetter } = PLANT_STATS[key];
+  const flora = plants.filter((p) => p.kind === "flora");
+  const mean = flora.reduce((t, p) => t + of(p), 0) / Math.max(flora.length, 1);
+  if (mean <= 0) return undefined;
+  const v = of(s);
+  let t = v > 0 ? Math.min(Math.max(Math.log2(v / mean), -1), 1) : -1;
+  if (lowBetter) t = -t;
+  const [a, b] = t < 0 ? [TONE.mid, TONE.bad] : [TONE.mid, TONE.good];
+  const k = Math.abs(t);
+  return `rgb(${a.map((x, i) => Math.round(x + ((b[i] ?? x) - x) * k)).join(",")})`;
 }
 
 /** The quick stats of a species, in real seconds: the stat sheet counts ecology seconds, which
- *  run at `pace` per real second (D-069). Plants: cost per cell, yield per cell, spread, map
- *  share; animals: cost (×1.5 off your land), yield, breeding period, head cap. */
-export function quickStats(s: Species, pace = 1): QuickStat[] {
+ *  run at `pace` per real second (D-069). Plants: the cost of a full planting (`cells` per order,
+ *  D-242), yield per cell, spread, map share, soil build-up and shade cast, each toned against
+ *  the mean of `plants`; animals: cost (×1.5 off your land), yield, breeding period, head cap. */
+export function quickStats(
+  s: Species,
+  pace = 1,
+  cells = 1,
+  plants: readonly Species[] = [],
+): QuickStat[] {
   const { growth, yield: y, spawn_cost: cost, cap } = s.stats;
   const r = (v: number) => Number(v.toPrecision(2));
+  const tone = (k: keyof typeof PLANT_STATS) => statTone(k, s, plants);
   return s.kind === "flora"
     ? [
-        { icon: "coin", value: `${cost}`, title: "Cost per cell planted" },
-        { icon: "biomass", value: `+${r(y * pace)}/s`, title: "Biomass per covered cell" },
+        {
+          icon: "coin",
+          value: `${r(cost * cells)}`,
+          title: `Cost of a planting: ${cost} per cell, up to ${cells} cells (fewer cost less)`,
+          tone: tone("coin"),
+        },
+        {
+          icon: "biomass",
+          value: `+${r(y * pace)}/s`,
+          title: "Biomass per covered cell",
+          tone: tone("biomass"),
+        },
         {
           icon: "spread",
           value: `${r(growth * pace)}/s`,
           title: "Spread: how fast it claims land",
+          tone: tone("spread"),
         },
         {
           icon: "cap",
           value: `${Math.round(cap * 100)}%`,
           title: "Most of the map one side may hold",
+          tone: tone("cap"),
+        },
+        {
+          icon: "soil",
+          value: `${r((s.stats.soil_gain ?? 0) * pace * 6000)}%/min`,
+          title: "Soil build-up at full cover, per minute",
+          tone: tone("soil"),
+        },
+        {
+          icon: "shade",
+          value: `${Math.round((s.stats.shade_cast ?? 0) * 100)}%`,
+          title: "Shade cast on the layers below",
+          tone: tone("shade"),
         },
       ]
     : [

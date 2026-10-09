@@ -542,6 +542,7 @@ fn weather_table(b: &Balance) -> String {
         .to_string()
 }
 
+#[allow(clippy::float_arithmetic)] // display metadata (soil_need), never simulation state
 fn species_table(b: &Balance) -> String {
     let flora = b.flora_species.iter().map(|(name, s)| {
         serde_json::json!({
@@ -552,6 +553,10 @@ fn species_table(b: &Balance) -> String {
                 "yield": s.yield_, "cap": s.cap, "effect": s.effect,
                 "water": s.water_optimum, "water_tolerance": s.water_tolerance,
                 "bedrock": s.bedrock, "bedrock_boost": b.flora.bedrock_boost,
+                "soil_gain": s.soil_gain, "shade_cast": s.shade_cast,
+                "soil_need": if s.pioneer { 0.0 } else {
+                    (b.flora.soil_min_level[usize::from(s.level) - 1] - b.flora.soil_ramp).max(0.0)
+                },
             },
         })
     });

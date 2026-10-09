@@ -226,7 +226,7 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
     Plants follow the same rule: tier-1 and tier-2 plants are eaten by 2–3 grazers, tier-3 plants by 1–2.
   - **Superpredators (S, D-197):** they eat the hunters below them, so a defence can be answered: the hawk eats tits, the wildcat eats weasels and hawks, the eagle-owl eats foxes, hawks and herons.
   - **Guard test:** `sim-core/tests/food_web.rs` checks the tier rule and the eater counts.
-- **Swarms (D-065):** earthworms, fungi, grasshoppers, slugs & snails, caterpillars, bark beetles and larvae are drawn as swarms, not units.
+- **Swarms (D-065):** earthworms, fungi, grasshoppers, slugs & snails, caterpillars, bark beetles and larvae are drawn as swarms, not units. They take orders like units (D-238): select a swarm from the unit list or its strategic icon, then move or attack-move it; clicking or dragging over the map picks units only.
 - **Movement (author's direction, D-088):** insects keep a Brownian flutter; small herbivores are calm and slow and graze stop-and-go; large herbivores move slowly and steadily; hunters are fast when they hunt and calm when idle; birds drift lightly.
 
 ### 4.4 Costs [Proposed]

@@ -57,7 +57,7 @@ export const TIPS: Tip[] = [
   {
     id: "icons",
     when: (p) => p.animals >= 6 || p.raided,
-    text: "Press I for group icons over every herd and swarm, yours and the enemy's: see where the threat comes from.",
+    text: "Press I for group icons over every herd and swarm, yours and the enemy's: see where the threat comes from. Click one of yours, or a name in the unit list, to command it, swarms included.",
   },
   {
     id: "raids",

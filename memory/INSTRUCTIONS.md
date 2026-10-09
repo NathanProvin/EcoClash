@@ -73,7 +73,7 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 - Spawn agents from trees (costs biomass).
 - Orders draw a faint curve to their goal, grey for a move, red for an attack (D-162); an attack holds until the area is grazed bare (D-160).
 - Play catastrophe cards (D-129): processionary caterpillars, a violent storm, a chemical spill. Expensive, paid at each use, then cooling down; they hit both sides in their disc (gamerules §10b).
-- Standard RTS unit control (D-053, D-161): drag or click to select (a click on any animal shows its unit card), right-click to move (on an enemy cell: attack-move), A + click to attack-move, S to stop, Shift or Ctrl + 1–9 to set a control group, 1–9 to recall it. The camera pans with the arrow keys or a right-drag.
+- Standard RTS unit control (D-053, D-161): drag or click to select (a click on any animal shows its unit card; swarms are selected from the unit list or their strategic icon, D-238), right-click to move (on an enemy cell: attack-move), A + click to attack-move, S to stop, Shift or Ctrl + 1–9 to set a control group, 1–9 to recall it. The camera pans with the arrow keys or a right-drag.
 - Camera: top-down RTS camera with pan, zoom and limited tilt.
 
 ### 2.5 Post-v1 ideas (do NOT implement before v1 is done)

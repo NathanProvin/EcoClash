@@ -276,7 +276,7 @@
     iconKeys = new Map(found.map((f, i) => [keys[i] ?? "", f.g.ids]));
     iconGroups = found.map(({ owner, g, s }, i) => {
       const enemy = owner !== mine;
-      const order = !enemy && !swarm[g.species];
+      const order = !enemy; // swarms too (D-238)
       const key = keys[i] ?? "";
       return { key, row: g.row, col: g.col, s, count: g.count, ids: g.ids, order, enemy };
     });
@@ -378,8 +378,8 @@
    *  cleared with the selection. */
   let focus = $state<Species | null>(null);
 
-  /** A strategic icon clicked (D-232): select your group, or only highlight a swarm or the
-   *  enemy's (they take no orders); and light its prey and predators on the build bar. */
+  /** A strategic icon clicked (D-232): select your group (swarms too, D-238), or only highlight
+   *  the enemy's; and light its prey and predators on the build bar. */
   function pickIcon(i: (typeof icons)[number]) {
     if (i.order) select(i.ids);
     else {
@@ -622,7 +622,7 @@
     }).length;
     if (tutorial) {
       const n = l.meta.n;
-      // Swarms cannot be selected or ordered: the tutorial teaches with animals that can.
+      // The tutorial counts units, not swarms (taken from the unit list or an icon, D-238).
       const mine = v.visibleAnimals().filter((a) => {
         const sp = fauna[a.species];
         return a.owner === me && sp !== undefined && !isSwarm(sp);

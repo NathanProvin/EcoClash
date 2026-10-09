@@ -27,7 +27,7 @@
   } = $props();
 
   const order = $derived(
-    families(species).flatMap((f) => f.species.filter((s) => s.kind === "fauna" && !s.swarm)),
+    families(species).flatMap((f) => f.species.filter((s) => s.kind === "fauna")),
   );
   const rows = $derived.by(() => {
     const count: Record<string, number> = {};

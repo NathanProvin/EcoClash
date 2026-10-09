@@ -86,8 +86,9 @@ function gaitMaterial(): THREE.MeshStandardNodeMaterial {
   return m;
 }
 
-/** Swarm dots (soil life, insects; D-065): radius (m), height (m, in the herbs) and opacity. */
-const SWARM = { r: 0.06, y: 0.15, opacity: 0.45 } as const;
+/** Swarm dots (soil life, insects; D-065): radius (m), height (m, in the herbs), opacity, and the
+ *  radius factor of a selected dot (D-238). */
+const SWARM = { r: 0.06, y: 0.15, opacity: 0.45, selected: 2 } as const;
 /** Birds bob this much (m) around their flight height. */
 const BOB = 0.3;
 /** Fish swim this far (m) under the water surface. */
@@ -136,7 +137,7 @@ export interface Drawn {
 
 /** The animals of a match: one instanced mesh per species, their rings, the swarm dots. */
 export class AnimalView {
-  /** Where each animal was drawn this frame (swarms excluded: not selectable). */
+  /** Where each animal was drawn this frame, for click picking (swarms excluded, D-238). */
   drawn: Drawn[] = [];
   private readonly bodies: (THREE.InstancedMesh | undefined)[];
   private readonly motions: (THREE.InstancedBufferAttribute | undefined)[];
@@ -282,18 +283,20 @@ export class AnimalView {
       const fall = FALL.height * left;
       if (this.swarmOf[a.species]) {
         const g = height(x, z);
+        const on = selected.has(a.id);
+        const r = on ? SWARM.r * SWARM.selected : SWARM.r;
         put(
           this.swarm,
           swarms++,
           x,
           g + SWARM.y + fall,
           z,
-          SWARM.r,
-          SWARM.r,
+          r,
+          r,
           0,
-          this.dotColor[owner],
+          on ? HIGHLIGHT : this.dotColor[owner],
         );
-        continue; // not selectable (D-065)
+        continue; // selected from the unit list or an icon, not by clicks (D-238)
       }
       const form = this.forms[a.species];
       const body = form?.body ?? "rodent";

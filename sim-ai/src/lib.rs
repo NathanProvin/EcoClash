@@ -765,9 +765,9 @@ impl Bot {
 
     /// The raid grazer (D-192): the unlocked one that finds the most of its food on enemy land,
     /// less where enemy hunters that eat it roam, spread over the cards already out; units before
-    /// swarms (D-142).
+    /// swarms (D-142), except for an army-heavy style, which takes the best eater (D-238).
     fn raider(&self, v: &View) -> Option<usize> {
-        let w = v.w;
+        let (w, rush) = (v.w, self.weights[ARMY] >= 50);
         let fa = &w.fauna.p;
         let hunted = |s: usize| -> i64 {
             (0..fa.names.len())
@@ -785,7 +785,7 @@ impl Bot {
                 (self.varied(v, s, score), s)
             })
             .filter(|&(score, _)| score > 0)
-            .max_by_key(|&(score, s)| (fa.group_size(s) <= 4, score, s))
+            .max_by_key(|&(score, s)| (rush || fa.group_size(s) <= 4, score, s))
             .map(|(_, s)| s)
     }
 
@@ -1345,14 +1345,25 @@ impl Bot {
             .map(|i| a.id[i])
             .collect();
         let target = self.breach(v)?;
-        let units = ids
+        // A unit counts one; a swarm counts one per card (its animals over its group, D-238).
+        let mut swarms = vec![0usize; w.fauna.p.names.len()];
+        let mut units = 0;
+        for &id in &ids {
+            if let Ok(i) = a.id.binary_search(&id) {
+                let s = usize::from(a.sp[i]);
+                if w.fauna.p.group_size(s) <= 4 {
+                    units += 1;
+                } else {
+                    swarms[s] += 1;
+                }
+            }
+        }
+        let cards: usize = swarms
             .iter()
-            .filter(|&&id| {
-                a.id.binary_search(&id)
-                    .is_ok_and(|i| w.fauna.p.group_size(usize::from(a.sp[i])) <= 4)
-            })
-            .count();
-        (units >= herd).then(|| Payload::Order {
+            .enumerate()
+            .map(|(s, &c)| c / usize::try_from(w.fauna.p.group_size(s)).unwrap_or(1).max(1))
+            .sum();
+        (units + cards >= herd).then(|| Payload::Order {
             ids,
             kind: OrderKind::Attack,
             row: u32::try_from(target / n).unwrap_or(0),
@@ -2007,6 +2018,33 @@ mod tests {
             let v = bot.view(&w);
             assert_eq!(bot.breach(&v), Some(18 * 38 + 25), "{style:?}");
         }
+    }
+
+    /// D-238: swarm cards count toward a raid: a bot with only grasshopper swarms (four cards,
+    /// the normal herd) raids, every grasshopper ordered.
+    #[test]
+    fn swarm_cards_raise_a_raid() {
+        let b = balance();
+        let world = |cards: i64| {
+            let mut w = painted(&b, &|r, _| if r >= 19 { 2 } else { 1 }, &|_, _| {
+                vec!["grasses"]
+            });
+            let s = w.fauna.p.index("grasshoppers").unwrap();
+            let animals = cards * w.fauna.p.group_size(s);
+            w.fauna.place(s, 2, 25 * 38 + 10, animals, 38);
+            (w, usize::try_from(animals).unwrap())
+        };
+        let mut bot = Bot::new(2, Level::Normal, Style::Rush, &b);
+        let (w, animals) = world(4);
+        let v = bot.view(&w);
+        let Some(Payload::Order { ids, kind, .. }) = bot.raid(&v) else {
+            panic!("no raid");
+        };
+        assert_eq!(kind, OrderKind::Attack);
+        assert_eq!(ids.len(), animals, "every grasshopper ordered");
+        let (w, _) = world(3);
+        let v = bot.view(&w);
+        assert!(bot.raid(&v).is_none(), "three cards: below the herd");
     }
 
     /// D-228: a land-heavy bot claims open ground: its plant disc lands on free cells, clear of

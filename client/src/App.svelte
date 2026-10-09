@@ -32,7 +32,7 @@
     type Severity,
     type Toast,
   } from "./game/alerts";
-  import { cardState, isSwarm, label, unlockedNow } from "./game/species";
+  import { cardState, isSwarm, label, suitAt, unlockedNow } from "./game/species";
   import { plantColor, PLAYER, WORLD } from "./render/palette";
   import Juice from "./ui/Juice.svelte";
   import {
@@ -777,6 +777,19 @@
   );
   let cell = $state<{ row: number; col: number } | null>(null);
   const cellInfo = $derived(replay && cell ? replay.cell(tick, cell.row, cell.col) : null);
+  /** How well each plant suits the selected cell (D-240), for the build bar; none without a cell
+   *  card or on a flat map. */
+  const suit = $derived.by(() => {
+    const info = cellInfo;
+    if (!info || info.moisture === null || !info.bedrock) return null;
+    const { moisture, bedrock } = info;
+    return new Map(
+      (replay?.meta.species ?? []).flatMap((s) => {
+        const v = suitAt(s, moisture, bedrock);
+        return v === undefined ? [] : [[s.name, v] as const];
+      }),
+    );
+  });
   // The unit card (D-161): the clicked or box-selected animals, or the strategic icon under the
   // pointer while hovered; it follows them every tick and goes when they are gone.
   let unitIds = $state<number[]>([]);
@@ -1471,6 +1484,7 @@
       {popped}
       onPickSpecies={pickSpecies}
       {focus}
+      {suit}
       onClear={() => select([])}
       catastrophes={live?.catastrophes ?? []}
       waits={catastropheWaits}

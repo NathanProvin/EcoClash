@@ -11,6 +11,8 @@ import {
   foodsOf,
   groundOf,
   label,
+  rockOf,
+  suitAt,
   quickStats,
   unlockedAt,
 } from "./species";
@@ -91,6 +93,32 @@ describe("ground hint (D-239)", () => {
     expect(at(0.8)).toBe("Grows best on wet ground");
     expect(at(0.9)).toBe("Grows in water");
     expect(groundOf(sp("fox", "fauna", 0, 1, 0))).toBeUndefined();
+  });
+});
+
+describe("bedrock suiting (D-240)", () => {
+  const fern = (() => {
+    const s = sp("ferns", "flora", 2, 1, 0);
+    return {
+      ...s,
+      stats: {
+        ...s.stats,
+        water: 0.7,
+        water_tolerance: 0.35,
+        bedrock: "schist_granite",
+        bedrock_boost: 0.15,
+      },
+    };
+  })();
+  it("peaks on moist granite, falls with dryness and off its rock", () => {
+    expect(suitAt(fern, 0.7, 2)).toBeCloseTo(1);
+    expect(suitAt(fern, 0.7, 3)).toBeCloseTo(1 / 1.15);
+    expect(suitAt(fern, 0.35, 2)).toBeCloseTo(0);
+    expect(suitAt(sp("fox", "fauna", 0, 1, 0), 0.5, 2)).toBeUndefined();
+  });
+  it("names the favourite bedrock", () => {
+    expect(rockOf(fern)).toBe("Favours schist-granite");
+    expect(rockOf(sp("x", "flora", 1, 1, 0))).toBeUndefined();
   });
 });
 

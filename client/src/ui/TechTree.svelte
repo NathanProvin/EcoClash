@@ -28,6 +28,7 @@
     unlockedNow,
     type Family,
     groundOf,
+    rockOf,
   } from "../game/species";
   import type { Source, Species } from "../replay/replay";
   import FamilyIcon from "./FamilyIcon.svelte";
@@ -316,6 +317,7 @@
         {/if}
         <p class="effect">{focused.stats.effect}</p>
         {#if groundOf(focused)}<p class="muted">{groundOf(focused)}.</p>{/if}
+        {#if rockOf(focused)}<p class="muted">{rockOf(focused)}.</p>{/if}
         {@const state = cardState(meta, focused, unlocked)}
         {#if state === "unlocked"}
           <p class="muted">Unlocked · you have {count(focused)}</p>

@@ -2792,3 +2792,27 @@ Template:
   - **`[flora] shallow_seep` (0.15):** the least moisture response in the shallows, so land plants still seep across slowly (D-084) despite their narrower tolerances. Drowning still reads the raw response.
   - Species cards say "Grows best on dry / moist / wet ground" (`groundOf`, from `water_optimum` exported in the species table).
 - **Measured:** confounded with the user's species tuning. Bots raid little; median end 30–35 min; seat bias swings (+19).
+
+## D-240 · 2026-10-09 · Bedrock: three terroirs
+- **Status:** accepted (user, Alpha 1.4; elder moved to granite by the user)
+- **Decision:**
+  - **Rock types:** `[terrain] soil_types` = none (flat maps), clay-limestone, schist-granite, silt-sand. They reuse the hashed `soil_type` field; the unused `soil_affinity` table is removed.
+  - **Generation** (`terrain::bedrock`):
+    - each cell ranks the three types over the map (clay: low ground and water near; granite: high ground and rock near; silt: broad flats, steepness averaged over radius 2);
+    - plus a symmetric noise per type (`bedrock_cells` 14, `bedrock_noise` 0.35), averaged over radius 3, and the best type wins;
+    - a majority filter, then patches under `bedrock_min_patch` (10 %) join their largest neighbour, except each type's largest patch and its mirror twin;
+    - a final mirror copy.
+
+    About 5 patches per map, all three types on most maps.
+  - **Moisture:** `bedrock_moisture` shifts it by type (silt +0.12, granite −0.12).
+  - **Favourite bedrock** per plant (`bedrock` in `species.toml`): positive growth × (1 + `[flora] bedrock_boost` 0.15) in both flora step paths. Favourites:
+    - clay-limestone: wildflowers, bramble, hawthorn, oak;
+    - schist-granite: lichen, ferns, elder, chestnut;
+    - silt-sand: grasses, nettle, hazel, beech, the aquatic plants.
+  - **Client:**
+    - the terrain frame carries the bedrock;
+    - a Bedrock overlay with categorical colours (creamy yellow, dark grey, white) and a named legend;
+    - the cell card shows Moisture (with a word) and Bedrock;
+    - with a cell card open, plant tiles take `saturate(0.2 + 0.8 × suit)`, where suit is the moisture response × the bedrock boost over its best (`suitAt`); the food-web focus takes precedence;
+    - species cards say "Favours …".
+- **Balance:** judged by the user's play tests (no bot tuning).

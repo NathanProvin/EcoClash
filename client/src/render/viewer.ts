@@ -854,12 +854,12 @@ export class Viewer {
     const o = OVERLAYS.find((x) => x.id === this.overlay);
     if (!o) return;
     const n = this.replay.meta.n;
-    const values = overlayValues(o.id, fields, this.shown, n);
+    const values = overlayValues(o.id, fields, this.shown, n, this.replay.terrain);
     // Texture row 0 is the near edge (+z); grid row 0 the far edge: flip rows, as the ground.
     const flipped = new Float32Array(n * n);
     for (let k = 0; k < n * n; k++)
       flipped[(n - 1 - Math.floor(k / n)) * n + (k % n)] = values[k] ?? 0;
-    paintOverlay(flipped, OVERLAY_RAMPS[o.ramp], this.overlayData);
+    paintOverlay(flipped, OVERLAY_RAMPS[o.ramp], this.overlayData, o.classes !== undefined);
     this.overlayTex.needsUpdate = true;
   }
 

@@ -238,8 +238,8 @@ impl Sim {
         self.world.generate_terrain(&self.terrain, self.seed);
     }
 
-    /// The map for renderers (D-083): elevation (0..=255), then the ground class (0 land,
-    /// 1 shallow, 2 deep, 3 rock), `n * n` bytes each.
+    /// The map for renderers (D-083): elevation (0..=255), the ground class (0 land, 1 shallow,
+    /// 2 deep, 3 rock), then the bedrock (D-240, index in `terrain::BEDROCKS`), `n * n` bytes each.
     #[wasm_bindgen(js_name = terrainFrame)]
     pub fn terrain_frame(&self) -> Vec<u8> {
         let st = &self.world.state;
@@ -247,6 +247,7 @@ impl Sim {
             .iter()
             .map(|&e| u8::try_from(e >> 8).unwrap_or(u8::MAX))
             .chain(st.ground.iter().copied())
+            .chain(st.soil_type.iter().copied()) // bedrock (D-240)
             .collect()
     }
 
@@ -530,7 +531,8 @@ fn species_table(b: &Balance) -> String {
             "stats": {
                 "growth": s.growth, "spawn_cost": s.spawn_cost, "unlock_cost": s.unlock_cost,
                 "yield": s.yield_, "cap": s.cap, "effect": s.effect,
-                "water": s.water_optimum,
+                "water": s.water_optimum, "water_tolerance": s.water_tolerance,
+                "bedrock": s.bedrock, "bedrock_boost": b.flora.bedrock_boost,
             },
         })
     });

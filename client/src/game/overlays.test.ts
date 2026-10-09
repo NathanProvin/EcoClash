@@ -20,6 +20,22 @@ describe("overlays", () => {
     expect([...overlayValues("shade", fields, [], 2)]).toEqual([0, 0, 0.5, 1]); // relative
   });
 
+  it("shows the bedrock as classes, clear where there is none (D-240)", () => {
+    const terrain = {
+      elevation: new Uint8Array(4),
+      ground: new Uint8Array(4),
+      bedrock: new Uint8Array([1, 2, 3, 0]),
+      reliefM: 0,
+    };
+    const v = overlayValues("bedrock", fields, [], 2, terrain);
+    expect([v[0], v[1], v[2]]).toEqual([0, 0.5, 1]);
+    expect(Number.isNaN(v[3])).toBe(true);
+    const out = new Uint8Array(16);
+    paintOverlay(v, ["#000000", "#808080", "#ffffff"], out, true);
+    expect(out[3]).toBe(out[7]); // one opacity for every class
+    expect(out[15]).toBe(0); // no bedrock: clear
+  });
+
   it("counts plant and animal species for diversity", () => {
     const animals = [
       { id: 1, x: 1.5, y: 0.2, species: 3, owner: 1 }, // cell 1

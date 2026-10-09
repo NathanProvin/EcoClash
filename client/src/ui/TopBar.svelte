@@ -93,6 +93,7 @@
     diversity: "diversity",
     moisture: "water",
     shade: "shade",
+    bedrock: "rock",
   } as const;
   const QUALITIES: [Quality, string][] = [
     ["low", "Low"],
@@ -104,8 +105,16 @@
 </script>
 
 {#snippet legend(o: Overlay)}
-  <span class="legend-bar" style:background={gradient(o)}></span>
-  <span class="legend-ends"><span>low</span><span>{o.high}</span></span>
+  {#if o.classes}
+    <span class="legend-classes">
+      {#each o.classes as name, i (name)}
+        <span><i style:background={OVERLAY_RAMPS[o.ramp][i]}></i>{name}</span>
+      {/each}
+    </span>
+  {:else}
+    <span class="legend-bar" style:background={gradient(o)}></span>
+    <span class="legend-ends"><span>low</span><span>{o.high}</span></span>
+  {/if}
 {/snippet}
 
 {#snippet side(p: 1 | 2)}
@@ -204,7 +213,11 @@
                 disabled={off}
                 aria-pressed={overlay === o.id}
                 data-tour="overlay-{o.id}"
-                title={off ? "Live matches only" : `${o.label}: darker where ${o.high}`}
+                title={off
+                  ? "Live matches only"
+                  : o.classes
+                    ? `${o.label}: ${o.classes.join(", ")}`
+                    : `${o.label}: darker where ${o.high}`}
                 onclick={() => (overlay = overlay === o.id ? null : o.id)}
               >
                 <span class="disc">
@@ -578,6 +591,23 @@
   .legend-bar {
     height: 8px;
     border-radius: 4px;
+  }
+  /* Categorical overlays (D-240): a swatch and a name per class. */
+  .legend-classes {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.72em;
+    color: var(--ink-soft);
+  }
+  .legend-classes i {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+    border-radius: 2px;
+    vertical-align: -1px;
+    box-shadow: 0 0 0 1px var(--line, rgba(0, 0, 0, 0.25));
   }
   .legend-ends {
     display: flex;

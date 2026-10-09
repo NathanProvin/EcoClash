@@ -140,15 +140,43 @@ const ORDER = Object.keys(FAMILY);
  *  from the unit list or their strategic icon, not by clicking a dot (D-238). */
 export const isSwarm = (s: Species): boolean => s.kind === "fauna" && s.swarm === true;
 
+/** Bedrock keys and display names (D-240), by index in the terrain frame. */
+export const BEDROCK_KEYS = ["none", "clay_limestone", "schist_granite", "silt_sand"] as const;
+export const BEDROCK_NAMES = ["", "Clay-limestone", "Schist-granite", "Silt-sand"] as const;
+
+/** The bedrock a plant favours, in words (D-240); undefined when none. */
+export function rockOf(s: Species): string | undefined {
+  const i = BEDROCK_KEYS.findIndex((k) => k === s.stats.bedrock);
+  return i > 0 ? `Favours ${BEDROCK_NAMES[i]?.toLowerCase()}` : undefined;
+}
+
+/** How well a plant suits a cell (D-240), 0..1: its moisture response there (1 - distance to its
+ *  optimum / tolerance), times its boost on its favourite bedrock, over the best possible.
+ *  Undefined for animals. */
+export function suitAt(s: Species, moisture: number, bedrock: number): number | undefined {
+  if (s.kind !== "flora") return undefined;
+  const { water: opt, water_tolerance: tol, bedrock: fav, bedrock_boost: boost = 0 } = s.stats;
+  const wet =
+    opt !== undefined && tol ? Math.min(Math.max(1 - Math.abs(moisture - opt) / tol, 0), 1) : 1;
+  const on = fav !== undefined && fav !== null && fav === BEDROCK_KEYS[bedrock];
+  return (wet * (on ? 1 + boost : 1)) / (1 + boost);
+}
+
+/** A moisture level in words (D-239): dry, fresh (the middle), moist or wet. */
+export function wetness(w: number): "dry" | "fresh" | "moist" | "wet" {
+  if (w >= 0.75) return "wet";
+  if (w > 0.55) return "moist";
+  if (w < 0.45) return "dry";
+  return "fresh";
+}
+
 /** Where a plant grows best, from its water optimum (D-239); undefined for animals. */
 export function groundOf(s: Species): string | undefined {
   const w = s.stats.water;
   if (s.kind !== "flora" || w === undefined) return undefined;
   if (w >= 0.85) return "Grows in water";
-  if (w >= 0.75) return "Grows best on wet ground";
-  if (w > 0.55) return "Grows best on moist ground";
-  if (w < 0.45) return "Grows best on dry ground";
-  return "Grows on most ground";
+  const word = wetness(w);
+  return word === "fresh" ? "Grows on most ground" : `Grows best on ${word} ground`;
 }
 
 /** Display name of a family. */

@@ -13,6 +13,8 @@ const base: CellInfo = {
   lock: null,
   front: null,
   deadwood: 0,
+  moisture: null,
+  bedrock: 0,
   plants: [],
   animals: [],
 };

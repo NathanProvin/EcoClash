@@ -21,7 +21,7 @@ Victory conditions are defined in `INSTRUCTIONS.md` §2.3 (territory share or to
 
 ### 1.1 V1 scope
 
-- **Terrain:** a generated map with relief, a river, ponds and rock outcrops (§2.3, D-083); one basic soil type.
+- **Terrain:** a generated map with relief, a river, ponds and rock outcrops (§2.3, D-083); three bedrock types (D-240).
 - **Start (author's decision, D-095):** the whole map is **bare soil** and nobody owns a cell. Each player starts with a biomass budget; the clock runs from the start, and a player's first planting, anywhere on land, is their **spawn point**: water, relief and rocks around it are a strategic choice. Only lichen & moss is unlocked at start (D-118; grasses cost 200, earthworms 250). Either pioneer can found a colony: lichen & moss spread at about 3/4 the pace of grasses (D-104).
 - **Progression:** the landscape emerges through succession, **bare soil → meadow → increasingly developed shrub strata → forest**.
 - **Out of V1:** wet meadow and the other biomes (§2.2); pollinators and fire (`INSTRUCTIONS.md` §2.5).
@@ -61,9 +61,9 @@ Aquatic plants (family W) sit in the stratum of their height: they want the wate
 | **Wet meadow** | High water, medium nutrients | Sphagnum, sedges & rushes, cattails, alder | Slugs & snails, voles, frogs & toads, grey heron |
 | **Meadow & bocage** (hedgerow farmland) | Medium water and nutrients; lines of hedgerow cells | Grasses, wildflowers, nettle, bramble, elder, hawthorn & blackthorn, hedgerow oaks | Grasshoppers, pollinators, rabbits, hedgehog, buzzard, weasel, fox |
 
-### 2.3 Terrain modifiers [Placeholder — do NOT implement in V1]
+### 2.3 Terrain modifiers
 
-**V1:** one basic soil (loam); soil type and light modifiers equal 1.0.
+**Built:** moisture per species (D-239) and the bedrock (D-240, below). Light modifiers equal 1.0.
 
 **Terrain (author's decision, D-083, D-084):** every match has a generated map, the same for both players (180° symmetry):
 - **Relief (D-096):** hills, plateaus and winding valleys, with cliffs (rock bands broken by passes) on the steep steps. It shapes moisture: valleys and banks are wet, hills dry. There is no movement penalty.
@@ -75,13 +75,20 @@ Aquatic plants (family W) sit in the stratum of their height: they want the wate
 - **Territory:** rock and deep water are never owned, so borders stop at them.
 - **Homes** are kept dry, flat and rock-free.
 
-**Planned soil types:**
+**Bedrock (D-240).** Every generated map has a bedrock of three rock types, in a few large patches (about 4 to 6, in mirrored pairs) that follow the land:
 
-| Soil type | Properties | Favours | Penalises |
+| Rock type | Where | Moisture | Favoured by (+15 % growth) |
 |---|---|---|---|
-| Basic loam (V1 default) | Reference soil | — | — |
-| Sandy | Drains fast, low nutrients, acidic | Lichen, grasses, chestnut | Clover, hazel, beech |
-| Clay-limestone | Rich, retains water, alkaline | Beech, hawthorn, hazel, wildflowers | Chestnut (avoids limestone) |
+| **Clay-limestone** (alkaline, calcium-rich) | Low ground, along rivers and lakes | By relief alone (about half wet) | Wildflowers, bramble, hawthorn, oak |
+| **Schist-granite** (acidic, quick-draining) | High ground, around rock outcrops | Drier (−0.12) | Lichen & moss, ferns, elder, chestnut |
+| **Silt-sand** (deep, water-retentive) | Broad flats: valley floors and plateaus | Wetter (+0.12) | Grasses, nettle, hazel, beech, aquatic plants |
+
+- A plant on its favourite bedrock grows `bedrock_boost` (15 %) faster; elsewhere it grows normally.
+- Flat maps (sandbox, tests) have no bedrock.
+- **Read it:**
+  - the Bedrock overlay (creamy yellow, dark grey, white);
+  - the cell card's Moisture and Bedrock rows;
+  - with a cell card open, the build bar's plant tiles keep their colour where they suit that cell (moisture and bedrock) and fade where they do not.
 
 **Planned topography**, from an elevation field:
 - **Water:** accumulates in valley bottoms (flow accumulation) and is scarce on ridges and hilltops.

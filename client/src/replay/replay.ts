@@ -30,8 +30,12 @@ export interface Species {
     effect: string;
     /** Animals: top speed, cells per second (D-161). */
     speed?: number;
-    /** Plants: the moisture they grow best at, 0..1 (D-239). */
+    /** Plants: the moisture they grow best at, 0..1, and how far from it they still grow (D-239). */
     water?: number;
+    water_tolerance?: number;
+    /** Plants: the bedrock they grow best on, and the growth gained there (D-240). */
+    bedrock?: string | null;
+    bedrock_boost?: number;
   };
 }
 
@@ -71,6 +75,9 @@ export interface CellInfo {
   lock: { player: number; s: number } | null;
   /** Standing dead wood, 0..1 of a full dead stand (D-127): no tree grows there. */
   deadwood: number;
+  /** Moisture 0..1 (live only) and bedrock type (D-240; 0 none: flat maps and replays). */
+  moisture: number | null;
+  bedrock: number;
   plants: { name: string; level: number; cover: number }[]; // cover 0..1
   animals: { name: string; owner: number; count: number }[];
 }
@@ -255,6 +262,8 @@ export function cellAt(
     owner: f.owner[k] ?? 0,
     soil: (f.soil[k] ?? 0) / 255,
     ground: src.terrain?.ground[k] ?? 0,
+    moisture: f.moisture ? (f.moisture[k] ?? 0) / 255 : null,
+    bedrock: src.terrain?.bedrock?.[k] ?? 0,
     strata: f.cover.map((c) => (c[k] ?? 0) / 255),
     push: (f.pressure?.[k] ?? 0) / 255,
     front:

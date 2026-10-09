@@ -17,6 +17,8 @@ export const WATER = { surface: 0.5, deepBed: 1.5 } as const;
 export interface TerrainFrame {
   elevation: Uint8Array;
   ground: Uint8Array;
+  /** Bedrock type per cell (D-240): 0 none, 1 clay-limestone, 2 schist-granite, 3 silt-sand. */
+  bedrock?: Uint8Array;
   /** Metres from the lowest to the highest ground. */
   reliefM: number;
 }

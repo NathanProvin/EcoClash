@@ -1029,3 +1029,17 @@
   - `food_web` test: grasses' `spawn_cost` (30) is above wildflowers' (20), the tier above (user's tuning);
   - bots barely raid;
   - trees never planted in the bench.
+
+## 2026-10-09 (4) · Alpha 1.4: bedrock terroirs (D-240)
+- **Done:**
+  - bedrock generation (ranked leanings, blurred, merged into a few patches with every type kept);
+  - moisture shift by rock type; favourite-bedrock growth boost;
+  - Bedrock overlay; cell card Moisture and Bedrock rows; build-bar suiting tint; "Favours …" on cards.
+- **Tuning of the generator:**
+  - the raw scores let granite win every map, so they became ranks;
+  - silt came out in specks, so flatness is averaged over radius 2;
+  - the merge erased whole types, so each type now keeps its largest patch;
+  - a blur radius of 3 passes the checks.
+- **Tests:** patches ≤ 6, symmetric, clay lower than granite, silt wetter than granite, a favourite grows faster; client: `suitAt`, `rockOf`, bedrock overlay classes. Workspace green, native = WASM, client green.
+- **Note:** the user's wildflowers `spawn_cost` 20 → 40 went into the sim commit (it was in the working tree).
+- **Open:** user play tests of the terroirs.

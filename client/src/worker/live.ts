@@ -59,7 +59,7 @@ export type ToMain =
       timeLimitS: number;
       maxAgents: number;
       balanceHash: string;
-      terrain: ArrayBuffer; // elevation (0..255) then ground class, n * n bytes each
+      terrain: ArrayBuffer; // elevation (0..255), ground class, bedrock (D-240): n * n bytes each
       reliefM: number;
       botStyles: string; // each bot's style, "player:style" comma-separated (D-228)
     }
@@ -201,6 +201,7 @@ export class Live implements Source {
     this.terrain = {
       elevation: map.subarray(0, cells),
       ground: map.subarray(cells, 2 * cells),
+      bedrock: map.subarray(2 * cells, 3 * cells),
       reliefM: ready.reliefM,
     };
     this.victory = ready.victory;

@@ -20,6 +20,7 @@
     quickStats,
     roleName,
     groundOf,
+    rockOf,
   } from "../game/species";
   import type { Source, Species } from "../replay/replay";
   import type { Catastrophe } from "../game/catastrophes";
@@ -45,6 +46,7 @@
     onCast = () => {},
     popped = null,
     focus = null,
+    suit = null,
   }: {
     replay: Source;
     tick: number;
@@ -65,6 +67,8 @@
     popped?: string | null;
     /** The species whose food web the bar lights (D-232). */
     focus?: Species | null;
+    /** How well each plant suits the selected cell, 0..1 (D-240): tiles desaturate with it. */
+    suit?: ReadonlyMap<string, number> | null;
   } = $props();
 
   const TIERS = [1, 2, 3] as const;
@@ -91,6 +95,12 @@
         : r.includes("")
           ? ""
           : "dim";
+  };
+  /** A tile's saturation for the selected cell (D-240), when no food-web focus is shown. */
+  const tint = (names: string[]) => {
+    if (roles || !suit) return undefined;
+    const v = names.map((n) => suit.get(n)).filter((x) => x !== undefined);
+    return v.length ? `saturate(${(0.2 + 0.8 * Math.max(...v)).toFixed(2)})` : undefined;
   };
   const counts = $derived(replay.counts(tick, player));
   const count = (s: Species) => counts[species.indexOf(s)] ?? 0;
@@ -189,6 +199,7 @@
       <div class="group" role="group" onpointerenter={() => enter(g.name)} onpointerleave={leave}>
         <button
           class="item web-{webOf(g.species.map((s) => s.name))}"
+          style:filter={tint(g.species.map((s) => s.name))}
           class:open={open === g.name}
           class:armed={g.species.some((s) => s.name === planting)}
           class:pop={g.species.some((s) => s.name === popped)}
@@ -218,6 +229,7 @@
                       {@const state = cardOf(s)}
                       <button
                         class="tile {state} {MEDAL[s.tier - 1] ?? 'bronze'} web-{web(s.name)}"
+                        style:filter={tint([s.name])}
                         class:armed={planting === s.name}
                         class:pop={popped === s.name}
                         class:none={count(s) === 0 && state === "unlocked"}
@@ -303,6 +315,7 @@
       {/if}
       <em>{s.stats.effect}</em>
       {#if groundOf(s)}<span class="act">{groundOf(s)}</span>{/if}
+      {#if rockOf(s)}<span class="act">{rockOf(s)}</span>{/if}
     </div>
   {/if}
 </footer>

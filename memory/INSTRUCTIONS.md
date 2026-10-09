@@ -58,6 +58,7 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 - `water`: moisture. It modulates growth.
 - `dead_biomass`: litter, which decomposers consume.
 - `light`: optional and static in v1. Later reduced by tree canopy.
+- `soil_type`, the bedrock (D-240): three rock types (clay-limestone, schist-granite, silt-sand) in a few large symmetric patches following the land; each plant grows `bedrock_boost` faster on its favourite (`bedrock` in `species.toml`). Shown by the Bedrock overlay, the cell card and the build bar's suiting tint.
 - `ground` and `elevation` (D-083, D-084, D-096): a generated map per match, 180° symmetric. Each seed draws a map type (`[[terrain.map_types]]`, D-102: plains, meadows, hills, mountains, canyon, lakeland, marsh, lake) that sets the relief height and ruggedness (valleys, terraces, cliffs), the rock, and the water (none, a river along the low ground, a central lake fed by streams, flooded lowlands, plus ponds). Rock and deep water block plants and walkers; shallows slow walkers and let plants seep across. Animals path around obstacles (`pathing.rs`). The client draws it (D-085, `client/src/render/terrain.ts`): a displaced ground with the frontier painted in it, a depth-tinted water plane, instanced rock outcrops; everything on the ground takes its height from `Heightfield.at`.
 
 ### 2.3 Economy and victory

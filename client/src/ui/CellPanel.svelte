@@ -1,10 +1,11 @@
 <script lang="ts">
   // Cell card (D-031, D-100, D-163): the core facts of a cell at a glance, titles only. A header
   // in the owner's colour (whose, ground, health, lock and dead-wood chips), one full-width bar
-  // per height layer, soil and enemy push, then the plants and the animals on the cell, yours
+  // per height layer, soil, moisture, bedrock (D-240) and enemy push, then the plants and the animals on the cell, yours
   // and the enemy's apart. Details in tooltips.
   import { cellStatus, STATUS_TEXT, type CellStatus } from "../game/cell";
-  import { label } from "../game/species";
+  import { BEDROCK_NAMES, label, wetness } from "../game/species";
+  import { OVERLAY_RAMPS } from "../render/palette";
   import type { CellInfo, Species } from "../replay/replay";
   import Icon from "./Icon.svelte";
   import SpeciesIcon from "./SpeciesIcon.svelte";
@@ -113,6 +114,23 @@
       <span class="bar soil"><span style:width={css(info.soil)}></span></span>
       <span class="num">{pct(info.soil)}</span>
     </div>
+    {#if info.moisture !== null}
+      <div class="row" title="Moisture: each plant grows best at its own (D-239)">
+        <span class="name">Moisture</span>
+        <span class="bar moist"><span style:width={css(info.moisture)}></span></span>
+        <span class="num">{wetness(info.moisture)}</span>
+      </div>
+    {/if}
+    {#if info.bedrock}
+      <div class="row" title="Bedrock: plants that favour it grow 15 % faster here (D-240)">
+        <span class="name">Bedrock</span>
+        <span class="rock"
+          ><i style:background={OVERLAY_RAMPS.bedrock[info.bedrock - 1]}></i>{BEDROCK_NAMES[
+            info.bedrock
+          ]}</span
+        >
+      </div>
+    {/if}
     {#if info.front}
       {@const over = info.front.push > info.front.strength}
       {@const enemy = info.owner === 1 ? 2 : 1}
@@ -263,6 +281,23 @@
   }
   .bar.soil > span {
     background: linear-gradient(90deg, #8b6a43, #c49a5c);
+  }
+  .bar.moist > span {
+    background: linear-gradient(90deg, #8fb8d8, #2f6fa8);
+  }
+  /* The bedrock (D-240): its overlay swatch and its name, in the bar's column. */
+  .rock {
+    grid-column: span 2;
+    font-size: 0.9em;
+  }
+  .rock i {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+    border-radius: 2px;
+    vertical-align: -1px;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
   }
   .bar.push > span {
     background: linear-gradient(90deg, #b8402e, #e2452b);

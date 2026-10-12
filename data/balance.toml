@@ -211,10 +211,13 @@ rot_s = 600             # time for standing dead wood to rot away without recycl
 
 # Catastrophe cards (D-129, D-248): paid at each use, then cooling down (real seconds) before the
 # same player may play them again; each opens at available_s (real seconds into the match), the
-# cheap small ones first. They hit everything in their disc, both players alike. act: blight
+# cheap small ones first (D-252: a 3x3 grid). They hit everything in their disc, both players
+# alike. act: blight
 # (plants up to max_level lose `loss` of their biomass to litter), kill_trees (trees die
 # standing, D-127), storm (shrubs and trees felled to litter), spill (back to bare soil);
 # chance: per cell per flora tick while it acts.
+# The 3x3 grid (D-252): columns herbs, woody, fauna; rows cheap and small (0 min), mid (5-10 min),
+# costly and large (15-20 min).
 [catastrophes.aphid_outbreak]
 act = "blight"
 cost = 600
@@ -227,6 +230,26 @@ loss = 0.5
 available_s = 0
 effect = "Aphids swarm the herbs and undergrowth: in the area, they lose much of their growth."
 
+[catastrophes.processionary_caterpillars]
+act = "kill_trees"
+cost = 1200
+radius = 2
+cooldown_s = 120
+duration_s = 8
+chance = 0.35
+available_s = 0
+effect = "Processionary caterpillars strip the woods: the trees in the area die standing within seconds."
+
+[catastrophes.poisoned_bait]
+act = "cull"
+cost = 800
+radius = 1
+cooldown_s = 120
+duration_s = 0
+chance = 1.0
+available_s = 0
+effect = "Poisoned bait: every animal in the area dies, swarms too."
+
 [catastrophes.late_frost]
 act = "blight"
 cost = 2500
@@ -234,40 +257,61 @@ radius = 3
 cooldown_s = 150
 duration_s = 6
 chance = 0.5
-max_level = 3
-loss = 0.6
+max_level = 2
+loss = 0.7
 available_s = 300
-effect = "A late frost burns the herbs, undergrowth and shrubs of the area."
+effect = "A late frost burns the herbs and undergrowth of the area."
 
-[catastrophes.processionary_caterpillars]
-act = "kill_trees"
-available_s = 900
-cost = 15000
+[catastrophes.chainsaw]
+act = "fell"
+cost = 5000
+radius = 3
+cooldown_s = 240
+duration_s = 0
+chance = 1.0
+available_s = 600
+effect = "Loggers with chainsaws: every shrub and tree in the area is felled."
+
+[catastrophes.hunters]
+act = "cull"
+cost = 5000
+radius = 3
+cooldown_s = 240
+duration_s = 0
+chance = 1.0
+spare_swarms = true
+available_s = 600
+effect = "Hunters and their dogs: every animal in the area is shot, but the swarms slip through."
+
+[catastrophes.chemical_spill]
+act = "spill"
+cost = 10000
 radius = 4
 cooldown_s = 300
-duration_s = 8
-chance = 0.35
-effect = "Processionary caterpillars strip the woods: the trees in the area die standing within seconds."
+duration_s = 0
+chance = 1.0
+available_s = 900
+effect = "A chemical spill poisons the ground: back to bare soil, owned by no one."
 
 [catastrophes.storm]
 act = "storm"
-available_s = 1200
 cost = 22000
 radius = 9
 cooldown_s = 420
 duration_s = 6
 chance = 0.06
+available_s = 1200
 effect = "A violent storm sweeps a wide area: here and there, shrubs and trees are felled."
 
-[catastrophes.chemical_spill]
-act = "spill"
-available_s = 600
-cost = 10000
-radius = 1
-cooldown_s = 240
+[catastrophes.epidemic]
+act = "cull"
+cost = 15000
+radius = 8
+cooldown_s = 420
 duration_s = 0
-chance = 1.0
-effect = "A chemical spill poisons a few cells: back to bare soil, owned by no one."
+chance = 0.5
+available_s = 1200
+effect = "An epidemic sweeps the area: about half of the animals there die."
 
 # Weather (D-132): random events, one or two per half hour, each announced by a weather alert.
 # Times are real seconds. Factors apply while it lasts: growth on positive plant growth, speed

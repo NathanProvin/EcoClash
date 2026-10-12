@@ -18,7 +18,7 @@
     withUrl,
   } from "./game/setup";
   import { ALL_TIPS, loadSeen, saveSeen, TIPS, TipWatch } from "./game/tips";
-  import { CATASTROPHE_LOOK } from "./game/catastrophes";
+  import { lookOf } from "./game/catastrophes";
   import { advance, DEFEND_TITLE, OBJECTIVES, RAID, topUp, TUTORIAL_SETUP } from "./game/tutorial";
   import { loadReplay, type Fields, type Role, type Source, type Species } from "./replay/replay";
   import { Live, type Outcome } from "./worker/live";
@@ -982,12 +982,10 @@
           const c = live.catastrophes[e.card];
           if (!c) continue;
           const at = { row: e.row, col: e.col };
-          const look = CATASTROPHE_LOOK[c.act];
-          viewer.catastropheFx(c.act, at, c.radius, c.duration_s, look?.color ?? WORLD.alert);
-          const cue = { kill_trees: "fx.caterpillars", storm: "fx.storm", spill: "fx.spill" }[
-            c.act
-          ];
-          if (cue) audio.play(cue, { at: placeOf(at) });
+          const look = lookOf(c);
+          viewer.catastropheFx(c.act, at, c.radius, c.duration_s, look.color);
+          // By card (D-252): the act names never matched these keys, so cues were silent.
+          if (look.cue) audio.play(look.cue, { at: placeOf(at) });
           if (e.player !== me) {
             toast(`Enemy ${label(c.name).toLowerCase()}!`, "alert", at, 2);
             audio.play("fx.rumble", { gain: 0.8 }); // D-185

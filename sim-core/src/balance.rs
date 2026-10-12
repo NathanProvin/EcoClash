@@ -148,6 +148,10 @@ pub enum Act {
     Spill,
     /// Plants of levels up to `max_level` lose `loss` of their biomass to litter (D-248).
     Blight,
+    /// Shrubs and trees felled to litter, none left standing (the chainsaw, D-252).
+    Fell,
+    /// Each animal in the disc dies with `chance`; swarms spared with `spare_swarms` (D-252).
+    Cull,
 }
 
 /// `[catastrophes.<name>]` (D-129): one catastrophe card.
@@ -173,6 +177,9 @@ pub struct CatastropheRule {
     pub max_level: u8,
     #[serde(default = "one")]
     pub loss: f64,
+    /// Cull (D-252): swarms are spared (the hunters).
+    #[serde(default)]
+    pub spare_swarms: bool,
     /// The card's text for players.
     pub effect: String,
 }

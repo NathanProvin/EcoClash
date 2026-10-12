@@ -276,6 +276,8 @@ const DEFEND_CARDS: i64 = 4;
 const STALK_CELLS: usize = 3;
 /// Enemies this close to the bot's den (cells) are its worst threat (D-251).
 const DEN_GUARD: usize = 3;
+/// A cull card is worth its price on a cell with at least this many enemy animals (D-252).
+const CULL_HERD: i64 = 4;
 
 type Play = fn(&Bot, &View) -> Option<Payload>;
 
@@ -1375,6 +1377,24 @@ impl Bot {
                     .iter()
                     .copied()
                     .min_by_key(|&k| (dist2(k, n, v.home), k)),
+                Act::Fell => enemy
+                    .iter()
+                    .copied()
+                    .filter(|&k| tall(k, 3) > 0)
+                    .max_by_key(|&k| (tall(k, 3), k)),
+                // Culls (D-252): on the seen enemy cell with the most enemy animals.
+                Act::Cull => {
+                    let a = &w.fauna.agents;
+                    let mut herd = vec![0i64; n2];
+                    for j in (0..a.len()).filter(|&j| a.owner[j] == 3 - self.player) {
+                        herd[a.cell(j, n)] += 1;
+                    }
+                    enemy
+                        .iter()
+                        .copied()
+                        .filter(|&k| herd[k] >= CULL_HERD)
+                        .max_by_key(|&k| (herd[k], k))
+                }
                 // Just ahead of the raid: the enemy cell clear of own land nearest the breach.
                 Act::Blight => {
                     let aim = breach.map_or(v.home, |b| (b / n, b % n));

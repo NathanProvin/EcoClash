@@ -515,6 +515,70 @@ export const RECIPES: Record<string, Recipe> = {
       tone(c, o, t, { type: "sawtooth", f0: 70, dur: 1, gain: 0.05, lp: 300, attack: 0.2 });
     },
   },
+  // Chainsaw (D-252): a two-stroke rev, a buzz that bites and slows, then idles.
+  "fx.chainsaw": {
+    bus: "fx",
+    ms: 2200,
+    play: (c, o, t, _p, n) => {
+      tone(c, o, t, {
+        type: "sawtooth",
+        f0: 90,
+        f1: 260,
+        dur: 0.5,
+        gain: 0.08,
+        lp: 1800,
+        attack: 0.05,
+      });
+      tone(c, o, t + 0.5, { type: "sawtooth", f0: 260, f1: 180, dur: 1.2, gain: 0.09, lp: 2400 });
+      tone(c, o, t + 1.7, { type: "sawtooth", f0: 180, f1: 80, dur: 0.5, gain: 0.05, lp: 900 });
+      hiss(c, o, t + 0.5, n, { type: "bandpass", f0: 3000, q: 1.5, dur: 1.2, gain: 0.07 });
+    },
+  },
+  // Hunters (D-252): dogs barking, then a few gunshots.
+  "fx.hunters": {
+    bus: "fx",
+    ms: 2400,
+    play: (c, o, t, _p, n) => {
+      for (const [d, f] of [
+        [0, 520],
+        [0.25, 480],
+        [0.6, 560],
+        [0.85, 500],
+      ] as const) {
+        tone(c, o, t + d, { type: "square", f0: f, f1: f * 0.6, dur: 0.12, gain: 0.06, lp: 1400 });
+        hiss(c, o, t + d, n, { type: "bandpass", f0: 900, q: 2, dur: 0.1, gain: 0.06 });
+      }
+      for (const d of [1.1, 1.6, 1.75]) {
+        hiss(c, o, t + d, n, {
+          type: "lowpass",
+          f0: 4000,
+          f1: 300,
+          dur: 0.35,
+          gain: 0.5,
+          attack: 0.002,
+        });
+        tone(c, o, t + d, { type: "sine", f0: 120, f1: 40, dur: 0.3, gain: 0.2, attack: 0.002 });
+      }
+    },
+  },
+  // Poisoned bait (D-252): a low, sickly drop.
+  "fx.bait": {
+    bus: "fx",
+    ms: 900,
+    play: (c, o, t) => {
+      tone(c, o, t, { type: "triangle", f0: 330, f1: 140, dur: 0.7, gain: 0.08, lp: 1200 });
+    },
+  },
+  // Epidemic (D-252): a slow, wavering hum.
+  "fx.epidemic": {
+    bus: "fx",
+    ms: 1800,
+    play: (c, o, t, _p, n) => {
+      tone(c, o, t, { type: "sine", f0: 140, f1: 110, dur: 1.6, gain: 0.08, attack: 0.4 });
+      tone(c, o, t + 0.1, { type: "sine", f0: 147, f1: 104, dur: 1.5, gain: 0.06, attack: 0.4 });
+      hiss(c, o, t, n, { type: "lowpass", f0: 600, dur: 1.6, gain: 0.08, attack: 0.5 });
+    },
+  },
   "fx.caterpillars": {
     bus: "fx",
     ms: 900,

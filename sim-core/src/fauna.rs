@@ -61,7 +61,7 @@ pub struct FaunaParams {
     /// Recyclers' foods by rank (D-127): `LITTER`, `DEADWOOD`, or 0.
     rank_rot: Vec<[u8; DIET_RANKS]>,
     small: Vec<bool>,
-    /// Drawn and counted as a swarm (D-065): a view for renderers and the bot, not hashed.
+    /// Drawn and counted as a swarm (D-065); the hunters card spares swarms (D-252): hashed.
     pub swarm: Vec<bool>,
     /// Energy capacity, in biomass units (full energy = body x ONE).
     pub body: Vec<i64>,
@@ -396,6 +396,7 @@ impl FaunaParams {
         ] {
             h.i64s(v);
         }
+        h.bytes(&self.swarm.iter().map(|&w| u8::from(w)).collect::<Vec<u8>>());
         h.i64s(&[
             self.transfer,
             self.diet_yield[0],
@@ -1576,6 +1577,36 @@ impl Fauna {
             .zip(&p.per_cell)
             .map(|(c, &d)| c.map(|x| div_round(x * d, ONE_I)))
             .collect()
+    }
+
+    /// A cull (D-252): each animal standing in `cells` dies with `chance` (Q16), swarms spared
+    /// when `spare_swarms`; its carcass becomes litter, as a starved animal's.
+    pub fn cull(
+        &mut self,
+        st: &mut FloraState,
+        cells: &[usize],
+        chance: i64,
+        spare_swarms: bool,
+        rng: &mut Pcg32,
+    ) {
+        let n = st.n;
+        let mut hit = vec![false; n * n];
+        for &k in cells {
+            hit[k] = true;
+        }
+        let a = &mut self.agents;
+        let mut alive = vec![true; a.len()];
+        for i in 0..a.len() {
+            let (s, k) = (usize::from(a.sp[i]), a.cell(i, n));
+            if !hit[k] || (spare_swarms && self.p.swarm[s]) {
+                continue;
+            }
+            if i64::from(rng.below(1 << 16)) < chance {
+                alive[i] = false;
+                st.dead[k] += self.p.body[s] / 2;
+            }
+        }
+        a.retain(&alive);
     }
 
     /// Found `player`'s land den on cell `k` if it has none (D-245): its first planting.

@@ -411,17 +411,17 @@ Intended cycle, tuned with the bench (not hard-coded): rush beats tall (its valu
 
 ---
 
-## 10b. Catastrophe cards (D-129, D-248)
+## 10b. Catastrophe cards (D-129, D-248, D-252)
 
 Cards at the far right of the build bar: no unlock, paid at each use, then cooling down before the same player may play them again. Each card opens at a match time (`available_s`): cheap small ones from the start, the big ones later. They hit **everything** in their disc, both players' plants alike, so aiming matters. Values in `data/balance.toml` `[catastrophes.*]`.
 
-| Card | Opens | Area | Effect | Cost · cooldown |
-|---|---|---|---|---|
-| Aphid outbreak | 0 min | radius 2 | Herbs and undergrowth (L1–L2) lose part of their biomass to litter (blight) | 600 · 90 s |
-| Late frost | 5 min | radius 3 | Blight of L1–L3 | 2500 · 150 s |
-| Chemical spill | 10 min | radius 1 | The cells go back to bare soil: no plants, litter, dead wood or soil development, owned by no one | 10000 · 4 min |
-| Processionary caterpillars (D-130) | 15 min | radius 4 | Over 8 s, the tree stands die and stay as standing dead trees (§6, D-127) | 15000 · 5 min |
-| Violent storm | 20 min | radius 9 | Over 6 s, some cells lose all their shrubs and trees: the shrubs fall to litter, the trees are windthrown and stand on as dead trees (§6.2, D-227) | 22000 · 7 min |
+Nine cards in a 3×3 grid (D-252): columns by what they hit, rows by price, size and opening time.
+
+| | Herbs (L1–L2) | Woody (L3–L4) | Fauna |
+|---|---|---|---|
+| **Cheap**, from 0 min | Aphid outbreak: r2, herbs lose half their biomass · 600 · 90 s | Processionary caterpillars: r2, trees die standing (D-127) · 1200 · 120 s | Poisoned bait: r1, every animal dies, swarms too · 800 · 120 s |
+| **Mid**, from 5–10 min | Late frost: r3, herbs lose 70 % · 2500 · 150 s | Chainsaw: r3, every shrub and tree felled to litter · 5000 · 240 s | Hunters: r3, every non-swarm animal shot · 5000 · 240 s |
+| **Large**, from 15–20 min | Chemical spill: r4, back to bare soil, nobody's · 10000 · 300 s | Violent storm: r9, shrubs felled, trees windthrown here and there · 22000 · 420 s | Epidemic: r8, about half of the animals die · 15000 · 420 s |
 
 ## 10c. Weather (D-132)
 

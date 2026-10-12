@@ -2940,3 +2940,17 @@ Template:
   - The den is drawn as a low-poly burrow (a stick lodge for water) with an owner ring. The enemy's appears once in sight.
   - Bots raid a seen enemy den first, and weigh enemies within 3 cells of their own den most.
 - **Why:** a MOBA-style second goal. Raids now have a decisive target, and defence a place to hold.
+
+## D-252 · 2026-10-12 · A 3×3 catastrophe grid (amends D-248)
+- **Status:** accepted (user's play test; the grid layout was chosen from a proposal)
+- **Decision:** nine cards. Columns are what they hit (herbs, woody, fauna); rows are price, size and opening time (cheap at 0 min, mid at 5–10 min, large at 15–20 min). Values are in gamerules §10b.
+  - **New acts:**
+    - `fell`: the chainsaw fells shrubs and trees to litter;
+    - `cull`: each animal in the disc dies with `chance`, with `spare_swarms` for the hunters. It is used by poisoned bait (all), hunters (non-swarm) and the epidemic (half).
+  - **Re-tiered:**
+    - caterpillars: cheap, r2, 1 200;
+    - frost: herbs only;
+    - spill: r4 at 15 min.
+  - **Client:** a looks table by card (icon, colour, sound cue, grid cell). New procedural sounds: chainsaw, hunters (dogs and gunshots), bait, epidemic.
+    - This fixes the catastrophe cues, which never played: the table's act names never matched the keys.
+  - **Bots:** hard fells visible woods and culls visible herds of 4 or more.

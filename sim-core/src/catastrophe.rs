@@ -8,13 +8,17 @@
 //! - `spill` (chemical spill): the cells go back to bare soil: no plants, litter, dead wood or
 //!   soil development, and nobody owns them;
 //! - `blight` (aphids, late frost; D-248): plants up to `max_level` lose `loss` of their biomass
-//!   to litter.
+//!   to litter;
+//! - `fell` (chainsaw, D-252): shrubs and trees felled to litter;
+//! - `cull` (poisoned bait, hunters, epidemic; D-252): each animal in the disc dies with `chance`,
+//!   swarms spared with `spare_swarms`; carcasses become litter.
 //!
 //! Each card opens at `available_s` into the match (D-248): cheap small ones first.
 
 use crate::balance::{Act, Balance};
 use crate::commands::disc;
 use crate::economy::Economy;
+use crate::fauna::Fauna;
 use crate::fixed::ONE;
 use crate::flora::{Flora, FloraState, round};
 use crate::hash::Hasher;
@@ -41,6 +45,7 @@ pub struct CatastropheParams {
     /// Blight (D-248): highest level hit, and the share of biomass lost (Q16).
     max_level: Vec<u8>,
     loss: Vec<i64>,
+    spare_swarms: Vec<bool>,
     /// Ticks per second, to tell players how long a cooldown has left.
     hz: u64,
 }
@@ -72,6 +77,7 @@ impl CatastropheParams {
                 .collect(),
             max_level: c.iter().map(|r| r.max_level).collect(),
             loss: c.iter().map(|r| round(r.loss * one)).collect(),
+            spare_swarms: c.iter().map(|r| r.spare_swarms).collect(),
             hz: u64::from(b.sim.tick_hz.max(1)),
         }
     }
@@ -101,6 +107,9 @@ impl CatastropheParams {
             .i64s(&self.chance)
             .i64s(&self.loss)
             .bytes(&self.max_level);
+        for &s in &self.spare_swarms {
+            h.u64(u64::from(s));
+        }
         for &t in &self.open {
             h.u64(t);
         }
@@ -177,11 +186,17 @@ impl Catastrophes {
     }
 
     /// One flora tick of every catastrophe at work, in cast order; spent ones end.
-    pub fn act(&mut self, flora: &Flora, st: &mut FloraState, rng: &mut Pcg32) {
+    pub fn act(&mut self, flora: &Flora, st: &mut FloraState, fauna: &mut Fauna, rng: &mut Pcg32) {
         let n = st.n;
         for a in &mut self.active {
             let (act, chance) = (self.p.act[a.kind], self.p.chance[a.kind]);
-            for k in disc(n, a.row, a.col, self.p.radius[a.kind]) {
+            let cells = disc(n, a.row, a.col, self.p.radius[a.kind]);
+            if act == Act::Cull {
+                fauna.cull(st, &cells, chance, self.p.spare_swarms[a.kind], rng);
+                a.left -= 1;
+                continue;
+            }
+            for k in cells {
                 if i64::from(rng.below(1 << 16)) >= chance {
                     continue;
                 }
@@ -198,6 +213,8 @@ impl Catastrophes {
                     Act::Blight => {
                         flora.blight(st, k, self.p.max_level[a.kind], self.p.loss[a.kind]);
                     }
+                    Act::Fell => flora.fell(st, k, 3),
+                    Act::Cull => {}
                 }
             }
             a.left -= 1;

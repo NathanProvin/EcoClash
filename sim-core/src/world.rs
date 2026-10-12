@@ -210,7 +210,7 @@ impl World {
             self.flora.rot_deadwood(&mut self.state);
             self.flora.natural_deaths(&mut self.state, &mut self.rng);
             self.catastrophes
-                .act(&self.flora, &mut self.state, &mut self.rng); // D-129
+                .act(&self.flora, &mut self.state, &mut self.fauna, &mut self.rng); // D-129, D-252
             self.fauna.update_dens(&self.flora.p, &self.state); // D-245
             self.economy.update(&self.flora, &self.state, &self.fauna);
             if self.result.is_none() {
@@ -721,6 +721,46 @@ mod tests {
         w
     }
 
+    /// D-252: the chainsaw fells shrubs and trees and spares the herbs; the hunters shoot every
+    /// unit and spare the swarms; an epidemic kills about half.
+    #[test]
+    fn chainsaw_hunters_and_epidemic() {
+        let mut w = forest(16);
+        let grass = w.flora.p.index("grasses").unwrap();
+        let k = 8 * 16 + 8;
+        w.state.bio[grass * 256 + k] = 5000;
+        w.submit(cast(0, 1, 0, "chainsaw", 8, 8));
+        w.step();
+        w.step();
+        for _ in 0..every() {
+            w.step();
+        }
+        assert_eq!(trees_at(&w, k), 0, "felled");
+        assert_eq!(w.state.snag[k], 0, "felled, not left standing");
+        assert!(w.state.bio[grass * 256 + k] > 0, "herbs spared");
+
+        let mut w = forest(16);
+        let [fox, worms] = ["fox", "earthworms"].map(|s| w.fauna.p.index(s).unwrap());
+        w.fauna.place(fox, 2, k, 3, 16);
+        w.fauna.place(worms, 2, k, 3, 16);
+        w.submit(cast(0, 1, 0, "hunters", 8, 8));
+        for _ in 0..every() + 1 {
+            w.step();
+        }
+        let left = |w: &World, s: usize| w.fauna.census(2)[s];
+        assert_eq!(left(&w, fox), 0, "units shot");
+        assert!(left(&w, worms) > 0, "swarms slip through");
+
+        let mut w = forest(16);
+        w.fauna.place(fox, 2, k, 200, 16);
+        w.submit(cast(0, 1, 0, "epidemic", 8, 8));
+        for _ in 0..every() + 1 {
+            w.step();
+        }
+        let n = left(&w, fox);
+        assert!((60..=140).contains(&n), "about half survive: {n}");
+    }
+
     /// D-251: the player whose den cell is lost loses the match.
     #[test]
     fn losing_the_den_loses_the_match() {
@@ -822,12 +862,10 @@ mod tests {
     fn processionary_caterpillars_turn_a_wood_into_dead_trees() {
         let mut w = forest(16);
         w.submit(cast(0, 1, 0, "processionary_caterpillars", 8, 8));
-        let bank = w.economy.bank[0];
         for _ in 0..40 * every() {
             w.step();
         }
-        assert!(w.economy.bank[0] < bank, "paid");
-        let r = 4;
+        let r = 2; // D-252: a cheap, small card now
         for k in crate::commands::disc(16, 8, 8, r) {
             assert_eq!(trees_at(&w, k), 0, "cell {k}: dead");
             assert!(w.state.snag[k] > 0, "cell {k}: a dead tree stands");

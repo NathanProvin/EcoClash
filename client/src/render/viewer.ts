@@ -86,10 +86,10 @@ const TINT = { wet: 1.5, dry: [0.55, 0.9], rock: [0.03, 0.1] } as const;
 /** Map overlays (D-135) float this far above the ground (m). */
 const OVERLAY_LIFT = 0.1;
 /** Opacity (0..255) of the fog (D-249): over cells never seen, and over cells seen before. */
-const FOG_DARK = 250;
-const FOG_SEEN = 185;
-/** The fog's colour: a dark grey haze (D-249). */
-const FOG_GREY = "#45474b";
+const FOG_DARK = 215;
+const FOG_SEEN = 130;
+/** The fog's colour: a light grey haze (D-249, play test). */
+const FOG_GREY = "#c4c7cb";
 /** The sun's shadow map is redrawn every this many frames: shadows lag one frame behind the wind,
  *  invisibly, for half the shadow-pass cost (D-090). */
 const SHADOW_EVERY = 4; // D-151 (was 2): the sun barely moves
@@ -339,10 +339,10 @@ export class Viewer {
     });
     // Dark grey haze drifting slowly over the fogged land: two baked noise lookups, no geometry.
     const fog = texture(this.fogTex, uv());
-    const drift = this.noise(0.05, "g", time.mul(0.015));
-    const wisp = this.noise(0.13, "b", time.mul(-0.025));
-    fogMat.colorNode = color(FOG_GREY).mul(float(1).add(drift.mul(0.3)).add(wisp.mul(0.15)));
-    fogMat.opacityNode = fog.a.mul(float(0.97).add(drift.mul(0.03))).clamp(0, 1);
+    const drift = this.noise(0.05, "g", time.mul(0.0075));
+    const wisp = this.noise(0.13, "b", time.mul(-0.0125));
+    fogMat.colorNode = color(FOG_GREY).mul(float(1).add(drift.mul(0.06)).add(wisp.mul(0.03)));
+    fogMat.opacityNode = fog.a.mul(float(0.985).add(drift.mul(0.015))).clamp(0, 1);
     this.fogMesh = new THREE.Mesh(this.ground.geometry, fogMat);
     this.fogMesh.position.y = OVERLAY_LIFT;
     this.fogMesh.renderOrder = 19;

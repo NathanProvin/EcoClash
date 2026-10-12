@@ -1829,15 +1829,20 @@
     gap: 10px;
     margin-top: 8px;
   }
+  /* Bottom left, where the perf box shows (play test): it no longer covers the map. */
   .waiting {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    position: fixed;
+    left: 12px;
+    bottom: 96px;
+    z-index: 20;
     margin: 0;
     font-weight: 700;
   }
   .invite {
+    top: 50%;
+    left: 50%;
+    bottom: auto;
+    transform: translate(-50%, -50%);
     display: grid;
     gap: 8px;
     justify-items: center;

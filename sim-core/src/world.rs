@@ -38,6 +38,8 @@ pub enum Reason {
     TerritoryShare,
     /// Time limit, everything tied.
     Draw,
+    /// A player's den fell (D-251): its cell is not its owner's any more.
+    Den,
 }
 
 /// The verdict: the winner (0 for a draw), why, and the tick it was reached.
@@ -440,6 +442,19 @@ impl World {
                 tick,
             })
         };
+        // The den is the heart (D-251): whoever loses its den cell loses; both on one tick, a draw.
+        let fallen = [1u8, 2].map(|p| {
+            let den = self.fauna.dens[usize::from(p) - 1][0];
+            den != NO_DEN && self.state.owner.get(den) != Some(&p)
+        });
+        if !self.economy.tutorial && fallen.contains(&true) {
+            let winner = match fallen {
+                [true, true] => 0,
+                [true, false] => 2,
+                _ => 1,
+            };
+            return outcome(winner, Reason::Den);
+        }
         // The tutorial (D-141) never ends on territory: its objectives end it, and the bot must stay
         // alive to raid the player.
         if !self.economy.tutorial && t[usize::from(top - 1)] * i64::from(ONE) >= threshold * n2 {
@@ -704,6 +719,24 @@ mod tests {
             r.fill(0); // every card open (D-248 has its own test)
         }
         w
+    }
+
+    /// D-251: the player whose den cell is lost loses the match.
+    #[test]
+    fn losing_the_den_loses_the_match() {
+        let mut w = World::new(&balance(), 3, 16);
+        w.setup_plant(1, "grasses", 4, 4, 2);
+        w.setup_plant(2, "grasses", 12, 12, 2);
+        w.fauna.found_den(1, 4 * 16 + 4);
+        w.fauna.found_den(2, 12 * 16 + 12);
+        w.step();
+        assert!(w.result.is_none());
+        w.state.owner[4 * 16 + 4] = 2; // P2 took P1's den cell
+        for _ in 0..every() {
+            w.step();
+        }
+        let o = w.result.expect("decided");
+        assert_eq!((o.winner, o.reason), (2, Reason::Den));
     }
 
     /// D-249: an own grass cell sees 1 cell, a tree cell 4, an animal its sight; the enemy's

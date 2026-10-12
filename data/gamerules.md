@@ -326,7 +326,8 @@ A species can be bought when **all** of the following hold:
 3. The player has a **den** for its medium:
    - **Land den:** the player's first planted cell (the spawn, D-095). Walkers, amphibious animals, fliers and recyclers appear there.
    - **Water den:** the player's first own cell where an aquatic plant takes. Swimmers appear there.
-   - A lost den moves to the player's own cell nearest it; with no own cell, nothing can be bought.
+   - **The land den is the player's heart (D-251):** it never moves, and a player whose den cell is not theirs any more (taken, grazed bare, poisoned) loses the match at once, like a MOBA ancient. Both on one tick: a draw. The water den moves to the nearest own cell with an aquatic plant.
+   - The den shows as a burrow (a stick lodge for the water den), visible to the enemy once in sight.
 
 Every bought animal appears at its den, at the base price, wherever the player clicks: there are no remote drops. Raids walk across the front, and a defence needs hunters living near it or sent in time.
 

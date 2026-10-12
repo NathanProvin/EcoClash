@@ -1586,10 +1586,9 @@ impl Fauna {
         }
     }
 
-    /// Keep each player's dens on its land (D-245): a lost land den moves to the player's own land
-    /// cell nearest it; the water den is the own cell with an established aquatic plant nearest
-    /// the old one (or the land den), found as soon as one exists. A player with no land keeps
-    /// its old den cells, unusable until land comes back.
+    /// Keep each player's water den on its land (D-245): the own cell with an established aquatic
+    /// plant nearest the old one (or the land den), found as soon as one exists. The land den
+    /// never moves: losing its cell loses the match (D-251).
     pub fn update_dens(&mut self, fl: &FloraParams, st: &FloraState) {
         let (n, n2) = (st.n, st.n * st.n);
         for player in [1u8, 2] {
@@ -1611,8 +1610,6 @@ impl Fauna {
             if land == NO_DEN {
                 // Founded outside a command (tests, tools): the own cell nearest the map centre.
                 land = seek(&land_ok, n2 / 2 + n / 2).unwrap_or(NO_DEN);
-            } else if !land_ok(land) {
-                land = seek(&land_ok, land).unwrap_or(land);
             }
             let mut water = water;
             if water == NO_DEN || !pond(water) {
@@ -2349,19 +2346,18 @@ mod tests {
         );
     }
 
-    /// D-245: a lost den moves to the nearest own land cell; swimmers need a water den, found
-    /// on the first own cell with an aquatic plant.
+    /// D-245, D-251: the land den stays put when its cell is lost; swimmers need a water den,
+    /// found on the first own cell with an aquatic plant.
     #[test]
-    fn a_lost_den_moves_and_swimmers_need_a_water_den() {
+    fn the_land_den_stays_and_swimmers_need_a_water_den() {
         let (fl, mut fa, mut st, _) = setup(16);
         meadow(&fl, &mut st, "grasses");
         let den = 2 * 16 + 3;
         fa.found_den(1, den);
         st.owner[den] = 2;
         fa.update_dens(&fl.p, &st);
-        let moved = fa.dens[0][0];
-        assert_eq!(st.owner[moved], 1);
-        assert_eq!(dist2(moved, den, 16), 1, "the nearest own cell");
+        assert_eq!(fa.dens[0][0], den, "the den does not move");
+        st.owner[den] = 1;
 
         let roach = fa.p.index("roach").unwrap();
         let algae = fl.p.index("algae_and_lilies").unwrap();

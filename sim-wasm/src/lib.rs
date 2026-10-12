@@ -103,6 +103,7 @@ impl Sim {
                 Reason::Biomass => "biomass",
                 Reason::TerritoryShare => "territory share",
                 Reason::Draw => "draw",
+                Reason::Den => "den",
             };
             serde_json::json!({ "winner": o.winner, "reason": reason, "tick": o.tick }).to_string()
         })

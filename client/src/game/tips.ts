@@ -30,6 +30,11 @@ export const TIPS: Tip[] = [
     text: "Your plants spread on their own. Plant more: open Herbs in the bar, pick a species, click your land.",
   },
   {
+    id: "den",
+    when: (p) => p.t >= 20,
+    text: "The burrow where you first planted is your den: your animals come out there, and if the enemy takes its cell, you lose.",
+  },
+  {
     id: "shift",
     when: (p) => p.t >= 30,
     text: "Hold Shift while you click to plant the same card again and again, without picking it each time.",

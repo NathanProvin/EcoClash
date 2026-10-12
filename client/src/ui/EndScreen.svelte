@@ -41,6 +41,10 @@
       biomass: `Time's up: P${outcome.winner} had the most standing biomass.`,
       "territory share": `Time's up, biomass tied: P${outcome.winner} held more land.`,
       draw: "Time's up: a perfect tie.",
+      den:
+        outcome.winner === 0
+          ? "Both dens fell at once."
+          : `P${outcome.winner} took the enemy's den.`, // D-251
       left: "Your opponent left the match.", // D-221
       desync: "The two simulations disagreed: the match is void.",
     }[outcome.reason] ?? outcome.reason,

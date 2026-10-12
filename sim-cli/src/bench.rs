@@ -787,13 +787,14 @@ pub fn summary(ms: &[Markers], seats: [Seat; 2]) -> String {
     };
     let _ = writeln!(
         t,
-        "wins P1 {} / P2 {} / draw {} / unfinished {}; by territory {}, biomass {}",
+        "wins P1 {} / P2 {} / draw {} / unfinished {}; by territory {}, biomass {}, den {}",
         wins(1),
         wins(2),
         wins(0),
         ms.iter().filter(|m| m.end.is_none()).count(),
         reasons(Reason::Territory),
-        reasons(Reason::Biomass)
+        reasons(Reason::Biomass),
+        reasons(Reason::Den)
     );
     let _ = write!(t, "{}", shape(ms));
     let _ = write!(t, "{}", fingerprints(ms));

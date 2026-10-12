@@ -467,18 +467,21 @@
     const names = live?.meta.fauna.names ?? [];
     return Object.fromEntries(names.map((name, i) => [name, caps[i] ?? 0]));
   });
-  /** Your dens on screen (D-245), refreshed every frame. */
-  let denMarks: { x: number; y: number; water: boolean }[] = $state([]);
-  function projectDens() {
+  /** The dens on the map (D-245, D-251): yours always, the enemy's once in sight. */
+  function showDens() {
     const v = viewer;
     const l = live;
     if (!v || !l) return;
-    const n = l.meta.n;
-    denMarks = (l.dens[me - 1] ?? []).flatMap((k, i) => {
-      if (k < 0) return [];
-      const at = v.screenPoint({ row: Math.floor(k / n), col: k % n });
-      return at.inView ? [{ x: at.x, y: at.y, water: i === 1 }] : [];
-    });
+    const vis = l.fields().vis;
+    v.setDens(
+      [1, 2].flatMap((p) =>
+        (l.dens[p - 1] ?? []).flatMap((cell, i) =>
+          cell >= 0 && (p === me || !l.fog || vis?.[cell])
+            ? [{ cell, water: i === 1, owner: p }]
+            : [],
+        ),
+      ),
+    );
   }
 
   /** Each toast kind's cue (D-177). */
@@ -998,7 +1001,7 @@
       viewer.render(frameTick);
       const after = performance.now();
       projectIcons(); // after the camera moved this frame
-      projectDens();
+      showDens();
       const v = viewer;
       juice?.follow((c) => v.screenPoint(c)); // marks stay on their cells (D-234)
       appTiming.add("icons", performance.now() - after);
@@ -1475,16 +1478,6 @@
     oncontextmenu={(e) => e.preventDefault()}
   ></canvas>
 
-  {#each denMarks as d (d.water)}
-    <span
-      class="den"
-      class:water={d.water}
-      style:left="{d.x}px"
-      style:top="{d.y}px"
-      title={d.water ? "Water den: your swimmers appear here" : "Den: your animals appear here"}
-      >⌂</span
-    >
-  {/each}
   {#if box}
     <div
       class="box"
@@ -1755,20 +1748,6 @@
   }
   canvas.dropping {
     cursor: none !important; /* the ghost model is the cursor (D-079) */
-  }
-  .den {
-    position: absolute;
-    transform: translate(-50%, -110%);
-    padding: 0 6px;
-    border-radius: 999px;
-    font-size: 0.9em;
-    font-weight: 700;
-    color: #2b1d0e;
-    background: #c9a46a;
-    pointer-events: none;
-  }
-  .den.water {
-    background: #7fb6d6;
   }
   .box {
     position: absolute;

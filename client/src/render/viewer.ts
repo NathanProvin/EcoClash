@@ -32,6 +32,7 @@ import {
 } from "three/tsl";
 import { interpolate, type Animal, type Fields, type Source } from "../replay/replay";
 import { OVERLAYS, overlayValues, paintOverlay, type OverlayId } from "../game/overlays";
+import { denModel } from "./den";
 import { AnimalView } from "./animals";
 import { OrderLines, type OrderKind } from "./orders";
 import { Ghost, type GhostSpec } from "./ghost";
@@ -155,6 +156,9 @@ export class Viewer {
     this.fogFor = p;
     this.paintFog(this.lastFields?.vis);
   }
+  /** Den models (D-245, D-251), rebuilt when the dens change. */
+  private readonly dens = new THREE.Group();
+  private denKey = "";
   /** Cells seen at least once (D-249). */
   private explored: Uint8Array | null = null;
   private readonly fogData: Uint8Array;
@@ -913,6 +917,21 @@ export class Viewer {
       flipped[(n - 1 - Math.floor(k / n)) * n + (k % n)] = values[k] ?? 0;
     paintOverlay(flipped, OVERLAY_RAMPS[o.ramp], this.overlayData, o.classes !== undefined);
     this.overlayTex.needsUpdate = true;
+  }
+
+  /** Show the dens (D-245, D-251): `cell` row-major, `water` for a water den. */
+  setDens(dens: readonly { cell: number; water: boolean; owner: number }[]): void {
+    const key = dens.map((d) => `${d.cell}${d.water ? "w" : ""}${d.owner}`).join(",");
+    if (key === this.denKey) return;
+    this.denKey = key;
+    if (!this.dens.parent) this.scene.add(this.dens);
+    this.dens.clear();
+    const n = this.replay.meta.n;
+    for (const d of dens) {
+      const m = denModel(d.water, PLAYER[d.owner === 2 ? 2 : 1].base);
+      m.position.copy(this.centre({ row: Math.floor(d.cell / n), col: d.cell % n }));
+      this.dens.add(m);
+    }
   }
 
   /** Dim the cells out of `fogPlayer`'s sight (D-249); none without fog. */

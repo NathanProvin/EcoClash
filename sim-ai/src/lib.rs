@@ -274,6 +274,8 @@ const DEFEND_CARDS: i64 = 4;
 
 /// Cells around an enemy hunter where it threatens the bot's animals (D-191).
 const STALK_CELLS: usize = 3;
+/// Enemies this close to the bot's den (cells) are its worst threat (D-251).
+const DEN_GUARD: usize = 3;
 
 type Play = fn(&Bot, &View) -> Option<Payload>;
 
@@ -689,6 +691,17 @@ impl Bot {
         let fa = &w.fauna.p;
         let ns = fa.names.len();
         self.since.resize(ns, u64::MAX);
+        // Enemies near its own den weigh most (D-251): losing it loses the match.
+        let (n, a) = (w.state.n, &w.fauna.agents);
+        let den = w.fauna.dens[usize::from(self.player - 1)][0];
+        let mut at_den = vec![0i64; ns];
+        if den < n * n {
+            for j in (0..a.len()).filter(|&j| a.owner[j] == 3 - self.player) {
+                if dist2(a.cell(j, n), n, (den / n, den % n)) <= DEN_GUARD * DEN_GUARD {
+                    at_den[usize::from(a.sp[j])] += 1;
+                }
+            }
+        }
         let mut weighed: Vec<(i64, usize)> = Vec::new();
         for s in 0..ns {
             if fa.role[s] == Role::Decomposer {
@@ -696,6 +709,7 @@ impl Bot {
             }
             let cost = w.economy.unit_cost(w.economy.animal(s)) >> 16;
             let weight = 3 * i.raiders[s] * cost
+                + 10 * at_den[s] * cost
                 + if stalk { 2 * i.stalkers[s] * cost } else { 0 }
                 + if anticipate { i.seen[s] * cost } else { 0 };
             if weight == 0 {
@@ -1430,6 +1444,11 @@ impl Bot {
         let front: Vec<usize> = (0..n * n)
             .filter(|&k| enemy(k) && neighbours(k, n).any(|m| w.state.owner[m] == self.player))
             .collect();
+        // The enemy den, once seen, is the target: taking its cell wins (D-251).
+        let den = w.fauna.dens[usize::from(2 - self.player)][0];
+        if den < n * n && v.vis[den] && enemy(den) {
+            return Some(den);
+        }
         let rush = self.weights[ARMY] >= 50;
         let tips = front
             .iter()
@@ -2020,6 +2039,21 @@ mod tests {
             }
         }
         w
+    }
+
+    /// D-251: once it sees the enemy den, the bot raids it.
+    #[test]
+    fn raids_aim_at_a_seen_enemy_den() {
+        let b = balance();
+        let mut w = painted(&b, &|r, _| if r >= 19 { 2 } else { 1 }, &|_, _| {
+            vec!["grasses"]
+        });
+        let bot = Bot::new(2, Level::Normal, Style::Balanced, &b);
+        let den = 18 * 38 + 30; // P1's den, on the front: in sight
+        w.fauna.found_den(1, den);
+        let mut bot = bot;
+        let v = bot.view(&w);
+        assert_eq!(bot.breach(&v), Some(den));
     }
 
     /// D-249: the bot reads enemy animals through its fog: a herd far from its land goes unseen

@@ -2931,3 +2931,12 @@ Template:
   - `bench --handicap`: the bench's comeback count covers it for now.
   - The unit-panel hold button: the H key does the job.
   - An Options switch for fog: fog is off only in a sandbox.
+
+## D-251 · 2026-10-12 · The den is the heart: losing it loses the match (amends D-245)
+- **Status:** accepted (user's play test of the rework)
+- **Decision:**
+  - The land den, the first planted cell, never moves. A player whose den cell is not theirs any more loses at once (`Reason::Den`); both on one tick is a draw. The tutorial is exempt.
+  - The water den keeps moving to the nearest own aquatic cell.
+  - The den is drawn as a low-poly burrow (a stick lodge for water) with an owner ring. The enemy's appears once in sight.
+  - Bots raid a seen enemy den first, and weigh enemies within 3 cells of their own den most.
+- **Why:** a MOBA-style second goal. Raids now have a decisive target, and defence a place to hold.

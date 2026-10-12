@@ -12,18 +12,29 @@
   import FamilyIcon from "./FamilyIcon.svelte";
   import Icon from "./Icon.svelte";
 
-  // Full screen (D-156): the browser's own; Esc or the button leaves it.
+  // Full screen (D-156): the browser's own; the button leaves it. Esc stays with the game
+  // (keyboard lock, Chromium; a long Esc press still leaves, as browsers require).
   let fullscreen = $state(!!document.fullscreenElement);
   $effect(() => {
-    const sync = () => (fullscreen = !!document.fullscreenElement);
+    const sync = () => {
+      fullscreen = !!document.fullscreenElement;
+      if (fullscreen) lockEscape(); // however it was entered
+    };
     document.addEventListener("fullscreenchange", sync);
     return () => document.removeEventListener("fullscreenchange", sync);
   });
   function toggleFullscreen() {
     const done = document.fullscreenElement
       ? document.exitFullscreen()
-      : document.documentElement.requestFullscreen();
+      : (lockEscape(), document.documentElement.requestFullscreen().then(() => lockEscape()));
     done.catch(() => {}); // refused (an iframe without permission): nothing to do
+  }
+  /** Keep Esc for the game while in full screen, where the browser supports it. */
+  function lockEscape() {
+    const kb = (
+      navigator as Navigator & { keyboard?: { lock?: (keys: string[]) => Promise<void> } }
+    ).keyboard;
+    kb?.lock?.(["Escape"]).catch(() => {});
   }
 
   let {
@@ -78,7 +89,6 @@
     soil: "soil",
     diversity: "diversity",
     moisture: "water",
-    shade: "shade",
     bedrock: "rock",
   } as const;
   const QUALITIES: [Quality, string][] = [
@@ -283,6 +293,9 @@
         </div>
       {/if}
     </div>
+    <button class="icon" onclick={onMenu} title="Main menu" aria-label="Main menu">
+      <Icon name="menu" />
+    </button>
     <button
       class="icon"
       onclick={toggleFullscreen}
@@ -290,9 +303,6 @@
       aria-label={fullscreen ? "Leave full screen" : "Full screen"}
     >
       <Icon name={fullscreen ? "shrink" : "expand"} />
-    </button>
-    <button class="icon" onclick={onMenu} title="Main menu" aria-label="Main menu">
-      <Icon name="menu" />
     </button>
   </div>
 </header>

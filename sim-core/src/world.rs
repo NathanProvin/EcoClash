@@ -12,7 +12,7 @@ use crate::balance::Balance;
 use crate::catastrophe::{CatastropheParams, Catastrophes};
 use crate::commands::{Command, CommandQueue, OrderKind, Payload, disc};
 use crate::economy::Economy;
-use crate::fauna::{Fauna, FaunaParams};
+use crate::fauna::{Fauna, FaunaParams, NO_DEN};
 use crate::fixed::{ONE, div_round};
 
 /// Q16 one as i64, for the view helpers.
@@ -38,6 +38,8 @@ pub enum Reason {
     TerritoryShare,
     /// Time limit, everything tied.
     Draw,
+    /// A player's den fell (D-251): its cell is not its owner's any more.
+    Den,
 }
 
 /// The verdict: the winner (0 for a draw), why, and the tick it was reached.
@@ -70,6 +72,8 @@ pub struct World {
     pub catastrophes: Catastrophes,
     /// Weather events and their alerts (D-132).
     pub weather: Weather,
+    /// Fog of war (D-249): cells an own cell reveals, by its highest layer L1..L4.
+    pub fog_sight: [u32; crate::flora::LEVELS],
     /// Why recent orders did nothing, for the UI: (player, text). Not part of the state hash;
     /// callers drain it (`take_notices`).
     pub notices: Vec<(u8, String)>,
@@ -147,6 +151,7 @@ impl World {
             economy: Economy::new(balance, &fauna.p),
             fauna,
             catastrophes: Catastrophes::new(CatastropheParams::from_balance(balance)),
+            fog_sight: balance.fog.layer_sight,
             weather: Weather::new(WeatherParams::from_balance(balance), seed),
             notices: Vec::new(),
             plantings: Vec::new(),
@@ -205,7 +210,8 @@ impl World {
             self.flora.rot_deadwood(&mut self.state);
             self.flora.natural_deaths(&mut self.state, &mut self.rng);
             self.catastrophes
-                .act(&self.flora, &mut self.state, &mut self.rng); // D-129
+                .act(&self.flora, &mut self.state, &mut self.fauna, &mut self.rng); // D-129, D-252
+            self.fauna.update_dens(&self.flora.p, &self.state); // D-245
             self.economy.update(&self.flora, &self.state, &self.fauna);
             if self.result.is_none() {
                 self.result = self.judge();
@@ -243,7 +249,7 @@ impl World {
                 }
                 // All or nothing (D-241): every cell that can take the species, paid
                 // `spawn_cost` each, or none at all.
-                let unit = self.economy.unit_cost(s, false);
+                let unit = self.economy.unit_cost(s);
                 let cells = disc(n, *row, *col, *radius);
                 let ok = self.flora.plantable(&self.state, c.player, s, &cells);
                 let count = i64::try_from(ok.len()).unwrap_or(i64::MAX);
@@ -264,6 +270,15 @@ impl World {
                 } else {
                     self.flora.plant(&mut self.state, c.player, s, &ok);
                     self.economy.pay(c.player, unit * count);
+                    // The first planting founds the land den (D-245).
+                    let click =
+                        usize::try_from(*row).unwrap_or(0) * n + usize::try_from(*col).unwrap_or(0);
+                    let d2 = |k: usize| {
+                        (k / n).abs_diff(click / n).pow(2) + (k % n).abs_diff(click % n).pow(2)
+                    };
+                    if let Some(&k) = ok.iter().min_by_key(|&&k| (d2(k), k)) {
+                        self.fauna.found_den(c.player, k);
+                    }
                     for &k in &ok {
                         self.fields.mark_cell(k);
                     }
@@ -304,9 +319,11 @@ impl World {
                     self.notices.push((c.player, format!("{species}: {why}")));
                     return;
                 }
+                // Bought animals appear at the den, wherever the click (D-245).
+                self.fauna.update_dens(&self.flora.p, &self.state);
                 let site = self
                     .fauna
-                    .spawn_site(&self.flora.p, &self.state, c.player, s, (r, c2));
+                    .spawn_site(&self.flora.p, &self.state, c.player, s);
                 let (at, count) = match site {
                     Ok(site) => site,
                     Err(why) => {
@@ -314,9 +331,7 @@ impl World {
                         return;
                     }
                 };
-                // Any animal landing outside own land costs more (gamerules §6.3; D-061).
-                let outside = self.state.owner[at] != c.player;
-                let unit = self.economy.unit_cost(self.economy.animal(s), outside);
+                let unit = self.economy.unit_cost(self.economy.animal(s));
                 let count = count.min(self.economy.affordable(c.player, unit));
                 if count == 0 {
                     self.notices
@@ -337,6 +352,20 @@ impl World {
                 };
                 if let Err(why) = self.economy.unlock(c.player, i) {
                     self.notices.push((c.player, format!("{species}: {why}")));
+                }
+            }
+            Payload::MoveDen { row, col } => {
+                let n = self.state.n;
+                let (Ok(r), Ok(c2)) = (usize::try_from(*row), usize::try_from(*col)) else {
+                    self.rejected += 1;
+                    return;
+                };
+                if !valid_player || r >= n || c2 >= n {
+                    self.rejected += 1;
+                    return;
+                }
+                if let Err(why) = self.move_den(c.player, r * n + c2) {
+                    self.notices.push((c.player, format!("den: {why}")));
                 }
             }
             Payload::Grant { amount } => {
@@ -427,6 +456,21 @@ impl World {
                 tick,
             })
         };
+        // The den is the heart (D-251): whoever loses its den cell loses; both on one tick, a draw.
+        // A den being moved counts twice (D-253): both cells must hold.
+        let fallen = [1u8, 2].map(|p| {
+            let pi = usize::from(p) - 1;
+            let lost = |den: usize| den != NO_DEN && self.state.owner.get(den) != Some(&p);
+            lost(self.fauna.dens[pi][0]) || self.fauna.den_move[pi].is_some_and(|(c, _)| lost(c))
+        });
+        if !self.economy.tutorial && fallen.contains(&true) {
+            let winner = match fallen {
+                [true, true] => 0,
+                [true, false] => 2,
+                _ => 1,
+            };
+            return outcome(winner, Reason::Den);
+        }
         // The tutorial (D-141) never ends on territory: its objectives end it, and the bot must stay
         // alive to raid the player.
         if !self.economy.tutorial && t[usize::from(top - 1)] * i64::from(ONE) >= threshold * n2 {
@@ -567,6 +611,19 @@ impl World {
             h.u64(u64::from(o.winner)).u64(o.reason as u64).u64(o.tick);
         }
         self.fauna.agents.hash_into(&mut h);
+        for m in self.fauna.den_move {
+            let (cell, left) = m.unwrap_or((0, -1)); // D-253
+            h.u64(u64::try_from(cell).unwrap_or(0)).i64(left);
+        }
+        for &den in self.fauna.dens.as_flattened() {
+            // D-245; NO_DEN as u64::MAX, the same on 32-bit wasm and native.
+            h.u64(
+                u64::try_from(den)
+                    .ok()
+                    .filter(|_| den != NO_DEN)
+                    .unwrap_or(u64::MAX),
+            );
+        }
         h.finish()
     }
 
@@ -606,12 +663,75 @@ impl World {
             .collect()
     }
 
-    /// Shade on the ground and moisture per cell, 0..=255, for the map overlays (D-135).
+    /// Ticks per flora tick.
     #[must_use]
-    pub fn shade_frame(&self) -> Vec<u8> {
-        crate::snapshot::shade_frame(&self.flora, &self.state)
+    pub fn flora_every(&self) -> u64 {
+        self.flora_every
     }
 
+    /// Start moving `player`'s land den to cell `k` (D-253): an own land cell with an established
+    /// plant, not the den itself, with no move under way, paid now (free in a sandbox).
+    fn move_den(&mut self, player: u8, k: usize) -> Result<(), String> {
+        let (pi, n2) = (usize::from(player) - 1, self.state.n * self.state.n);
+        let fl = &self.flora.p;
+        let den = self.fauna.dens[pi][0];
+        if den == NO_DEN || self.fauna.den_move[pi].is_some() {
+            return Err("no den to move, or a move is under way".into());
+        }
+        let rooted = (0..fl.species()).any(|s| self.state.bio[s * n2 + k] >= fl.est_thr[s]);
+        let land = crate::balance::Medium::Walk.stands(self.state.ground[k]);
+        if k == den || self.state.owner[k] != player || !rooted || !land {
+            return Err("pick one of your own grown land cells".into());
+        }
+        let cost = if self.economy.sandbox {
+            0
+        } else {
+            self.economy.den_move
+        };
+        if self.economy.bank[pi] < cost {
+            return Err(format!("needs {} biomass", cost / i64::from(ONE)));
+        }
+        self.economy.pay(player, cost);
+        self.fauna.den_move[pi] = Some((k, self.fauna.p.den_build));
+        Ok(())
+    }
+
+    /// What `player` sees (D-249), one flag per cell: around each own cell, as far as its highest
+    /// established layer's `layer_sight` (a bare own cell as L1), and around each own animal, as
+    /// far as its species' sight. Derived from the state, never hashed: the display and the bots
+    /// read it; lockstep peers still hold the whole state.
+    #[must_use]
+    pub fn visible(&self, player: u8) -> Vec<bool> {
+        let n = self.state.n;
+        let ni = i64::try_from(n).unwrap_or(0);
+        let mut seen = vec![false; n * n];
+        let mut reveal = |k: usize, r: i64| {
+            let (y, x) = (
+                i64::try_from(k / n).unwrap_or(0),
+                i64::try_from(k % n).unwrap_or(0),
+            );
+            for yy in (y - r).max(0)..=(y + r).min(ni - 1) {
+                for xx in (x - r).max(0)..=(x + r).min(ni - 1) {
+                    // r² + r: a round disc, not a diamond, at small radii (play test).
+                    if (yy - y).pow(2) + (xx - x).pow(2) <= r * r + r {
+                        seen[usize::try_from(yy * ni + xx).unwrap_or(0)] = true;
+                    }
+                }
+            }
+        };
+        let dom = self.flora.dominant(&self.state);
+        for k in (0..n * n).filter(|&k| self.state.owner[k] == player) {
+            let layer = usize::from(dom[k].max(1)) - 1;
+            reveal(k, i64::from(self.fog_sight[layer]));
+        }
+        let a = &self.fauna.agents;
+        for i in (0..a.len()).filter(|&i| a.owner[i] == player) {
+            reveal(a.cell(i, n), self.fauna.p.sight(usize::from(a.sp[i])));
+        }
+        seen
+    }
+
+    /// Moisture per cell, 0..=255, for the map overlays (D-135).
     #[must_use]
     pub fn moisture_frame(&self) -> Vec<u8> {
         crate::snapshot::moisture_frame(&self.state)
@@ -649,7 +769,189 @@ mod tests {
             w.state.gauge[oak * n2 + k] = i64::from(ONE);
         }
         w.economy.bank = [1_000_000 << 16, 1_000_000 << 16];
+        for r in &mut w.catastrophes.ready {
+            r.fill(0); // every card open (D-248 has its own test)
+        }
         w
+    }
+
+    /// D-252: the chainsaw fells shrubs and trees and spares the herbs; the hunters shoot every
+    /// unit and spare the swarms; an epidemic kills about half.
+    #[test]
+    fn chainsaw_hunters_and_epidemic() {
+        let mut w = forest(16);
+        let grass = w.flora.p.index("grasses").unwrap();
+        let k = 8 * 16 + 8;
+        w.state.bio[grass * 256 + k] = 5000;
+        w.submit(cast(0, 1, 0, "chainsaw", 8, 8));
+        w.step();
+        w.step();
+        for _ in 0..every() {
+            w.step();
+        }
+        assert_eq!(trees_at(&w, k), 0, "felled");
+        assert_eq!(w.state.snag[k], 0, "felled, not left standing");
+        assert!(w.state.bio[grass * 256 + k] > 0, "herbs spared");
+
+        let mut w = forest(16);
+        let [fox, worms] = ["fox", "earthworms"].map(|s| w.fauna.p.index(s).unwrap());
+        w.fauna.place(fox, 2, k, 3, 16);
+        w.fauna.place(worms, 2, k, 3, 16);
+        w.submit(cast(0, 1, 0, "hunters", 8, 8));
+        for _ in 0..every() + 1 {
+            w.step();
+        }
+        let left = |w: &World, s: usize| w.fauna.census(2)[s];
+        assert_eq!(left(&w, fox), 0, "units shot");
+        assert!(left(&w, worms) > 0, "swarms slip through");
+
+        let mut w = forest(16);
+        w.fauna.place(fox, 2, k, 200, 16);
+        w.submit(cast(0, 1, 0, "epidemic", 8, 8));
+        for _ in 0..every() + 1 {
+            w.step();
+        }
+        let n = left(&w, fox);
+        assert!((60..=140).contains(&n), "about half survive: {n}");
+    }
+
+    /// D-253: moving the den costs, takes `den_build_s`, needs an own grown cell, and both cells
+    /// must hold until it is built.
+    #[test]
+    fn moving_the_den() {
+        let mv = |seq: u32, row: u32, col: u32| Command {
+            tick: 0,
+            player: 1,
+            seq,
+            payload: Payload::MoveDen { row, col },
+        };
+        let start = |w: &mut World| {
+            w.setup_plant(1, "grasses", 4, 4, 3);
+            w.setup_plant(2, "grasses", 12, 12, 2);
+            w.fauna.found_den(1, 4 * 16 + 4);
+            w.fauna.found_den(2, 12 * 16 + 12);
+            w.economy.bank[0] = 10_000 << 16;
+            let g = w.flora.p.index("grasses").unwrap();
+            w.state.bio[g * 256 + 5 * 16 + 6] = w.flora.p.kmax[g]; // the new site, grown
+        };
+        let mut w = World::new(&balance(), 3, 16);
+        start(&mut w);
+        for _ in 0..every() * 10 {
+            w.step(); // the grass establishes
+        }
+        let bank = w.economy.bank[0];
+        w.submit(Command {
+            tick: w.tick,
+            ..mv(0, 12, 12)
+        }); // enemy land: refused
+        w.submit(Command {
+            tick: w.tick,
+            ..mv(1, 5, 6)
+        });
+        w.step();
+        assert!(w.take_notices().iter().any(|(_, t)| t.starts_with("den:")));
+        assert_eq!(w.fauna.den_move[0].map(|m| m.0), Some(5 * 16 + 6));
+        assert!(w.economy.bank[0] < bank, "paid");
+        let build = u64::try_from(w.fauna.p.den_build).unwrap();
+        for _ in 0..every() * (build + 1) {
+            w.step();
+        }
+        assert_eq!(w.fauna.dens[0][0], 5 * 16 + 6, "built");
+        assert!(w.fauna.den_move[0].is_none());
+
+        let mut w = World::new(&balance(), 3, 16);
+        start(&mut w);
+        for _ in 0..every() * 10 {
+            w.step();
+        }
+        w.submit(Command {
+            tick: w.tick,
+            ..mv(0, 5, 6)
+        });
+        w.step();
+        w.state.owner[5 * 16 + 6] = 2; // the new site falls while it is built
+        for _ in 0..every() {
+            w.step();
+        }
+        assert_eq!(
+            w.result.map(|o| (o.winner, o.reason)),
+            Some((2, Reason::Den))
+        );
+    }
+
+    /// D-251: the player whose den cell is lost loses the match.
+    #[test]
+    fn losing_the_den_loses_the_match() {
+        let mut w = World::new(&balance(), 3, 16);
+        w.setup_plant(1, "grasses", 4, 4, 2);
+        w.setup_plant(2, "grasses", 12, 12, 2);
+        w.fauna.found_den(1, 4 * 16 + 4);
+        w.fauna.found_den(2, 12 * 16 + 12);
+        w.step();
+        assert!(w.result.is_none());
+        w.state.owner[4 * 16 + 4] = 2; // P2 took P1's den cell
+        for _ in 0..every() {
+            w.step();
+        }
+        let o = w.result.expect("decided");
+        assert_eq!((o.winner, o.reason), (2, Reason::Den));
+    }
+
+    /// D-249: an own grass cell sees 2 cells, a tree cell 5, an animal its sight; the enemy's
+    /// land is no help.
+    #[test]
+    fn fog_reveals_by_layer_and_by_animal_sight() {
+        let mut w = World::new(&balance(), 3, 40);
+        let n = 40;
+        let grass = w.flora.p.index("grasses").unwrap();
+        let oak = w.flora.p.index("oak").unwrap();
+        let at = |r: usize, c: usize| r * n + c;
+        w.state.owner[at(2, 2)] = 1;
+        w.state.bio[grass * n * n + at(2, 2)] = w.flora.p.kmax[grass];
+        w.state.owner[at(15, 15)] = 1;
+        w.state.bio[oak * n * n + at(15, 15)] = w.flora.p.kmax[oak];
+        w.state.owner[at(10, 2)] = 2; // enemy land reveals nothing to P1
+        w.state.bio[grass * n * n + at(10, 2)] = w.flora.p.kmax[grass];
+        let seen = w.visible(1);
+        assert!(seen[at(4, 2)] && !seen[at(5, 2)], "grass: 2 cells");
+        assert!(seen[at(15, 20)] && !seen[at(15, 9)], "oak: 5 cells");
+        assert!(!seen[at(10, 2)] && !seen[at(10, 4)]);
+        let fox = w.fauna.p.index("fox").unwrap();
+        w.fauna.place(fox, 1, at(30, 20), 1, n);
+        let r = usize::try_from(w.fauna.p.sight(fox)).unwrap();
+        let seen = w.visible(1);
+        assert!(
+            seen[at(30, 20 - r)] && !seen[at(30, 20 - r - 1)],
+            "the fox's sight"
+        );
+    }
+
+    /// D-248: a card is refused before it opens; an aphid blight thins the herbs of its disc and
+    /// spares the trees.
+    #[test]
+    fn cards_open_over_time_and_a_blight_spares_the_trees() {
+        let mut w = World::new(&balance(), 3, 16);
+        w.economy.bank = [1_000_000 << 16, 1_000_000 << 16];
+        w.submit(cast(0, 1, 0, "storm", 8, 8));
+        w.step();
+        let notices = w.take_notices();
+        assert!(
+            notices
+                .iter()
+                .any(|(_, t)| t.contains("storm") && t.contains("not ready")),
+            "{notices:?}"
+        );
+
+        let mut w = forest(16);
+        let grass = w.flora.p.index("grasses").unwrap();
+        let k = 8 * 16 + 8;
+        w.state.bio[grass * 256 + k] = 8000;
+        w.submit(cast(0, 1, 0, "aphid_outbreak", 8, 8));
+        for _ in 0..10 * every() {
+            w.step();
+        }
+        assert!(w.state.bio[grass * 256 + k] < 4000, "herbs thinned");
+        assert!(trees_at(&w, k) > 0, "trees spared");
     }
 
     fn cast(tick: u64, player: u8, seq: u32, kind: &str, row: u32, col: u32) -> Command {
@@ -678,12 +980,10 @@ mod tests {
     fn processionary_caterpillars_turn_a_wood_into_dead_trees() {
         let mut w = forest(16);
         w.submit(cast(0, 1, 0, "processionary_caterpillars", 8, 8));
-        let bank = w.economy.bank[0];
         for _ in 0..40 * every() {
             w.step();
         }
-        assert!(w.economy.bank[0] < bank, "paid");
-        let r = 4;
+        let r = 2; // D-252: a cheap, small card now
         for k in crate::commands::disc(16, 8, 8, r) {
             assert_eq!(trees_at(&w, k), 0, "cell {k}: dead");
             assert!(w.state.snag[k] > 0, "cell {k}: a dead tree stands");
@@ -782,7 +1082,7 @@ mod tests {
     fn planting_is_all_or_nothing() {
         let mut w = World::new(&balance(), 1, 16);
         let s = w.flora.p.index("lichen_and_moss").unwrap();
-        let unit = w.economy.unit_cost(s, false);
+        let unit = w.economy.unit_cost(s);
         w.economy.bank[0] = unit * 3; // a radius-2 disc has 13 cells
         w.submit(plant(0, 1, 0, "lichen_and_moss", 8, 8));
         w.step();
@@ -969,22 +1269,19 @@ mod tests {
     }
 
     #[test]
-    fn animals_landing_outside_own_land_cost_the_drop_surcharge() {
+    fn animals_appear_at_the_den_wherever_the_click() {
         let b = balance();
         let mut w = World::new(&b, 1, 20);
         w.setup_plant(1, "grasses", 4, 4, 3);
         w.setup_plant(2, "grasses", 15, 15, 3);
+        w.fauna.found_den(1, 4 * 20 + 4);
         let grasshoppers = w.economy.animal(w.fauna.p.index("grasshoppers").unwrap());
         w.economy.bank[0] = 100_000 << 16;
         w.economy
             .unlock(1, w.flora.p.index("grasses").unwrap())
             .unwrap(); // its habitat
         w.economy.unlock(1, grasshoppers).unwrap();
-        let (base, drop) = (
-            w.economy.unit_cost(grasshoppers, false),
-            w.economy.unit_cost(grasshoppers, true),
-        );
-        assert!(drop > base, "the drop costs more");
+        let base = w.economy.unit_cost(grasshoppers);
         let spawn = |seq, row, col| Command {
             tick: 0,
             player: 1,
@@ -995,27 +1292,18 @@ mod tests {
                 col,
             },
         };
-        w.submit(spawn(0, 4, 4)); // own land: base price
-        w.submit(spawn(1, 15, 15)); // enemy grass: dropped there
+        w.submit(spawn(0, 4, 4));
+        w.submit(spawn(1, 15, 15)); // a click on enemy grass: no drop (D-245)
         let bank = w.economy.bank[0];
         w.step();
-        let group = w
-            .fauna
-            .p
-            .index("grasshoppers")
-            .map(|s| w.fauna.census(1)[s])
-            .unwrap();
-        let per_card = group / 2;
+        let count = i64::try_from(w.fauna.agents.len()).unwrap();
         let income = div_round(w.economy.income[0] * 8, 10); // the tick-0 flora period
-        assert_eq!(bank - w.economy.bank[0] + income, per_card * (base + drop));
-        assert!(w.fauna.agents.owner.iter().all(|&o| o == 1));
-        let on_enemy =
-            (0..w.fauna.agents.len()).filter(|&i| w.state.owner[w.fauna.agents.cell(i, 20)] == 2);
         assert_eq!(
-            i64::try_from(on_enemy.count()).unwrap(),
-            per_card,
-            "half of them landed on P2 grass"
+            bank - w.economy.bank[0] + income,
+            count * base,
+            "base price only"
         );
+        assert!((0..w.fauna.agents.len()).all(|i| w.fauna.agents.cell(i, 20) == 4 * 20 + 4));
     }
 
     #[test]
@@ -1261,17 +1549,11 @@ mod tests {
     /// D-135: the overlays read shade under a canopy (none in the open) and full moisture on
     /// water.
     #[test]
-    fn shade_and_moisture_frames() {
+    fn moisture_frame_marks_water() {
         let n = 8;
         let mut w = forest(n);
-        let oak = w.flora.p.index("oak").unwrap();
-        let open = 3; // a cell without its trees
-        w.state.bio[oak * n * n + open] = 0;
         w.state.ground[5] = crate::terrain::DEEP;
         w.state.water[5] = crate::flora::U16;
-        let shade = w.shade_frame();
-        assert!(shade[0] > 0, "under oaks: {}", shade[0]);
-        assert_eq!(shade[open], 0, "in the open");
         assert_eq!(w.moisture_frame()[5], 255);
     }
 }

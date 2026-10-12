@@ -33,31 +33,6 @@ pub fn deadwood_frame(flora: &Flora, st: &FloraState) -> Vec<u8> {
         .collect()
 }
 
-/// Shade on the ground per cell, 0..=255 (D-135): the light the shrubs and trees take from the
-/// herbs (`Flora::light` of a level-1 plant with no tolerance), 0 with the shade rule off. A view.
-#[must_use]
-pub fn shade_frame(flora: &Flora, st: &FloraState) -> Vec<u8> {
-    let (p, cells) = (&flora.p, st.n * st.n);
-    let one = ONE as i64;
-    (0..cells)
-        .map(|k| {
-            if !p.shade {
-                return 0;
-            }
-            let casts = flora.casts(|j| {
-                let b = st.bio[j * cells + k];
-                if b > 0 {
-                    div_round(b * one, p.kmax[j])
-                } else {
-                    0
-                }
-            });
-            let shade = one - Flora::light(&casts, 1, 0);
-            u8::try_from(div_round(shade.clamp(0, one) * 255, one)).unwrap_or(255)
-        })
-        .collect()
-}
-
 /// Moisture per cell, 0..=255 (D-135): water cells are 255; floods raise it while they last.
 #[must_use]
 pub fn moisture_frame(st: &FloraState) -> Vec<u8> {
@@ -76,9 +51,9 @@ pub fn pressure_frame(flora: &Flora, st: &FloraState, fauna: &Fauna) -> Vec<u8> 
     let a = &fauna.agents;
     for i in 0..a.len() {
         let k = a.cell(i, st.n);
-        let grazer = fauna.p.role[usize::from(a.sp[i])] == Role::Herbivore;
-        if grazer && st.owner[k] == 3 - a.owner[i] {
-            push[k] += div_round(GRAZER_PUSH * fauna.p.damage, i64::from(ONE)); // D-152
+        let s = usize::from(a.sp[i]);
+        if fauna.p.role[s] == Role::Herbivore && st.owner[k] == 3 - a.owner[i] {
+            push[k] += div_round(GRAZER_PUSH * fauna.p.damage[s], i64::from(ONE)); // D-152
         }
     }
     push.iter()

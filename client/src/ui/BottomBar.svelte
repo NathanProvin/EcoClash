@@ -372,6 +372,18 @@
     gap: 8px;
     max-width: calc(100% - 24px);
   }
+  /* Earthy panels (play test): dark loam under a bark rim, not a glassy dashboard. */
+  .bar,
+  .flyout {
+    background:
+      radial-gradient(ellipse at 30% 0%, rgba(201, 164, 106, 0.1), transparent 60%),
+      linear-gradient(180deg, rgba(48, 37, 26, 0.88), rgba(28, 22, 15, 0.92));
+    border: 1px solid rgba(160, 124, 78, 0.45);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 228, 180, 0.08),
+      inset 0 -2px 6px rgba(0, 0, 0, 0.35),
+      0 6px 18px rgba(0, 0, 0, 0.35);
+  }
   .bar {
     display: flex;
     align-items: center;
@@ -380,9 +392,10 @@
   }
   .sep {
     align-self: stretch;
-    width: 1px;
+    width: 2px;
     margin: 4px 4px;
-    background: var(--line);
+    border-radius: 2px;
+    background: linear-gradient(180deg, transparent, rgba(160, 124, 78, 0.5), transparent);
   }
   .group {
     position: relative;
@@ -405,8 +418,8 @@
   }
   .item:hover,
   .item.open {
-    border-color: var(--line);
-    background: var(--well);
+    border-color: rgba(201, 164, 106, 0.45);
+    background: rgba(201, 164, 106, 0.12);
   }
   .flyout {
     position: absolute;
@@ -425,7 +438,7 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     white-space: nowrap;
-    color: var(--ink-soft);
+    color: #d9c49a;
   }
   /* Tiers bottom to top, bronze to gold (D-242). */
   .tiers {
@@ -458,7 +471,7 @@
   }
   .tile {
     padding: 2px;
-    border-radius: 11px;
+    border-radius: 42% 58% 46% 54% / 52% 44% 56% 48%; /* the pebble of its icon */
   }
   .tile:hover {
     transform: translateY(-2px);

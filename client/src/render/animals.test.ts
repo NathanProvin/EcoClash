@@ -47,8 +47,8 @@ describe("forms", () => {
   });
 });
 
-describe("AnimalView parachute drops (D-080)", () => {
-  it("lowers a dropped animal under a canopy, then lands it", () => {
+describe("AnimalView: bought animals come out of the den (play test)", () => {
+  it("starts small in the den's mouth, then stands at its place", () => {
     const meta = {
       version: 3,
       species: [],
@@ -75,14 +75,11 @@ describe("AnimalView parachute drops (D-080)", () => {
       const b = body();
       return b ? heightOf(b) : NaN;
     };
-    view.update(vole, new Set(), 0, 4, 1500, () => 500); // dropped 1 s ago
-    expect(bodyY()).toBeGreaterThan(5); // still high in the air
-    expect(meshes().filter((m) => m.count === 1).length).toBe(4); // body, ring, canopy, shadow
-    view.update(vole, new Set(), 0, 4, 3500, () => 500); // just landed: a dust ring
-    expect(bodyY()).toBe(0);
-    expect(meshes().filter((m) => m.count === 1).length).toBe(3); // body, ring, dust
-    view.update(vole, new Set(), 0, 4, 6000, () => 500); // settled
-    expect(meshes().filter((m) => m.count === 1).length).toBe(2); // body, ring
+    view.update(vole, new Set(), 0, 4, 500, () => 500); // just bought
+    expect(bodyY()).toBeGreaterThan(0); // in the burrow's mouth, above the ground
+    expect(meshes().filter((m) => m.count === 1).length).toBe(2); // body, ring: no parachute
+    view.update(vole, new Set(), 0, 4, 6000, () => 500); // out
+    expect(bodyY()).toBeCloseTo(0, 1); // on the ground (a little gait bob)
     view.update(vole, new Set(), 0, 4, 9000, () => undefined); // no longer a recent drop
     const m = body()?.instanceMatrix.array as Float32Array;
     expect([...m.subarray(0, 16)].every(Number.isFinite)).toBe(true); // no NaN pose

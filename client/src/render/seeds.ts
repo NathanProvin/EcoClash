@@ -14,8 +14,8 @@ export const SEEDS = {
   sway: 0.35,
   rest: 0.5,
   fade: 0.3,
-  size: 0.06,
-  screen: 0.0035,
+  size: 0.03, // play test: half the radius
+  screen: 0.00175,
   stagger: 0.03,
   capacity: 240,
 } as const;

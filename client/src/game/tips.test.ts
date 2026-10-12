@@ -15,7 +15,7 @@ describe("TipWatch", () => {
     expect(w.scan({ ...later, t: 130 })).toMatch(/smother/);
     expect(w.scan({ ...later, t: 160 })).toMatch(/right-click/);
     expect(w.scan({ ...later, t: 190 })).toMatch(/Win by taking/); // icons wait for a herd
-    expect(w.scan({ ...later, t: 220 })).toBeNull(); // nothing left that applies
+    expect(w.scan({ ...later, t: 220 })).toMatch(/your den/); // last in line (D-251)
     expect(w.scan({ ...later, t: 250, animals: 6 })).toMatch(/Press I/);
   });
 

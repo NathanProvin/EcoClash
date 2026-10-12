@@ -158,6 +158,9 @@
   .order.o2 {
     background: rgba(226, 69, 43, 0.45);
   }
+  .order.o3 {
+    background: rgba(143, 209, 106, 0.4);
+  }
   .list {
     display: flex;
     flex-wrap: wrap;

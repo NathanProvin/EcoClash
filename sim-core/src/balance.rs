@@ -35,15 +35,10 @@ pub struct FloraRules {
     /// Brush radius of a player's plant order (a command parameter, not a rule: not hashed).
     pub plant_radius: u32,
     pub succession: bool,
-    pub shade: bool,
     /// Strength gain at full soil development (D-225): strength x (1 + fert_gain x soil).
     pub fert_gain: f64,
-    /// Strength gain under a closed canopy (D-236): strength x (1 + canopy_gain x the shade the
-    /// cell casts on its ground).
-    pub canopy_gain: f64,
-    /// Side shade (D-236): strength x (1 - edge_shade x the strongest enemy neighbour's ground
-    /// shade x this cell's own open ground).
-    pub edge_shade: f64,
+    /// Strength multiplier of a cell's highest established layer, L1..L4 (D-243).
+    pub layer_mult: [f64; crate::flora::LEVELS],
     /// Vigor floor (D-236): vigor = vigor_floor + (1 - vigor_floor) x the mean layer fill, so a
     /// cell just taken (layers at the establish threshold) is not defenceless.
     pub vigor_floor: f64,
@@ -64,8 +59,11 @@ pub struct FloraRules {
 #[derive(Clone, Debug, Deserialize)]
 pub struct EconomyRules {
     pub start_budget: f64,
-    /// Animals landing outside own land cost this much more (gamerules §6.3; D-061).
-    pub drop_surcharge: f64,
+    /// Moving the land den costs this (D-253).
+    pub den_move_cost: f64,
+    /// Production income (D-247): a plant's income per cell is yield x (stock_share x cover +
+    /// (1 - stock_share) x its gross growth over the peak logistic growth r.K/4).
+    pub stock_share: f64,
     /// Biodiversity income (D-225): a cell's plant income x (1 + div_gain x its species),
     /// at most x div_cap.
     pub div_gain: f64,
@@ -150,6 +148,12 @@ pub enum Act {
     Storm,
     /// Back to bare soil: no plants, litter, dead wood or soil development; nobody owns it.
     Spill,
+    /// Plants of levels up to `max_level` lose `loss` of their biomass to litter (D-248).
+    Blight,
+    /// Shrubs and trees felled to litter, none left standing (the chainsaw, D-252).
+    Fell,
+    /// Each animal in the disc dies with `chance`; swarms spared with `spare_swarms` (D-252).
+    Cull,
 }
 
 /// `[catastrophes.<name>]` (D-129): one catastrophe card.
@@ -167,8 +171,27 @@ pub struct CatastropheRule {
     pub duration_s: f64,
     /// Chance per cell per flora tick, in (0, 1].
     pub chance: f64,
+    /// Real seconds into the match before the card can be played (D-248).
+    #[serde(default)]
+    pub available_s: f64,
+    /// Blight (D-248): the highest plant level it hits, and the share of their biomass lost.
+    #[serde(default)]
+    pub max_level: u8,
+    #[serde(default = "one")]
+    pub loss: f64,
+    /// Cull (D-252): swarms are spared (the hunters).
+    #[serde(default)]
+    pub spare_swarms: bool,
     /// The card's text for players.
     pub effect: String,
+}
+
+/// `[fog]` (D-249): what each player sees. An own cell reveals `layer_sight` cells by its
+/// highest established layer (L1..L4; a bare own cell as L1); an animal its species' `sight`.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FogRules {
+    pub layer_sight: [u32; crate::flora::LEVELS],
 }
 
 /// `[deadwood]` (D-127): natural tree death, standing dead wood and its rot.
@@ -235,16 +258,21 @@ pub struct FaunaRules {
     /// (D-123).
     pub diet_yield: Vec<f64>,
     pub own_graze: f64,
+    /// Own grazers bite an own plant only above this cover, and never below it (D-247).
+    pub own_graze_min: f64,
+    /// Real seconds to build a moved den (D-253).
+    pub den_build_s: f64,
     /// Enemy plants lose this many times what a grazer eats (D-152): the rest is trampled to
     /// litter, so raids break fronts without feeding the raiders more.
     #[serde(default = "one")]
     pub graze_damage: f64,
+    /// `graze_damage` multiplier by grazer tier 1..3 (D-244): bigger grazers trample more.
+    #[serde(default = "tier_damage")]
+    pub tier_damage: [f64; 3],
     pub soil_per_dead: f64,
     /// Seconds during which a player may not take back a cell that enemy grazers ate bare
     /// (D-098).
     pub lockout_s: f64,
-    /// A drop lands within this many cells of the click (D-061).
-    pub drop_radius: u32,
     pub flee_radius: u32,
     pub refuge_flora: Vec<String>,
     pub refuge_cover: f64,
@@ -392,14 +420,12 @@ pub struct FloraSpecies {
     pub family: String,
     pub tier: u8,
     // Model.
-    /// Height stratum, 1..=`flora::LEVELS`: shade and competition act between strata.
+    /// Height stratum, 1..=`flora::LEVELS`: competition acts within a stratum.
     pub level: u8,
     #[serde(default)]
     pub pioneer: bool,
     pub biomass_rate: f64,
     pub k_max: f64,
-    pub shade_cast: f64,
-    pub shade_tolerance: f64,
     pub soil_gain: f64,
     #[serde(default)]
     pub water_optimum: f64,
@@ -425,8 +451,8 @@ pub struct FaunaSpecies {
     pub unlock_cost: f64,
     #[serde(rename = "yield")]
     pub yield_: f64,
-    /// Animals per player.
-    pub cap: u32,
+    /// Carrying capacity (D-246): animals per own cell holding its habitat.
+    pub per_cell: f64,
     pub effect: String,
     /// Tech-tree family (D, H1..H4, HW, P1..P3, PW; D-087) and tier within it.
     pub family: String,
@@ -434,9 +460,12 @@ pub struct FaunaSpecies {
     // Model.
     /// "decomposer", "herbivore" or "predator".
     pub role: String,
-    /// Flora names or families (herbivores), fauna names (predators), "dead" (decomposers).
+    /// Fauna names (predators), "dead" / "deadwood" (decomposers); none for grazers, who eat
+    /// their family's layer (D-244, `diet`).
+    #[serde(default)]
     pub eats: Vec<String>,
-    /// Flora names or families that the player must own for a spawn.
+    /// Flora names or families that the player must own for a spawn; none for grazers (`home`).
+    #[serde(default)]
     pub habitat: Vec<String>,
     /// Can hide in a refuge (D-023).
     #[serde(default)]
@@ -506,6 +535,7 @@ pub struct Balance {
     pub agents: AgentRules,
     pub fauna: FaunaRules,
     pub deadwood: DeadwoodRules,
+    pub fog: FogRules,
     /// Catastrophe cards by name, in name order (D-129).
     pub catastrophes: std::collections::BTreeMap<String, CatastropheRule>,
     pub weather: WeatherRules,
@@ -527,6 +557,7 @@ struct BalanceFile {
     agents: AgentRules,
     fauna: FaunaRules,
     deadwood: DeadwoodRules,
+    fog: FogRules,
     catastrophes: std::collections::BTreeMap<String, CatastropheRule>,
     weather: WeatherRules,
     r#match: MatchRules,
@@ -548,6 +579,7 @@ impl Balance {
             agents: file.agents,
             fauna: file.fauna,
             deadwood: file.deadwood,
+            fog: file.fog,
             catastrophes: file.catastrophes,
             weather: file.weather,
             r#match: file.r#match,
@@ -661,10 +693,6 @@ impl Balance {
                 && m.time_limit_s > 0,
             "[match] territory shares must be in 0..1 and time_limit_s > 0".into(),
         )?;
-        check(
-            self.economy.drop_surcharge >= 1.0,
-            "economy.drop_surcharge must be >= 1".into(),
-        )?;
         let st = &self.bots.styles;
         check(
             [st.wide, st.tall, st.rush, st.balanced]
@@ -678,20 +706,24 @@ impl Balance {
         )?;
         check(f.hold_s >= 0.0, "[flora] hold_s must be >= 0".into())?;
         check(
-            (0.0..=4.0).contains(&f.canopy_gain)
-                && (0.0..=1.0).contains(&f.edge_shade)
+            f.layer_mult.iter().all(|m| (0.5..=4.0).contains(m))
                 && (0.0..=1.0).contains(&f.vigor_floor)
                 && (0.0..=1.0).contains(&f.shallow_seep)
                 && (0.0..=1.0).contains(&f.bedrock_boost)
                 && (0.0..=1.0).contains(&f.div_gain)
                 && (1.0..=8.0).contains(&f.div_cap),
-            "[flora] canopy_gain in 0..4; edge_shade, vigor_floor, shallow_seep, bedrock_boost, div_gain in 0..1; div_cap in 1..8"
+            "[flora] layer_mult in 0.5..4; vigor_floor, shallow_seep, bedrock_boost, div_gain in 0..1; div_cap in 1..8"
                 .into(),
         )?;
         check(
             (0.0..=1.0).contains(&self.economy.div_gain)
                 && (1.0..=8.0).contains(&self.economy.div_cap),
             "[economy] div_gain must be in 0..1 and div_cap in 1..8".into(),
+        )?;
+        check(
+            (0.0..=1.0).contains(&self.economy.stock_share)
+                && (0.0..1.0).contains(&self.fauna.own_graze_min),
+            "[economy] stock_share in 0..1, [fauna] own_graze_min in 0..1 (D-247)".into(),
         )?;
         let dt = self.flora_dt();
         self.validate_fauna()?;
@@ -707,14 +739,6 @@ impl Balance {
             check(
                 s.cap > 0.0 && s.cap <= 1.0,
                 format!("{n}: cap is a share of the map, in 0..1 (D-045)"),
-            )?;
-            check(
-                (0.0..1.0).contains(&s.shade_cast),
-                format!("{n}: shade_cast must be in 0..1"),
-            )?;
-            check(
-                (0.0..=1.0).contains(&s.shade_tolerance),
-                format!("{n}: shade_tolerance must be in 0..1"),
             )?;
             // The fast flora step needs every established species to have biomass (D-038).
             check(
@@ -838,7 +862,12 @@ impl Balance {
         for (n, s) in &self.fauna_species {
             let eats_ok = match s.role.as_str() {
                 "decomposer" => s.eats.iter().all(|e| e == "dead" || e == "deadwood"),
-                "herbivore" => s.eats.iter().all(|e| flora(e)),
+                // Grazers list no eats or habitat: they eat and live on their layer (D-244).
+                "herbivore" => {
+                    s.eats.is_empty()
+                        && s.habitat.is_empty()
+                        && s.grazer_layer().is_some_and(|l| flora(&l))
+                }
                 "predator" => s.eats.iter().all(|e| fauna(e)),
                 _ => false,
             };
@@ -891,6 +920,49 @@ fn one() -> f64 {
     1.0
 }
 
+fn tier_damage() -> [f64; 3] {
+    [1.0; 3]
+}
+
+impl FloraSpecies {
+    /// Whether it needs developed soil to take root: not the pioneers, nor the water plants,
+    /// which grow in wet silt (play test 2026-10-12: reeds and cattails could not be planted).
+    #[must_use]
+    pub fn needs_soil(&self) -> bool {
+        !self.pioneer && self.family != "W"
+    }
+}
+
+impl FaunaSpecies {
+    /// A grazer's plant layer (D-244): H1..H4 eat and live on L1..L4, HW on the water plants (W).
+    #[must_use]
+    pub fn grazer_layer(&self) -> Option<String> {
+        if self.role != "herbivore" {
+            return None;
+        }
+        match self.family.as_str() {
+            "HW" => Some("W".into()),
+            f if f.starts_with('H') => Some(f.replacen('H', "L", 1)),
+            _ => None,
+        }
+    }
+
+    /// What it eats: grazers their layer (D-244), the others their `eats`.
+    #[must_use]
+    pub fn diet(&self) -> Vec<String> {
+        self.grazer_layer()
+            .map_or_else(|| self.eats.clone(), |l| vec![l])
+    }
+
+    /// The plants it needs on its owner's land: grazers their layer (D-244), the others their
+    /// `habitat`.
+    #[must_use]
+    pub fn home(&self) -> Vec<String> {
+        self.grazer_layer()
+            .map_or_else(|| self.habitat.clone(), |l| vec![l])
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -915,13 +987,13 @@ mod tests {
 
     #[test]
     fn rejects_bad_values_with_a_readable_error() {
-        let bad = SPECIES.replacen("shade_cast = 0.85", "shade_cast = 1.5", 1);
+        let bad = SPECIES.replacen("k_max = 7000", "k_max = 70000", 1);
         let err = Balance::from_toml(BALANCE, &bad).unwrap_err();
-        assert!(err.contains("beech") && err.contains("shade_cast"), "{err}");
+        assert!(err.contains("ferns") && err.contains("k_max"), "{err}");
         // D-123: at most three foods, primary first.
         let long = SPECIES.replacen(
-            r#"eats = ["grasses", "wildflowers"]"#,
-            r#"eats = ["grasses", "wildflowers", "reeds", "lichen_and_moss"]"#,
+            r#"eats = ["rabbits", "weasel", "earthworms"]"#,
+            r#"eats = ["rabbits", "weasel", "earthworms", "slugs"]"#,
             1,
         );
         assert!(

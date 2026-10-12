@@ -32,6 +32,8 @@ import {
 } from "three/tsl";
 import { interpolate, type Animal, type Fields, type Source } from "../replay/replay";
 import { OVERLAYS, overlayValues, paintOverlay, type OverlayId } from "../game/overlays";
+import { denModel } from "./den";
+import { FOG_RES, fogMask } from "./fog";
 import { AnimalView } from "./animals";
 import { OrderLines, type OrderKind } from "./orders";
 import { Ghost, type GhostSpec } from "./ghost";
@@ -83,6 +85,12 @@ const BLEND_S = { min: 0.2, max: 2 } as const;
 const TINT = { wet: 1.5, dry: [0.55, 0.9], rock: [0.03, 0.1] } as const;
 /** Map overlays (D-135) float this far above the ground (m). */
 const OVERLAY_LIFT = 0.1;
+/** Opacity (0..255) of the fog (D-249): over cells never seen, and over cells seen before. */
+const FOG_DARK = 205;
+const FOG_SEEN = 125;
+/** The fog's colour: a darker, neutral-warm grey, a little see-through so coasts and rivers
+ *  show (D-249; play test: less blue). */
+const FOG_GREY = "#5f5f5f";
 /** The sun's shadow map is redrawn every this many frames: shadows lag one frame behind the wind,
  *  invisibly, for half the shadow-pass cost (D-090). */
 const SHADOW_EVERY = 4; // D-151 (was 2): the sun barely moves
@@ -141,6 +149,26 @@ export class Viewer {
   private readonly overlayTex: THREE.DataTexture;
   private readonly overlayMesh: THREE.Mesh;
   private overlay: OverlayId | null = null;
+  /** Fog of war (D-249): whose sight the map shows (0: none); fogged cells are dimmed (black
+   *  where never seen, dark where seen before, as in Age of Empires) and the enemy's animals
+   *  there hidden. */
+  private fogFor = 0;
+  get fogPlayer(): number {
+    return this.fogFor;
+  }
+  set fogPlayer(p: number) {
+    this.fogFor = p;
+    this.paintFog(this.lastFields?.vis);
+  }
+  /** Den models (D-245, D-251, D-253), one per den, kept while it stands (building one compiles
+   *  its materials: rebuilding them whenever a den left the fog cost a long frame). */
+  private readonly dens = new THREE.Group();
+  private readonly denModels = new Map<string, THREE.Group>();
+  /** Cells seen at least once (D-249). */
+  private explored: Uint8Array | null = null;
+  private readonly fogData: Uint8Array;
+  private readonly fogTex: THREE.DataTexture;
+  private readonly fogMesh: THREE.Mesh;
   private lastFields: Fields | null = null;
   private readonly heights: THREE.DataTexture;
   /** Baked tileable noise for the ground and water shaders (D-151). */
@@ -300,6 +328,29 @@ export class Viewer {
     this.overlayMesh.visible = false;
     this.overlayMesh.userData.family = "ground";
     this.scene.add(this.overlayMesh);
+    // FOG_RES texels per cell, blurred (`fogMask`): smooth sight circles (D-249).
+    const fm = n * FOG_RES;
+    this.fogData = new Uint8Array(fm * fm * 4);
+    this.fogTex = new THREE.DataTexture(this.fogData, fm, fm);
+    this.fogTex.magFilter = THREE.LinearFilter;
+    this.fogTex.minFilter = THREE.LinearFilter;
+    const fogMat = new THREE.MeshBasicNodeMaterial({
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+    });
+    // Dark grey haze drifting slowly over the fogged land: two baked noise lookups, no geometry.
+    const fog = texture(this.fogTex, uv());
+    const drift = this.noise(0.05, "g", time.mul(0.02));
+    const wisp = this.noise(0.13, "b", time.mul(-0.032));
+    fogMat.colorNode = color(FOG_GREY).mul(float(1).add(drift.mul(0.16)).add(wisp.mul(0.08)));
+    fogMat.opacityNode = fog.a.mul(float(0.98).add(drift.mul(0.07))).clamp(0, 1);
+    this.fogMesh = new THREE.Mesh(this.ground.geometry, fogMat);
+    this.fogMesh.position.y = OVERLAY_LIFT;
+    this.fogMesh.renderOrder = 19;
+    this.fogMesh.visible = false;
+    this.fogMesh.userData.family = "ground";
+    this.scene.add(this.fogMesh);
 
     // The map as a diorama slab: an earth cross-section on its sides, topsoil to bedrock.
     const slabMat = new THREE.MeshStandardNodeMaterial({ roughness: 1 });
@@ -878,6 +929,44 @@ export class Viewer {
     this.overlayTex.needsUpdate = true;
   }
 
+  /** Show the dens (D-245, D-251): `cell` row-major, `water` for a water den. */
+  setDens(
+    dens: readonly { cell: number; water: boolean; owner: number; building?: boolean }[],
+  ): void {
+    if (!this.dens.parent) this.scene.add(this.dens);
+    const n = this.replay.meta.n;
+    const keep = new Set<string>();
+    for (const d of dens) {
+      const key = `${d.cell}${d.water ? "w" : ""}${d.building ? "b" : ""}${d.owner}`;
+      keep.add(key);
+      let m = this.denModels.get(key);
+      if (!m) {
+        m = denModel(d.water, PLAYER[d.owner === 2 ? 2 : 1].base);
+        m.position.copy(this.centre({ row: Math.floor(d.cell / n), col: d.cell % n }));
+        if (d.building) m.scale.setScalar(0.55); // a den being built (D-253)
+        this.denModels.set(key, m);
+        this.dens.add(m);
+      }
+      m.visible = true;
+    }
+    for (const [key, m] of this.denModels) {
+      if (keep.has(key)) continue;
+      m.visible = false; // out of sight or moved: hidden, kept for when it shows again
+    }
+  }
+
+  /** Dim the cells out of `fogPlayer`'s sight (D-249); none without fog. */
+  private paintFog(vis: Uint8Array | undefined): void {
+    this.fogMesh.visible = !!vis && this.fogFor > 0;
+    if (!vis || !this.fogMesh.visible) return;
+    const n = this.replay.meta.n;
+    const seen = (this.explored ??= new Uint8Array(n * n));
+    for (let k = 0; k < n * n; k++) if (vis[k]) seen[k] = 1;
+    const mask = fogMask(vis, seen, n, FOG_DARK, FOG_SEEN);
+    for (let t = 0; t < mask.length; t++) this.fogData[t * 4 + 3] = mask[t] ?? 0;
+    this.fogTex.needsUpdate = true;
+  }
+
   /** The weather now (D-132): its kind (null: clear) and phase, for the light and particles. */
   setWeather(kind: string | null, phase: "clear" | "alert" | "active"): void {
     this.weather.set(kind, phase);
@@ -943,13 +1032,24 @@ export class Viewer {
     this.weather.update(dt);
     const t0 = Math.floor(tick);
     this.shown = interpolate(this.replay.animals(t0), this.replay.animals(t0 + 1), tick - t0);
+    const vis = this.fogPlayer ? this.lastFields?.vis : undefined;
+    if (vis) {
+      // The enemy's animals in the fog stay hidden (D-249).
+      const side = this.replay.meta.n;
+      this.shown = this.shown.filter(
+        (a) => a.owner === this.fogPlayer || vis[Math.floor(a.y) * side + Math.floor(a.x)],
+      );
+    }
     const dropped = this.replay.droppedAt?.bind(this.replay);
     const ms = performance.now();
     const h = (x: number, z: number) => this.field.at(x, z);
     const { n } = this.replay.meta;
     const eye = this.camera.position;
     this.animals.update(this.shown, this.selected, tick, n, ms, dropped, h, this.field.water, eye);
-    this.orders.update(this.animals.drawn, this.shown, h);
+    const drawn = this.animals.swarmDrawn.length
+      ? [...this.animals.drawn, ...this.animals.swarmDrawn]
+      : this.animals.drawn;
+    this.orders.update(drawn, this.shown, h); // swarms too
     lap("animals");
     animateAura(this.aura, now, this.surface);
     this.animatePings(now);
@@ -1028,6 +1128,7 @@ export class Viewer {
     this.owner = owner;
     this.lastFields = fields;
     if (this.overlay) this.paintOverlay(fields);
+    this.paintFog(fields.vis);
     const n = this.replay.meta.n;
     const tint = { 1: hexToRgb(PLAYER[1].base), 2: hexToRgb(PLAYER[2].base) };
     const herbs = this.herbs;

@@ -56,14 +56,14 @@ describe("species helpers", () => {
     expect(label("lichen_and_moss")).toBe("Lichen & moss");
   });
 
-  it("shows plant caps as map shares and animal caps as counts", () => {
+  it("shows plant caps as map shares and animal caps per habitat cell", () => {
     expect(
       capText({
         ...sp("grasses", "flora", 1, 1, 0),
         stats: { ...sp("g", "flora", 1, 1, 0).stats, cap: 0.15 },
       }),
     ).toBe("15 % of map");
-    expect(capText(sp("fox", "fauna", 5, 1, 0))).toBe("1 animals");
+    expect(capText(sp("fox", "fauna", 5, 1, 0))).toBe("1 per habitat cell"); // D-246
   });
 
   it("tracks unlocks over time and per player", () => {
@@ -186,7 +186,7 @@ describe("build card helpers", () => {
 
   it("gives each card a few quick stats, in real seconds (D-106)", () => {
     const grass = quickStats(sp("grasses", "flora", 1, 1, 0));
-    expect(grass.map((q) => q.icon)).toEqual(["coin", "biomass", "spread", "cap", "soil", "shade"]);
+    expect(grass.map((q) => q.icon)).toEqual(["coin", "biomass", "spread", "cap", "soil"]);
     const fox = sp("fox", "fauna", 5, 1, 0);
     expect(quickStats(fox).map((q) => q.icon)).toEqual(["coin", "biomass", "egg", "cap"]);
     const breeds = (pace: number) => parseFloat(quickStats(fox, pace)[2]?.value ?? "");

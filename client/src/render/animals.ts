@@ -7,23 +7,12 @@
 // vertex-animated models can replace these bodies later (D-072).
 
 import * as THREE from "three/webgpu";
-import {
-  abs,
-  atan,
-  attribute,
-  color,
-  length,
-  mix,
-  positionGeometry,
-  positionLocal,
-  sin,
-  step,
-  vec3,
-} from "three/tsl";
+import { abs, attribute, length, positionGeometry, positionLocal, vec3 } from "three/tsl";
 import { isSwarm } from "../game/species";
 import type { Animal, ReplayMeta } from "../replay/replay";
 import { animalGeometry, formOf, isFine, type AnimalForm } from "./bodies";
 import { writeMatrix } from "./growth";
+import { DEN_MOUTH } from "./den";
 import { CELL } from "./layout";
 import { PLAYER, type PlayerId } from "./palette";
 
@@ -97,24 +86,10 @@ const SWIM_DEPTH = 0.15;
  *  point (replays hold whole cells) do not stack. */
 const SPREAD = 0.3;
 const HIGHLIGHT = new THREE.Color("#ffffff");
-/** Parachute drops (D-080, D-089): a dropped animal falls from `height` metres over `s` seconds
- *  under a striped canopy, swaying by up to `sway` radians; the animals of one card leave up to
- *  `stagger` seconds apart. The canopy is at least `screen` x the camera distance across, so a
- *  vole's drop reads from afar. A shadow spot on the ground shrinks onto the landing point, and a
- *  dust ring spreads for `dust` seconds on landing. */
-const FALL = {
-  height: 40,
-  s: 2.5,
-  sway: 0.35,
-  stagger: 0.5,
-  screen: 0.03,
-  dust: 0.7,
-  canopy: "#ffffff",
-  stripe: "#c8423a",
-  gores: 8,
-  shadow: "#1d1a14",
-  dustColor: "#cdbb98",
-} as const;
+/** Coming out of the den (play test: no more parachutes): a bought animal appears small in the
+ *  burrow's mouth and grows to its size over `s` seconds while it steps out to its place; the
+ *  animals of one card come out up to `stagger` seconds apart. */
+const EMERGE = { s: 1.2, stagger: 0.6, small: 0.3 } as const;
 
 /** Fluid turning (D-111): an animal faces where it goes, turning at most `rate` rad/s, and only
  *  while it moves faster than `min` m/s, so a shuffle on the spot never spins it. */
@@ -141,6 +116,9 @@ export class AnimalView {
   rings = false;
   /** Where each animal was drawn this frame, for click picking (swarms excluded, D-238). */
   drawn: Drawn[] = [];
+  /** Where each swarm member was drawn this frame: not picked by clicks, but its order line
+   *  starts from it (play test: swarm orders had no line). */
+  swarmDrawn: Drawn[] = [];
   private readonly bodies: (THREE.InstancedMesh | undefined)[];
   private readonly motions: (THREE.InstancedBufferAttribute | undefined)[];
   /** Level of detail (D-201): the coarse model of fine species, drawn beyond LOD_NEAR m from the
@@ -151,12 +129,6 @@ export class AnimalView {
   private stamp = 0;
   private readonly ringMesh: THREE.InstancedMesh;
   private readonly swarm: THREE.InstancedMesh;
-  private readonly canopies: THREE.InstancedMesh;
-  private readonly canopyColor = new THREE.Color(FALL.canopy);
-  private readonly shadows: THREE.InstancedMesh;
-  private readonly dusts: THREE.InstancedMesh;
-  private readonly shadowColor = new THREE.Color(FALL.shadow);
-  private readonly dustColor = new THREE.Color(FALL.dustColor);
   private readonly forms: AnimalForm[];
   private readonly swarmOf: boolean[];
   private readonly predatorOf: boolean[];
@@ -219,30 +191,10 @@ export class AnimalView {
       capacity,
       faint(SWARM.opacity),
     );
-    const dome = new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2);
-    this.canopies = instanced(
-      scene,
-      dome,
-      capacity,
-      new THREE.MeshStandardNodeMaterial({
-        roughness: 0.8,
-        flatShading: true,
-        side: THREE.DoubleSide,
-        // White and red gores, by the angle around the dome's axis (D-110).
-        colorNode: mix(
-          color(FALL.canopy),
-          color(FALL.stripe),
-          step(0, sin(atan(positionGeometry.z, positionGeometry.x).mul(FALL.gores / 2))),
-        ),
-      }),
-    );
-    const disc = new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2);
-    this.shadows = instanced(scene, disc, capacity, faint(0.35));
-    this.dusts = instanced(scene, ring, capacity, faint(0.55));
   }
 
   setVisible(on: boolean): void {
-    const all = [this.ringMesh, this.swarm, this.canopies, this.shadows, this.dusts];
+    const all = [this.ringMesh, this.swarm];
     for (const m of [...this.bodies, ...this.far, ...all]) {
       if (!m) continue;
       m.visible = on;
@@ -250,7 +202,7 @@ export class AnimalView {
   }
 
   /** Draw `animals` (interpolated, cell units) on an `n x n` map at fractional `tick`; at `now`
-   *  (ms), animals `droppedAt` a moment ago are still falling under their canopy. */
+   *  (ms), animals `droppedAt` a moment ago are still coming out of the den. */
   update(
     animals: readonly Animal[],
     selected: Set<number>,
@@ -264,29 +216,35 @@ export class AnimalView {
   ): void {
     const counts = this.bodies.map(() => 0);
     const farCounts = this.bodies.map(() => 0);
-    let [swarms, rings, canopies, shadows, dusts] = [0, 0, 0, 0, 0];
+    let [swarms, rings] = [0, 0];
     const stamp = ++this.stamp;
     const dt = Math.min(Math.max((now - this.lastNow) / 1000, 0), 0.1);
     this.lastNow = now;
     this.drawn = [];
+    this.swarmDrawn = [];
     for (const a of animals) {
       const owner: PlayerId = a.owner === 2 ? 2 : 1;
       // Its position from the cell corner, plus its own fixed offset.
-      const x = (a.x - n / 2 + 0.5 + SPREAD * unit(a.id, 1)) * CELL;
-      const z = (a.y - n / 2 + 0.5 + SPREAD * unit(a.id, 2)) * CELL;
-      // Still falling from a drop: height left (m), easing out as it lands; the animals of a card
-      // leave one after another.
+      const x0 = (a.x - n / 2 + 0.5 + SPREAD * unit(a.id, 1)) * CELL;
+      const z0 = (a.y - n / 2 + 0.5 + SPREAD * unit(a.id, 2)) * CELL;
+      // Just bought: coming out of the den's mouth (in front of its cell centre), small, growing
+      // to its size as it steps out; the animals of a card one after another.
       const since = droppedAt?.(a.id);
       const age =
         since === undefined
           ? Infinity
-          : (now - since) / 1000 - FALL.stagger * (unit(a.id, 4) + 0.5);
-      const left = (1 - Math.min(Math.max(age / FALL.s, 0), 1)) ** 2;
-      const fall = FALL.height * left;
+          : (now - since) / 1000 - EMERGE.stagger * (unit(a.id, 4) + 0.5);
+      const left = (1 - Math.min(Math.max(age / EMERGE.s, 0), 1)) ** 2;
+      const grow = 1 - (1 - EMERGE.small) * left;
+      const cx = (Math.floor(a.x) - n / 2 + 0.5) * CELL;
+      const cz = (Math.floor(a.y) - n / 2 + 0.5) * CELL + DEN_MOUTH.z;
+      const x = left > 0 ? x0 + (cx - x0) * left : x0;
+      const z = left > 0 ? z0 + (cz - z0) * left : z0;
+      const fall = DEN_MOUTH.y * left;
       if (this.swarmOf[a.species]) {
         const g = height(x, z);
         const on = selected.has(a.id);
-        const r = on ? SWARM.r * SWARM.selected : SWARM.r;
+        const r = (on ? SWARM.r * SWARM.selected : SWARM.r) * grow;
         put(
           this.swarm,
           swarms++,
@@ -298,11 +256,12 @@ export class AnimalView {
           0,
           on ? HIGHLIGHT : this.dotColor[owner],
         );
+        this.swarmDrawn.push({ id: a.id, owner: a.owner, x, y: g + SWARM.y, z });
         continue; // selected from the unit list or an icon, not by clicks (D-238)
       }
       const form = this.forms[a.species];
       const body = form?.body ?? "rodent";
-      const size = form ? drawnLength(form) : 0.5;
+      const size = (form ? drawnLength(form) : 0.5) * (left > 0 ? grow : 1);
       // Face the way it goes, turning progressively; keep the heading while it barely moves.
       const last = this.heading.get(a.id);
       let angle = last?.a ?? unit(a.id, 3) * Math.PI * 2;
@@ -336,7 +295,7 @@ export class AnimalView {
       const swing = Math.sin(g.p) * g.amp;
       const bob = body === "bird" ? FLIGHT_Y + BOB * Math.sin(tick * 0.8 + a.id) : 0;
       const y = ground + bob + Math.abs(swing) * GAIT.bob * size + fall;
-      const sway = left > 0 ? FALL.sway * left * Math.sin(age * 5 + a.id) : 0;
+      const sway = 0;
       // Up close the fine model, from afar the coarse one (D-201).
       const away =
         camera !== undefined &&
@@ -355,19 +314,6 @@ export class AnimalView {
         m[i * 4 + 2] = Math.cos(turned) * size;
         m[i * 4 + 3] = -Math.sin(turned) * size;
         tally[a.species] = i + 1;
-      }
-      // The canopy, readable at any zoom; the shadow spot under it; the dust ring on landing.
-      if (left > 0) {
-        const far = camera ? Math.hypot(camera.x - x, camera.y - y, camera.z - z) : 0;
-        const cr = Math.max(0.5, size * 0.7, (FALL.screen * far) / 2);
-        const cy = y + size * 0.8 + cr * 0.6;
-        put(this.canopies, canopies++, x, cy, z, cr, cr * 0.5, angle + sway, this.canopyColor);
-        const spot = cr * (0.5 + 0.9 * left);
-        put(this.shadows, shadows++, x, ground + 0.05, z, spot, spot, 0, this.shadowColor);
-      } else if (age >= FALL.s && age < FALL.s + FALL.dust) {
-        const t = (age - FALL.s) / FALL.dust;
-        const d = Math.max(0.6, size) * (1 + 1.5 * t);
-        put(this.dusts, dusts++, x, ground + 0.08, z, d, d, 0, this.dustColor);
       }
       const picked = selected.has(a.id);
       if (picked || this.rings) {
@@ -398,9 +344,6 @@ export class AnimalView {
     }
     finish(this.ringMesh, rings);
     finish(this.swarm, swarms);
-    finish(this.canopies, canopies);
-    finish(this.shadows, shadows);
-    finish(this.dusts, dusts);
   }
 }
 

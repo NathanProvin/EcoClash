@@ -99,11 +99,12 @@ export function cardState(meta: ReplayMeta, s: Species, unlocked: Set<string>): 
   return tierOk && habitatOk ? "available" : "locked";
 }
 
-/** The population cap as shown: a share of the map for plants (D-045), a head count for animals. */
+/** The population cap as shown: a share of the map for plants (D-045); for animals, heads per
+ *  own habitat cell (D-246; the sheet's `per_cell`, sent as `cap`). */
 export function capText(s: Species): string {
   return s.kind === "flora"
     ? `${Math.round(s.stats.cap * 100)} % of map`
-    : `${s.stats.cap} animals`;
+    : `${s.stats.cap} per habitat cell`;
 }
 
 /** Family names, in build-bar order (D-087, D-105): land plants, land animals, the water
@@ -238,7 +239,7 @@ export const MEDAL = ["bronze", "silver", "gold"] as const;
 
 /** One quick stat of a species tooltip (D-106): an icon, a short value, the words on hover. */
 export interface QuickStat {
-  icon: "coin" | "biomass" | "spread" | "egg" | "cap" | "soil" | "shade";
+  icon: "coin" | "biomass" | "spread" | "egg" | "cap" | "soil";
   value: string;
   title: string;
   /** For plants (D-242): how this value compares to the mean of all plants, as a colour from red
@@ -261,7 +262,6 @@ const PLANT_STATS = {
   spread: { of: (s: Species) => s.stats.growth, lowBetter: false },
   cap: { of: (s: Species) => s.stats.cap, lowBetter: false },
   soil: { of: (s: Species) => s.stats.soil_gain ?? 0, lowBetter: false },
-  shade: { of: (s: Species) => s.stats.shade_cast ?? 0, lowBetter: false },
 } as const;
 const TONE = { bad: [200, 85, 61], mid: [214, 208, 190], good: [134, 176, 72] } as const;
 
@@ -283,8 +283,8 @@ export function statTone(key: keyof typeof PLANT_STATS, s: Species, plants: read
 
 /** The quick stats of a species, in real seconds: the stat sheet counts ecology seconds, which
  *  run at `pace` per real second (D-069). Plants: the cost of a full planting (`cells` per order,
- *  D-242), yield per cell, spread, map share, soil build-up and shade cast, each toned against
- *  the mean of `plants`; animals: cost (×1.5 off your land), yield, breeding period, head cap. */
+ *  D-242), yield per cell, spread, map share, and soil build-up, each toned against
+ *  the mean of `plants`; animals: cost, yield, breeding period, heads per habitat cell. */
 export function quickStats(
   s: Species,
   pace = 1,
@@ -326,17 +326,11 @@ export function quickStats(
           title: "Soil build-up at full cover, per minute",
           tone: tone("soil"),
         },
-        {
-          icon: "shade",
-          value: `${Math.round((s.stats.shade_cast ?? 0) * 100)}%`,
-          title: "Shade cast on the layers below",
-          tone: tone("shade"),
-        },
       ]
     : [
-        { icon: "coin", value: `${cost}`, title: "Cost each, ×1.5 off your land" },
+        { icon: "coin", value: `${cost}`, title: "Cost each" },
         { icon: "biomass", value: `+${r(y * pace)}/s`, title: "Biomass per animal" },
         { icon: "egg", value: `${r(growth / pace)}s`, title: "Breeds at most this often" },
-        { icon: "cap", value: `${cap}`, title: "Most animals one side may have" },
+        { icon: "cap", value: `${cap}/cell`, title: "Most animals per own cell of their habitat" },
       ];
 }

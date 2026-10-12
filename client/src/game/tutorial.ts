@@ -1,7 +1,7 @@
 // Tutorial (M5a 8b, D-139): a short match on a gentle map against the easy bot, guided by
 // objectives that complete in order. Each step names the control it uses, and a pointer rings
 // that control on screen. It teaches the main loops (spread, layers, unlocks, animals, breeding,
-// raids and drops) and the predator-prey answer to a raid (D-141); it keeps some surprises:
+// raids) and the predator-prey answer to a raid (D-141); it keeps some surprises:
 // bigger hunters, recyclers, weather and catastrophes are left to discover.
 // Pure: the HUD feeds it what the player has done so far.
 
@@ -37,10 +37,9 @@ export interface TutorialState {
   plants: ReadonlySet<string>;
   /** The player's animals selected now. */
   selected: number;
-  /** Predator-prey loop (D-141): the player's animals born on the map (not called), dropped onto
-   *  enemy land a moment ago, and the animal species it fields. */
+  /** Predator-prey loop (D-141): the player's animals born on the map (not called), and the
+   *  animal species it fields. */
   born: number;
-  airdropped: number;
   fauna: ReadonlySet<string>;
   /** Enemy grasshoppers on the map, and whether every raid wave has been sent. */
   swarm: number;
@@ -73,7 +72,7 @@ export const SPREAD_GOAL = 0.04;
 export const HERD_BIRTHS = 1;
 /** The step during which the bot raids with grasshopper swarms (the App drives that raid). */
 export const DEFEND_TITLE = "Defend your meadows";
-/** The scripted raid (D-141): a swarm of grasshoppers dropped by the bot onto the player's grass
+/** The scripted raid (D-141, D-245): a swarm of grasshoppers the bot sends onto the player's grass
  *  every `everyMs`, at most `waves` times; each wave first grants the bot `grant` biomass so it
  *  always comes (the easy bot spends its bank as it goes). */
 export const RAID = { waves: 6, everyMs: 20_000, grant: 2500 } as const;
@@ -123,7 +122,7 @@ export const OBJECTIVES: Objective[] = [
     title: "Grow a second layer",
     need: 1000, // Ferns 600 + a planting
     text: "Unlock Ferns in Undergrowth and plant them where your soil is rich.",
-    tip: "At the front, a taller layer shades and smothers the enemy's lower plants: that is how borders move.",
+    tip: "Each taller layer and each extra species makes a cell stronger at the front: that is how borders move.",
     point: ["family-L2"],
     done: (s) => s.layer >= 2,
   },
@@ -137,8 +136,8 @@ export const OBJECTIVES: Objective[] = [
   {
     title: "Call rabbits",
     need: 4000, // Grasshoppers 600 + Rabbits 1000 + a card of three (800 each)
-    text: "In Grazers (yellow), unlock Grasshoppers, then Rabbits. Pick Rabbits and click your grass: on your own land they come at the base price.",
-    tip: "Hold Shift while you click to drop the same card several times.",
+    text: "In Grazers (yellow), unlock Grasshoppers, then Rabbits, then click Rabbits: they appear at your den, the ⌂ mark where you first planted.",
+    tip: "Rabbits live on your meadows: the more grass you hold, the bigger the herd can grow.",
     point: ["family-H1"],
     done: (s) => s.animals > 0,
   },
@@ -160,17 +159,9 @@ export const OBJECTIVES: Objective[] = [
     done: (s) => s.onEnemy > 0,
   },
   {
-    title: "Airdrop a raid",
-    need: 3600, // a card of rabbits at ×1.5
-    text: "You can also drop animals straight into enemy land: pick Rabbits in Grazers and click enemy grass. They land on its food at once, but cost ×1.5.",
-    tip: "The ring under the cursor turns warm when the drop costs more.",
-    point: ["family-H1"],
-    done: (s) => s.airdropped > 0,
-  },
-  {
     title: DEFEND_TITLE,
     need: 1500, // Great tit 800 + a few cards (D-187: tits live on meadows too)
-    text: "The enemy is dropping grasshopper swarms on your meadows! Great tits eat them: unlock Great tit in Insect eaters and drop it onto the swarm.",
+    text: "The enemy is sending grasshopper swarms onto your meadows! Great tits eat them: unlock Great tit in Insect eaters, call it, then send it onto the swarm (A + click).",
     tip: "Every grazer has a hunter: the tech tree shows who eats whom.",
     point: ["family-L3", "family-P1"],
     // Fallback: a bot left without grass cannot raid; then the unlock is enough.

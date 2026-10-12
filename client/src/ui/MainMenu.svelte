@@ -27,7 +27,7 @@
   // .env (VITE_FEEDBACK_URL); a dev server shows "dev" and no link.
   const BUILD: string = import.meta.env.VITE_BUILD ?? "dev";
   /** The release shown on the main menu (D-217). */
-  const VERSION = "Alpha 1.4";
+  const VERSION = "Alpha 1.5";
   const FEEDBACK: string | undefined = import.meta.env.VITE_FEEDBACK_URL || undefined;
 
   let {
@@ -99,9 +99,10 @@
     ["Right-click", "Move (on enemy land: attack-move)"],
     ["A, then click", "Attack-move"],
     ["S", "Stop"],
+    ["H, then click", "Hold: gather there and stay"],
     ["Shift or Ctrl + 1–9", "Set a control group"],
     ["1–9", "Recall a control group"],
-    ["Shift + click", "Keep dropping the armed species"],
+    ["Shift + click", "Keep planting the armed species"],
     ["Q / E", "Rotate the camera"],
     ["Arrows / right-drag", "Pan"],
     ["Wheel", "Zoom"],

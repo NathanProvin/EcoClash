@@ -237,7 +237,8 @@ pub fn play(b: &Balance, seed: u64, size: usize, seats: [Seat; 2], minutes: u64)
         ..Markers::default()
     };
     let family = |s: usize| b.fauna_species[s].1.family.as_str();
-    let reach2 = u64::from(b.fauna.drop_radius).pow(2);
+    // A hunter call fits when enemy prey is within its sight of the click (D-245: no drop radius).
+    let reach2 = |s: usize| u64::from(b.fauna_species[s].1.sight).pow(2);
     // An open raid per side: (onset, species of the raiders as a mask, last second seen).
     let mut raids: [Option<(u64, u64, u64)>; 2] = [None; 2];
     let mut seq = [0u32; 2];
@@ -281,7 +282,7 @@ pub fn play(b: &Balance, seed: u64, size: usize, seats: [Seat; 2], minutes: u64)
                                 let k = a.cell(j, size);
                                 let d = (k / size).abs_diff(row).pow(2)
                                     + (k % size).abs_diff(col).pow(2);
-                                if d as u64 <= reach2 {
+                                if d as u64 <= reach2(s) {
                                     match w.fauna.p.prey_rank(s, usize::from(a.sp[j])) {
                                         Some(0) => (primary, any) = (true, true),
                                         Some(_) => any = true,
@@ -469,10 +470,11 @@ pub fn play(b: &Balance, seed: u64, size: usize, seats: [Seat; 2], minutes: u64)
                         .count() as u64;
                 }
                 if now == 20 * 60 {
+                    let caps = w.fauna.caps(&w.flora.p, &w.state); // D-246
                     m.capped[p] = census
                         .iter()
                         .enumerate()
-                        .filter(|&(s, &c)| c > 0 && c >= i64::from(b.fauna_species[s].1.cap))
+                        .filter(|&(s, &c)| c > 0 && c >= caps[s][p])
                         .count() as u64;
                 }
             }
@@ -785,13 +787,14 @@ pub fn summary(ms: &[Markers], seats: [Seat; 2]) -> String {
     };
     let _ = writeln!(
         t,
-        "wins P1 {} / P2 {} / draw {} / unfinished {}; by territory {}, biomass {}",
+        "wins P1 {} / P2 {} / draw {} / unfinished {}; by territory {}, biomass {}, den {}",
         wins(1),
         wins(2),
         wins(0),
         ms.iter().filter(|m| m.end.is_none()).count(),
         reasons(Reason::Territory),
-        reasons(Reason::Biomass)
+        reasons(Reason::Biomass),
+        reasons(Reason::Den)
     );
     let _ = write!(t, "{}", shape(ms));
     let _ = write!(t, "{}", fingerprints(ms));

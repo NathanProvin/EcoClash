@@ -1093,3 +1093,103 @@
   - the test helper `uncapped()` gives land plants the neutral V1 water need, so the rule tests check mechanisms, not tuned data;
   - the relay test checks that both players bought the same cards and at least two, not a price-dependent count.
 - **Lesson:** run every CI step before pushing (`py:test`, `npm run test -w relay`, `relay:lint`, `rs:wasm`, `client:build`), not just the Rust and client suites.
+
+## 2026-10-12 · Alpha 1.5 gameplay and balance rework (D-243…D-250)
+- **Goal (user):** a more playable and fun game. Fix the snowball, and bring back "a better ecosystem breeds more units". Plan approved, one commit per step on `alpha-1.5`.
+- **Done:**
+  - spec (gamerules, D-243…D-250);
+  - shade removed, layer multiplier, biodiversity 0.6 / cap 4;
+  - grazers eat their whole layer, trampling by tier;
+  - dens: bought animals appear at home and walk (no drops, no ×1.5); the tutorial's airdrop step is removed;
+  - habitat carrying capacity (`per_cell`), founding groups, herds spreading, hold order (H);
+  - income from production, own grazers crop above 50 % cover;
+  - catastrophes open over time; aphid and frost blights; the rush bot casts them ahead of raids;
+  - fog of war (layer sight, animal sight, last-seen fields, dimming, bots fogged);
+  - tuning (D-250).
+- **Checks:** every CI step run locally and green (Rust, wasm, client, py, relay).
+- **Bench:**
+  - Normal vs Normal: income at 10 min back at the old level;
+  - land at 5 min down from 34–42 % to 31 %;
+  - raids from 10 min;
+  - 1–2 lead changes per match.
+- **Not seen in the browser yet:** the den marker, fog dimming, the H order. The user's play test comes first.
+- **Open:**
+  - the bot-balance pass (style fingerprint test still ignored);
+  - `bench --handicap`, the unit-panel hold button and a fog switch, if wanted.
+
+## 2026-10-12 (2) · Alpha 1.5, the play-test round (D-251, D-252)
+- **The user's feedback, applied:**
+  - biodiversity 0.5;
+  - trampling ×1, ×2, ×3 by tier;
+  - herbs spread ×0.7 again; shrubs and trees spread and grow ×1.3;
+  - fog of war;
+  - the den;
+  - a 3×3 catastrophe grid.
+- **Fog bug:** `viewer` in `App.svelte` is not reactive. The effect that switched fog on ran before the viewer existed, so fog never showed. It is now set right after `Viewer.create`. Fog now looks like Age of Empires: black where never seen, dark where seen before.
+- **Den (D-251):** losing the den cell loses the match, like a MOBA ancient. It is drawn as a low-poly burrow, or a stick lodge for the water den, with an owner ring. Bots raid a seen enemy den and guard their own.
+- **Catastrophes (D-252):** nine cards (herbs, woody, fauna × cheap, mid, large). New: chainsaw, hunters, poisoned bait, epidemic, with procedural sounds. Catastrophe sounds had never played before (act-name mismatch); fixed.
+- **Checked in the browser:**
+  - dark fog with a clearing around the colony;
+  - the burrow at the first planting;
+  - the 3×3 deck with countdowns to each card's opening.
+  The new cards' effects and sounds have not been seen in play yet.
+- **Checks:** the full CI set is green.
+
+## 2026-10-12 (3) · Alpha 1.5, play-test round 3 (D-253)
+- **Bugs fixed:**
+  - **Reeds and cattails could not be planted.** As non-pioneers they needed developed soil, which shallows barely build since D-237. Water plants now need none (`FloraSpecies::needs_soil`).
+  - **Orders that stayed put** (after a Stop, raids across the map, larvae). The route search gave up past 400 cells and the animal stayed; a goal it couldn't stand on also meant "stay".
+    - The search now covers the whole map (`path_cells` 4 000). When the goal can't be reached it walks to the nearest reachable cell.
+    - An order onto ground the animal can't stand on goes to the nearest cell it can (larvae → the nearest water, walkers → the bank).
+    - Sim tick with 1 500 animals: average 1.2 ms, worst tick 8.7 ms (flat map).
+  - **Esc left full screen.** Esc is now kept for the game (keyboard lock, Chromium).
+- **Look:**
+  - light grey fog with faint, half-speed clouds;
+  - a rebuilt den, 30 % bigger: lumpy mound, dark mouth with a dug-earth rim, roots, pebbles, three flowers;
+  - a beaver lodge for the water den;
+  - bought animals come out of the den's mouth, growing; the parachutes are gone.
+- **Move den (D-253):** 2 000 points, built over 20 s while both cells must hold, from the cell card.
+- **UI:**
+  - the menu button now comes before the full-screen button;
+  - "Waiting for the other player…" shows bottom left.
+- **Checked in the browser:**
+  - the fog;
+  - the new burrow close up;
+  - a Stop, then a Move across the map, which arrives.
+
+  Not yet seen: the lodge on a water map, the emergence from close up, Move den in play.
+- **Checks:** the full CI set is green.
+
+## 2026-10-12 (4) · The bot founded next to the player; fog in between
+- **Spawn kills:** the bot founded anywhere on its half at least n/3 cells (12 on a mid map) from the player's land, then spread toward it and raided the den once seen (D-251). It now founds only on sites at least 80 % as far from the player as the farthest site of its half (`FOUND_FAR`), still varied among those. Test: `the_bot_founds_far_from_the_enemy`.
+- **Fog:** mid grey `#85888c` (alpha 235 unseen, 155 seen before), between round 2's dark and round 3's light.
+
+## 2026-10-12 (5) · Fog, Esc, swarm order lines, breeding
+- **Fog:** darker grey `#5e6166`, more see-through (alpha 205 unseen, 125 seen before): coasts and rivers show through.
+- **Esc in full screen:** the keyboard lock is now asked before entering full screen and again on every full-screen change. It needs the Keyboard Lock API (desktop Chrome/Edge). In the automation browser `navigator.keyboard` was missing, so this is unverified. Without the API no page can stop Esc; F11 full screen (browser) is the fallback.
+- **Swarm order lines:** swarms weren't in the `drawn` list (they are not click-pickable), so their order lines had no start. They now have their own `swarmDrawn` list, which the order lines also read. Checked in the browser.
+- **Breeding −30 %:** the animal `growth` period ÷ 0.7.
+- **Found in the browser:**
+  - The first card of a species could read "population cap reached": with only a few habitat cells, the cap (0.5 per cell for swarms) rounded below a card. The cap is now never below one card while the species has habitat.
+  - The habitat check now comes before the cap check, so a colony whose plants aren't grown yet reads "needs its habitat plants grown on your land".
+
+## 2026-10-12 (6) · Fog motion, planting cursor, den greens, earthy icons, frame spikes
+- **Fog:**
+  - neutral grey `#5f5f5f`, no blue;
+  - clouds about 2.5× faster than round 3 and more visible (colour ±16 %/8 %, opacity ±7 %);
+  - average opacity as the user approved.
+- **Planting:** a refused planting no longer re-arms the species. A click always returns to the basic cursor (Shift still keeps planting).
+- **Den:** one flower removed. A tiny spruce (tiers of cones) and a fern (the undergrowth's own frond model) added.
+- **Sowing seeds:** half their radius.
+- **Icons, earthy look:**
+  - family icons are pebble-shaped, matte, mottled, in deeper earth and leaf tones with a bark-dark rim;
+  - the build bar and its flyouts sit on dark loam under a bark rim; the tier rings follow the pebble shape.
+- **Strategic icons:**
+  - every group shows, even one animal (two hawks went unseen);
+  - a thick owner ring (enemy in threat red);
+  - placed each frame over the group's current centre, so they track smoothly.
+- **Worst-frame spikes (about 50 ms):** each den model made about 80 materials, each compiling a WebGPU pipeline, and the models were rebuilt whenever the visible dens changed (fog). Materials are now shared per colour, and den models are kept and only hidden. Not measured in the browser.
+
+## 2026-10-12 (7) · Alpha 1.5 released
+- Menu label "Alpha 1.5". `alpha-1.5` merged into main and pushed; CI deploys Cloudflare Pages and the relay.
+- The whole CI set was run locally before the push.

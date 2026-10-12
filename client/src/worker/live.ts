@@ -54,7 +54,7 @@ export type ToMain =
       tickHz: number;
       pace: number;
       plantRadius: number;
-      dropRadius: number;
+      denMoveCost: number;
       victory: number;
       timeLimitS: number;
       maxAgents: number;
@@ -90,18 +90,21 @@ export type ToMain =
       lock: ArrayBuffer;
       deadwood: ArrayBuffer;
       flood: number[]; // cells under flood water (D-132)
-      shade: ArrayBuffer; // shade on the ground per cell, 0..255 (D-135)
       moisture: ArrayBuffer; // moisture per cell, 0..255 (D-135)
       bank: number[];
       income: number[];
       standing: number[];
       victory: number; // the share of the map that wins now (D-175)
+      dens: number[][]; // per player: the land and water den cells, -1 for none (D-245)
+      caps: number[][]; // per player: the population cap of each animal species (D-246)
+      moves: number[][]; // per player: a den move under way, [cell, seconds left] or [] (D-253)
+      vis: ArrayBuffer; // per cell: 1 in your sight, 0 in the fog (D-249)
     }
   | { type: "notice"; notices: { player: number; text: string }[] }
   | { type: "net"; event: "desync" | "left"; tick: number }
   | { type: "error"; message: string };
 
-/** How long a dropped animal is remembered, for its parachute (ms; the fall is shorter). */
+/** How long a bought animal is remembered, to bring it out of the den (ms). */
 const DROP_MEMORY_MS = 5000;
 
 /** Why an order did nothing, shown for a few seconds. */
@@ -174,14 +177,27 @@ export class Live implements Source {
   netProblem = "";
   result: Outcome | null = null;
   readonly plantRadius: number;
-  /** Cells around the click where an animal dropped off your land lands (D-061). */
-  readonly dropRadius: number;
+  /** What moving the land den costs (D-253). */
+  readonly denMoveCost: number;
+  /** Per player: a den move under way, [cell, seconds left], or [] (D-253). */
+  moves: number[][] = [[], []];
   /** The generated map (D-083), for the renderer. */
   readonly terrain: TerrainFrame;
   /** Share of the map that wins, and the match length (s): for the "victory near" alerts. */
   readonly victory: number;
   /** The share that wins now: the start share, then decaying (D-175). */
   victoryNow: number;
+  /** Fog of war (D-249): off in a sandbox (set by the caller). */
+  fog = true;
+  /** The plant fields last seen in each cell, under the fog (D-249). */
+  private seen: Fields | null = null;
+  /** Per player: the population cap of each animal species, by fauna index (D-246). */
+  caps: number[][] = [[], []];
+  /** Per player: the land and water den cells, -1 for none yet (D-245). */
+  dens: number[][] = [
+    [-1, -1],
+    [-1, -1],
+  ];
   readonly timeLimitS: number;
   /** Catastrophe cards (D-129), and per player the seconds before each is ready again. */
   readonly catastrophes: Catastrophe[];
@@ -216,7 +232,7 @@ export class Live implements Source {
     const plants = species.filter((s) => s.kind === "flora");
     const animals = species.filter((s) => s.kind === "fauna");
     this.plantRadius = ready.plantRadius;
-    this.dropRadius = ready.dropRadius;
+    this.denMoveCost = ready.denMoveCost;
     const map = new Uint8Array(ready.terrain);
     const cells = ready.n * ready.n;
     this.terrain = {
@@ -300,6 +316,12 @@ export class Live implements Source {
     this.send({ type: "command", player, payload: { type: "spawn", species, row, col } });
   }
 
+  /** Move the land den to a cell (D-253); the sim refuses it, with a notice, unless it is one of
+   *  the player's own grown land cells and the bank pays. */
+  moveDen(player: 1 | 2, row: number, col: number): void {
+    this.send({ type: "command", player, payload: { type: "move_den", row, col } });
+  }
+
   /** Play catastrophe card `kind` centred on a cell (D-129); the sim refuses it, with a notice,
    *  while it cools down or when the bank is short. */
   catastrophe(player: 1 | 2, kind: string, row: number, col: number): void {
@@ -347,7 +369,7 @@ export class Live implements Source {
   order(
     player: 1 | 2,
     ids: number[],
-    kind: "move" | "attack" | "stop",
+    kind: "move" | "attack" | "stop" | "hold",
     row: number,
     col: number,
   ): void {
@@ -407,9 +429,12 @@ export class Live implements Source {
       this.current.lock = new Uint8Array(m.lock);
       this.current.deadwood = new Uint8Array(m.deadwood);
       this.current.flood = m.flood;
-      this.current.shade = new Uint8Array(m.shade);
       this.current.moisture = new Uint8Array(m.moisture);
       this.victoryNow = m.victory;
+      this.dens = m.dens;
+      this.caps = m.caps;
+      this.moves = m.moves;
+      if (this.fog) this.hide(new Uint8Array(m.vis));
     } else if (m.type === "notice") {
       const at = performance.now();
       this.notices = [...this.notices, ...m.notices.map((n) => ({ ...n, at }))].slice(-4);
@@ -456,6 +481,35 @@ export class Live implements Source {
   }
 
   /** Decode a frame, refresh the per-player plant census, and append a row to the HUD series. */
+  /** Fog of war (D-249): cells out of sight show what was last seen there (owner, plants,
+   *  front); the series and census, worked out before, keep the truth. */
+  private hide(vis: Uint8Array): void {
+    const f = this.current;
+    const last = this.seen;
+    f.vis = vis;
+    if (last) {
+      const layers = (g: Fields) => [
+        g.owner,
+        g.soil,
+        ...g.species,
+        ...g.cover,
+        ...[g.pressure, g.strength, g.deadwood].filter((x): x is Uint8Array => !!x),
+      ];
+      const [now, then] = [layers(f), layers(last)];
+      if (now.length === then.length)
+        for (let k = 0; k < vis.length; k++) {
+          if (vis[k]) continue;
+          now.forEach((a, i) => {
+            const b = then[i];
+            if (!b) return;
+            const per = a.length / vis.length; // strength: two bytes per cell
+            for (let j = 0; j < per; j++) a[k * per + j] = b[k * per + j] ?? 0;
+          });
+        }
+    }
+    this.seen = f;
+  }
+
   private decode(
     frame: number,
     bytes: Uint8Array,

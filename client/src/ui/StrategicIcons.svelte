@@ -62,18 +62,19 @@
     translate: var(--x) var(--y);
     transform: translate(-50%, -120%);
     border: 0;
-    border-radius: 9px;
+    border-radius: 42% 58% 46% 54% / 52% 44% 56% 48%;
     background: none;
+    /* A thick owner ring (play test): yours in your colour, the enemy's in threat red. */
     box-shadow:
-      0 0 0 2px var(--player),
-      0 3px 10px rgba(0, 0, 0, 0.35);
+      0 0 0 1.5px rgba(20, 14, 8, 0.85),
+      0 0 0 5px var(--player),
+      0 0 0 6.5px rgba(20, 14, 8, 0.6),
+      0 4px 12px rgba(0, 0, 0, 0.45);
     cursor: var(--cursor-pointer);
     transition: scale 0.12s;
   }
   .icon.enemy {
     --player: var(--threat);
-    outline: 2px solid var(--threat);
-    outline-offset: 3px;
   }
   .icon:hover {
     scale: 1.1;
@@ -91,8 +92,8 @@
     min-width: 18px;
     padding: 1px 5px;
     border-radius: 999px;
-    background: rgba(20, 24, 20, 0.85);
-    box-shadow: 0 0 0 1.5px var(--player);
+    background: linear-gradient(180deg, #3b2c1d, #22180f);
+    box-shadow: 0 0 0 2px var(--player);
     color: #fff;
     font-size: 0.68em;
     font-weight: 800;
@@ -100,9 +101,6 @@
     line-height: 1.4;
   }
   .icon.swarm {
-    opacity: 0.85;
-    box-shadow:
-      0 0 0 2px var(--player),
-      0 0 0 4px rgba(0, 0, 0, 0.25);
+    opacity: 0.9;
   }
 </style>

@@ -18,7 +18,7 @@
     withUrl,
   } from "./game/setup";
   import { ALL_TIPS, loadSeen, saveSeen, TIPS, TipWatch } from "./game/tips";
-  import { CATASTROPHE_LOOK } from "./game/catastrophes";
+  import { lookOf } from "./game/catastrophes";
   import { advance, DEFEND_TITLE, OBJECTIVES, RAID, topUp, TUTORIAL_SETUP } from "./game/tutorial";
   import { loadReplay, type Fields, type Role, type Source, type Species } from "./replay/replay";
   import { Live, type Outcome } from "./worker/live";
@@ -139,7 +139,8 @@
   let selection = $state(new Set<number>());
   let confirmLeave = $state(false); // "leave the match?" dialog
   let planting: string | null = $state(null); // species armed for the next map click
-  let attackArmed = $state(false); // A pressed: the next map click is an attack-move
+  // A or H pressed: the next map click is an attack-move or a hold (D-246).
+  let armedOrder: "attack" | "hold" | null = $state(null);
   const groups = new SvelteMap<number, number[]>(); // control groups: digit -> animal ids
   let rightDown: { x: number; y: number } | null = null;
   // Notifications (D-077): toasts, raid pings still showing, and arrows to the off-screen ones.
@@ -394,8 +395,17 @@
   function projectIcons() {
     const v = viewer;
     if (!v || !iconGroups.length) return;
+    // Each icon over its animals' centre this frame (play test: smooth tracking; the 10 Hz
+    // regrouping alone made icons lag and jump).
+    const now: Record<number, { x: number; y: number }> = {};
+    for (const a of v.visibleAnimals()) now[a.id] = a;
     icons = iconGroups.flatMap((g) => {
-      const at = v.screenPoint({ row: g.row, col: g.col });
+      let [row, col, k] = [0, 0, 0];
+      for (const id of g.ids) {
+        const a = now[id];
+        if (a) [row, col, k] = [row + a.y, col + a.x, k + 1];
+      }
+      const at = v.screenPoint(k ? { row: row / k, col: col / k } : { row: g.row, col: g.col });
       return at.inView ? [{ ...g, x: at.x, y: at.y }] : [];
     });
   }
@@ -406,8 +416,7 @@
     return live?.waits[me - 1] ?? [];
   });
 
-  // Drop cursor (D-079): the armed species' model follows the cursor; "×1.5" off your land.
-  let dropTag: { x: number; y: number } | null = $state(null);
+  // Planting cursor (D-079): the armed plant's model follows the cursor.
   $effect(() => {
     const s = planting ? replay?.meta.species.find((x) => x.name === planting) : undefined;
     const l = live;
@@ -433,12 +442,75 @@
             family: s.family,
             role: s.role as Role,
             player: me,
-            radius: s.kind === "flora" ? l.plantRadius : l.dropRadius,
+            radius: l.plantRadius,
           }
         : null,
     );
-    if (!s) dropTag = null;
   });
+
+  // Dens (D-245): an animal card buys at once; the animals appear at your den and walk.
+  $effect(() => {
+    const name = planting;
+    if (!name || !live || armedKind !== "fauna") return;
+    planting = null;
+    live.spawn(me, name, 0, 0);
+    const [den = -1] = live.dens[me - 1] ?? [];
+    const n = live.meta.n;
+    const place = den >= 0 ? placeOf({ row: Math.floor(den / n), col: den % n }) : null;
+    audio.play("fx.drop", { at: place });
+    const call = callOf(name);
+    // Most arrivals come with a call (D-179), not every one.
+    if (call && Math.random() < DROP_CALL) setTimeout(() => audio.play(call, { at: place }), 450);
+  });
+  // Fog of war (D-249): lifted once the match is over (set on with the viewer, below; `viewer`
+  // is not reactive, so an effect on it alone never ran).
+  $effect(() => {
+    if (!outcome || !live) return;
+    live.fog = false;
+    if (viewer) viewer.fogPlayer = 0;
+  });
+  /** Your population cap per animal species (D-246), refreshed with the fields. */
+  const animalCaps = $derived.by(() => {
+    void tick;
+    const caps = live?.caps[me - 1] ?? [];
+    const names = live?.meta.fauna.names ?? [];
+    return Object.fromEntries(names.map((name, i) => [name, caps[i] ?? 0]));
+  });
+  /** "Move den here" on the cell card (D-253): your own grown land cell, not the den, with no
+   *  move under way. */
+  const denMoveHere = $derived.by(() => {
+    void tick;
+    const l = live;
+    const c = cell;
+    const info = cellInfo;
+    if (!l || !c || !info || outcome || info.owner !== me || info.ground !== 0) return undefined;
+    const k = c.row * l.meta.n + c.col;
+    const grown = info.plants.some((p) => p.cover >= 0.3);
+    if (!grown || l.dens[me - 1]?.[0] === k || (l.moves[me - 1]?.length ?? 0) > 0) return undefined;
+    return {
+      cost: l.denMoveCost,
+      go: () => {
+        l.moveDen(me, c.row, c.col);
+        toast("Your den moves there: it is built in a few seconds; hold both cells.", "info", c);
+      },
+    };
+  });
+  /** The dens on the map (D-245, D-251): yours always, the enemy's once in sight. */
+  function showDens() {
+    const v = viewer;
+    const l = live;
+    if (!v || !l) return;
+    const vis = l.fields().vis;
+    v.setDens(
+      [1, 2].flatMap((p) =>
+        [...(l.dens[p - 1] ?? []), l.moves[p - 1]?.[0] ?? -1].flatMap((cell, i) =>
+          cell >= 0 && (p === me || !l.fog || vis?.[cell])
+            ? [{ cell, water: i === 1, owner: p, building: i === 2 }]
+            : [],
+        ),
+      ),
+    );
+  }
 
   /** Each toast kind's cue (D-177). */
   const TOAST_SOUND: Record<Toast["kind"], string> = {
@@ -636,14 +708,9 @@
         (top, level, i) => ((cells[i] ?? 0) > 0 ? Math.max(top, level) : top),
         0,
       );
-      // Predator-prey loop (D-141): births (animals no spawn order brought), drops that landed on
-      // enemy land a moment ago, and the animal species the player fields.
+      // Predator-prey loop (D-141): births (animals no spawn order brought), and the animal
+      // species the player fields.
       const born = mine.filter((a) => !l.wasCalled(a.id)).length;
-      const airdropped = mine.filter(
-        (a) =>
-          l.droppedAt(a.id) !== undefined &&
-          fields.owner[Math.floor(a.y) * n + Math.floor(a.x)] === 3 - me,
-      ).length;
       const held = new Set(
         v.visibleAnimals().flatMap((a) => (a.owner === me ? [fauna[a.species]?.name ?? ""] : [])),
       );
@@ -660,7 +727,6 @@
         plants: new Set(l.meta.flora.names.filter((_, i) => (cells[i] ?? 0) > 0)),
         selected: selection.size,
         born,
-        airdropped,
         fauna: held,
         swarm: v
           .visibleAnimals()
@@ -712,7 +778,16 @@
     raidWaves++;
     l.grant(bot, RAID.grant);
     if (!l.unlocked(bot).has("grasshoppers")) l.unlock(bot, "grasshoppers");
-    l.spawn(bot, "grasshoppers", Math.floor(best / n), best % n);
+    l.spawn(bot, "grasshoppers", 0, 0);
+    // They come at the bot's den (D-245): a moment later, its swarms march on your grass.
+    const [row, col] = [Math.floor(best / n), best % n];
+    setTimeout(() => {
+      const names = l.meta.fauna.names;
+      const ids = (viewer?.visibleAnimals() ?? [])
+        .filter((a) => a.owner === bot && names[a.species] === "grasshoppers")
+        .map((a) => a.id);
+      if (ids.length) l.order(bot, ids, "attack", row, col);
+    }, 3000);
   }
 
   /** Arrows at the screen edge toward pings out of view. */
@@ -880,11 +955,9 @@
         if (p.player !== me) continue;
         if (p.taken) plantFx(p, p.species);
         else {
-          // Refused, nothing planted or paid (D-241): an error sound, the species armed again
-          // and its cursor pulsing; the sim's notice says why.
+          // Refused, nothing planted or paid (D-241): an error sound; the sim's notice says
+          // why. The cursor stays the basic one (play test: a click always disarms).
           audio.play("ui.error");
-          planting = p.species;
-          viewer?.denyGhost();
         }
       }
       for (const n of live.notices) {
@@ -935,12 +1008,10 @@
           const c = live.catastrophes[e.card];
           if (!c) continue;
           const at = { row: e.row, col: e.col };
-          const look = CATASTROPHE_LOOK[c.act];
-          viewer.catastropheFx(c.act, at, c.radius, c.duration_s, look?.color ?? WORLD.alert);
-          const cue = { kill_trees: "fx.caterpillars", storm: "fx.storm", spill: "fx.spill" }[
-            c.act
-          ];
-          if (cue) audio.play(cue, { at: placeOf(at) });
+          const look = lookOf(c);
+          viewer.catastropheFx(c.act, at, c.radius, c.duration_s, look.color);
+          // By card (D-252): the act names never matched these keys, so cues were silent.
+          if (look.cue) audio.play(look.cue, { at: placeOf(at) });
           if (e.player !== me) {
             toast(`Enemy ${label(c.name).toLowerCase()}!`, "alert", at, 2);
             audio.play("fx.rumble", { gain: 0.8 }); // D-185
@@ -954,6 +1025,7 @@
       viewer.render(frameTick);
       const after = performance.now();
       projectIcons(); // after the camera moved this frame
+      showDens();
       const v = viewer;
       juice?.follow((c) => v.screenPoint(c)); // marks stay on their cells (D-234)
       appTiming.add("icons", performance.now() - after);
@@ -1009,6 +1081,7 @@
         // ?size=N wins (tools); in a lockstep match the host's seed and size win (D-219).
         const size = Number(q.get("size") ?? MAP_SIZES[s.map]);
         live = await Live.start(s.seed, size, s.sandbox, botSpec(s), relay, tutorial);
+        live.fog = !s.sandbox; // fog of war (D-249): off in a sandbox
         joining = false;
         player = live.me; // view your own side
         const other = relay
@@ -1026,6 +1099,7 @@
       }
       viewer = await Viewer.create(canvas, replay, quality, !!perfBench);
       viewer.resize();
+      viewer.fogPlayer = live?.fog ? live.me : 0; // your sight (D-249)
       // Dev only: lets a browser check drive the camera and the match (window.ecoViewer, ecoLive).
       if (import.meta.env.DEV) Object.assign(window, { ecoViewer: viewer, ecoLive: live });
       if (perfBench && live) {
@@ -1116,7 +1190,10 @@
   }
 
   /** Order the selected animals (live match only). */
-  function order(kind: "move" | "attack" | "stop", at?: { row: number; col: number } | null) {
+  function order(
+    kind: "move" | "attack" | "stop" | "hold",
+    at?: { row: number; col: number } | null,
+  ) {
     if (!live || !selection.size) return;
     live.order(me, [...selection], kind, at?.row ?? 0, at?.col ?? 0);
     audio.play("fx.order");
@@ -1143,10 +1220,7 @@
   function onPointerMove(e: PointerEvent) {
     const r = canvas.getBoundingClientRect();
     const [x, y] = [e.clientX - r.left, e.clientY - r.top];
-    if (planting && viewer) {
-      const aim = viewer.aimGhost(x, y, canPlantAt);
-      dropTag = aim?.offLand && armedKind === "fauna" ? { x, y } : null;
-    }
+    if (planting && viewer) viewer.aimGhost(x, y, canPlantAt);
     if (!box) return;
     box = { ...box, x1: x, y1: y };
   }
@@ -1171,27 +1245,17 @@
       box = null;
       return;
     }
-    if (click && attackArmed) {
-      order("attack", viewer.pickCell(box.x0, box.y0));
-      if (!e.shiftKey) attackArmed = false;
+    if (click && armedOrder) {
+      order(armedOrder, viewer.pickCell(box.x0, box.y0));
+      if (!e.shiftKey) armedOrder = null;
       box = null;
       return;
     }
     const at = click && planting && live ? viewer.pickCell(box.x0, box.y0) : null;
     if (at && planting && live) {
-      // Shift keeps the order armed, like RTS build orders.
-      if (armedKind === "flora") {
-        // The planting plays when the sim takes the order (D-241, `plantFx`).
-        live.plant(me, planting, at.row, at.col);
-      } else {
-        live.spawn(me, planting, at.row, at.col);
-        const place = placeOf(at);
-        audio.play("fx.drop", { at: place });
-        const call = callOf(planting);
-        // Most drops land with a call (D-179), not every one.
-        if (call && Math.random() < DROP_CALL)
-          setTimeout(() => audio.play(call, { at: place }), 450);
-      }
+      // Shift keeps the order armed, like RTS build orders. The planting plays when the sim
+      // takes the order (D-241, `plantFx`).
+      live.plant(me, planting, at.row, at.col);
       if (!e.shiftKey) planting = null;
     } else if (click) {
       // A click on an animal (anyone's) shows its card, and selects it when it is yours
@@ -1241,7 +1305,9 @@
       else select(groups.get(Number(digit)) ?? []);
       e.preventDefault();
     } else if (key === "a" && live && selection.size) {
-      attackArmed = true;
+      armedOrder = "attack";
+    } else if (key === "h" && live && selection.size) {
+      armedOrder = "hold";
     } else if (key === "s" && live && selection.size) {
       order("stop");
     } else if (e.code === "Space") {
@@ -1258,7 +1324,7 @@
     } else if (key === "Escape") {
       if (confirmLeave) confirmLeave = false;
       else if (techOpen) techOpen = false;
-      else if (attackArmed) attackArmed = false;
+      else if (armedOrder) armedOrder = null;
       else if (castArmed) castArmed = null;
       else if (planting) planting = null;
       else {
@@ -1427,21 +1493,15 @@
   <canvas
     bind:this={canvas}
     aria-label="Match view: click a cell to inspect it, drag to select your animals"
-    class:planting={attackArmed}
+    class:planting={!!armedOrder}
     class:dropping={!!planting}
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
-    onpointerleave={() => {
-      viewer?.aimGhost(null);
-      dropTag = null;
-    }}
+    onpointerleave={() => viewer?.aimGhost(null)}
     onpointerup={onPointerUp}
     oncontextmenu={(e) => e.preventDefault()}
   ></canvas>
 
-  {#if dropTag}
-    <span class="drop-tag" style:left="{dropTag.x}px" style:top="{dropTag.y}px">×1.5</span>
-  {/if}
   {#if box}
     <div
       class="box"
@@ -1506,20 +1566,19 @@
         planting = null;
       }}
     />
-    {#if attackArmed || planting || castArmed}
+    {#if armedOrder || planting || castArmed}
       <p class="hint">
         {#if castArmed}
           <strong>{label(castArmed)}:</strong> click the centre of the area · it hits both sides · Esc:
           cancel
-        {:else if attackArmed}
+        {:else if armedOrder === "attack"}
           <strong>Attack-move:</strong> click a cell: your animals go there, feeding on any enemy food
           on the way · Esc: cancel
+        {:else if armedOrder === "hold"}
+          <strong>Hold:</strong> click a cell: your animals gather there and stay · Esc: cancel
         {:else if planting}
-          <strong>{armedKind === "flora" ? "Planting" : "Calling"} {label(planting)}:</strong>
-          {armedKind === "flora"
-            ? "click a cell"
-            : "click your land (base price), or enemy ground to drop them on food or prey (×1.5)"} · Shift:
-          keep going · Esc: cancel
+          <strong>Planting {label(planting)}:</strong>
+          click a cell · Shift: keep going · Esc: cancel
         {/if}
       </p>
     {/if}
@@ -1546,6 +1605,7 @@
         fauna={replay?.meta.fauna.names ?? []}
         {me}
         selected={selectedNames}
+        caps={animalCaps}
         onPick={(name, add) => pickSpecies(name, add)}
       />
     {/if}
@@ -1557,6 +1617,7 @@
           me={live ? me : player}
           onZoom={() => cell && viewer?.zoomToCell(cell)}
           onClose={() => inspect(null)}
+          moveDen={denMoveHere}
         />
       {/if}
       {#if unit}
@@ -1713,17 +1774,6 @@
   canvas.dropping {
     cursor: none !important; /* the ghost model is the cursor (D-079) */
   }
-  .drop-tag {
-    position: absolute;
-    transform: translate(16px, -30px);
-    padding: 1px 8px;
-    border-radius: 999px;
-    font-size: 0.8em;
-    font-weight: 700;
-    color: #2a120c;
-    background: #ff7a5c;
-    pointer-events: none;
-  }
   .box {
     position: absolute;
     border: 1px solid var(--gold);
@@ -1786,15 +1836,20 @@
     gap: 10px;
     margin-top: 8px;
   }
+  /* Bottom left, where the perf box shows (play test): it no longer covers the map. */
   .waiting {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    position: fixed;
+    left: 12px;
+    bottom: 96px;
+    z-index: 20;
     margin: 0;
     font-weight: 700;
   }
   .invite {
+    top: 50%;
+    left: 50%;
+    bottom: auto;
+    transform: translate(-50%, -50%);
     display: grid;
     gap: 8px;
     justify-items: center;

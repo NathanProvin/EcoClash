@@ -23,6 +23,9 @@ pub enum Payload {
     Spawn { species: String, row: u32, col: u32 },
     /// Unlock a species card (gamerules §4), paying its unlock cost. Plants and animals by name.
     Unlock { species: String },
+    /// Move the land den to an own cell with an established plant (D-253): paid now, built over
+    /// `[fauna] den_build_s`; both cells are dens until then.
+    MoveDen { row: u32, col: u32 },
     /// Give own animals an RTS order (gamerules §9): `ids` are agent ids (others' and unknown ids
     /// are ignored). `row` / `col` is the destination (not used by `stop`).
     Order {
@@ -51,6 +54,9 @@ pub enum OrderKind {
     Attack,
     /// Stop now and act on its own again.
     Stop,
+    /// Gather on the cell and stay there (D-246): no spreading, wandering or fleeing; it still
+    /// eats or strikes within reach.
+    Hold,
 }
 
 /// One command, timestamped by the tick it executes at.

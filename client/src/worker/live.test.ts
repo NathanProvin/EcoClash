@@ -51,7 +51,7 @@ class FakeWorker {
           tickHz: 10,
           pace: 1,
           plantRadius: 2,
-          dropRadius: 4,
+          denMoveCost: 2000,
           victory: 0.6,
           timeLimitS: 1200,
           terrain: new Uint8Array(8).buffer,
@@ -128,12 +128,18 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     lock: new Uint8Array([0, 0, 0, 0, 2, 12, 0, 0]).buffer, // cell 2: P2 barred for 12 s
     deadwood: new Uint8Array([0, 0, 0, 51]).buffer, // cell 3: a dead tree (D-127)
     flood: [2], // cell 2 under flood water (D-132)
-    shade: new Uint8Array([0, 0, 0, 90]).buffer, // D-135
     moisture: new Uint8Array([60, 60, 255, 60]).buffer,
     bank: [1000, 990],
     income: [4, 2],
     standing: [5000, 4000],
     victory: 0.8,
+    dens: [
+      [5, -1],
+      [-1, -1],
+    ],
+    caps: [[10], [0]],
+    moves: [[], []],
+    vis: new Uint8Array([1, 1, 1, 1]).buffer,
   });
   const unlocked = [
     [1, 0, 1],
@@ -155,7 +161,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
   worker.emit({ type: "tick", tick: 8, agents: agents([[1, 0, 0, 0, 1]]), ...tick });
   worker.emit({ type: "tick", tick: 9, agents: agents([[1, 0, 1, 0, 1]]), ...tick });
   expect(live.result).toBeNull();
-  expect(live.droppedAt(1)).toBeDefined(); // ids 1 and 2 were dropped: they parachute in
+  expect(live.droppedAt(1)).toBeDefined(); // ids 1 and 2 were bought: they come out of the den
   expect(live.droppedAt(3)).toBeUndefined();
   expect([live.wasCalled(2), live.wasCalled(3)]).toEqual([true, false]); // 3 was born (D-141)
   expect(live.meta.series["standing_p1"]?.[live.seriesIndex()]).toBe(5000);
@@ -168,7 +174,6 @@ test("live source decodes frames into census, HUD series, animals and cells", as
   expect(live.catastrophes[0]?.name).toBe("storm");
   expect(live.weather).toEqual({ kind: "flood", phase: "active", seconds: 60 });
   expect(live.fields().flood).toEqual([2]);
-  expect(live.fields().shade?.[3]).toBe(90);
   expect(live.fields().moisture?.[2]).toBe(255);
 
   expect(live.tick).toBe(9);
@@ -224,4 +229,39 @@ test("plant orders decode to species names and taken flags (D-241)", () => {
     { player: 1, species: "grasses", row: 4, col: 5, taken: true },
     { player: 2, species: "lichen", row: 7, col: 8, taken: false },
   ]);
+});
+
+test("fog of war: cells out of sight keep what was last seen there (D-249)", async () => {
+  vi.stubGlobal("Worker", FakeWorker);
+  const live = await Live.start(1, 2);
+  const worker = FakeWorker.last as FakeWorker;
+  const fields = (owner: number[], vis: number[]) => ({
+    type: "fields" as const,
+    tick: 8,
+    // owner, soil, grasses, oak: 4 cells each
+    frame: new Uint8Array([...owner, 0, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0]).buffer,
+    pressure: new Uint8Array(4).buffer,
+    strength: new Uint8Array(8).buffer,
+    cellIncome: new Uint8Array(4).buffer,
+    factor: [100, 100],
+    lock: new Uint8Array(8).buffer,
+    deadwood: new Uint8Array(4).buffer,
+    flood: [],
+    moisture: new Uint8Array(4).buffer,
+    bank: [0, 0],
+    income: [0, 0],
+    standing: [0, 0],
+    victory: 0.8,
+    dens: [
+      [0, -1],
+      [-1, -1],
+    ],
+    caps: [[1], [1]],
+    moves: [[], []],
+    vis: new Uint8Array(vis).buffer,
+  });
+  worker.emit(fields([1, 1, 2, 2], [1, 1, 1, 1]));
+  worker.emit(fields([1, 1, 1, 1], [1, 1, 0, 1])); // P1 took cells 2 and 3; cell 2 is fogged
+  expect([...live.fields().owner]).toEqual([1, 1, 2, 1]);
+  expect(live.meta.series["territory_p1"]?.at(-1)).toBe(1); // the score keeps the truth
 });

@@ -2852,3 +2852,115 @@ Template:
   - **Cell card:** a "Front" section (strength vs push, enemy push) first, under the header.
   - **Planting cursor:** the ring turns alert red when the planting would not take (`game/planting.ts` `plantable`): no own or free unlocked land, rock or deep water, soil under the species' need (`soil_need` exported), dry or wet beyond its tolerance (the shallows seep), or a bank short of every plantable cell. The cap and the dead-wood bar are left to the sim.
   - The build bar's dock stacks above map banners, so its hints are never hidden.
+
+## D-243 · 2026-10-12 · Alpha 1.5 rework: shade removed, layer multiplier, stronger biodiversity
+- **Status:** accepted (user, rework plan of 2026-10-12)
+- **Context:** play tests show a strong snowball and fights decided by instant drops. The user asked for a deep rework (D-243…D-250), one step per commit on `alpha-1.5`.
+- **Decision:**
+  - The shade mechanic is removed entirely: no shade cap on growth, no canopy or side-shade term in strength. `shade_cast` / `shade_tolerance`, `canopy_gain`, `edge_shade` and the `shade` switch go away.
+  - Strength = vigor × `layer_mult[highest established layer]` × fertility × biodiversity, with `layer_mult = [1.0, 1.15, 1.3, 1.5]`.
+  - Biodiversity is raised: `div_gain` 0.6, `div_cap` 4, so two L1 species half grown beat one fully grown. (Play test 2026-10-12: 0.5.)
+
+## D-244 · 2026-10-12 · Grazers by role, impact by tier
+- **Status:** accepted (user)
+- **Decision:**
+  - A grazer eats every plant of its family's layer (H1 → L1, H2 → L2, H3 → L3, H4 → L4, HW → W), all at the primary diet yield, and that layer is its habitat.
+  - Its tier multiplies the damage on enemy plants (`[fauna] tier_damage = [1, 1.5, 2]`; play test 2026-10-12: [1, 2, 3]).
+  - Grazer sheets lose `eats` and `habitat`. Hunters and recyclers keep their lists.
+
+## D-245 · 2026-10-12 · Dens: no remote drops (supersedes D-061)
+- **Status:** accepted (user's den design)
+- **Decision:**
+  - Every bought animal appears at its owner's den, wherever the click lands.
+    - The land den is the first planted cell.
+    - The water den, used by swimmers, is the first own cell where an aquatic plant takes.
+    - A lost den moves to the nearest own cell.
+  - `drop_radius` and `drop_surcharge` are removed. Raids walk, and defence needs resident hunters or hunters sent in time.
+
+## D-246 · 2026-10-12 · Founders, habitat carrying capacity, spreading, hold order
+- **Status:** accepted (user)
+- **Decision:**
+  - **Founders and breeding:** cards found small groups, and breeding grows the army.
+  - **Carrying capacity:** a species' cap = `per_cell` × own cells holding its habitat (e.g. 5 rabbits per own L1 cell). It replaces the fixed animal `cap`.
+  - **Spreading:** idle animals in crowded or foodless cells move to the nearest own habitat cell with food and room.
+  - **Hold:** a new order (H + click) gathers the selection on a cell. Held animals do not spread, wander or flee; they eat or strike within reach.
+
+## D-247 · 2026-10-12 · Income from production, own-grazing above 50 %
+- **Status:** accepted (user; review lever 2)
+- **Decision:**
+  - **Plant income:** yield × (`stock_share` × cover + (1 − `stock_share`) × production). Production is the species' gross positive growth over r·K/4, and `stock_share` = 0.3.
+  - **Own-grazing:** own grazers bite own plants only where that plant's cover is ≥ `own_graze_min` (0.5), never below.
+- **Why:** mature land nets less and regrowing land more, which is a rubber band from ecology (Odum). Cropping own meadows feeds the herd and keeps the land productive.
+
+## D-248 · 2026-10-12 · Progressive catastrophes
+- **Status:** accepted (user)
+- **Decision:**
+  - Each card opens at `available_s`.
+  - New act `blight`: biomass of levels ≤ `max_level` falls to litter with `chance`. The new cards are the aphid outbreak (600, from 0 min) and the late frost (2 500, from 5 min).
+  - The spill opens at 10 min, the caterpillars at 15 and the storm at 20.
+  - The aggressive bot opens its raids with blights.
+
+## D-249 · 2026-10-12 · Fog of war (supersedes D-074)
+- **Status:** accepted (user)
+- **Decision:**
+  - Each own cell reveals `[fog] layer_sight[highest layer]` cells (1, 2, 3, 4; a bare own cell 1), and each animal its species' `sight`.
+  - Visibility is derived and not hashed. It is display and bot input only; lockstep peers hold the full state, and maphack is accepted.
+  - Out of sight, enemy animals are hidden and plants show their last seen state. The territory bar stays global.
+  - Fog is off in Sandbox and replays.
+  - Play test 2026-10-12: sight +1 per layer (2, 3, 4, 5); round discs (d² ≤ r² + r); the mask drawn at 4 texels per cell and blurred, for smooth edges; dark grey with a slow noise drift (two baked-noise lookups in the shader); black-grey where never seen, lighter where seen before.
+
+## D-250 · 2026-10-12 · Tuning pass: slower colonization, yields, densities
+- **Status:** accepted (user; values are starting points for the user's play tests)
+- **Decision:**
+  - Plant spread (`growth`): ×0.7 on pioneers, ×0.8 on the rest.
+  - Play test 2026-10-12: L1 and L2 spread ×0.7 again; L3 and L4 spread and `biomass_rate` ×1.3.
+  - Plant `yield` ×2, so that income at 10 min matches Alpha 1.4 under production income: 29/s against 26/s, bots Normal vs Normal, 8 seeds.
+  - Animal densities:
+    - `per_cell` = the old fixed cap / 20, so the old cap is reached at 20 habitat cells (rabbits 5, fox 1, lynx 0.4);
+    - swarms 0.5 per cell, because 12.5 filled the 1 000-animal ceiling.
+  - Founding groups (D-246):
+    - mammals 2;
+    - swarms a third of before, at least 2;
+    - breeding period ×0.7;
+    - `food_reserve` 100.
+- **Bench** (Normal vs Normal, 8 seeds, 30 min; Alpha 1.4 in brackets):
+  - land at 5 min 31 % (34–42 %);
+  - first raid 10 min (22 min);
+  - lead changes 1.1 to 1.9 per match;
+  - more species called (rabbits and voles now).
+- **Not built:**
+  - `bench --handicap`: the bench's comeback count covers it for now.
+  - The unit-panel hold button: the H key does the job.
+  - An Options switch for fog: fog is off only in a sandbox.
+
+## D-251 · 2026-10-12 · The den is the heart: losing it loses the match (amends D-245)
+- **Status:** accepted (user's play test of the rework)
+- **Decision:**
+  - The land den, the first planted cell, never moves. A player whose den cell is not theirs any more loses at once (`Reason::Den`); both on one tick is a draw. The tutorial is exempt.
+  - The water den keeps moving to the nearest own aquatic cell.
+  - The den is drawn as a low-poly burrow (a stick lodge for water) with an owner ring. The enemy's appears once in sight.
+  - Bots raid a seen enemy den first, and weigh enemies within 3 cells of their own den most.
+- **Why:** a MOBA-style second goal. Raids now have a decisive target, and defence a place to hold.
+
+## D-252 · 2026-10-12 · A 3×3 catastrophe grid (amends D-248)
+- **Status:** accepted (user's play test; the grid layout was chosen from a proposal)
+- **Decision:** nine cards. Columns are what they hit (herbs, woody, fauna); rows are price, size and opening time (cheap at 0 min, mid at 5–10 min, large at 15–20 min). Values are in gamerules §10b.
+  - **New acts:**
+    - `fell`: the chainsaw fells shrubs and trees to litter;
+    - `cull`: each animal in the disc dies with `chance`, with `spare_swarms` for the hunters. It is used by poisoned bait (all), hunters (non-swarm) and the epidemic (half).
+  - **Re-tiered:**
+    - caterpillars: cheap, r2, 1 200;
+    - frost: herbs only;
+    - spill: r4 at 15 min.
+  - **Client:** a looks table by card (icon, colour, sound cue, grid cell). New procedural sounds: chainsaw, hunters (dogs and gunshots), bait, epidemic.
+    - This fixes the catastrophe cues, which never played: the table's act names never matched the keys.
+  - **Bots:** hard fells visible woods and culls visible herds of 4 or more.
+
+## D-253 · 2026-10-12 · Move den; water den as a beaver lodge
+- **Status:** accepted (user, play test round 3)
+- **Decision:**
+  - The land den stays the heart. A lost water den relocates for free.
+  - A `MoveDen { row, col }` command moves the land den to an own land cell with an established plant. It costs `[economy] den_move_cost` (2 000) and is built over `[fauna] den_build_s` (20 s), during which both cells are dens (`Fauna::den_move`, hashed). One move at a time.
+  - The cell card offers "Move den here". The new den shows as a half-size burrow until it is built.
+  - The water den is drawn as a beaver lodge.
+  - Bots do not move their den yet.

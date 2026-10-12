@@ -42,12 +42,15 @@ function sendFields(s: Sim) {
   const lock = s.lockFrame().buffer as ArrayBuffer; // D-098
   const deadwood = s.deadwoodFrame().buffer as ArrayBuffer; // D-127
   const flood = [...s.floodCells()]; // D-132
-  const shade = s.shadeFrame().buffer as ArrayBuffer; // D-135
   const moisture = s.moistureFrame().buffer as ArrayBuffer;
   const bank = [s.bank(1), s.bank(2)];
   const income = [s.income(1), s.income(2)];
   const standing = [s.standing(1), s.standing(2)];
-  const victory = s.victoryNow(); // the share that wins now (D-175)
+  const victory = s.victoryNow();
+  const dens = [[...s.dens(1)], [...s.dens(2)]]; // D-245
+  const caps = [[...s.animalCaps(1)], [...s.animalCaps(2)]]; // D-246
+  const moves = [[...s.denMove(1)], [...s.denMove(2)]]; // D-253
+  const vis = s.visibilityFrame(net?.player ?? 1).buffer as ArrayBuffer; // fog of war (D-249) // the share that wins now (D-175)
   post(
     {
       type: "fields",
@@ -60,14 +63,17 @@ function sendFields(s: Sim) {
       lock,
       deadwood,
       flood,
-      shade,
       moisture,
       bank,
       income,
       standing,
       victory,
+      dens,
+      caps,
+      moves,
+      vis,
     },
-    [frame, pressure, strength, cellIncome, lock, deadwood, shade, moisture],
+    [frame, pressure, strength, cellIncome, lock, deadwood, moisture, vis],
   );
 }
 
@@ -183,7 +189,7 @@ async function begin(
     tickHz: s.tickHz,
     pace: s.pace,
     plantRadius: s.plantRadius,
-    dropRadius: s.dropRadius,
+    denMoveCost: s.denMoveCost, // D-253
     victory: s.victoryTerritory,
     timeLimitS: s.timeLimitS,
     maxAgents: s.maxAgents,

@@ -13,6 +13,7 @@
     me,
     selected = new Set(),
     onPick,
+    caps = {},
   }: {
     /** The animals drawn now. */
     animals: readonly Animal[];
@@ -21,6 +22,8 @@
     /** Fauna species names, by an animal's `species` index. */
     fauna: readonly string[];
     me: number;
+    /** Your population cap per species name (D-246), for the tooltips. */
+    caps?: Readonly<Record<string, number>>;
     /** Species of the selected animals (D-232). */
     selected?: ReadonlySet<string>;
     /** `add` (Ctrl, Shift or Cmd held, D-241): toggle that species in the selection. */
@@ -52,7 +55,8 @@
         class:on={selected.has(r.s.name)}
         aria-pressed={selected.has(r.s.name)}
         onclick={(e) => onPick(r.s.name, e.ctrlKey || e.shiftKey || e.metaKey)}
-        title="{label(r.s.name)}: select all (Ctrl or Shift + click: add or remove)"
+        title="{label(r.s.name)}: {r.n} of {caps[r.s.name] ??
+          '?'} your habitat holds · select all (Ctrl or Shift + click: add or remove)"
         aria-label="Select all {label(r.s.name)}"
       >
         <SpeciesIcon s={r.s} size={30} />

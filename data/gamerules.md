@@ -127,12 +127,11 @@ It rises toward the site's **suitability**, so poor sites fill slower and cap lo
 Plants reproduce and spread **from cell to cell**, into the 4 neighbouring cells. For each own cell whose species has enough biomass to spread (above `spread_threshold`), each neighbour is evaluated as follows:
 
 **Strength and push (D-225, D-236).** Conquest of enemy land compares numbers, not plant levels:
-- A cell's **strength** = vigor × canopy × side shade × fertility × biodiversity:
-  - **Vigor** = `vigor_floor` + (1 − `vigor_floor`) × the mean fill of the owner's layers that have a species above `establish_threshold`. A layer's fill is its species' summed cover, at most 1 (the cell card's layer bars). Each layer weighs its species' spread rate × cover × the light they get, so fast spreaders count most and young or shaded layers little.
-  - **Canopy** = 1 + `canopy_gain` × the shade the cell's own shrubs and trees cast on its ground.
-  - **Side shade** = 1 − `edge_shade` × the ground shade of the darkest enemy neighbour × the cell's own open ground. Trees and shrubs on a front shade the enemy's open cells next to them; a cell under its own canopy barely feels it.
+- A cell's **strength** = vigor × layer × fertility × biodiversity (D-243; shade is gone):
+  - **Vigor** = `vigor_floor` + (1 − `vigor_floor`) × the mean fill of the owner's layers that have a species above `establish_threshold`. A layer's fill is its species' summed cover, at most 1 (the cell card's layer bars). Each layer weighs its species' spread rate × cover, so fast spreaders count most and young layers little.
+  - **Layer** = `layer_mult` of the cell's highest established layer (L1 1.0, L2 1.15, L3 1.3, L4 1.5).
   - **Fertility** = 1 + `fert_gain` × soil development (0 to 1).
-  - **Biodiversity** = 1 + `div_gain` × species (the owner's plant species established in it + its animal species living in it), at most `div_cap`. (Income has its own pair, §7.)
+  - **Biodiversity** = 1 + `div_gain` (0.5) × species (the owner's plant species established in it + its animal species living in it), at most `div_cap` (4). Two L1 species half grown beat one L1 fully grown. (Income has its own pair, §7.)
 - The **push** on a cell = the sum of the strengths of its enemy neighbours (4 sides). Push comes from the plants spreading; animals add to it only as part of their own cell's strength. An enemy animal standing in the cell adds nothing (animals attack by grazing, §6.1).
 
 | Neighbour cell state | Result |
@@ -140,7 +139,7 @@ Plants reproduce and spread **from cell to cell**, into the 4 neighbouring cells
 | **Empty** (bare soil) | Gradually colonized. A claim progress builds up at `spread_rate × neighbour pressure × suitability`, and the cell switches to the spreading player when progress is complete. The arriving species start established, with a gauge equal to pressure × suitability. Species with zero suitability cannot arrive. A former owner under a lockout cannot claim it (§6.1) |
 | **Owned by the opponent, push > strength** | Gradually **smothered**: each of the enemy's plant species there loses `smother_rate × (push − strength)`. When the enemy biomass reaches zero, the cell switches to us, with our species established in the neighbours (any level) |
 | **Owned by the opponent, push ≤ strength** | **Nothing happens.** The frontier holds, until either side's numbers change |
-| **Owned by us** (D-024) | Each of our species colonizes the neighbour through its gauge: forest advances over our own meadow, and lower strata fill in underneath (understory), subject to shade, soil and bioclimate. Only species established in a neighbour (above `establish_threshold`) seed new arrivals |
+| **Owned by us** (D-024) | Each of our species colonizes the neighbour through its gauge: forest advances over our own meadow, and lower strata fill in underneath (understory), subject to soil and bioclimate. Strata no longer shade each other (D-243). Only species established in a neighbour (above `establish_threshold`) seed new arrivals |
 
 **Conquest hold (D-230).** A cell just conquered is held against its former owner for `hold_s` (20 s): that player's push has no effect on it until the hold runs out. A freshly taken cell has its species at the establish threshold and would otherwise flip back and forth; the hold gives it time to grow, and the front moves in steps instead of flickering. Grazing still works on it.
 
@@ -151,12 +150,11 @@ Plants reproduce and spread **from cell to cell**, into the 4 neighbouring cells
 ### 3.1 Design consequences
 
 - **A front holds only while both sides are equal.** Any change moves it: growth, a new species, fertile soil, dead trees, weather, a raid. Ways to push:
-  1. **Depth:** more species per cell, and a canopy over them (tall play). A full cell with grasses, ferns, elder, oak and a resident squirrel has strength about 3 on bare soil, a grass cell 1.25.
+  1. **Depth:** more species per cell, and higher layers (tall play).
   2. **Geometry:** a cell touching 2 or 3 of your cells takes all their strengths. A bulge into your land is pushed back at its tip, and encirclement wins (wide play).
   3. **Grazing:** herbivores thin an enemy cell's layers, which lowers its vigor, eat species out of it, or eat it bare, which opens it to your spread (rush play).
-  4. **Shade:** a forest edge shades the enemy's open cells next to it down; their answer is a canopy of their own, or shade-tolerant plants.
-  5. **Fertility:** recyclers and litter raise soil development, which multiplies strength.
-- **Monocultures are weak.** A full beech wall alone has strength about 1.8 per cell: its canopy counts, but one species gets little biodiversity.
+  4. **Fertility:** recyclers and litter raise soil development, which multiplies strength.
+- **Monocultures are weak.** A full beech wall alone has strength 1.5 × 1.6 = 2.4 per cell; a mixed cell of four species on lower layers beats it.
 
 ### 3.2 Territory demarcation line
 
@@ -211,6 +209,7 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
 
 ### 4.3 Diets, habitats and media [Proposed defaults, D-087]
 
+- **Grazers by role (D-244):** a grazer eats every plant of its family's layer (H1 every L1 plant, H2 every L2, H3 every L3, H4 every L4, HW every aquatic plant), all at the full diet yield, and lives on that layer (its habitat). Its tier multiplies the damage it does to enemy plants (`[fauna] tier_damage`: 1, 2, 3). The diet rules below now apply to hunters and recyclers only.
 - **Diets (D-122, D-123, D-126):** each animal has a primary and a secondary food, and a tier 3 animal a tertiary one, listed in that order in `data/species.toml`. Low tiers are easy to counter (D-126): within each plant layer, the tier-1 insect eats the tier-1 plant first, then the tier-2 one; the tier-2 animal the tier-2 plant, then the tier-1; the tier-3 animal the tier-3 plant, then the tier-2, then a neighbouring layer. Every tier-1 plant has at least two eaters, one of them a tier-1 insect; tier-3 plants have one or two. Grazer families feed on their own plant layer first (H1 meadow, H2 undergrowth, H3 shrubs, H4 canopy, HW water), then a neighbouring one; hunter families target an animal size (P1 insects, P2 small mammals, P3 large game, PW water life). Every plant and every animal is food for someone. Recyclers eat dead biomass.
 - **Food ranks (D-123):** an animal seeks its primary food in sight first, then the secondary, then the tertiary (an attack-move looks on enemy land the same way). A grazer eats the best-ranked plant in its cell, a hunter the best-ranked prey in reach. A meal gives energy × `[fauna] diet_yield` of its rank: 100 %, 75 %, 50 %.
 - **Habitats:** grazers need their food plants on their owner's land; hunters need a plant family (woods for the lynx, water plants for the pike). Tier-1 insects live one layer below their food (D-126): grasshoppers and slugs on herbs, caterpillars on undergrowth, bark beetles on shrubs, so they can counter a layer before you grow it.
@@ -319,31 +318,32 @@ All dead organisms, plants and animals, feed `Dead biomass`.
   - **The enemy's trees may grow there.** The dead stand takes its tree species out of the cell's strength (§3), so the enemy push often wins the cell; the enemy's trees then arrive like any of its species. A cell left with dead wood only is neutral bare soil, open to the enemy's trees but not to the former owner's.
   - Goal: dead trees break frozen fronts. Recyclers are the defender's answer: they clear the dead wood sooner, and as resident animals they add to the cell's strength.
 
-### 6.3 Spawn conditions
+### 6.3 Spawn conditions: dens (D-245)
 
-A species can be spawned only when **all** of the following hold:
+A species can be bought when **all** of the following hold:
 1. Its card is unlocked (§4).
-2. Its **habitat** exists on the spawning player's side (§5.2, "Habitat (own)").
-3. Its **spawn trigger** is met (§5.2, "Spawn trigger"):
-   - **Predators are placed with the cursor directly on the cell of interest** (author's rule). Positioning is the core skill here: you drop the predator where its prey is. The target cell must contain enemy prey matching the predator's diet, or be within `r_prey` cells of it. Example: **a fox dropped on the patch where enemy voles or rabbits are feeding on your plants.**
-   - **Cost (author's rule, D-061):** an animal landing on own territory costs the base price. Landing on neutral or enemy territory costs ×`drop_surcharge` (1.5): an offensive raid. This applies to every role.
-   - **Herbivores (author's rule, D-061):**
-     - Called on own land: no trigger. They land on the own habitat cell nearest the click, at base price, to build biomass. They graze own plants at a much reduced bite (`own_graze`), yield biomass passively, and breed. They do not go looking for enemy cells: they move, feed and breed where their food is best.
-     - Clicked on enemy or neutral ground: they are **dropped** on the food of their diet nearest the click (within `drop_radius` cells), at ×1.5. Example: caterpillars dropped on an enemy oak or nettle patch.
-   - **Predators:** dropped on the huntable enemy prey nearest the click, within `drop_radius` cells (`r_prey`).
-   - **Recyclers** (decomposers; the data keeps `role = "decomposer"`, D-092): no trigger, habitat only.
-- **[Proposed] UI.** Unavailable cards are greyed out, with the reason shown (e.g. "No enemy prey in your territory").
-- **[Proposed] Spawn location (non-predators).** Other fauna spawns on the own cell closest to the clicked point that satisfies its habitat. This replaces "fauna spawns from trees" in `INSTRUCTIONS.md` §2.4, so that early fauna is possible before trees exist.
+2. Its **habitat** holds on the player's land and its population is under its carrying capacity (§6.4).
+3. The player has a **den** for its medium:
+   - **Land den:** the player's first planted cell (the spawn, D-095). Walkers, amphibious animals, fliers and recyclers appear there.
+   - **Water den:** the player's first own cell where an aquatic plant takes. Swimmers appear there.
+   - **The land den is the player's heart (D-251):** it never moves, and a player whose den cell is not theirs any more (taken, grazed bare, poisoned) loses the match at once, like a MOBA ancient. Both on one tick: a draw. The water den moves to the nearest own cell with an aquatic plant.
+   - The den shows as a burrow (a stick lodge for the water den), visible to the enemy once in sight.
+   - **Move den (D-253):** a player may move the land den to an own grown land cell (the cell card's button), paying `den_move_cost` (2000). The new burrow is built over `den_build_s` (20 s); until then both cells are dens, and losing either loses the match. One move at a time.
+
+Every bought animal appears at its den, at the base price, wherever the player clicks: there are no remote drops. Raids walk across the front, and a defence needs hunters living near it or sent in time.
 
 ### 6.4 Energy, upkeep and reproduction
 
-- **Reproduction (D-023):** an animal whose energy crosses a threshold reproduces, which costs energy, under a per-player population cap. Players still spawn cards. The numbers below are [Proposed].
+- **Reproduction (D-023):** an animal whose energy crosses a threshold reproduces, which costs energy, under its species' carrying capacity. Cards found populations (small groups); breeding grows them (D-246).
+- **Carrying capacity by habitat (D-246):** a species' population cap = `per_cell` × the player's own cells holding its habitat (e.g. 5 rabbits per own L1 cell). Buying and births stop at the cap; a population above it (habitat lost) stops breeding and starves back. `[agents] max_agents` stays the global ceiling.
+- **Spreading (D-246):** an idle animal with no orders, in a cell crowded past `per_cell` of its species or out of food, moves to the nearest own habitat cell with food and room. Herds thin out over their habitat by themselves.
+- **Hold (D-246):** the hold order (H + click) gathers the selected animals on a cell and keeps them there: they don't spread, wander or flee, and they eat or strike within reach. Any other order or Stop releases them.
 - **Carrying capacity (author's decision, D-066):** a birth also needs food nearby. Within the animal's sight, the food must cover every animal of the same role with an overlapping diet, plus the newborn:
   - grazers and decomposers: `food_reserve` seconds of bites each, from their diet plants (any land) or the litter, shared with the other player's animals that eat the same;
   - predators: `prey_per_predator` huntable prey each (own and enemy; superpredators `prey_per_superpredator`), counted over their owner's predators (D-218).
-  - The per-player and per-species caps stay only as safety ceilings. Populations then rise and fall with their food: prey with the plants, predators with the prey, in the manner of Lotka–Volterra cycles.
+  - The habitat cap above bounds every species; the per-player cap is a safety ceiling. Populations then rise and fall with their food: prey with the plants, predators with the prey, in the manner of Lotka–Volterra cycles.
 - **Hunting (D-066, D-218):** a predator with huntable enemy prey within `strike_radius` cells kills one per flora tick with chance `catch_chance`; own prey only when hungry (below full energy) and from the surplus, with chance `own_catch`.
-- **Grazing at home (D-066):** herbivores bite their owner's plants at `own_graze` of a full bite, but gain the energy of a full bite, so they live and breed at home without eating their owner's economy.
+- **Grazing at home (D-066, D-247):** herbivores bite their owner's plants at `own_graze` of a full bite, but gain the energy of a full bite, and only where that plant's cover is at least `own_graze_min` (50 %); they never bite it below. Cropping a full meadow puts it back in its productive phase (§7).
 - **Raids (D-160):** an attack order holds until the area around its goal is bare: the raiders graze every enemy plant they eat in sight, and only then go free. A move order ends on arrival.
 - **Trampling (D-152):** on enemy land, plants lose `graze_damage` (4) times what a grazer eats; the extra is trampled to litter. Raids break fronts faster, but the raiders are not fed more.
 - Every animal has an energy value. It regains energy by eating and loses it over time. At zero energy it dies and becomes dead biomass.
@@ -354,10 +354,10 @@ A species can be spawned only when **all** of the following hold:
 ## 7. Biomass economy
 
 - **Biomass points** are the single currency.
-- **Income:** mainly from living plants & fauna growth, in proportion to their biomass and growth. 
+- **Income from production (D-247):** a plant's income per cell = yield × (`stock_share` × cover + (1 − `stock_share`) × production), where production is the species' gross growth in the cell over its peak logistic growth (r·K/4). A mature cell earns its turnover only (about 0.6 of a growing one); a regrowing or freshly taken cell earns the most. Holding a forest gives strength, turning land over gives income.
 - **Spending:** unlocking cards (§4) or spawning species (§8).
-- **Prototype rules (D-027, D-029, values [Proposed]):** income = Σ species yield × (cover of each own cell, or number of own animals).
-- **Biodiversity bonus (D-225):** a cell's plant income × (1 + `div_gain` × its species count, the same count as its strength in §3), capped at `div_cap`. Costs are per species (§4.4). Predators dropped outside own land cost ×`drop_surcharge`.
+- Animals yield `yield` each per second (D-027, D-029).
+- **Biodiversity bonus (D-225):** a cell's plant income × (1 + `div_gain` × its species count, the same count as its strength in §3), capped at `div_cap`. Costs are per species (§4.4).
 
 ---
 
@@ -365,7 +365,7 @@ A species can be spawned only when **all** of the following hold:
 
 - **Flora** is seeded into an area (a brush or circle) on own territory or on its border. It then spreads according to §3.
 - **Trees** are placed individually and act as territory anchors.
-- **Fauna** spawns according to §6.3, as one or several individuals depending on the species (e.g. a swarm of caterpillars vs. a single fox).
+- **Fauna** appears at its den (§6.3), as a small founding group.
 
 ---
 
@@ -386,6 +386,7 @@ A species can be spawned only when **all** of the following hold:
 | Right click on enemy target (valid for the unit's diet) | Attack / feed on target |
 | `A` + left click | Attack-move: move and feed on any valid target on the way |
 | `S` | Stop, return to autonomous behaviour |
+| `H` + left click | Hold: gather on that cell and stay (D-246) |
 | `Ctrl` or `Shift` + number / number | Assign / recall control group (in the browser, Chrome keeps `Ctrl` + 1–8 for its tabs; D-053) |
 
 ---
@@ -398,28 +399,30 @@ A species can be spawned only when **all** of the following hold:
 | **Offensive** | Enters enemy territory to destroy their biomass and weaken their economy | Caterpillars eating enemy plants; rabbits and caterpillars breaking an enemy shrub frontier; predators ordered to hunt enemy prey in enemy territory |
 
 - The core decision at every moment: **invest in growth (defense and economy) or strike the opponent (offense)**.
-- Predators are **dropped with the cursor where their prey is**: in your territory to defend, or in enemy territory to raid. Once on the map they can be ordered anywhere.
+- Animals appear at their den (D-245) and walk: raids cross the front, defenders are hunters living near it or sent in time.
 - **[Proposed] Stance per consumer:** Offensive (seek targets in enemy territory) or Guard (stay on own territory and intercept intruders).
 - **Friendly fire:** herbivores without orders may graze your own plants if no enemy flora is nearby, but with a way slower rate, and they generate bonus biomass, the idea is to use them as economy.
 
 **Three styles, one goal (D-225).** Map control is the only victory condition. Three play styles come out of the strength rule (§3) and are mixed freely; none is a set route:
 - **Tall:** spend on unlocks rather than spread; stack species and fertility per cell for strong, high-income cells; roll over the enemy late.
 - **Wide:** grab land with cheap low plants; surround the opponent's bulges; many cheap cells soak up raids.
-- **Rush:** breed or drop grazers to eat species out of enemy cells or eat them bare (§6.1).
+- **Rush:** breed grazers and walk them in, opened by cheap blights (§10b), to eat species out of enemy cells or eat them bare (§6.1).
 
 Intended cycle, tuned with the bench (not hard-coded): rush beats tall (its value is concentrated), wide beats rush (its value is spread), tall beats wide (late strength), unless wide encircles it or the clock runs out first. Measured (D-229, bots at medium): rush > tall 71 %, tall > wide 46 %, wide > rush 53 %: the cycle is not there yet.
 
 ---
 
-## 10b. Catastrophe cards (D-129)
+## 10b. Catastrophe cards (D-129, D-248, D-252)
 
-Late-game trump cards, at the far right of the build bar: available from the start (no unlock), expensive, paid at each use, then cooling down before the same player may play them again. They hit **everything** in their disc, both players' plants alike, so aiming matters. Values in `data/balance.toml` `[catastrophes.*]`.
+Cards at the far right of the build bar: no unlock, paid at each use, then cooling down before the same player may play them again. Each card opens at a match time (`available_s`): cheap small ones from the start, the big ones later. They hit **everything** in their disc, both players' plants alike, so aiming matters. Values in `data/balance.toml` `[catastrophes.*]`.
 
-| Card | Area | Effect | Cost · cooldown |
+Nine cards in a 3×3 grid (D-252): columns by what they hit, rows by price, size and opening time.
+
+| | Herbs (L1–L2) | Woody (L3–L4) | Fauna |
 |---|---|---|---|
-| Processionary caterpillars (D-130) | radius 4 | Over 8 s, the tree stands die and stay as standing dead trees (§6, D-127) | 15000 · 5 min |
-| Violent storm | radius 9 (about a quarter of a mid map) | Over 6 s, some cells lose all their shrubs and trees: the shrubs fall to litter, the trees are windthrown and stand on as dead trees (§6.2, D-227) | 22000 · 7 min |
-| Chemical spill | radius 1 | The cells go back to bare soil: no plants, litter, dead wood or soil development, owned by no one | 10000 · 4 min |
+| **Cheap**, from 0 min | Aphid outbreak: r2, herbs lose half their biomass · 600 · 90 s | Processionary caterpillars: r2, trees die standing (D-127) · 1200 · 120 s | Poisoned bait: r1, every animal dies, swarms too · 800 · 120 s |
+| **Mid**, from 5–10 min | Late frost: r3, herbs lose 70 % · 2500 · 150 s | Chainsaw: r3, every shrub and tree felled to litter · 5000 · 240 s | Hunters: r3, every non-swarm animal shot · 5000 · 240 s |
+| **Large**, from 15–20 min | Chemical spill: r4, back to bare soil, nobody's · 10000 · 300 s | Violent storm: r9, shrubs felled, trees windthrown here and there · 22000 · 420 s | Epidemic: r8, about half of the animals die · 15000 · 420 s |
 
 ## 10c. Weather (D-132)
 
@@ -430,6 +433,10 @@ Random weather events hit the whole map, both players alike. There is one per ha
 | Rain | 2.5 min | growth +15 % | speed −10 % | |
 | Drought | 2.5 min | growth −60 % | speed −10 %, bites −15 % | about 12 % of tree stands die standing (dead trees, §6); about 20 % of grass-only cells dry up to bare soil |
 | Flood | 2 min | growth −15 % | speed −15 % | land cells next to water flood (60 % each) and turn to shallows until it ends; land plants there drown to litter. Only on maps with water |
+
+## 10d. Fog of war (D-249)
+
+Each player sees only around their own land and animals. An own cell reveals a radius set by its highest established layer (`[fog] layer_sight`: L1 2, L2 3, L3 4, L4 5 cells; a bare own cell 2; round discs, r² + r); an animal reveals its species' `sight`. Out of sight, the enemy's animals are hidden and its plants and frontier show their last seen state. The territory bar stays global (it is the score). Fog is display and bot input only: lockstep peers still hold the full state. Off in Sandbox and replays.
 
 ## 11. Game phases, endgame and anti-stalemate
 

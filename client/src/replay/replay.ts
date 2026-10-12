@@ -36,10 +36,8 @@ export interface Species {
     /** Plants: the bedrock they grow best on, and the growth gained there (D-240). */
     bedrock?: string | null;
     bedrock_boost?: number;
-    /** Plants (D-242): soil development per ecology second at full cover, shade cast (0..1), and
-     *  the soil they need to take root (soil_min less the ramp, 0..1). */
+    /** Plants (D-242): soil development per ecology second at full cover, and the soil they need to take root (soil_min less the ramp, 0..1). */
     soil_gain?: number;
-    shade_cast?: number;
     soil_need?: number;
   };
 }
@@ -58,8 +56,8 @@ export interface Fields {
   lock?: Uint8Array; // live only: per cell, the barred player and seconds left (D-098)
   deadwood?: Uint8Array; // live only: standing dead wood per cell, 0..255 (D-127)
   flood?: number[]; // live only: cells under flood water (D-132)
-  shade?: Uint8Array; // live only: shade on the ground per cell, 0..255 (D-135)
   moisture?: Uint8Array; // live only: moisture per cell, 0..255 (D-135)
+  vis?: Uint8Array; // live with fog only: 1 in sight, 0 in the fog (D-249)
 }
 
 /** What stands on one cell at one tick (the cell panel). */
@@ -125,7 +123,7 @@ export type Source = Pick<
   unlocked?: (player: number) => Set<string>;
   /** The generated map (live matches, D-083); replays are flat. */
   terrain?: TerrainFrame;
-  /** When an animal was dropped by a spawn order (ms, performance.now), for its parachute. */
+  /** When an animal was bought by a spawn order (ms, performance.now), to bring it out of the den. */
   droppedAt?: (id: number) => number | undefined;
 };
 

@@ -17,12 +17,15 @@
     me,
     onZoom,
     onClose,
+    moveDen,
   }: {
     info: CellInfo;
     species: Species[];
     me: number;
     onZoom: () => void;
     onClose: () => void;
+    /** Move your land den here (D-253): its price and the action; absent where it can't go. */
+    moveDen?: { cost: number; go: () => void };
   } = $props();
 
   /** The height layers, low to high, with their bar colours. */
@@ -96,6 +99,16 @@
     </button>
   </header>
 
+  {#if moveDen}
+    <button
+      class="move-den"
+      onclick={moveDen.go}
+      title="Your den moves here: it is built in a while, and until then both cells are your den (lose either and you lose)"
+    >
+      Move den here · {moveDen.cost}
+    </button>
+  {/if}
+
   <!-- The front first (D-242): strength against the enemy's push, then the push bar. -->
   <section>
     <h4>Front</h4>
@@ -104,7 +117,7 @@
       {@const enemy = info.owner === 1 ? 2 : 1}
       <div
         class="row strength"
-        title="Strength: how full the owner's layers are (fast spreaders count most), raised by a canopy overhead, fertile soil and many species (plants and resident animals), lowered by an enemy canopy next door. Push: the summed strength of the enemy's cells next to it. When the push beats the strength, the cell's plants are smothered; a cell just taken is held for a while (D-236, D-230)."
+        title="Strength: how full the owner's layers are (fast spreaders count most), raised by taller layers, fertile soil and many species (plants and resident animals). Push: the summed strength of the enemy's cells next to it. When the push beats the strength, the cell's plants are smothered; a cell just taken is held for a while (D-236, D-243, D-230)."
       >
         <span class="name">Strength</span>
         <span class="vs"
@@ -189,6 +202,21 @@
 </aside>
 
 <style>
+  .move-den {
+    width: 100%;
+    margin: 4px 0 2px;
+    padding: 5px 8px;
+    border: 1px solid rgb(255 255 255 / 0.25);
+    border-radius: 8px;
+    font: inherit;
+    font-weight: 700;
+    color: var(--ink);
+    background: rgb(201 164 106 / 0.35);
+    cursor: pointer;
+  }
+  .move-den:hover {
+    background: rgb(201 164 106 / 0.55);
+  }
   .cell {
     width: 340px;
     padding: 0 0 10px;

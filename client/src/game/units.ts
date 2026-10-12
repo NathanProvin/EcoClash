@@ -4,7 +4,7 @@
 import type { Animal } from "../replay/replay";
 
 /** Order states of the animal frame (sim-core `Fauna::frame`). */
-export const ORDER_TEXT = ["Free", "Moving", "Raiding"] as const;
+export const ORDER_TEXT = ["Free", "Moving", "Raiding", "Holding"] as const;
 
 export interface UnitCard {
   /** Fauna species index of the group's most common species, and its owner. */

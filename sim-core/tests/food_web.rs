@@ -3,8 +3,8 @@
 //!
 //! 1. No tier is weaker than the one below it in its family: unlock and call costs, yield, and
 //!    for animals body (and bite for grazers) never go down from tier 1 to tier 3.
-//! 2. The number of eaters falls with tier and cost: cheap species are never eaten by a single
-//!    species, big ones never by many.
+//! 2. The number of hunters falls with tier and cost: cheap animals are never eaten by a single
+//!    species, big ones never by many. Every plant feeds a grazer (D-244).
 
 use sim_core::balance::Balance;
 
@@ -119,15 +119,13 @@ fn eaters_fall_with_tier_and_cost() {
             ));
         }
     }
-    // Plants: eaten by grazers (a diet entry may name a whole family).
+    // Plants: every plant is food for at least one grazer, all of its layer's (D-244).
     for (name, p) in &b.flora_species {
         let n = fauna
             .iter()
-            .filter(|(_, g)| {
-                g.role == "herbivore" && g.eats.iter().any(|e| e == name || *e == p.family)
-            })
+            .filter(|(_, g)| g.diet().iter().any(|e| e == name || *e == p.family))
             .count();
-        let band = if p.tier == 3 { 1..=2 } else { 2..=3 };
+        let band = 1..=usize::MAX;
         if !band.contains(&n) {
             bad.push(format!(
                 "{name} (t{}) has {n} grazers, wants {band:?}",

@@ -2,7 +2,7 @@
   // Catastrophe deck (D-129): the last item of the build bar. Its flyout holds the cards: ready
   // ones in full colour (gold cost when affordable), cooling ones grey under a sweep with the
   // seconds left. Clicking a ready card arms it; the next map click plays it.
-  import { cardStatus, CATASTROPHE_LOOK, type Catastrophe } from "../game/catastrophes";
+  import { cardStatus, lookOf, type Catastrophe } from "../game/catastrophes";
   import { label } from "../game/species";
   import FamilyIcon from "./FamilyIcon.svelte";
   import Icon from "./Icon.svelte";
@@ -57,12 +57,14 @@
         <div class="cards">
           {#each cards as c, i (c.name)}
             {@const st = cardStatus(c, waits[i] ?? 0, bank)}
-            {@const look = CATASTROPHE_LOOK[c.act] ?? { icon: "storm" as const, color: "#888" }}
+            {@const look = lookOf(c)}
             <button
               class="card"
               class:cooling={st.left > 0}
               class:armed={armed === c.name}
               style:--tone={look.color}
+              style:grid-row={look.at[0]}
+              style:grid-column={look.at[1]}
               disabled={!st.ready}
               onclick={() => onArm(c.name)}
               onpointerenter={() => (hover = c)}
@@ -135,8 +137,10 @@
     color: var(--ink-soft);
     text-align: center;
   }
+  /* The 3x3 grid (D-252): rows cheap to costly, columns herbs, woody, fauna. */
   .cards {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(3, auto);
     gap: 6px;
   }
   .card {

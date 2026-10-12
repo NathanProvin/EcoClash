@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardStatus, type Catastrophe } from "./catastrophes";
+import { CATASTROPHE_LOOK, cardStatus, lookOf, type Catastrophe } from "./catastrophes";
 
 const storm: Catastrophe = {
   name: "storm",
@@ -18,5 +18,15 @@ describe("catastrophe cards (D-129)", () => {
     const cooling = cardStatus(storm, 210, 20000);
     expect(cooling.ready).toBe(false);
     expect(cooling.left).toBeCloseTo(0.5); // half the cooldown to run: the sweep
+  });
+});
+
+describe("the catastrophe grid (D-252)", () => {
+  it("places the nine cards on distinct cells of a 3x3 grid, each with a cue", () => {
+    const cells = Object.values(CATASTROPHE_LOOK).map((l) => l.at.join(","));
+    expect(cells).toHaveLength(9);
+    expect(new Set(cells).size).toBe(9);
+    expect(Object.values(CATASTROPHE_LOOK).every((l) => l.cue.startsWith("fx."))).toBe(true);
+    expect(lookOf({ ...storm, name: "unknown" }).icon).toBe("storm");
   });
 });

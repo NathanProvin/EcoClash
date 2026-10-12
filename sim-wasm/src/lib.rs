@@ -23,7 +23,6 @@ pub struct Sim {
     flora_every: u32,
     pace: f64,
     plant_radius: u32,
-    drop_radius: u32,
     victory_territory: f64,
     time_limit_s: u32,
     max_agents: u32,
@@ -56,7 +55,6 @@ impl Sim {
             flora_every: b.sim.flora_every_ticks,
             pace: b.sim.pace,
             plant_radius: b.flora.plant_radius,
-            drop_radius: b.fauna.drop_radius,
             victory_territory: b.r#match.victory_territory,
             time_limit_s: b.r#match.time_limit_s,
             max_agents: b.agents.max_agents,
@@ -105,6 +103,7 @@ impl Sim {
                 Reason::Biomass => "biomass",
                 Reason::TerritoryShare => "territory share",
                 Reason::Draw => "draw",
+                Reason::Den => "den",
             };
             serde_json::json!({ "winner": o.winner, "reason": reason, "tick": o.tick }).to_string()
         })
@@ -257,12 +256,6 @@ impl Sim {
         self.relief_m
     }
 
-    /// Radius in cells around the click where a drop off your land lands (`[fauna] drop_radius`).
-    #[wasm_bindgen(getter, js_name = dropRadius)]
-    pub fn drop_radius(&self) -> u32 {
-        self.drop_radius
-    }
-
     /// Share of the map that wins now, the decay included (D-175), for display.
     #[wasm_bindgen(js_name = victoryNow)]
     pub fn victory_now(&self) -> f64 {
@@ -282,6 +275,66 @@ impl Sim {
     #[wasm_bindgen(getter, js_name = timeLimitS)]
     pub fn time_limit_s(&self) -> u32 {
         self.time_limit_s
+    }
+
+    /// What `player` sees (D-249): one byte per cell, 1 in sight, 0 in the fog.
+    #[wasm_bindgen(js_name = visibilityFrame)]
+    #[must_use]
+    pub fn visibility_frame(&self, player: u8) -> Vec<u8> {
+        self.world
+            .visible(player.clamp(1, 2))
+            .into_iter()
+            .map(u8::from)
+            .collect()
+    }
+
+    /// What moving the land den costs, in points (D-253).
+    #[wasm_bindgen(getter, js_name = denMoveCost)]
+    #[must_use]
+    #[allow(clippy::float_arithmetic, clippy::cast_precision_loss)] // display only
+    pub fn den_move_cost(&self) -> f64 {
+        self.world.economy.den_move as f64 / 65536.0
+    }
+
+    /// A player's den move under way (D-253): the new cell and the seconds left; empty if none.
+    #[wasm_bindgen(js_name = denMove)]
+    #[must_use]
+    pub fn den_move(&self, player: u8) -> Vec<u32> {
+        let w = &self.world;
+        #[allow(clippy::cast_precision_loss)]
+        let every = w.flora_every() as f64;
+        w.fauna.den_move[usize::from(player.clamp(1, 2)) - 1]
+            .map(|(cell, left)| {
+                #[allow(
+                    clippy::float_arithmetic,
+                    clippy::cast_possible_truncation,
+                    clippy::cast_sign_loss,
+                    clippy::cast_precision_loss
+                )]
+                let s = (left as f64 * every / f64::from(self.tick_hz)).ceil() as u32;
+                vec![u32::try_from(cell).unwrap_or(0), s]
+            })
+            .unwrap_or_default()
+    }
+
+    /// A player's dens (D-245): the land and the water den cells, -1 for none yet.
+    #[must_use]
+    pub fn dens(&self, player: u8) -> Vec<i32> {
+        let d = self.world.fauna.dens[usize::from(player.clamp(1, 2)) - 1];
+        d.iter().map(|&k| i32::try_from(k).unwrap_or(-1)).collect()
+    }
+
+    /// A player's population cap per animal species (D-246), by fauna index.
+    #[wasm_bindgen(js_name = animalCaps)]
+    #[must_use]
+    pub fn animal_caps(&self, player: u8) -> Vec<u32> {
+        let w = &self.world;
+        let pi = usize::from(player.clamp(1, 2)) - 1;
+        w.fauna
+            .caps(&w.flora.p, &w.state)
+            .iter()
+            .map(|c| u32::try_from(c[pi]).unwrap_or(0))
+            .collect()
     }
 
     /// Points banked by a player (1 or 2), for display.
@@ -409,13 +462,7 @@ impl Sim {
         self.world.pressure_frame()
     }
 
-    /// Standing dead wood per cell, 0..=255 (D-127).
-    /// Shade on the ground and moisture per cell, 0..=255, for the map overlays (D-135).
-    #[wasm_bindgen(js_name = shadeFrame)]
-    pub fn shade_frame(&self) -> Vec<u8> {
-        self.world.shade_frame()
-    }
-
+    /// Moisture per cell, 0..=255, for the map overlays (D-135).
     #[wasm_bindgen(js_name = moistureFrame)]
     pub fn moisture_frame(&self) -> Vec<u8> {
         self.world.moisture_frame()
@@ -553,8 +600,8 @@ fn species_table(b: &Balance) -> String {
                 "yield": s.yield_, "cap": s.cap, "effect": s.effect,
                 "water": s.water_optimum, "water_tolerance": s.water_tolerance,
                 "bedrock": s.bedrock, "bedrock_boost": b.flora.bedrock_boost,
-                "soil_gain": s.soil_gain, "shade_cast": s.shade_cast,
-                "soil_need": if s.pioneer { 0.0 } else {
+                "soil_gain": s.soil_gain,
+                "soil_need": if !s.needs_soil() { 0.0 } else {
                     (b.flora.soil_min_level[usize::from(s.level) - 1] - b.flora.soil_ramp).max(0.0)
                 },
             },
@@ -563,11 +610,11 @@ fn species_table(b: &Balance) -> String {
     let fauna = b.fauna_species.iter().map(|(name, s)| {
         serde_json::json!({
             "name": name, "kind": "fauna", "family": s.family, "level": 0, "tier": s.tier,
-            "role": s.role, "habitat": s.habitat, "eats": s.eats, "swarm": s.swarm,
+            "role": s.role, "habitat": s.home(), "eats": s.diet(), "swarm": s.swarm,
             "medium": format!("{:?}", s.medium).to_lowercase(),
             "stats": {
                 "growth": s.growth, "spawn_cost": s.spawn_cost, "unlock_cost": s.unlock_cost,
-                "yield": s.yield_, "cap": s.cap, "effect": s.effect, "speed": s.speed,
+                "yield": s.yield_, "cap": s.per_cell, "effect": s.effect, "speed": s.speed,
             },
         })
     });

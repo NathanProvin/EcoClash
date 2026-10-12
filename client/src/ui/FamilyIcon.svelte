@@ -89,13 +89,21 @@
     flex: none;
     width: var(--size);
     height: var(--size);
-    border-radius: calc(var(--size) * 0.24);
-    color: rgba(255, 255, 255, 0.92);
-    background: radial-gradient(circle at 35% 28%, var(--hi), var(--lo));
+    /* Earthy and organic (play test): a pebble-like shape, a matte, mottled ground in the
+       family's tone, a soft warm top light, a bark-dark rim. */
+    border-radius: 42% 58% 46% 54% / 52% 44% 56% 48%;
+    color: rgba(250, 244, 226, 0.94);
+    background:
+      radial-gradient(circle at 22% 78%, rgba(20, 12, 4, 0.22) 0 16%, transparent 17%),
+      radial-gradient(circle at 70% 68%, rgba(20, 12, 4, 0.16) 0 11%, transparent 12%),
+      radial-gradient(circle at 78% 24%, rgba(255, 236, 196, 0.1) 0 13%, transparent 14%),
+      radial-gradient(circle at 30% 30%, rgba(255, 236, 196, 0.08) 0 9%, transparent 10%),
+      radial-gradient(ellipse at 40% 20%, var(--hi), var(--lo) 78%);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.22),
-      inset 0 -2px 4px rgba(0, 0, 0, 0.3),
-      0 0 0 1px rgba(0, 0, 0, 0.4);
+      inset 0 2px 3px rgba(255, 232, 190, 0.12),
+      inset 0 -3px 6px rgba(18, 10, 4, 0.45),
+      0 0 0 1.5px rgba(36, 24, 14, 0.85),
+      0 2px 4px rgba(0, 0, 0, 0.35);
   }
   .icon.bare {
     color: inherit;
@@ -103,42 +111,43 @@
     box-shadow: none;
   }
   svg {
-    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+    filter: drop-shadow(0 1px 1.5px rgba(20, 10, 2, 0.55));
   }
+  /* Deeper, earthier tones: moss and leaf greens, river teal, loam, ochre, rust. */
   .l1 {
-    --hi: #a6d17a;
-    --lo: #4e7a34;
+    --hi: #93ad5e;
+    --lo: #3d5426;
   }
   .l2 {
-    --hi: #8fbf5e;
-    --lo: #41662a;
+    --hi: #7c9c4f;
+    --lo: #32491f;
   }
   .l3 {
-    --hi: #6fae58;
-    --lo: #2f5a26;
+    --hi: #61884a;
+    --lo: #263f1e;
   }
   .l4 {
-    --hi: #4c8a45;
-    --lo: #1b3b1d;
+    --hi: #4a7340;
+    --lo: #172d17;
   }
   .w {
-    --hi: #6fb8ad;
-    --lo: #1f5a55;
+    --hi: #5f978c;
+    --lo: #1b403c;
   }
   .decomposer {
-    --hi: #b08a62;
-    --lo: #5a4028;
+    --hi: #9c7a55;
+    --lo: #45301c;
   }
   .herbivore {
-    --hi: #d2b25a;
-    --lo: #7a5a1c;
+    --hi: #b9984f;
+    --lo: #5a4115;
   }
   .catastrophe {
-    --hi: #8f8796;
-    --lo: #3a3440;
+    --hi: #7e7480;
+    --lo: #2c252e;
   }
   .predator {
-    --hi: #d0695a;
-    --lo: #6e2219;
+    --hi: #ab5d4a;
+    --lo: #4b1d14;
   }
 </style>

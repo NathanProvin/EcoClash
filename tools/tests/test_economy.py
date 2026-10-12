@@ -45,7 +45,7 @@ def test_costs_come_from_the_stat_sheet():
     assert ec.plant_cost("oak", 4) == 4 * ec.stat("oak", "spawn_cost")
     fox = ec.spawn_cost("fox", 1)
     assert fox == ec.stat("fox", "spawn_cost")
-    assert ec.spawn_cost("fox", 1, outside=True) == fox * 1.5
+    assert ec.spawn_cost("fox", 1, outside=True) == fox  # no drop surcharge (D-245)
     assert ec.spawn_cost("rabbits", 4, outside=True) == ec.spawn_cost("rabbits", 4)
 
 

@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-12: **Alpha 1.5 rework** done on branch `alpha-1.5` (D-243…D-250), not merged:
+- **Now:** 2026-10-12: **Alpha 1.5 rework** done on branch `alpha-1.5` (D-243…D-252, a play-test round included), not merged:
   - no shade, a layer multiplier and stronger biodiversity;
   - grazers by layer;
   - dens instead of drops;
@@ -146,6 +146,7 @@ Anti-snowball and "better ecosystem, more units" (user, 2026-10-12). One step pe
 - [x] 6. Progressive catastrophes (D-248).
 - [x] 7. Fog of war (D-249).
 - [x] 8. Tuning: spread, yields, densities (D-250); `bench --handicap` not built (the comeback count covers it).
+- [x] 9. Play-test round: biodiversity 0.5, trampling ×1/×2/×3, herbs slower and woods faster, fog fix (AoE look), the den as the heart (D-251), a 3×3 catastrophe grid (D-252).
 
 ## Gameplay · Three styles (D-225, D-226; before the UI/UX phase)
 Tall, wide and rush emerge from one conquest rule, map control stays the only victory. Branch `gameplay-changes`. Each step waits for the user's green light.

@@ -1116,3 +1116,21 @@
 - **Open:**
   - the bot-balance pass (style fingerprint test still ignored);
   - `bench --handicap`, the unit-panel hold button and a fog switch, if wanted.
+
+## 2026-10-12 (2) · Alpha 1.5, the play-test round (D-251, D-252)
+- **The user's feedback, applied:**
+  - biodiversity 0.5;
+  - trampling ×1, ×2, ×3 by tier;
+  - herbs spread ×0.7 again; shrubs and trees spread and grow ×1.3;
+  - fog of war;
+  - the den;
+  - a 3×3 catastrophe grid.
+- **Fog bug:** `viewer` in `App.svelte` is not reactive. The effect that switched fog on ran before the viewer existed, so fog never showed. It is now set right after `Viewer.create`. Fog now looks like Age of Empires: black where never seen, dark where seen before.
+- **Den (D-251):** losing the den cell loses the match, like a MOBA ancient. It is drawn as a low-poly burrow, or a stick lodge for the water den, with an owner ring. Bots raid a seen enemy den and guard their own.
+- **Catastrophes (D-252):** nine cards (herbs, woody, fauna × cheap, mid, large). New: chainsaw, hunters, poisoned bait, epidemic, with procedural sounds. Catastrophe sounds had never played before (act-name mismatch); fixed.
+- **Checked in the browser:**
+  - dark fog with a clearing around the colony;
+  - the burrow at the first planting;
+  - the 3×3 deck with countdowns to each card's opening.
+  The new cards' effects and sounds have not been seen in play yet.
+- **Checks:** the full CI set is green.

@@ -86,10 +86,10 @@ const TINT = { wet: 1.5, dry: [0.55, 0.9], rock: [0.03, 0.1] } as const;
 /** Map overlays (D-135) float this far above the ground (m). */
 const OVERLAY_LIFT = 0.1;
 /** Opacity (0..255) of the fog (D-249): over cells never seen, and over cells seen before. */
-const FOG_DARK = 215;
-const FOG_SEEN = 130;
-/** The fog's colour: a light grey haze (D-249, play test). */
-const FOG_GREY = "#c4c7cb";
+const FOG_DARK = 235;
+const FOG_SEEN = 155;
+/** The fog's colour: a mid grey haze, between the play tests' too dark and too light (D-249). */
+const FOG_GREY = "#85888c";
 /** The sun's shadow map is redrawn every this many frames: shadows lag one frame behind the wind,
  *  invisibly, for half the shadow-pass cost (D-090). */
 const SHADOW_EVERY = 4; // D-151 (was 2): the sun barely moves

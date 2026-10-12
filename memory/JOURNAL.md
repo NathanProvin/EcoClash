@@ -1159,3 +1159,7 @@
 
   Not yet seen: the lodge on a water map, the emergence from close up, Move den in play.
 - **Checks:** the full CI set is green.
+
+## 2026-10-12 (4) · The bot founded next to the player; fog in between
+- **Spawn kills:** the bot founded anywhere on its half at least n/3 cells (12 on a mid map) from the player's land, then spread toward it and raided the den once seen (D-251). It now founds only on sites at least 80 % as far from the player as the farthest site of its half (`FOUND_FAR`), still varied among those. Test: `the_bot_founds_far_from_the_enemy`.
+- **Fog:** mid grey `#85888c` (alpha 235 unseen, 155 seen before), between round 2's dark and round 3's light.

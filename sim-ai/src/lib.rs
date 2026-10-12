@@ -267,6 +267,8 @@ const SPREADERS: &[&str] = &[
 /// Founding (D-194): one candidate site per block of this many cells, a choice among the best few.
 const FOUND_BLOCK: usize = 6;
 const FOUND_CHOICES: usize = 4;
+/** A founding site is at least this % as far from the enemy as the farthest one (play test). */
+const FOUND_FAR: usize = 80;
 
 /// Hunter cards the bot keeps for hunting and for answering raids (D-191).
 const HUNT_CARDS: i64 = 2;
@@ -952,7 +954,27 @@ impl Bot {
         let enemy: Vec<usize> = (0..n * n)
             .filter(|&k| w.state.owner[k] == 3 - self.player)
             .collect();
-        let far = (n / 3).pow(2);
+        // Away from the enemy (play test: it founded 12 cells off and spawn-killed the player):
+        // only sites at least FOUND_FAR % as far from the enemy's nearest cell as the farthest
+        // site, so it founds in the far part of its half.
+        let gap = |k: usize| {
+            enemy
+                .iter()
+                .map(|&e| dist2(e, n, (k / n, k % n)))
+                .min()
+                .unwrap_or(usize::MAX)
+        };
+        let widest = (0..n * n)
+            .filter(|&k| suits(k) && mine(k))
+            .map(gap)
+            .max()
+            .unwrap_or(0);
+        // No enemy yet: anywhere on its half.
+        let far = if enemy.is_empty() {
+            0
+        } else {
+            widest / 100 * FOUND_FAR * FOUND_FAR / 100
+        };
         let wet = |k: usize| {
             let (r, c) = (k / n, k % n);
             (r.saturating_sub(2)..(r + 3).min(n)).any(|y| {
@@ -961,7 +983,7 @@ impl Bot {
         };
         let mut best: std::collections::BTreeMap<(usize, usize), (i64, usize)> = Default::default();
         for k in (0..n * n).filter(|&k| suits(k) && mine(k)) {
-            if enemy.iter().any(|&e| dist2(e, n, (k / n, k % n)) < far) {
+            if gap(k) < far {
                 continue;
             }
             let score = w.flora.suitability(&w.state, s, k) + if wet(k) { half / 2 } else { 0 };
@@ -2031,6 +2053,30 @@ mod tests {
             sites.insert((r, c));
         }
         assert!(sites.len() >= 5, "varied sites: {sites:?}");
+    }
+
+    /// Play test: the bot founds far from an enemy already on the map, not next to it.
+    #[test]
+    fn the_bot_founds_far_from_the_enemy() {
+        let b = balance();
+        let n = usize::try_from(b.sim.grid_size).unwrap();
+        let mut w = World::new(&b, 3, n);
+        w.setup_plant(1, "lichen_and_moss", 18, 18, 2); // the player, near the centre
+        let mut bot = Bot::new(2, Level::Hard, Style::Balanced, &b);
+        let at = (0..400).find_map(|_| {
+            let first = bot.think(&w).into_iter().find_map(|p| match p {
+                Payload::Plant { row, col, .. } => Some((row as usize, col as usize)),
+                _ => None,
+            });
+            w.step();
+            first
+        });
+        let (r, c) = at.expect("the bot founds");
+        let d2 = r.abs_diff(18).pow(2) + c.abs_diff(18).pow(2);
+        assert!(
+            d2 >= (n / 2).pow(2),
+            "({r}, {c}) is too close to the player"
+        );
     }
 
     /// How a full match goes, for tuning by hand:

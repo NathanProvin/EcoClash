@@ -59,6 +59,9 @@ pub struct FloraRules {
 #[derive(Clone, Debug, Deserialize)]
 pub struct EconomyRules {
     pub start_budget: f64,
+    /// Production income (D-247): a plant's income per cell is yield x (stock_share x cover +
+    /// (1 - stock_share) x its gross growth over the peak logistic growth r.K/4).
+    pub stock_share: f64,
     /// Biodiversity income (D-225): a cell's plant income x (1 + div_gain x its species),
     /// at most x div_cap.
     pub div_gain: f64,
@@ -228,6 +231,8 @@ pub struct FaunaRules {
     /// (D-123).
     pub diet_yield: Vec<f64>,
     pub own_graze: f64,
+    /// Own grazers bite an own plant only above this cover, and never below it (D-247).
+    pub own_graze_min: f64,
     /// Enemy plants lose this many times what a grazer eats (D-152): the rest is trampled to
     /// litter, so raids break fronts without feeding the raiders more.
     #[serde(default = "one")]
@@ -682,6 +687,11 @@ impl Balance {
             (0.0..=1.0).contains(&self.economy.div_gain)
                 && (1.0..=8.0).contains(&self.economy.div_cap),
             "[economy] div_gain must be in 0..1 and div_cap in 1..8".into(),
+        )?;
+        check(
+            (0.0..=1.0).contains(&self.economy.stock_share)
+                && (0.0..1.0).contains(&self.fauna.own_graze_min),
+            "[economy] stock_share in 0..1, [fauna] own_graze_min in 0..1 (D-247)".into(),
         )?;
         let dt = self.flora_dt();
         self.validate_fauna()?;

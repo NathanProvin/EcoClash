@@ -49,6 +49,8 @@ pub struct Economy {
     /// Biodiversity income (D-225, Q16): gain per species in a cell, and the cap of the factor.
     div_gain: i64,
     div_cap: i64,
+    /// Share of a plant's income from its standing cover, the rest from its growth (Q16, D-247).
+    stock: i64,
     /// Per species: (is an animal, family, tier) for the unlock rule.
     tree: Vec<(bool, String, u8)>,
     /// Per animal species: habitat plants (bitmask over plant species).
@@ -81,6 +83,7 @@ impl Economy {
             unlock_cost,
             div_gain: round(b.economy.div_gain * one),
             div_cap: round(b.economy.div_cap * one),
+            stock: round(b.economy.stock_share * one),
             tree: fl
                 .iter()
                 .map(|(_, s)| (false, s.family.clone(), s.tier))
@@ -126,8 +129,10 @@ impl Economy {
         }
     }
 
-    /// Cell `k`'s plant income per ecology second (Q16): its plants' yields times its
-    /// biodiversity factor (D-225); 0 on a neutral cell.
+    /// Cell `k`'s plant income per ecology second (Q16): each plant's yield x (`stock` x its
+    /// cover + (1 - `stock`) x its production, the last step's gross growth over the peak
+    /// logistic growth r.K/4; D-247), times the cell's biodiversity factor (D-225); 0 on a
+    /// neutral cell. A mature cell earns its turnover; a growing one the most.
     #[must_use]
     pub fn cell_income(&self, flora: &Flora, st: &FloraState, k: usize) -> i64 {
         if st.owner[k] == 0 {
@@ -138,7 +143,11 @@ impl Economy {
         for (s, (&yld, &kmax)) in self.yld.iter().zip(&p.kmax).enumerate() {
             let b = st.bio[s * n2 + k];
             if b > 0 {
-                cell += div_round(yld * b.min(kmax), kmax);
+                let cover = div_round(b.min(kmax) * ONE_I, kmax);
+                let peak = div_round(p.rdt[s] * kmax, 4 * ONE_I).max(1);
+                let made = div_round(flora.prod(s, k, n2) * ONE_I, peak);
+                let mix = div_round(self.stock * cover + (ONE_I - self.stock) * made, ONE_I);
+                cell += div_round(yld * mix, ONE_I);
             }
         }
         div_round(cell * self.factor(flora.species_count(st, k)), ONE_I)
@@ -164,7 +173,8 @@ impl Economy {
             .i64s(&self.spawn_cost)
             .i64(self.pace)
             .i64(self.div_gain)
-            .i64(self.div_cap);
+            .i64(self.div_cap)
+            .i64(self.stock);
         for (animal, family, tier) in &self.tree {
             h.u64(u64::from(*animal))
                 .u64(family.len() as u64)
@@ -348,6 +358,7 @@ mod tests {
         let fauna = Fauna::new(FaunaParams::from_balance(&b));
         let mut e = Economy::new(&b, &fauna.p);
         e.div_gain = 0; // plain yields here; the biodiversity factor has its own test
+        e.stock = ONE_I; // standing cover only; production has its own test (D-247)
         let start = e.bank;
         let g = p.index("grasses").unwrap();
         let mut st = FloraState::new(p, 4);
@@ -370,6 +381,28 @@ mod tests {
         );
     }
 
+    /// D-247: a half-grown, growing cell out-earns a saturated one: income comes mostly from
+    /// production.
+    #[test]
+    fn a_growing_cell_out_earns_a_saturated_one() {
+        let b = Balance::from_toml(BALANCE, SPECIES).unwrap();
+        let mut flora = Flora::new(FloraParams::from_balance(&b));
+        let fauna = Fauna::new(FaunaParams::from_balance(&b));
+        let mut e = Economy::new(&b, &fauna.p);
+        e.div_gain = 0;
+        let g = flora.p.index("grasses").unwrap();
+        let mut st = FloraState::new(&flora.p, 4);
+        for k in [0, 1] {
+            st.owner[k] = 1;
+            st.gauge[g * 16 + k] = ONE_I;
+        }
+        st.bio[g * 16] = flora.p.kmax[g]; // saturated
+        st.bio[g * 16 + 1] = flora.p.kmax[g] / 2; // half grown: peak growth
+        flora.step(&mut st);
+        let (full, half) = (e.cell_income(&flora, &st, 0), e.cell_income(&flora, &st, 1));
+        assert!(half > full, "growing {half} > saturated {full}");
+    }
+
     /// D-225: a cell's plant income is multiplied by 1 + div_gain x its species (plants and
     /// resident animals), at most div_cap.
     #[test]
@@ -378,6 +411,7 @@ mod tests {
         let mut flora = Flora::new(FloraParams::from_balance(&b));
         let fauna = Fauna::new(FaunaParams::from_balance(&b));
         let mut e = Economy::new(&b, &fauna.p);
+        e.stock = ONE_I; // standing cover only (D-247)
         let names = ["grasses", "wildflowers", "lichen_and_moss"];
         let ids = names.map(|n| flora.p.index(n).unwrap());
         let mut st = FloraState::new(&flora.p, 2);

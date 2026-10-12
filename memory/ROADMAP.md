@@ -132,7 +132,7 @@ Anti-snowball and "better ecosystem, more units" (user, 2026-10-12). One step pe
 - [x] 2. Grazers by role, damage by tier (D-244).
 - [x] 3. Dens, no remote drops (D-245).
 - [x] 4. Founders, habitat carrying capacity, spreading, hold order (D-246).
-- [ ] 5. Income from production, own-grazing above 50 % (D-247).
+- [x] 5. Income from production, own-grazing above 50 % (D-247).
 - [ ] 6. Progressive catastrophes (D-248).
 - [ ] 7. Fog of war (D-249).
 - [ ] 8. Tuning: spread, yields, densities; `bench --handicap` (D-250).

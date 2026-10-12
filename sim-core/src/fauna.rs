@@ -81,6 +81,8 @@ pub struct FaunaParams {
     pub yld: Vec<i64>,
     transfer: i64,
     own_graze: i64,
+    /// Own plants are bitten only above this cover, never below (Q16, D-247).
+    own_min: i64,
     /// Enemy plants lose this many times a bite (Q16, D-152).
     pub damage: Vec<i64>,
     soil_per_dead: i64,
@@ -243,6 +245,7 @@ impl FaunaParams {
             yld: sp.iter().map(|s| round(s.yield_ * one)).collect(),
             transfer: round(fa.transfer * one),
             own_graze: round(fa.own_graze * one),
+            own_min: round(fa.own_graze_min * one),
             damage: sp
                 .iter()
                 .map(|s| {
@@ -393,6 +396,7 @@ impl FaunaParams {
             self.diet_yield[1],
             self.diet_yield[2],
             self.own_graze,
+            self.own_min,
             self.soil_per_dead,
             self.lockout,
             self.flee,
@@ -859,7 +863,7 @@ impl Fauna {
             a.digest[i] = (a.digest[i] - 1).max(0);
         }
         let safe = self.safe(fl, st);
-        self.graze(st);
+        self.graze(fl, st);
         self.decompose(st);
         let alive = self.hunt(st, &safe, rng);
         self.starve_and_bury(st, alive);
@@ -869,9 +873,10 @@ impl Fauna {
 
     /// Herbivores graze the richest diet species of their cell: enemy flora at a full bite, own
     /// flora at `own_graze` of it, which feeds them as much as a full bite (they spare their own
-    /// economy without starving at home; D-066). Bites on one stock are served pro rata when it
-    /// runs short.
-    fn graze(&mut self, st: &mut FloraState) {
+    /// economy without starving at home; D-066), and only where that plant's cover is at least
+    /// `own_min`, never below it (D-247: cropping a full meadow). Bites on one stock are served
+    /// pro rata when it runs short.
+    fn graze(&mut self, fl: &FloraParams, st: &mut FloraState) {
         let (a, p, n, n2) = (&mut self.agents, &self.p, st.n, st.n * st.n);
         let mut orders: Vec<(usize, usize, i64)> = Vec::new(); // (agent, stock index, bite)
         let mut rank_by = vec![0usize; a.len()]; // the diet rank of each grazer's food
@@ -885,18 +890,26 @@ impl Fauna {
             // The best-ranked food in the cell (D-123), then the one with the most biomass, then
             // the first.
             let mut pick: Option<(usize, usize, i64)> = None; // (rank, species, biomass)
-            for j in 0..32 {
+            let at_home = st.owner[k] == a.owner[i];
+            for j in 0..fl.names.len().min(32) {
                 if let Some(r) = p.plant_rank(s, j) {
-                    let have = st.bio[j * n2 + k];
+                    // At home, only what stands above the cropping floor (D-247).
+                    let floor = if at_home {
+                        div_round(fl.kmax[j] * p.own_min, ONE_I)
+                    } else {
+                        0
+                    };
+                    let have = st.bio[j * n2 + k] - floor;
                     if have >= 1 && pick.is_none_or(|(pr, _, h)| r < pr || (r == pr && have > h)) {
                         pick = Some((r, j, have));
                     }
                 }
             }
-            if let Some((rank, j, _)) = pick {
+            if let Some((rank, j, have)) = pick {
                 let mut bite = crate::weather::scale(p.bite[s], self.bite);
-                if st.owner[k] == a.owner[i] {
-                    bite = div_round(bite * p.own_graze, ONE_I);
+                if at_home {
+                    // ponytail: capped per grazer; several in one cell may dip a little below.
+                    bite = div_round(bite * p.own_graze, ONE_I).min(have);
                     home[i] = true;
                 }
                 orders.push((i, j * n2 + k, bite));
@@ -1742,7 +1755,7 @@ mod tests {
         st.gauge[grass * n2 + k] = ONE_I / 2;
         let rabbits = fa.p.index("rabbits").unwrap();
         fa.agents.push(rabbits, 1, centre(2), centre(2), ONE_I, 0);
-        fa.graze(&mut st);
+        fa.graze(&f.p, &mut st);
         assert_eq!(st.owner[k], 0, "neutral again");
         assert_eq!(st.lock_p[k], 2);
         assert_eq!(st.lock[k], fa.p.lockout);
@@ -2687,7 +2700,7 @@ mod tests {
             st.dead[k] = 0;
             fa.agents = Agents::default();
             fa.agents.push(rabbit, 1, centre(1), centre(1), 0, 0);
-            fa.graze(st);
+            fa.graze(&f.p, st);
             (30_000 - st.bio[grass * n2 + k], fa.agents.energy[0])
         };
         let (lost, fed) = raid(&mut fa, &mut st, 2);
@@ -2701,6 +2714,32 @@ mod tests {
             "graze_damage 4 x tier_damage 1.5 (rabbits: tier 2)"
         );
         assert!(st.dead[k] > 0, "the eaten part goes to litter");
+    }
+
+    /// D-247: own grazers crop own plants only above `own_graze_min` cover, never below it.
+    #[test]
+    fn own_grazers_crop_only_above_half_cover() {
+        let (f, mut fa, mut st, _) = setup(4);
+        let (rabbit, grass, k) = (
+            fa.p.index("rabbits").unwrap(),
+            f.p.index("grasses").unwrap(),
+            5,
+        );
+        let floor = div_round(f.p.kmax[grass] * fa.p.own_min, ONE_I);
+        st.owner[k] = 1;
+        fa.agents.push(rabbit, 1, centre(1), centre(1), 0, 0);
+        st.bio[grass * 16 + k] = floor - 10; // under half cover: spared
+        fa.graze(&f.p, &mut st);
+        assert_eq!(st.bio[grass * 16 + k], floor - 10);
+        st.bio[grass * 16 + k] = floor + 1; // just above: cropped down to the floor, not below
+        fa.graze(&f.p, &mut st);
+        assert_eq!(st.bio[grass * 16 + k], floor);
+        st.bio[grass * 16 + k] = f.p.kmax[grass];
+        fa.graze(&f.p, &mut st);
+        assert!(
+            st.bio[grass * 16 + k] < f.p.kmax[grass],
+            "a full meadow is cropped"
+        );
     }
 
     /// D-244: a grazer eats every plant of its family's layer and none of another, and its tier

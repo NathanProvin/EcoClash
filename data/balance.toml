@@ -281,6 +281,7 @@ effect = "Flood: the water rises over its banks for a while, drowning the land p
 transfer = 0.1          # share of eaten biomass that becomes the eater's energy (10 % rule)
 diet_yield = [1.0, 0.75, 0.5]  # energy from a primary, secondary, tertiary food, as a share of the transfer (D-123)
 own_graze = 0.2         # bite on own flora, relative to enemy flora (gamerules §10)
+own_graze_min = 0.5     # own grazers crop an own plant only above this cover, never below (D-247)
 graze_damage = 4.0      # enemy plants lose this many times what a grazer eats; the rest is trampled to litter (D-152)
 tier_damage = [1.0, 1.5, 2.0]  # x graze_damage by grazer tier: bigger grazers trample more (D-244)
 soil_per_dead = 1.5     # soil development (u16 units) per unit of dead biomass decomposed (D-237: was 0.5)
@@ -313,5 +314,6 @@ steer = 0.15            # fluid motion (D-111): share of the gap to the wanted v
 # Economy (gamerules §4, §7; D-027, D-029). Costs and yields are per species (species.toml).
 [economy]
 start_budget = 1100
+stock_share = 0.3            # plant income: this share from standing cover, the rest from growth (D-247)
 div_gain = 0.05              # biodiversity income: a cell's plant income x (1 + div_gain x species) ... (D-225)
 div_cap = 1.5                # ... at most x div_cap

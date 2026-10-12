@@ -346,6 +346,9 @@ struct Scratch {
     owner: Vec<u8>,
     soil: Vec<i64>,
     prog: [Vec<i64>; 2],
+    /// Gross positive growth of the last step per species and cell, biomass units (D-247):
+    /// derived each step from the state, read by the economy, never hashed.
+    prod: Vec<i64>,
 }
 
 impl Scratch {
@@ -367,6 +370,8 @@ impl Scratch {
                 .collect();
         }
         self.cover.resize(ns * cells, 0);
+        self.prod.clear();
+        self.prod.resize(ns * cells, 0);
         self.present.resize(cells, 0);
         self.dom.resize(cells, 0);
         self.strength.resize(cells, 0);
@@ -560,6 +565,13 @@ impl Flora {
             .count();
         let animals = self.residents.get(k).map_or(0, |r| r[usize::from(o) - 1]);
         i64::try_from(plants).unwrap_or(0) + i64::from(animals)
+    }
+
+    /// Species `s`'s gross positive growth in cell `k` over the last step, biomass units per
+    /// flora tick (D-247); 0 before the first step.
+    #[must_use]
+    pub fn prod(&self, s: usize, k: usize, cells: usize) -> i64 {
+        self.scratch.prod.get(s * cells + k).copied().unwrap_or(0)
     }
 
     /// Strength of cell `k` for its owner (Q16, D-236, D-243): vigor x layer x fertility x
@@ -798,6 +810,7 @@ impl Flora {
                 if growth[s] > 0 && self.favoured(st, s, k) {
                     growth[s] = grow_div(growth[s] * (ONE_I + p.rock_boost), ONE_I); // D-240
                 }
+                sc.prod[i] = growth[s].max(0); // production income (D-247)
             }
 
             // 3. Soil development.

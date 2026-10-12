@@ -920,6 +920,15 @@ fn tier_damage() -> [f64; 3] {
     [1.0; 3]
 }
 
+impl FloraSpecies {
+    /// Whether it needs developed soil to take root: not the pioneers, nor the water plants,
+    /// which grow in wet silt (play test 2026-10-12: reeds and cattails could not be planted).
+    #[must_use]
+    pub fn needs_soil(&self) -> bool {
+        !self.pioneer && self.family != "W"
+    }
+}
+
 impl FaunaSpecies {
     /// A grazer's plant layer (D-244): H1..H4 eat and live on L1..L4, HW on the water plants (W).
     #[must_use]

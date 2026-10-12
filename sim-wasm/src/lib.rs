@@ -572,7 +572,7 @@ fn species_table(b: &Balance) -> String {
                 "water": s.water_optimum, "water_tolerance": s.water_tolerance,
                 "bedrock": s.bedrock, "bedrock_boost": b.flora.bedrock_boost,
                 "soil_gain": s.soil_gain,
-                "soil_need": if s.pioneer { 0.0 } else {
+                "soil_need": if !s.needs_soil() { 0.0 } else {
                     (b.flora.soil_min_level[usize::from(s.level) - 1] - b.flora.soil_ramp).max(0.0)
                 },
             },

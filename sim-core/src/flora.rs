@@ -108,10 +108,10 @@ impl FloraParams {
         let soil_min = sp
             .iter()
             .map(|s| {
-                if s.pioneer {
-                    0.0
-                } else {
+                if s.needs_soil() {
                     f.soil_min_level[usize::from(s.level) - 1] * u16f
+                } else {
+                    0.0
                 }
             })
             .collect();
@@ -1600,6 +1600,18 @@ mod tests {
             "a tree layer: x layer[L4] and one more species: {} vs {expect}",
             f.strength(&forest, 0)
         );
+    }
+
+    /// Play test: water plants need no developed soil, so reeds take on fresh shallows.
+    #[test]
+    fn reeds_take_on_fresh_shallows() {
+        let f = flora();
+        let mut st = FloraState::new(&f.p, 4);
+        let reeds = f.p.index("reeds").unwrap();
+        st.ground[5] = crate::terrain::SHALLOW;
+        st.water[5] = U16;
+        assert_eq!(st.soil[5], 0);
+        assert_eq!(f.plantable(&st, 1, reeds, &[5]), vec![5]);
     }
 
     /// D-243: two L1 species barely established (30 % each) beat one L1 species fully grown.

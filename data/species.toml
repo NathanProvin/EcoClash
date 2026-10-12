@@ -14,10 +14,11 @@
 #   needs a card of the previous tier of its family. Plant families: L1 herbaceous, L2 intermediate,
 #   L3 shrubs, L4 trees, W aquatic. Animal families: D detritivores, H1..H4 eaters of L1..L4,
 #   HW aquatic grazers, P1 insect eaters, P2 small-mammal eaters, P3 large-mammal eaters,
-#   PW aquatic hunters, S superpredators (D-187, D-197). Habitat entries are species or family names (L1..L4, W). Diets (`eats`)
-#   are species in rank order, primary first, at most three (D-122); recyclers eat "dead".
-#   Within a layer, tier n animals eat the tier n plant first (D-126); tier-1 insects live a layer
-#   below their food.
+#   PW aquatic hunters, S superpredators (D-187, D-197). Grazers (H1..H4, HW) list no diet or
+#   habitat: they eat and live on their family's layer (L1..L4, W; D-244), harder with tier
+#   ([fauna] tier_damage). Hunters' and recyclers' habitat entries are species or family names;
+#   their diets (`eats`) are species in rank order, primary first, at most three (D-122);
+#   recyclers eat "dead".
 #
 # Model (second block):
 #   Plants: level = height stratum 1..4 (competition acts within a stratum; no shade, D-243);
@@ -382,8 +383,6 @@ effect = "Fast meadow grazer."
 family = "H1"
 tier = 1
 role = "herbivore"
-eats = ["grasses", "lichen_and_moss"]
-habitat = ["grasses"]
 small = true
 swarm = true
 body = 80
@@ -404,8 +403,6 @@ effect = "Heavy grazer: breaks meadow frontiers."
 family = "H1"
 tier = 2
 role = "herbivore"
-eats = ["grasses", "wildflowers"]
-habitat = ["grasses"]
 small = true
 swarm = false
 body = 600
@@ -428,8 +425,6 @@ effect = "Herd grazer: mows enemy meadows wholesale."
 family = "H1"
 tier = 3
 role = "herbivore"
-eats = ["wildflowers", "grasses", "lichen_and_moss"]
-habitat = ["L1"]
 small = false
 swarm = false
 body = 6000
@@ -452,8 +447,6 @@ effect = "Grazes ferns and moss; lives on herbs, so it counters ferns early."
 family = "H2"
 tier = 1
 role = "herbivore"
-eats = ["ferns", "lichen_and_moss"]
-habitat = ["L1"]
 small = true
 swarm = true
 body = 100
@@ -474,8 +467,6 @@ effect = "Small rodent of the undergrowth."
 family = "H2"
 tier = 2
 role = "herbivore"
-eats = ["nettle", "ferns"]
-habitat = ["L2"]
 small = true
 swarm = false
 body = 300
@@ -498,8 +489,6 @@ effect = "Browser of the undergrowth and shrubs."
 family = "H2"
 tier = 3
 role = "herbivore"
-eats = ["bramble", "nettle", "hawthorn"]
-habitat = ["L2"]
 small = false
 swarm = false
 body = 3000
@@ -522,8 +511,6 @@ effect = "Defoliates elder and nettle; lives in the undergrowth, so it counters 
 family = "H3"
 tier = 1
 role = "herbivore"
-eats = ["elder", "nettle"]
-habitat = ["L2"]
 small = true
 swarm = true
 body = 120
@@ -544,8 +531,6 @@ effect = "Nut eater of hazels; takes elderberries too."
 family = "H3"
 tier = 2
 role = "herbivore"
-eats = ["hazel", "elder"]
-habitat = ["L3"]
 small = true
 swarm = false
 body = 400
@@ -568,8 +553,6 @@ effect = "Large browser: strips shrub fronts."
 family = "H3"
 tier = 3
 role = "herbivore"
-eats = ["hawthorn", "hazel", "elder"]
-habitat = ["L3"]
 small = false
 swarm = false
 body = 5000
@@ -592,8 +575,6 @@ effect = "Bores into oaks and chestnuts; lives in shrubs, so it counters forests
 family = "H4"
 tier = 1
 role = "herbivore"
-eats = ["oak", "chestnut"]
-habitat = ["L3"]
 small = true
 swarm = true
 body = 120
@@ -614,8 +595,6 @@ effect = "Fells chestnuts and oaks near water."
 family = "H4"
 tier = 2
 role = "herbivore"
-eats = ["chestnut", "oak"]
-habitat = ["W"]
 small = false
 swarm = false
 medium = "amphibious"
@@ -639,8 +618,6 @@ effect = "Roots under the trees: eats mast and turf."
 family = "H4"
 tier = 3
 role = "herbivore"
-eats = ["beech", "oak", "ferns"]
-habitat = ["L4"]
 small = false
 swarm = false
 body = 4000
@@ -663,8 +640,6 @@ effect = "Aquatic larvae: graze the pond; adults become dragonflies."
 family = "HW"
 tier = 1
 role = "herbivore"
-eats = ["algae_and_lilies", "reeds"]
-habitat = ["W"]
 small = true
 swarm = true
 medium = "swim"
@@ -686,8 +661,6 @@ effect = "Shoal fish: grazes water plants."
 family = "HW"
 tier = 2
 role = "herbivore"
-eats = ["reeds", "algae_and_lilies"]
-habitat = ["W"]
 small = true
 swarm = false
 medium = "swim"
@@ -711,8 +684,6 @@ effect = "Dabbling duck: water plants and bank grass."
 family = "HW"
 tier = 3
 role = "herbivore"
-eats = ["cattails", "algae_and_lilies", "reeds"]
-habitat = ["W"]
 small = false
 swarm = false
 medium = "amphibious"

@@ -557,7 +557,7 @@ fn species_table(b: &Balance) -> String {
     let fauna = b.fauna_species.iter().map(|(name, s)| {
         serde_json::json!({
             "name": name, "kind": "fauna", "family": s.family, "level": 0, "tier": s.tier,
-            "role": s.role, "habitat": s.habitat, "eats": s.eats, "swarm": s.swarm,
+            "role": s.role, "habitat": s.home(), "eats": s.diet(), "swarm": s.swarm,
             "medium": format!("{:?}", s.medium).to_lowercase(),
             "stats": {
                 "growth": s.growth, "spawn_cost": s.spawn_cost, "unlock_cost": s.unlock_cost,

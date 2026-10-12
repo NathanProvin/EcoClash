@@ -234,6 +234,9 @@ pub struct FaunaRules {
     /// litter, so raids break fronts without feeding the raiders more.
     #[serde(default = "one")]
     pub graze_damage: f64,
+    /// `graze_damage` multiplier by grazer tier 1..3 (D-244): bigger grazers trample more.
+    #[serde(default = "tier_damage")]
+    pub tier_damage: [f64; 3],
     pub soil_per_dead: f64,
     /// Seconds during which a player may not take back a cell that enemy grazers ate bare
     /// (D-098).
@@ -427,9 +430,12 @@ pub struct FaunaSpecies {
     // Model.
     /// "decomposer", "herbivore" or "predator".
     pub role: String,
-    /// Flora names or families (herbivores), fauna names (predators), "dead" (decomposers).
+    /// Fauna names (predators), "dead" / "deadwood" (decomposers); none for grazers, who eat
+    /// their family's layer (D-244, `diet`).
+    #[serde(default)]
     pub eats: Vec<String>,
-    /// Flora names or families that the player must own for a spawn.
+    /// Flora names or families that the player must own for a spawn; none for grazers (`home`).
+    #[serde(default)]
     pub habitat: Vec<String>,
     /// Can hide in a refuge (D-023).
     #[serde(default)]
@@ -822,7 +828,12 @@ impl Balance {
         for (n, s) in &self.fauna_species {
             let eats_ok = match s.role.as_str() {
                 "decomposer" => s.eats.iter().all(|e| e == "dead" || e == "deadwood"),
-                "herbivore" => s.eats.iter().all(|e| flora(e)),
+                // Grazers list no eats or habitat: they eat and live on their layer (D-244).
+                "herbivore" => {
+                    s.eats.is_empty()
+                        && s.habitat.is_empty()
+                        && s.grazer_layer().is_some_and(|l| flora(&l))
+                }
                 "predator" => s.eats.iter().all(|e| fauna(e)),
                 _ => false,
             };
@@ -875,6 +886,40 @@ fn one() -> f64 {
     1.0
 }
 
+fn tier_damage() -> [f64; 3] {
+    [1.0; 3]
+}
+
+impl FaunaSpecies {
+    /// A grazer's plant layer (D-244): H1..H4 eat and live on L1..L4, HW on the water plants (W).
+    #[must_use]
+    pub fn grazer_layer(&self) -> Option<String> {
+        if self.role != "herbivore" {
+            return None;
+        }
+        match self.family.as_str() {
+            "HW" => Some("W".into()),
+            f if f.starts_with('H') => Some(f.replacen('H', "L", 1)),
+            _ => None,
+        }
+    }
+
+    /// What it eats: grazers their layer (D-244), the others their `eats`.
+    #[must_use]
+    pub fn diet(&self) -> Vec<String> {
+        self.grazer_layer()
+            .map_or_else(|| self.eats.clone(), |l| vec![l])
+    }
+
+    /// The plants it needs on its owner's land: grazers their layer (D-244), the others their
+    /// `habitat`.
+    #[must_use]
+    pub fn home(&self) -> Vec<String> {
+        self.grazer_layer()
+            .map_or_else(|| self.habitat.clone(), |l| vec![l])
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -904,8 +949,8 @@ mod tests {
         assert!(err.contains("ferns") && err.contains("k_max"), "{err}");
         // D-123: at most three foods, primary first.
         let long = SPECIES.replacen(
-            r#"eats = ["grasses", "wildflowers"]"#,
-            r#"eats = ["grasses", "wildflowers", "reeds", "lichen_and_moss"]"#,
+            r#"eats = ["rabbits", "weasel", "earthworms"]"#,
+            r#"eats = ["rabbits", "weasel", "earthworms", "slugs"]"#,
             1,
         );
         assert!(

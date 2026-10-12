@@ -282,6 +282,7 @@ transfer = 0.1          # share of eaten biomass that becomes the eater's energy
 diet_yield = [1.0, 0.75, 0.5]  # energy from a primary, secondary, tertiary food, as a share of the transfer (D-123)
 own_graze = 0.2         # bite on own flora, relative to enemy flora (gamerules §10)
 graze_damage = 4.0      # enemy plants lose this many times what a grazer eats; the rest is trampled to litter (D-152)
+tier_damage = [1.0, 1.5, 2.0]  # x graze_damage by grazer tier: bigger grazers trample more (D-244)
 soil_per_dead = 1.5     # soil development (u16 units) per unit of dead biomass decomposed (D-237: was 0.5)
 lockout_s = 30          # a cell grazed bare turns neutral; its former owner may not retake it for this long (D-098)
 herbivore_range = 10    # prototype only (tools/prototype): sim-core drops herbivores near the click

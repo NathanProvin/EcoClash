@@ -79,6 +79,11 @@ class Fauna:
 
         for n, s in zip(self.names, sp, strict=True):
             assert s["role"] in ROLES, n
+            if s["role"] == "herbivore":  # grazers eat and live on their layer (D-244)
+                layer = "W" if s["family"] == "HW" else "L" + s["family"][1:]
+                s = sp[self.names.index(n)] = {**s, "eats": [layer], "habitat": [layer]}
+            s.setdefault("eats", [])
+            s.setdefault("habitat", [])
             if s["role"] == "predator":
                 assert set(s["eats"]) <= set(self.names), n
         self.role = np.array([ROLES.index(s["role"]) for s in sp])

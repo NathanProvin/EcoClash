@@ -79,7 +79,7 @@ pub struct FaunaParams {
     transfer: i64,
     own_graze: i64,
     /// Enemy plants lose this many times a bite (Q16, D-152).
-    pub damage: i64,
+    pub damage: Vec<i64>,
     soil_per_dead: i64,
     /// Flora ticks a cell grazed bare stays barred to its former owner (D-098).
     lockout: i64,
@@ -170,7 +170,7 @@ impl FaunaParams {
                     let mut ranks = [0u64; DIET_RANKS];
                     let mut seen = 0u64;
                     if s.role == role {
-                        for (r, e) in s.eats.iter().take(DIET_RANKS).enumerate() {
+                        for (r, e) in s.diet().iter().take(DIET_RANKS).enumerate() {
                             ranks[r] = mask(e) & !seen;
                             seen |= ranks[r];
                         }
@@ -211,7 +211,7 @@ impl FaunaParams {
         offs.sort_unstable(); // (d², dy, dx): nearest first, then row-major
         FaunaParams {
             role,
-            habitat: sp.iter().map(|s| flora_mask(&s.habitat)).collect(),
+            habitat: sp.iter().map(|s| flora_mask(&s.home())).collect(),
             eats_flora: rank_flora.iter().map(any).collect(),
             eats_fauna,
             rank_flora,
@@ -238,7 +238,13 @@ impl FaunaParams {
             yld: sp.iter().map(|s| round(s.yield_ * one)).collect(),
             transfer: round(fa.transfer * one),
             own_graze: round(fa.own_graze * one),
-            damage: round(fa.graze_damage * one),
+            damage: sp
+                .iter()
+                .map(|s| {
+                    let t = usize::from(s.tier.clamp(1, 3)) - 1;
+                    round(fa.graze_damage * fa.tier_damage[t] * one)
+                })
+                .collect(),
             soil_per_dead: round(fa.soil_per_dead * one),
             lockout: round(fa.lockout_s * hz / f64::from(b.sim.flora_every_ticks)),
             drop_radius: i64::from(fa.drop_radius),
@@ -372,6 +378,7 @@ impl FaunaParams {
             &self.wobble,
             &self.wobble_keep,
             &self.rest,
+            &self.damage,
         ] {
             h.i64s(v);
         }
@@ -381,7 +388,6 @@ impl FaunaParams {
             self.diet_yield[1],
             self.diet_yield[2],
             self.own_graze,
-            self.damage,
             self.soil_per_dead,
             self.lockout,
             self.drop_radius,
@@ -892,7 +898,8 @@ impl Fauna {
             if !home[i] {
                 raided.push(at % n2);
                 // Trampled and wasted (D-152): enemy plants lose more than the grazer eats.
-                let extra = div_round(eaten * (p.damage - ONE_I).max(0), ONE_I).min(st.bio[at]);
+                let s = usize::from(a.sp[i]);
+                let extra = div_round(eaten * (p.damage[s] - ONE_I).max(0), ONE_I).min(st.bio[at]);
                 st.bio[at] -= extra;
                 st.dead[at % n2] += extra;
             }
@@ -1835,7 +1842,7 @@ mod tests {
         let before = st.bio[g * 64 + k];
         fa.act(&fl.p, &mut st, &mut rng);
         let eaten = before - st.bio[g * 64 + k];
-        let full = fa.p.bite[rabbits] * fa.p.damage / ONE_I; // trampled too (D-152)
+        let full = fa.p.bite[rabbits] * fa.p.damage[rabbits] / ONE_I; // trampled too (D-152)
         assert_eq!(eaten, full, "full bite on enemy flora, times graze_damage");
         assert!(st.dead[k] > 0, "what is not assimilated becomes litter");
         assert!(
@@ -2164,10 +2171,7 @@ mod tests {
     #[test]
     fn herbivores_come_on_own_land_or_are_dropped_on_food_near_the_click() {
         let (fl, fa, mut st, _) = setup(16);
-        let (rabbits, caterpillars) = (
-            fa.p.index("rabbits").unwrap(),
-            fa.p.index("caterpillars").unwrap(),
-        );
+        let rabbits = fa.p.index("rabbits").unwrap();
         let g = fl.p.index("grasses").unwrap();
         for k in 0..256 {
             if k % 16 < 8 {
@@ -2191,16 +2195,6 @@ mod tests {
             (5 * 16 + 12, 2),
             "dropped on enemy food"
         );
-        // Caterpillars eat nettle, bramble, shrubs and trees: none near that spot.
-        let nettle = fl.p.index("nettle").unwrap();
-        st.bio[nettle * 256 + 16] = fl.p.kmax[nettle]; // their habitat, on P1's land
-        let err = fa
-            .spawn_site(&fl.p, &st, 1, caterpillars, (5, 12))
-            .unwrap_err();
-        assert!(err.contains("no food"), "{err}");
-        st.bio[nettle * 256 + 5 * 16 + 14] = fl.p.kmax[nettle]; // enemy nettle, 2 cells away
-        let (at, _) = fa.spawn_site(&fl.p, &st, 1, caterpillars, (5, 12)).unwrap();
-        assert_eq!(at, 5 * 16 + 14, "on the enemy nettle nearest the click");
     }
 
     #[test]
@@ -2548,45 +2542,42 @@ mod tests {
             (30_000 - st.bio[grass * n2 + k], fa.agents.energy[0])
         };
         let (lost, fed) = raid(&mut fa, &mut st, 2);
-        fa.p.damage = ONE_I; // no trampling
+        fa.p.damage.fill(ONE_I); // no trampling
         let (eaten, fed_plain) = raid(&mut fa, &mut st, 2);
         assert_eq!(fed, fed_plain, "the grazer gains the same energy");
         assert!(eaten > 0);
-        assert_eq!(lost, 4 * eaten, "graze_damage = 4 in balance.toml");
+        assert_eq!(
+            lost,
+            6 * eaten,
+            "graze_damage 4 x tier_damage 1.5 (rabbits: tier 2)"
+        );
         assert!(st.dead[k] > 0, "the eaten part goes to litter");
     }
 
+    /// D-244: a grazer eats every plant of its family's layer and none of another, and its tier
+    /// multiplies the trampling.
     #[test]
-    fn grazers_prefer_their_primary_food_and_lower_ranks_feed_less() {
-        let (f, mut fa, mut st, _) = setup(4);
-        let rabbit = fa.p.index("rabbits").unwrap();
-        let [grass, flowers] = ["grasses", "wildflowers"].map(|n| f.p.index(n).unwrap());
-        assert_eq!(fa.p.plant_rank(rabbit, grass), Some(0));
-        assert_eq!(fa.p.plant_rank(rabbit, flowers), Some(1));
-        let n2 = 16;
-        let k = 5;
-        st.owner[k] = 2; // enemy land: full bites
-        let meal = |fa: &mut Fauna, st: &mut FloraState, grass_bio: i64| {
-            st.bio[grass * n2 + k] = grass_bio;
-            st.bio[flowers * n2 + k] = 9000;
-            fa.agents = Agents::default();
-            fa.agents.push(rabbit, 1, centre(1), centre(1), 0, 0);
-            fa.graze(st);
-            fa.agents.energy[0]
-        };
-        let primary = meal(&mut fa, &mut st, 3000);
-        assert!(
-            st.bio[flowers * n2 + k] == 9000,
-            "the wildflowers are left for later"
-        );
-        let secondary = meal(&mut fa, &mut st, 0);
-        assert!(
-            st.bio[flowers * n2 + k] < 9000,
-            "no grass: the secondary food"
-        );
-        assert!(
-            (secondary * 4 - primary * 3).abs() <= 4,
-            "75 %: {secondary} vs {primary}"
+    fn grazers_eat_their_whole_layer_and_bigger_ones_trample_more() {
+        let (f, fa, _, _) = setup(4);
+        let sp = |n: &str| fa.p.index(n).unwrap();
+        let plant = |n: &str| f.p.index(n).unwrap();
+        for j in ["ferns", "nettle", "bramble"].map(plant) {
+            assert!(
+                fa.p.eats_plant(sp("bank_vole"), j),
+                "H2 eats every L2 plant"
+            );
+            assert!(
+                !fa.p.eats_plant(sp("grasshoppers"), j),
+                "H1 eats no L2 plant"
+            );
+        }
+        for j in ["lichen_and_moss", "grasses", "wildflowers"].map(plant) {
+            assert_eq!(fa.p.plant_rank(sp("bison"), j), Some(0), "all primary");
+        }
+        assert!(!fa.p.eats_plant(sp("bison"), plant("reeds")));
+        assert_eq!(
+            fa.p.damage[sp("bison")],
+            2 * fa.p.damage[sp("grasshoppers")]
         );
     }
 

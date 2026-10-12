@@ -86,10 +86,10 @@ const TINT = { wet: 1.5, dry: [0.55, 0.9], rock: [0.03, 0.1] } as const;
 /** Map overlays (D-135) float this far above the ground (m). */
 const OVERLAY_LIFT = 0.1;
 /** Opacity (0..255) of the fog (D-249): over cells never seen, and over cells seen before. */
-const FOG_DARK = 235;
-const FOG_SEEN = 155;
-/** The fog's colour: a mid grey haze, between the play tests' too dark and too light (D-249). */
-const FOG_GREY = "#85888c";
+const FOG_DARK = 205;
+const FOG_SEEN = 125;
+/** The fog's colour: a darker grey, a little see-through so coasts and rivers show (D-249). */
+const FOG_GREY = "#5e6166";
 /** The sun's shadow map is redrawn every this many frames: shadows lag one frame behind the wind,
  *  invisibly, for half the shadow-pass cost (D-090). */
 const SHADOW_EVERY = 4; // D-151 (was 2): the sun barely moves
@@ -1038,7 +1038,10 @@ export class Viewer {
     const { n } = this.replay.meta;
     const eye = this.camera.position;
     this.animals.update(this.shown, this.selected, tick, n, ms, dropped, h, this.field.water, eye);
-    this.orders.update(this.animals.drawn, this.shown, h);
+    const drawn = this.animals.swarmDrawn.length
+      ? [...this.animals.drawn, ...this.animals.swarmDrawn]
+      : this.animals.drawn;
+    this.orders.update(drawn, this.shown, h); // swarms too
     lap("animals");
     animateAura(this.aura, now, this.surface);
     this.animatePings(now);

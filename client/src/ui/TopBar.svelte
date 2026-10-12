@@ -16,14 +16,17 @@
   // (keyboard lock, Chromium; a long Esc press still leaves, as browsers require).
   let fullscreen = $state(!!document.fullscreenElement);
   $effect(() => {
-    const sync = () => (fullscreen = !!document.fullscreenElement);
+    const sync = () => {
+      fullscreen = !!document.fullscreenElement;
+      if (fullscreen) lockEscape(); // however it was entered
+    };
     document.addEventListener("fullscreenchange", sync);
     return () => document.removeEventListener("fullscreenchange", sync);
   });
   function toggleFullscreen() {
     const done = document.fullscreenElement
       ? document.exitFullscreen()
-      : document.documentElement.requestFullscreen().then(() => lockEscape());
+      : (lockEscape(), document.documentElement.requestFullscreen().then(() => lockEscape()));
     done.catch(() => {}); // refused (an iframe without permission): nothing to do
   }
   /** Keep Esc for the game while in full screen, where the browser supports it. */

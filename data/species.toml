@@ -307,7 +307,7 @@ water_tolerance = 0.35
 bedrock = "silt_sand"
 
 [fauna.earthworms]
-growth = 14
+growth = 20
 spawn_cost = 200
 unlock_cost = 250
 yield = 0.01
@@ -329,7 +329,7 @@ group = 2
 wobble = 0.3
 
 [fauna.fungi]
-growth = 18
+growth = 26
 spawn_cost = 250
 unlock_cost = 400
 yield = 0.02
@@ -351,7 +351,7 @@ group = 2
 wobble = 0.2
 
 [fauna.black_woodpecker]
-growth = 63
+growth = 90
 spawn_cost = 400
 unlock_cost = 5000
 yield = 0.08
@@ -375,7 +375,7 @@ wobble = 0.15
 rest = 0.4
 
 [fauna.grasshoppers]
-growth = 21
+growth = 30
 spawn_cost = 300
 unlock_cost = 600
 yield = 0.02
@@ -395,7 +395,7 @@ group = 3
 wobble = 0.3
 
 [fauna.rabbits]
-growth = 21
+growth = 30
 spawn_cost = 800
 unlock_cost = 1000
 yield = 0.12
@@ -417,7 +417,7 @@ wobble_keep = 0.9
 rest = 0.5
 
 [fauna.bison]
-growth = 105
+growth = 150
 spawn_cost = 3000
 unlock_cost = 7000
 yield = 0.5
@@ -439,7 +439,7 @@ wobble_keep = 0.9
 rest = 0.6
 
 [fauna.slugs]
-growth = 21
+growth = 30
 spawn_cost = 350
 unlock_cost = 1000
 yield = 0.02
@@ -459,7 +459,7 @@ group = 2
 wobble = 0.25
 
 [fauna.bank_vole]
-growth = 28
+growth = 40
 spawn_cost = 450
 unlock_cost = 1500
 yield = 0.08
@@ -481,7 +481,7 @@ wobble_keep = 0.9
 rest = 0.5
 
 [fauna.roe_deer]
-growth = 84
+growth = 120
 spawn_cost = 2000
 unlock_cost = 6000
 yield = 0.35
@@ -503,7 +503,7 @@ wobble_keep = 0.9
 rest = 0.6
 
 [fauna.caterpillars]
-growth = 21
+growth = 30
 spawn_cost = 450
 unlock_cost = 1500
 yield = 0.03
@@ -523,7 +523,7 @@ group = 3
 wobble = 0.25
 
 [fauna.red_squirrel]
-growth = 31
+growth = 44
 spawn_cost = 600
 unlock_cost = 2250
 yield = 0.09
@@ -545,7 +545,7 @@ wobble_keep = 0.9
 rest = 0.5
 
 [fauna.red_deer]
-growth = 105
+growth = 150
 spawn_cost = 3500
 unlock_cost = 8000
 yield = 0.45
@@ -567,7 +567,7 @@ wobble_keep = 0.9
 rest = 0.6
 
 [fauna.bark_beetles]
-growth = 21
+growth = 30
 spawn_cost = 550
 unlock_cost = 3000
 yield = 0.03
@@ -587,7 +587,7 @@ group = 3
 wobble = 0.25
 
 [fauna.beaver]
-growth = 42
+growth = 60
 spawn_cost = 900
 unlock_cost = 4500
 yield = 0.1
@@ -610,7 +610,7 @@ wobble_keep = 0.9
 rest = 0.5
 
 [fauna.wild_boar]
-growth = 84
+growth = 120
 spawn_cost = 3000
 unlock_cost = 9000
 yield = 0.4
@@ -632,7 +632,7 @@ wobble_keep = 0.9
 rest = 0.5
 
 [fauna.larvae]
-growth = 21
+growth = 30
 spawn_cost = 300
 unlock_cost = 1500
 yield = 0.02
@@ -653,7 +653,7 @@ group = 3
 wobble = 0.3
 
 [fauna.roach]
-growth = 28
+growth = 40
 spawn_cost = 450
 unlock_cost = 2250
 yield = 0.08
@@ -676,7 +676,7 @@ wobble_keep = 0.85
 rest = 0.3
 
 [fauna.mallard]
-growth = 42
+growth = 60
 spawn_cost = 800
 unlock_cost = 3375
 yield = 0.1
@@ -699,7 +699,7 @@ wobble_keep = 0.9
 rest = 0.5
 
 [fauna.great_tit]
-growth = 42
+growth = 60
 spawn_cost = 400
 unlock_cost = 800
 yield = 0.05
@@ -722,7 +722,7 @@ wobble = 0.2
 rest = 0.2
 
 [fauna.frog]
-growth = 42
+growth = 60
 spawn_cost = 400
 unlock_cost = 2500
 yield = 0.06
@@ -746,7 +746,7 @@ wobble_keep = 0.9
 rest = 0.6
 
 [fauna.badger]
-growth = 84
+growth = 120
 spawn_cost = 1500
 unlock_cost = 6000
 yield = 0.3
@@ -769,7 +769,7 @@ wobble_keep = 0.9
 rest = 0.4
 
 [fauna.weasel]
-growth = 42
+growth = 60
 spawn_cost = 400
 unlock_cost = 1200
 yield = 0.08
@@ -792,7 +792,7 @@ wobble_keep = 0.9
 rest = 0.3
 
 [fauna.pine_marten]
-growth = 84
+growth = 120
 spawn_cost = 2500
 unlock_cost = 9000
 yield = 0.5
@@ -815,7 +815,7 @@ wobble_keep = 0.9
 rest = 0.3
 
 [fauna.fox]
-growth = 84
+growth = 120
 spawn_cost = 1200
 unlock_cost = 4000
 yield = 0.25
@@ -838,7 +838,7 @@ wobble_keep = 0.9
 rest = 0.4
 
 [fauna.lynx]
-growth = 126
+growth = 180
 spawn_cost = 2500
 unlock_cost = 6000
 yield = 0.8
@@ -861,7 +861,7 @@ wobble_keep = 0.9
 rest = 0.5
 
 [fauna.wolf]
-growth = 126
+growth = 180
 spawn_cost = 3500
 unlock_cost = 9000
 yield = 1.0
@@ -884,7 +884,7 @@ wobble_keep = 0.9
 rest = 0.4
 
 [fauna.brown_bear]
-growth = 168
+growth = 240
 spawn_cost = 5000
 unlock_cost = 14000
 yield = 1.5
@@ -907,7 +907,7 @@ wobble_keep = 0.9
 rest = 0.5
 
 [fauna.pike]
-growth = 63
+growth = 90
 spawn_cost = 800
 unlock_cost = 2500
 yield = 0.15
@@ -931,7 +931,7 @@ wobble_keep = 0.9
 rest = 0.6
 
 [fauna.heron]
-growth = 84
+growth = 120
 spawn_cost = 1200
 unlock_cost = 4500
 yield = 0.2
@@ -955,7 +955,7 @@ wobble_keep = 0.9
 rest = 0.6
 
 [fauna.otter]
-growth = 105
+growth = 150
 spawn_cost = 2500
 unlock_cost = 8000
 yield = 0.35
@@ -980,7 +980,7 @@ rest = 0.4
 
 # Superpredators (S, D-187, D-197): each eats the hunters below it, so a defence can be answered.
 [fauna.hawk]
-growth = 63
+growth = 90
 spawn_cost = 400
 unlock_cost = 1500
 yield = 0.08
@@ -1003,7 +1003,7 @@ wobble = 0.15
 rest = 0.2
 
 [fauna.wildcat]
-growth = 84
+growth = 120
 spawn_cost = 1000
 unlock_cost = 3500
 yield = 0.15
@@ -1026,7 +1026,7 @@ wobble_keep = 0.9
 rest = 0.4
 
 [fauna.eagle_owl]
-growth = 105
+growth = 150
 spawn_cost = 2500
 unlock_cost = 8000
 yield = 0.3

@@ -116,6 +116,9 @@ export class AnimalView {
   rings = false;
   /** Where each animal was drawn this frame, for click picking (swarms excluded, D-238). */
   drawn: Drawn[] = [];
+  /** Where each swarm member was drawn this frame: not picked by clicks, but its order line
+   *  starts from it (play test: swarm orders had no line). */
+  swarmDrawn: Drawn[] = [];
   private readonly bodies: (THREE.InstancedMesh | undefined)[];
   private readonly motions: (THREE.InstancedBufferAttribute | undefined)[];
   /** Level of detail (D-201): the coarse model of fine species, drawn beyond LOD_NEAR m from the
@@ -218,6 +221,7 @@ export class AnimalView {
     const dt = Math.min(Math.max((now - this.lastNow) / 1000, 0), 0.1);
     this.lastNow = now;
     this.drawn = [];
+    this.swarmDrawn = [];
     for (const a of animals) {
       const owner: PlayerId = a.owner === 2 ? 2 : 1;
       // Its position from the cell corner, plus its own fixed offset.
@@ -252,6 +256,7 @@ export class AnimalView {
           0,
           on ? HIGHLIGHT : this.dotColor[owner],
         );
+        this.swarmDrawn.push({ id: a.id, owner: a.owner, x, y: g + SWARM.y, z });
         continue; // selected from the unit list or an icon, not by clicks (D-238)
       }
       const form = this.forms[a.species];

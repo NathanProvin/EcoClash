@@ -1163,3 +1163,12 @@
 ## 2026-10-12 (4) · The bot founded next to the player; fog in between
 - **Spawn kills:** the bot founded anywhere on its half at least n/3 cells (12 on a mid map) from the player's land, then spread toward it and raided the den once seen (D-251). It now founds only on sites at least 80 % as far from the player as the farthest site of its half (`FOUND_FAR`), still varied among those. Test: `the_bot_founds_far_from_the_enemy`.
 - **Fog:** mid grey `#85888c` (alpha 235 unseen, 155 seen before), between round 2's dark and round 3's light.
+
+## 2026-10-12 (5) · Fog, Esc, swarm order lines, breeding
+- **Fog:** darker grey `#5e6166`, more see-through (alpha 205 unseen, 125 seen before): coasts and rivers show through.
+- **Esc in full screen:** the keyboard lock is now asked before entering full screen and again on every full-screen change. It needs the Keyboard Lock API (desktop Chrome/Edge). In the automation browser `navigator.keyboard` was missing, so this is unverified. Without the API no page can stop Esc; F11 full screen (browser) is the fallback.
+- **Swarm order lines:** swarms weren't in the `drawn` list (they are not click-pickable), so their order lines had no start. They now have their own `swarmDrawn` list, which the order lines also read. Checked in the browser.
+- **Breeding −30 %:** the animal `growth` period ÷ 0.7.
+- **Found in the browser:**
+  - The first card of a species could read "population cap reached": with only a few habitat cells, the cap (0.5 per cell for swarms) rounded below a card. The cap is now never below one card while the species has habitat.
+  - The habitat check now comes before the cap check, so a colony whose plants aren't grown yet reads "needs its habitat plants grown on your land".

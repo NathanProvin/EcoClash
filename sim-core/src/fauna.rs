@@ -1548,16 +1548,16 @@ impl Fauna {
         let count = p.group[s]
             .min(p.player_cap - i64::try_from(mine).unwrap_or(i64::MAX))
             .min(cap - i64::try_from(kin).unwrap_or(i64::MAX));
-        if count <= 0 {
-            return Err("population cap reached".into());
-        }
         let habitat = (0..n2).any(|k| {
             st.owner[k] == player
                 && (0..fl.names.len())
                     .any(|j| p.habitat[s] >> j & 1 == 1 && st.bio[j * n2 + k] >= fl.est_thr[j])
         });
         if !habitat {
-            return Err("needs its habitat plants on your land".into());
+            return Err("needs its habitat plants grown on your land".into());
+        }
+        if count <= 0 {
+            return Err("population cap reached".into());
         }
         let water = p.medium[s] == Medium::Swim;
         let den = self.dens[usize::from(player.clamp(1, 2)) - 1][usize::from(water)];
@@ -1570,7 +1570,7 @@ impl Fauna {
     }
 
     /// Each species' population cap per player (D-246): `per_cell` x the player's own cells
-    /// holding an established plant of its habitat.
+    /// holding an established plant of its habitat, and at least one card once it has habitat.
     #[must_use]
     pub fn caps(&self, fl: &FloraParams, st: &FloraState) -> Vec<[i64; 2]> {
         Self::caps_with(&self.p, fl, st)
@@ -1590,10 +1590,20 @@ impl Fauna {
                 }
             }
         }
+        // Never less than one card while it has habitat: a fresh colony can always found its
+        // first group (play test: early swarms were refused).
         cells
             .iter()
-            .zip(&p.per_cell)
-            .map(|(c, &d)| c.map(|x| div_round(x * d, ONE_I)))
+            .enumerate()
+            .map(|(s, c)| {
+                c.map(|x| {
+                    if x > 0 {
+                        div_round(x * p.per_cell[s], ONE_I).max(p.group[s])
+                    } else {
+                        0
+                    }
+                })
+            })
             .collect()
     }
 
@@ -2338,6 +2348,11 @@ mod tests {
         meadow(&fl, &mut st, "grasses"); // 32 L1 cells each
         let per = fa.p.per_cell[rabbits];
         assert_eq!(fa.caps(&fl.p, &st)[rabbits][0], div_round(32 * per, ONE_I));
+        let worms = fa.p.index("earthworms").unwrap();
+        st.owner.fill(0);
+        st.owner[0] = 1; // one habitat cell: still room for a card
+        assert_eq!(fa.caps(&fl.p, &st)[worms][0], fa.p.group[worms]);
+        meadow(&fl, &mut st, "grasses");
         st.owner[0] = 2; // a cell lost
         assert_eq!(fa.caps(&fl.p, &st)[rabbits][0], div_round(31 * per, ONE_I));
     }

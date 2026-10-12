@@ -663,7 +663,38 @@ mod tests {
             w.state.gauge[oak * n2 + k] = i64::from(ONE);
         }
         w.economy.bank = [1_000_000 << 16, 1_000_000 << 16];
+        for r in &mut w.catastrophes.ready {
+            r.fill(0); // every card open (D-248 has its own test)
+        }
         w
+    }
+
+    /// D-248: a card is refused before it opens; an aphid blight thins the herbs of its disc and
+    /// spares the trees.
+    #[test]
+    fn cards_open_over_time_and_a_blight_spares_the_trees() {
+        let mut w = World::new(&balance(), 3, 16);
+        w.economy.bank = [1_000_000 << 16, 1_000_000 << 16];
+        w.submit(cast(0, 1, 0, "storm", 8, 8));
+        w.step();
+        let notices = w.take_notices();
+        assert!(
+            notices
+                .iter()
+                .any(|(_, t)| t.contains("storm") && t.contains("not ready")),
+            "{notices:?}"
+        );
+
+        let mut w = forest(16);
+        let grass = w.flora.p.index("grasses").unwrap();
+        let k = 8 * 16 + 8;
+        w.state.bio[grass * 256 + k] = 8000;
+        w.submit(cast(0, 1, 0, "aphid_outbreak", 8, 8));
+        for _ in 0..10 * every() {
+            w.step();
+        }
+        assert!(w.state.bio[grass * 256 + k] < 4000, "herbs thinned");
+        assert!(trees_at(&w, k) > 0, "trees spared");
     }
 
     fn cast(tick: u64, player: u8, seq: u32, kind: &str, row: u32, col: u32) -> Command {

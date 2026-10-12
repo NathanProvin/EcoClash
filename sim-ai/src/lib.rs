@@ -1286,9 +1286,12 @@ impl Bot {
     /// on the enemy cell with the most tall plants (trees for the caterpillars, shrubs and trees
     /// for the storm), or the enemy cell nearest home (the spill). At most every CALL_S.
     fn catastrophe(&self, v: &View) -> Option<Payload> {
-        if self.level != Level::Hard || !self.every(v, CALL_S) {
+        // An army-heavy bot opens its raids with the cheap blights (D-248), at any level.
+        let rush = self.weights[ARMY] >= 50;
+        if !(self.level == Level::Hard || rush) || !self.every(v, CALL_S) {
             return None;
         }
+        let breach = self.breach(v);
         let (w, n, n2) = (v.w, v.n, v.n * v.n);
         let c = &w.catastrophes;
         let pi = usize::from(self.player - 1);
@@ -1327,7 +1330,11 @@ impl Bot {
             near
         };
         for k in 0..c.p.names.len() {
-            if w.tick < c.ready[pi][k] || self.spare(v) < c.p.cost[k] {
+            let blight = c.p.act(k) == Act::Blight;
+            if w.tick < c.ready[pi][k]
+                || self.spare(v) < c.p.cost[k]
+                || (self.level != Level::Hard && !blight)
+            {
                 continue;
             }
             // Only where the disc spares the bot's own land (D-148): cards hit both sides.
@@ -1350,6 +1357,11 @@ impl Bot {
                     .iter()
                     .copied()
                     .min_by_key(|&k| (dist2(k, n, v.home), k)),
+                // Just ahead of the raid: the enemy cell clear of own land nearest the breach.
+                Act::Blight => {
+                    let aim = breach.map_or(v.home, |b| (b / n, b % n));
+                    enemy.iter().copied().min_by_key(|&k| (dist2(k, n, aim), k))
+                }
             };
             if let Some(at) = at {
                 return Some(Payload::Catastrophe {
@@ -2008,6 +2020,26 @@ mod tests {
             }
         }
         w
+    }
+
+    /// D-248: an army-heavy bot opens its raid with the cheap aphid blight, cast on enemy land
+    /// clear of its own; a balanced normal bot does not.
+    #[test]
+    fn a_rush_bot_opens_raids_with_a_blight() {
+        let b = balance();
+        let w = painted(&b, &|r, _| if r >= 19 { 2 } else { 1 }, &|_, _| {
+            vec!["grasses"]
+        });
+        let mut bot = Bot::new(2, Level::Normal, Style::Rush, &b);
+        let v = bot.view(&w);
+        let Some(Payload::Catastrophe { kind, row, .. }) = bot.catastrophe(&v) else {
+            panic!("no blight");
+        };
+        assert_eq!(kind, "aphid_outbreak");
+        assert!(row < 19, "on enemy land");
+        let mut calm = Bot::new(2, Level::Normal, Style::Balanced, &b);
+        let v = calm.view(&w);
+        assert!(calm.catastrophe(&v).is_none());
     }
 
     /// D-225, D-228: the bot adds a species first where the enemy pushes it, not at home.

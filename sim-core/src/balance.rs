@@ -146,6 +146,8 @@ pub enum Act {
     Storm,
     /// Back to bare soil: no plants, litter, dead wood or soil development; nobody owns it.
     Spill,
+    /// Plants of levels up to `max_level` lose `loss` of their biomass to litter (D-248).
+    Blight,
 }
 
 /// `[catastrophes.<name>]` (D-129): one catastrophe card.
@@ -163,6 +165,14 @@ pub struct CatastropheRule {
     pub duration_s: f64,
     /// Chance per cell per flora tick, in (0, 1].
     pub chance: f64,
+    /// Real seconds into the match before the card can be played (D-248).
+    #[serde(default)]
+    pub available_s: f64,
+    /// Blight (D-248): the highest plant level it hits, and the share of their biomass lost.
+    #[serde(default)]
+    pub max_level: u8,
+    #[serde(default = "one")]
+    pub loss: f64,
     /// The card's text for players.
     pub effect: String,
 }

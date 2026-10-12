@@ -421,6 +421,26 @@ impl Flora {
         }
     }
 
+    /// A blight on cell `k` (D-248): plants of levels up to `max_level` lose `loss` (Q16) of
+    /// their biomass to litter; a cell left without plants is bare and nobody's.
+    pub fn blight(&self, st: &mut FloraState, k: usize, max_level: u8, loss: i64) {
+        let (p, n2) = (&self.p, st.n * st.n);
+        for s in (0..p.species()).filter(|&s| p.level[s] <= max_level) {
+            let i = s * n2 + k;
+            let lost = div(st.bio[i] * loss, ONE_I).min(st.bio[i]);
+            st.bio[i] -= lost;
+            st.dead[k] += lost;
+            if st.bio[i] < 1 {
+                st.gauge[i] = 0;
+            }
+        }
+        if (0..p.species()).all(|s| st.bio[s * n2 + k] < 1) {
+            st.owner[k] = 0;
+            st.prog[0][k] = 0;
+            st.prog[1][k] = 0;
+        }
+    }
+
     /// Cell `k` back to bare soil (a chemical spill, D-129): no plants, litter, dead wood, soil
     /// development or claim progress, and no owner.
     pub fn lay_bare(&self, st: &mut FloraState, k: usize) {

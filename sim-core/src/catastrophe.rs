@@ -6,7 +6,11 @@
 //!   wood (D-127);
 //! - `storm` (violent storm): each cell loses all its shrubs and trees to litter with `chance`;
 //! - `spill` (chemical spill): the cells go back to bare soil: no plants, litter, dead wood or
-//!   soil development, and nobody owns them.
+//!   soil development, and nobody owns them;
+//! - `blight` (aphids, late frost; D-248): plants up to `max_level` lose `loss` of their biomass
+//!   to litter.
+//!
+//! Each card opens at `available_s` into the match (D-248): cheap small ones first.
 
 use crate::balance::{Act, Balance};
 use crate::commands::disc;
@@ -32,6 +36,11 @@ pub struct CatastropheParams {
     duration: Vec<i64>,
     /// Chance per affected cell per flora tick (Q16).
     chance: Vec<i64>,
+    /// The tick from which each card can be played (D-248).
+    pub open: Vec<u64>,
+    /// Blight (D-248): highest level hit, and the share of biomass lost (Q16).
+    max_level: Vec<u8>,
+    loss: Vec<i64>,
     /// Ticks per second, to tell players how long a cooldown has left.
     hz: u64,
 }
@@ -57,6 +66,12 @@ impl CatastropheParams {
                 .map(|r| round(r.duration_s / flora_period).max(1))
                 .collect(),
             chance: c.iter().map(|r| round(r.chance * one)).collect(),
+            open: c
+                .iter()
+                .map(|r| u64::try_from(round(r.available_s * hz)).unwrap_or(0))
+                .collect(),
+            max_level: c.iter().map(|r| r.max_level).collect(),
+            loss: c.iter().map(|r| round(r.loss * one)).collect(),
             hz: u64::from(b.sim.tick_hz.max(1)),
         }
     }
@@ -81,7 +96,14 @@ impl CatastropheParams {
                 .u64(u64::from(self.radius[i]))
                 .u64(self.cooldown[i]);
         }
-        h.i64s(&self.cost).i64s(&self.duration).i64s(&self.chance);
+        h.i64s(&self.cost)
+            .i64s(&self.duration)
+            .i64s(&self.chance)
+            .i64s(&self.loss)
+            .bytes(&self.max_level);
+        for &t in &self.open {
+            h.u64(t);
+        }
     }
 }
 
@@ -108,11 +130,12 @@ pub struct Catastrophes {
 impl Catastrophes {
     #[must_use]
     pub fn new(p: CatastropheParams) -> Catastrophes {
-        let cards = p.names.len();
+        // A card is first ready when it opens (D-248).
+        let ready = [p.open.clone(), p.open.clone()];
         Catastrophes {
             p,
             active: Vec::new(),
-            ready: [vec![0; cards], vec![0; cards]],
+            ready,
             effects: Vec::new(),
         }
     }
@@ -172,6 +195,9 @@ impl Catastrophes {
                         flora.fell(st, k, 3);
                     }
                     Act::Spill => flora.lay_bare(st, k),
+                    Act::Blight => {
+                        flora.blight(st, k, self.p.max_level[a.kind], self.p.loss[a.kind]);
+                    }
                 }
             }
             a.left -= 1;

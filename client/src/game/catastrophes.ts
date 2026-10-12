@@ -3,7 +3,7 @@
 /** One card of `[catastrophes.*]` (sim-wasm `catastropheTable`). */
 export interface Catastrophe {
   name: string;
-  /** "killtrees", "storm" or "spill". */
+  /** "killtrees", "storm", "spill" or "blight" (D-248). */
   act: string;
   cost: number;
   /** Cells. */
@@ -21,6 +21,7 @@ export const CATASTROPHE_LOOK: Record<
   killtrees: { icon: "caterpillar", color: "#7a5230" }, // processionary caterpillars (D-130)
   storm: { icon: "storm", color: "#8a949c" },
   spill: { icon: "drum", color: "#b5c42a" },
+  blight: { icon: "caterpillar", color: "#9bbf3a" }, // aphids, late frost (D-248)
 };
 
 /** How a card stands now: ready to play (cooled down and affordable), and the share of its

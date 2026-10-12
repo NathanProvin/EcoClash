@@ -203,13 +203,39 @@ natural_death_s = 7200  # mean life of a tree stand (ecology seconds, 2 h; D-237
 wood_share = 0.3        # share of a dead stand that stays standing as dead wood; the rest falls as litter
 rot_s = 600             # time for standing dead wood to rot away without recyclers (ecology seconds)
 
-# Catastrophe cards (D-129): late-game trump cards, available from the start, paid at each use,
-# then cooling down (real seconds) before the same player may play them again. They hit
-# everything in their disc, both players alike. act: kill_trees (trees die standing, D-127),
-# storm (shrubs and trees felled to litter), spill (back to bare soil); chance: per cell per
-# flora tick while it acts.
+# Catastrophe cards (D-129, D-248): paid at each use, then cooling down (real seconds) before the
+# same player may play them again; each opens at available_s (real seconds into the match), the
+# cheap small ones first. They hit everything in their disc, both players alike. act: blight
+# (plants up to max_level lose `loss` of their biomass to litter), kill_trees (trees die
+# standing, D-127), storm (shrubs and trees felled to litter), spill (back to bare soil);
+# chance: per cell per flora tick while it acts.
+[catastrophes.aphid_outbreak]
+act = "blight"
+cost = 600
+radius = 2
+cooldown_s = 90
+duration_s = 6
+chance = 0.5
+max_level = 2
+loss = 0.5
+available_s = 0
+effect = "Aphids swarm the herbs and undergrowth: in the area, they lose much of their growth."
+
+[catastrophes.late_frost]
+act = "blight"
+cost = 2500
+radius = 3
+cooldown_s = 150
+duration_s = 6
+chance = 0.5
+max_level = 3
+loss = 0.6
+available_s = 300
+effect = "A late frost burns the herbs, undergrowth and shrubs of the area."
+
 [catastrophes.processionary_caterpillars]
 act = "kill_trees"
+available_s = 900
 cost = 15000
 radius = 4
 cooldown_s = 300
@@ -219,6 +245,7 @@ effect = "Processionary caterpillars strip the woods: the trees in the area die 
 
 [catastrophes.storm]
 act = "storm"
+available_s = 1200
 cost = 22000
 radius = 9
 cooldown_s = 420
@@ -228,6 +255,7 @@ effect = "A violent storm sweeps a wide area: here and there, shrubs and trees a
 
 [catastrophes.chemical_spill]
 act = "spill"
+available_s = 600
 cost = 10000
 radius = 1
 cooldown_s = 240

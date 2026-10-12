@@ -237,7 +237,8 @@ pub fn play(b: &Balance, seed: u64, size: usize, seats: [Seat; 2], minutes: u64)
         ..Markers::default()
     };
     let family = |s: usize| b.fauna_species[s].1.family.as_str();
-    let reach2 = u64::from(b.fauna.drop_radius).pow(2);
+    // A hunter call fits when enemy prey is within its sight of the click (D-245: no drop radius).
+    let reach2 = |s: usize| u64::from(b.fauna_species[s].1.sight).pow(2);
     // An open raid per side: (onset, species of the raiders as a mask, last second seen).
     let mut raids: [Option<(u64, u64, u64)>; 2] = [None; 2];
     let mut seq = [0u32; 2];
@@ -281,7 +282,7 @@ pub fn play(b: &Balance, seed: u64, size: usize, seats: [Seat; 2], minutes: u64)
                                 let k = a.cell(j, size);
                                 let d = (k / size).abs_diff(row).pow(2)
                                     + (k % size).abs_diff(col).pow(2);
-                                if d as u64 <= reach2 {
+                                if d as u64 <= reach2(s) {
                                     match w.fauna.p.prey_rank(s, usize::from(a.sp[j])) {
                                         Some(0) => (primary, any) = (true, true),
                                         Some(_) => any = true,

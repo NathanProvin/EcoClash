@@ -32,7 +32,7 @@ export const TIPS: Tip[] = [
   {
     id: "shift",
     when: (p) => p.t >= 30,
-    text: "Hold Shift while you click to plant or drop the same card again and again, without picking it each time.",
+    text: "Hold Shift while you click to plant the same card again and again, without picking it each time.",
   },
   {
     id: "unlock",
@@ -47,7 +47,7 @@ export const TIPS: Tip[] = [
   {
     id: "animals",
     when: (p) => p.animalsUnlocked > 0 && p.animals === 0,
-    text: "Call animals: pick one in the bar and click your land. Elsewhere it is a ×1.5 drop onto enemy food or prey.",
+    text: "Call animals: click one in the bar. They appear at your den (⌂) and walk: send them with right-click or A + click.",
   },
   {
     id: "orders",

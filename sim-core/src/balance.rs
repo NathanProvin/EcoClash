@@ -59,8 +59,6 @@ pub struct FloraRules {
 #[derive(Clone, Debug, Deserialize)]
 pub struct EconomyRules {
     pub start_budget: f64,
-    /// Animals landing outside own land cost this much more (gamerules §6.3; D-061).
-    pub drop_surcharge: f64,
     /// Biodiversity income (D-225): a cell's plant income x (1 + div_gain x its species),
     /// at most x div_cap.
     pub div_gain: f64,
@@ -241,8 +239,6 @@ pub struct FaunaRules {
     /// Seconds during which a player may not take back a cell that enemy grazers ate bare
     /// (D-098).
     pub lockout_s: f64,
-    /// A drop lands within this many cells of the click (D-061).
-    pub drop_radius: u32,
     pub flee_radius: u32,
     pub refuge_flora: Vec<String>,
     pub refuge_cover: f64,
@@ -659,10 +655,6 @@ impl Balance {
                 .all(|v| (0.0..=1.0).contains(v))
                 && m.time_limit_s > 0,
             "[match] territory shares must be in 0..1 and time_limit_s > 0".into(),
-        )?;
-        check(
-            self.economy.drop_surcharge >= 1.0,
-            "economy.drop_surcharge must be >= 1".into(),
         )?;
         let st = &self.bots.styles;
         check(

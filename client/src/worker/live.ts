@@ -54,7 +54,6 @@ export type ToMain =
       tickHz: number;
       pace: number;
       plantRadius: number;
-      dropRadius: number;
       victory: number;
       timeLimitS: number;
       maxAgents: number;
@@ -95,6 +94,7 @@ export type ToMain =
       income: number[];
       standing: number[];
       victory: number; // the share of the map that wins now (D-175)
+      dens: number[][]; // per player: the land and water den cells, -1 for none (D-245)
     }
   | { type: "notice"; notices: { player: number; text: string }[] }
   | { type: "net"; event: "desync" | "left"; tick: number }
@@ -173,14 +173,17 @@ export class Live implements Source {
   netProblem = "";
   result: Outcome | null = null;
   readonly plantRadius: number;
-  /** Cells around the click where an animal dropped off your land lands (D-061). */
-  readonly dropRadius: number;
   /** The generated map (D-083), for the renderer. */
   readonly terrain: TerrainFrame;
   /** Share of the map that wins, and the match length (s): for the "victory near" alerts. */
   readonly victory: number;
   /** The share that wins now: the start share, then decaying (D-175). */
   victoryNow: number;
+  /** Per player: the land and water den cells, -1 for none yet (D-245). */
+  dens: number[][] = [
+    [-1, -1],
+    [-1, -1],
+  ];
   readonly timeLimitS: number;
   /** Catastrophe cards (D-129), and per player the seconds before each is ready again. */
   readonly catastrophes: Catastrophe[];
@@ -215,7 +218,6 @@ export class Live implements Source {
     const plants = species.filter((s) => s.kind === "flora");
     const animals = species.filter((s) => s.kind === "fauna");
     this.plantRadius = ready.plantRadius;
-    this.dropRadius = ready.dropRadius;
     const map = new Uint8Array(ready.terrain);
     const cells = ready.n * ready.n;
     this.terrain = {
@@ -408,6 +410,7 @@ export class Live implements Source {
       this.current.flood = m.flood;
       this.current.moisture = new Uint8Array(m.moisture);
       this.victoryNow = m.victory;
+      this.dens = m.dens;
     } else if (m.type === "notice") {
       const at = performance.now();
       this.notices = [...this.notices, ...m.notices.map((n) => ({ ...n, at }))].slice(-4);

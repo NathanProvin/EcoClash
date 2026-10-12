@@ -51,7 +51,6 @@ class FakeWorker {
           tickHz: 10,
           pace: 1,
           plantRadius: 2,
-          dropRadius: 4,
           victory: 0.6,
           timeLimitS: 1200,
           terrain: new Uint8Array(8).buffer,
@@ -133,6 +132,10 @@ test("live source decodes frames into census, HUD series, animals and cells", as
     income: [4, 2],
     standing: [5000, 4000],
     victory: 0.8,
+    dens: [
+      [5, -1],
+      [-1, -1],
+    ],
   });
   const unlocked = [
     [1, 0, 1],

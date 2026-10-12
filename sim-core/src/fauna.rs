@@ -27,11 +27,11 @@ use crate::terrain::SHALLOW;
 const ONE_I: i64 = ONE as i64;
 const HALF: i64 = ONE_I / 2;
 const PLAYERS: [u8; 2] = [1, 2];
-/// Standing orders (`Agents::order`).
 /// Bytes per animal in `Fauna::frame`: id, y, x, species, owner, fullness, order (D-161).
 pub const FRAME_BYTES: usize = 12;
 
-const FREE: u8 = 0;
+/// Standing orders (`Agents::order`): none (the animal acts on its own).
+pub const FREE: u8 = 0;
 const MOVE: u8 = 1;
 const ATTACK: u8 = 2;
 
@@ -84,7 +84,8 @@ pub struct FaunaParams {
     /// Flora ticks a cell grazed bare stays barred to its former owner (D-098).
     lockout: i64,
     /// A drop lands within this many cells of the click (D-061).
-    drop_radius: i64,
+    /// The aquatic plants (family W), whose cells make a water den (D-245).
+    water_plants: u32,
     flee: i64,
     refuge: u32,
     refuge_cover: i64,
@@ -247,7 +248,7 @@ impl FaunaParams {
                 .collect(),
             soil_per_dead: round(fa.soil_per_dead * one),
             lockout: round(fa.lockout_s * hz / f64::from(b.sim.flora_every_ticks)),
-            drop_radius: i64::from(fa.drop_radius),
+            water_plants: flora_mask(&["W".to_string()]),
             flee,
             refuge: flora_mask(&fa.refuge_flora),
             refuge_cover: round(fa.refuge_cover * one),
@@ -390,7 +391,6 @@ impl FaunaParams {
             self.own_graze,
             self.soil_per_dead,
             self.lockout,
-            self.drop_radius,
             self.flee,
             i64::from(self.refuge),
             self.refuge_cover,
@@ -634,7 +634,13 @@ pub struct Fauna {
     pub bite: i64,
     /// Kills since the last `World::take_kills`, for the HUD (D-233): a view, never hashed.
     pub kills: Vec<Kill>,
+    /// Each player's dens (D-245), `[land, water]` cells (`NO_DEN`: none yet): every bought
+    /// animal appears there. Hashed with the agents.
+    pub dens: [[usize; 2]; 2],
 }
+
+/// No den yet (D-245).
+pub const NO_DEN: usize = usize::MAX;
 
 /// A hunter's kill (D-233): the hunter's owner, the prey's owner and species, its cell.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -672,6 +678,7 @@ impl Fauna {
             speed: ONE_I,
             bite: ONE_I,
             kills: Vec::new(),
+            dens: [[NO_DEN; 2]; 2],
         }
     }
 
@@ -1401,36 +1408,32 @@ impl Fauna {
         }
     }
 
-    /// Spawn a card of species `s` for `player` near the clicked cell (gamerules §6.3; D-061): it
-    /// needs its habitat plants on own land. Decomposers, and herbivores called on own land, land
-    /// on the own habitat cell nearest the click. Herbivores clicked elsewhere are dropped on the
-    /// not-own cell with their food nearest the click, and predators on the huntable enemy prey
-    /// nearest it, both within `drop_radius` cells of the click.
-    /// Returns the number spawned, or why nothing was.
+    /// Spawn a card of species `s` for `player` at its den (gamerules §6.3; D-245). Returns the
+    /// number spawned, or why nothing was.
     pub fn spawn(
         &mut self,
         fl: &FloraParams,
         st: &FloraState,
         player: u8,
         s: usize,
-        click: (usize, usize),
     ) -> Result<usize, String> {
-        let (at, count) = self.spawn_site(fl, st, player, s, click)?;
+        let (at, count) = self.spawn_site(fl, st, player, s)?;
         self.place(s, player, at, count, st.n);
         Ok(usize::try_from(count).unwrap_or(0))
     }
 
-    /// Where a card of species `s` would land for `player` and how many animals it would bring
-    /// (gamerules §6.3, see `spawn`), without placing them: the caller may charge first.
+    /// Where a card of species `s` would appear for `player` and how many animals it would bring,
+    /// without placing them (the caller may charge first): at the player's den (D-245), the
+    /// water den for swimmers, the land den for the rest. It needs its habitat plants on own
+    /// land and room under the caps.
     pub fn spawn_site(
         &self,
         fl: &FloraParams,
         st: &FloraState,
         player: u8,
         s: usize,
-        (row, col): (usize, usize),
     ) -> Result<(usize, i64), String> {
-        let (p, n, n2) = (&self.p, st.n, st.n * st.n);
+        let (p, n2) = (&self.p, st.n * st.n);
         let a = &self.agents;
         let mine = (0..a.len()).filter(|&i| a.owner[i] == player).count();
         let kin = (0..a.len())
@@ -1442,64 +1445,69 @@ impl Fauna {
         if count <= 0 {
             return Err("population cap reached".into());
         }
-        let stand = |k: usize| p.medium[s].stands(st.ground[k]);
-        let home: Vec<bool> = (0..n2)
-            .map(|k| {
-                stand(k)
-                    && st.owner[k] == player
-                    && (0..fl.names.len())
-                        .any(|j| p.habitat[s] >> j & 1 == 1 && st.bio[j * n2 + k] >= fl.est_thr[j])
-            })
-            .collect();
-        if !home.contains(&true) {
+        let habitat = (0..n2).any(|k| {
+            st.owner[k] == player
+                && (0..fl.names.len())
+                    .any(|j| p.habitat[s] >> j & 1 == 1 && st.bio[j * n2 + k] >= fl.est_thr[j])
+        });
+        if !habitat {
             return Err("needs its habitat plants on your land".into());
         }
-        let click = row * n + col;
-        // Drops land within `drop_radius` cells of the click (gamerules §6.3 r_prey; D-061).
-        let r2 = p.drop_radius * p.drop_radius;
-        let near_click = |k: usize| i64::try_from(dist2(k, click, n)).unwrap_or(i64::MAX) <= r2;
-        let at = match p.role[s] {
-            Role::Predator => {
-                let safe = self.safe(fl, st);
-                let prey: Vec<bool> = {
-                    let mut m = vec![false; n2];
-                    for j in 0..a.len() {
-                        let k = a.cell(j, n);
-                        if a.owner[j] == 3 - player
-                            && stand(k)
-                            && !safe[j]
-                            && p.eats_fauna[s] >> a.sp[j] & 1 == 1
-                            && near_click(k)
-                        {
-                            m[k] = true;
-                        }
-                    }
-                    m
-                };
-                closest(&prey, n, click).ok_or("no enemy prey near that spot")?
-            }
-            // On own land: the own habitat cell nearest the click, to build biomass. Elsewhere: a
-            // drop on the food of its diet nearest the click (D-061).
-            Role::Herbivore if st.owner[click] == player => {
-                closest(&home, n, click).ok_or("needs its habitat plants on your land")?
-            }
-            Role::Herbivore => {
-                let food: Vec<bool> = (0..n2)
-                    .map(|k| {
-                        st.owner[k] != player
-                            && stand(k)
-                            && near_click(k)
-                            && (0..fl.names.len())
-                                .any(|j| p.eats_flora[s] >> j & 1 == 1 && st.bio[j * n2 + k] >= 1)
+        let water = p.medium[s] == Medium::Swim;
+        let den = self.dens[usize::from(player.clamp(1, 2)) - 1][usize::from(water)];
+        let ok = den < n2 && st.owner[den] == player && p.medium[s].stands(st.ground[den]);
+        match (ok, water) {
+            (true, _) => Ok((den, count)),
+            (false, true) => Err("no water den yet: grow an aquatic plant on your land".into()),
+            (false, false) => Err("no den: plant your first patch".into()),
+        }
+    }
+
+    /// Found `player`'s land den on cell `k` if it has none (D-245): its first planting.
+    pub fn found_den(&mut self, player: u8, k: usize) {
+        let den = &mut self.dens[usize::from(player.clamp(1, 2)) - 1][0];
+        if *den == NO_DEN {
+            *den = k;
+        }
+    }
+
+    /// Keep each player's dens on its land (D-245): a lost land den moves to the player's own land
+    /// cell nearest it; the water den is the own cell with an established aquatic plant nearest
+    /// the old one (or the land den), found as soon as one exists. A player with no land keeps
+    /// its old den cells, unusable until land comes back.
+    pub fn update_dens(&mut self, fl: &FloraParams, st: &FloraState) {
+        let (n, n2) = (st.n, st.n * st.n);
+        for player in [1u8, 2] {
+            let [land, water] = self.dens[usize::from(player) - 1];
+            let own = |k: usize| st.owner[k] == player;
+            let land_ok = |k: usize| own(k) && Medium::Walk.stands(st.ground[k]);
+            let pond = |k: usize| {
+                own(k)
+                    && Medium::Swim.stands(st.ground[k])
+                    && (0..fl.names.len()).any(|j| {
+                        self.p.water_plants >> j & 1 == 1 && st.bio[j * n2 + k] >= fl.est_thr[j]
                     })
-                    .collect();
-                closest(&food, n, click).ok_or("no food it eats near that spot")?
+            };
+            let seek = |ok: &dyn Fn(usize) -> bool, from: usize| {
+                let mask: Vec<bool> = (0..n2).map(ok).collect();
+                closest(&mask, n, from.min(n2 - 1))
+            };
+            let mut land = land;
+            if land == NO_DEN {
+                // Founded outside a command (tests, tools): the own cell nearest the map centre.
+                land = seek(&land_ok, n2 / 2 + n / 2).unwrap_or(NO_DEN);
+            } else if !land_ok(land) {
+                land = seek(&land_ok, land).unwrap_or(land);
             }
-            Role::Decomposer => {
-                closest(&home, n, click).ok_or("needs its habitat plants on your land")?
+            let mut water = water;
+            if water == NO_DEN || !pond(water) {
+                let from = if water == NO_DEN { land } else { water };
+                if from != NO_DEN {
+                    water = seek(&pond, from).unwrap_or(water);
+                }
             }
-        };
-        Ok((at, count))
+            self.dens[usize::from(player) - 1] = [land, water];
+        }
     }
 
     /// Place `count` animals of species `s` for `player` on cell `at`, at half energy.
@@ -2090,31 +2098,31 @@ mod tests {
     }
 
     #[test]
-    fn spawn_follows_habitat_and_triggers() {
+    fn spawns_need_their_habitat_and_appear_at_the_den() {
         let (fl, mut fa, mut st, _) = setup(16);
-        let (worms, fox, rabbits) = (
+        let (worms, badger) = (
             fa.p.index("earthworms").unwrap(),
-            fa.p.index("fox").unwrap(),
-            fa.p.index("rabbits").unwrap(),
+            fa.p.index("badger").unwrap(),
         );
         assert!(
-            fa.spawn(&fl.p, &st, 1, worms, (2, 2)).is_err(),
+            fa.spawn(&fl.p, &st, 1, worms).is_err(),
             "no habitat on bare land"
         );
         meadow(&fl, &mut st, "grasses");
-        let got = fa.spawn(&fl.p, &st, 1, worms, (2, 12)).unwrap();
-        assert_eq!(got, usize::try_from(fa.p.group[worms]).unwrap());
-        assert_eq!(
-            fa.agents.cell(0, 16),
-            2 * 16 + 7,
-            "own habitat cell nearest the click"
-        );
         assert!(
-            fa.spawn(&fl.p, &st, 1, fox, (2, 12)).is_err(),
-            "fox needs its habitat (L2)"
+            fa.spawn(&fl.p, &st, 1, worms)
+                .unwrap_err()
+                .contains("no den")
         );
-        let got = fa.spawn(&fl.p, &st, 2, rabbits, (5, 5)).unwrap();
-        assert!(got > 0, "enemy grasses in range: rabbits may come");
+        fa.found_den(1, 2 * 16 + 3);
+        fa.found_den(1, 9 * 16 + 3); // a later planting moves nothing
+        let got = fa.spawn(&fl.p, &st, 1, worms).unwrap();
+        assert_eq!(got, usize::try_from(fa.p.group[worms]).unwrap());
+        assert_eq!(fa.agents.cell(0, 16), 2 * 16 + 3, "at the den (D-245)");
+        assert!(
+            fa.spawn(&fl.p, &st, 1, badger).is_err(),
+            "the badger needs its habitat (L3)"
+        );
     }
 
     #[test]
@@ -2168,48 +2176,34 @@ mod tests {
         );
     }
 
+    /// D-245: a lost den moves to the nearest own land cell; swimmers need a water den, found
+    /// on the first own cell with an aquatic plant.
     #[test]
-    fn herbivores_come_on_own_land_or_are_dropped_on_food_near_the_click() {
-        let (fl, fa, mut st, _) = setup(16);
-        let rabbits = fa.p.index("rabbits").unwrap();
-        let g = fl.p.index("grasses").unwrap();
-        for k in 0..256 {
-            if k % 16 < 8 {
-                st.owner[k] = 1; // P1: the left half, grass
-                st.bio[g * 256 + k] = fl.p.kmax[g];
-            }
-        }
-        // Own land, no enemy food anywhere: the call still works (no trigger any more).
-        let (at, _) = fa.spawn_site(&fl.p, &st, 1, rabbits, (2, 3)).unwrap();
-        assert_eq!(at, 2 * 16 + 3, "own habitat cell nearest the click");
-        // P2 grass on the right half: a click there drops the rabbits on it, where clicked.
-        for k in 0..256 {
-            if k % 16 >= 8 {
-                st.owner[k] = 2;
-                st.bio[g * 256 + k] = fl.p.kmax[g];
-            }
-        }
-        let (at, _) = fa.spawn_site(&fl.p, &st, 1, rabbits, (5, 12)).unwrap();
-        assert_eq!(
-            (at, st.owner[at]),
-            (5 * 16 + 12, 2),
-            "dropped on enemy food"
-        );
-    }
-
-    #[test]
-    fn predators_are_dropped_on_prey_near_the_click_only() {
+    fn a_lost_den_moves_and_swimmers_need_a_water_den() {
         let (fl, mut fa, mut st, _) = setup(16);
-        meadow(&fl, &mut st, "elder"); // L3: the fox's habitat (not a refuge)
-        let (fox, rabbits) = (fa.p.index("fox").unwrap(), fa.p.index("rabbits").unwrap());
-        fa.agents.push(rabbits, 2, centre(3), centre(13), ONE_I, 0);
+        meadow(&fl, &mut st, "grasses");
+        let den = 2 * 16 + 3;
+        fa.found_den(1, den);
+        st.owner[den] = 2;
+        fa.update_dens(&fl.p, &st);
+        let moved = fa.dens[0][0];
+        assert_eq!(st.owner[moved], 1);
+        assert_eq!(dist2(moved, den, 16), 1, "the nearest own cell");
+
+        let roach = fa.p.index("roach").unwrap();
+        let algae = fl.p.index("algae_and_lilies").unwrap();
+        st.bio[algae * 256 + 5 * 16 + 5] = fl.p.kmax[algae]; // its habitat, on dry land: no den
+        fa.update_dens(&fl.p, &st);
         assert!(
-            fa.spawn_site(&fl.p, &st, 1, fox, (12, 3))
+            fa.spawn(&fl.p, &st, 1, roach)
                 .unwrap_err()
-                .contains("near that spot")
+                .contains("water den")
         );
-        let (at, _) = fa.spawn_site(&fl.p, &st, 1, fox, (4, 12)).unwrap();
-        assert_eq!(at, 3 * 16 + 13, "on the prey");
+        st.ground[5 * 16 + 5] = SHALLOW;
+        fa.update_dens(&fl.p, &st);
+        fa.spawn(&fl.p, &st, 1, roach).unwrap();
+        let last = fa.agents.len() - 1;
+        assert_eq!(fa.agents.cell(last, 16), 5 * 16 + 5, "at the water den");
     }
 
     #[test]

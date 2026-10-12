@@ -286,7 +286,6 @@ tier_damage = [1.0, 1.5, 2.0]  # x graze_damage by grazer tier: bigger grazers t
 soil_per_dead = 1.5     # soil development (u16 units) per unit of dead biomass decomposed (D-237: was 0.5)
 lockout_s = 30          # a cell grazed bare turns neutral; its former owner may not retake it for this long (D-098)
 herbivore_range = 10    # prototype only (tools/prototype): sim-core drops herbivores near the click
-drop_radius = 4         # a drop (herbivores off own land, predators) lands within this many cells of the click (D-061)
 flee_radius = 3         # prey flee enemy hunters closer than this
 refuge_flora = ["hawthorn", "bramble", "cattails"]  # cattails: refuge in the water (D-125)
 refuge_cover = 0.5      # summed cover of refuge flora that hides small fauna (D-023)
@@ -314,6 +313,5 @@ steer = 0.15            # fluid motion (D-111): share of the gap to the wanted v
 # Economy (gamerules §4, §7; D-027, D-029). Costs and yields are per species (species.toml).
 [economy]
 start_budget = 1100
-drop_surcharge = 1.5         # any animal landing outside own land costs more (§6.3; D-061)
 div_gain = 0.05              # biodiversity income: a cell's plant income x (1 + div_gain x species) ... (D-225)
 div_cap = 1.5                # ... at most x div_cap

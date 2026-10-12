@@ -46,7 +46,8 @@ function sendFields(s: Sim) {
   const bank = [s.bank(1), s.bank(2)];
   const income = [s.income(1), s.income(2)];
   const standing = [s.standing(1), s.standing(2)];
-  const victory = s.victoryNow(); // the share that wins now (D-175)
+  const victory = s.victoryNow();
+  const dens = [[...s.dens(1)], [...s.dens(2)]]; // D-245 // the share that wins now (D-175)
   post(
     {
       type: "fields",
@@ -64,6 +65,7 @@ function sendFields(s: Sim) {
       income,
       standing,
       victory,
+      dens,
     },
     [frame, pressure, strength, cellIncome, lock, deadwood, moisture],
   );
@@ -181,7 +183,6 @@ async function begin(
     tickHz: s.tickHz,
     pace: s.pace,
     plantRadius: s.plantRadius,
-    dropRadius: s.dropRadius,
     victory: s.victoryTerritory,
     timeLimitS: s.timeLimitS,
     maxAgents: s.maxAgents,

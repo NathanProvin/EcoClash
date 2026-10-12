@@ -21,7 +21,6 @@ const at = (s: Partial<TutorialState>): TutorialState => ({
   plants: new Set(),
   selected: 0,
   born: 0,
-  airdropped: 0,
   fauna: new Set(),
   swarm: 0,
   raidOver: false,
@@ -52,9 +51,8 @@ describe("tutorial objectives (D-139)", () => {
       [{ selected: 2 }, 9],
       [{ born: HERD_BIRTHS }, 10],
       [{ onEnemy: 1 }, 11], // raid
-      [{ airdropped: 1 }, 12],
-      [{ fauna: new Set(["rabbits"]) }, 12], // no hunter yet: still defending
-      [{ fauna: new Set(["rabbits", "great_tit"]) }, 13],
+      [{ fauna: new Set(["rabbits"]) }, 11], // no hunter yet: still defending
+      [{ fauna: new Set(["rabbits", "great_tit"]) }, 12],
       [{ owned: TUTORIAL_GOAL }, OBJECTIVES.length],
     ];
     for (const [change, next] of steps) {
@@ -66,9 +64,9 @@ describe("tutorial objectives (D-139)", () => {
 
   it("lets the defense end on the unlock when the bot cannot raid", () => {
     const tit = new Set(["lichen_and_moss", "great_tit"]);
-    expect(advance(12, at({ unlocked: tit }))).toBe(12); // waves still coming
-    expect(advance(12, at({ unlocked: tit, raidOver: true, swarm: 3 }))).toBe(12); // prey to hunt
-    expect(advance(12, at({ unlocked: tit, raidOver: true }))).toBe(13);
+    expect(advance(11, at({ unlocked: tit }))).toBe(11); // waves still coming
+    expect(advance(11, at({ unlocked: tit, raidOver: true, swarm: 3 }))).toBe(11); // prey to hunt
+    expect(advance(11, at({ unlocked: tit, raidOver: true }))).toBe(12);
   });
 
   it("does not skip a step done out of order", () => {

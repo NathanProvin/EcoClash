@@ -78,7 +78,7 @@ class Economy:
     def spawn_cost(self, name: str, count: int, outside: bool = False) -> float:
         cost = self.stat(name, "spawn_cost") * count
         if outside and self.fauna.role[self.fauna.idx(name)] == PREDATOR:
-            cost *= self.e["drop_surcharge"]
+            cost *= self.e.get("drop_surcharge", 1.0)  # retired in sim-core (D-245)
         return cost
 
     def income(self, p: int, st: State, ag: Agents | None) -> float:

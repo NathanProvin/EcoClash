@@ -12,7 +12,7 @@ use crate::balance::Balance;
 use crate::catastrophe::{CatastropheParams, Catastrophes};
 use crate::commands::{Command, CommandQueue, OrderKind, Payload, disc};
 use crate::economy::Economy;
-use crate::fauna::{Fauna, FaunaParams};
+use crate::fauna::{Fauna, FaunaParams, NO_DEN};
 use crate::fixed::{ONE, div_round};
 
 /// Q16 one as i64, for the view helpers.
@@ -206,6 +206,7 @@ impl World {
             self.flora.natural_deaths(&mut self.state, &mut self.rng);
             self.catastrophes
                 .act(&self.flora, &mut self.state, &mut self.rng); // D-129
+            self.fauna.update_dens(&self.flora.p, &self.state); // D-245
             self.economy.update(&self.flora, &self.state, &self.fauna);
             if self.result.is_none() {
                 self.result = self.judge();
@@ -243,7 +244,7 @@ impl World {
                 }
                 // All or nothing (D-241): every cell that can take the species, paid
                 // `spawn_cost` each, or none at all.
-                let unit = self.economy.unit_cost(s, false);
+                let unit = self.economy.unit_cost(s);
                 let cells = disc(n, *row, *col, *radius);
                 let ok = self.flora.plantable(&self.state, c.player, s, &cells);
                 let count = i64::try_from(ok.len()).unwrap_or(i64::MAX);
@@ -264,6 +265,15 @@ impl World {
                 } else {
                     self.flora.plant(&mut self.state, c.player, s, &ok);
                     self.economy.pay(c.player, unit * count);
+                    // The first planting founds the land den (D-245).
+                    let click =
+                        usize::try_from(*row).unwrap_or(0) * n + usize::try_from(*col).unwrap_or(0);
+                    let d2 = |k: usize| {
+                        (k / n).abs_diff(click / n).pow(2) + (k % n).abs_diff(click % n).pow(2)
+                    };
+                    if let Some(&k) = ok.iter().min_by_key(|&&k| (d2(k), k)) {
+                        self.fauna.found_den(c.player, k);
+                    }
                     for &k in &ok {
                         self.fields.mark_cell(k);
                     }
@@ -304,9 +314,11 @@ impl World {
                     self.notices.push((c.player, format!("{species}: {why}")));
                     return;
                 }
+                // Bought animals appear at the den, wherever the click (D-245).
+                self.fauna.update_dens(&self.flora.p, &self.state);
                 let site = self
                     .fauna
-                    .spawn_site(&self.flora.p, &self.state, c.player, s, (r, c2));
+                    .spawn_site(&self.flora.p, &self.state, c.player, s);
                 let (at, count) = match site {
                     Ok(site) => site,
                     Err(why) => {
@@ -314,9 +326,7 @@ impl World {
                         return;
                     }
                 };
-                // Any animal landing outside own land costs more (gamerules §6.3; D-061).
-                let outside = self.state.owner[at] != c.player;
-                let unit = self.economy.unit_cost(self.economy.animal(s), outside);
+                let unit = self.economy.unit_cost(self.economy.animal(s));
                 let count = count.min(self.economy.affordable(c.player, unit));
                 if count == 0 {
                     self.notices
@@ -567,6 +577,10 @@ impl World {
             h.u64(u64::from(o.winner)).u64(o.reason as u64).u64(o.tick);
         }
         self.fauna.agents.hash_into(&mut h);
+        for &den in self.fauna.dens.as_flattened() {
+            // D-245; NO_DEN as u64::MAX, the same on 32-bit wasm and native.
+            h.u64(u64::try_from(den).ok().filter(|_| den != NO_DEN).unwrap_or(u64::MAX));
+        }
         h.finish()
     }
 
@@ -777,7 +791,7 @@ mod tests {
     fn planting_is_all_or_nothing() {
         let mut w = World::new(&balance(), 1, 16);
         let s = w.flora.p.index("lichen_and_moss").unwrap();
-        let unit = w.economy.unit_cost(s, false);
+        let unit = w.economy.unit_cost(s);
         w.economy.bank[0] = unit * 3; // a radius-2 disc has 13 cells
         w.submit(plant(0, 1, 0, "lichen_and_moss", 8, 8));
         w.step();
@@ -964,22 +978,19 @@ mod tests {
     }
 
     #[test]
-    fn animals_landing_outside_own_land_cost_the_drop_surcharge() {
+    fn animals_appear_at_the_den_wherever_the_click() {
         let b = balance();
         let mut w = World::new(&b, 1, 20);
         w.setup_plant(1, "grasses", 4, 4, 3);
         w.setup_plant(2, "grasses", 15, 15, 3);
+        w.fauna.found_den(1, 4 * 20 + 4);
         let grasshoppers = w.economy.animal(w.fauna.p.index("grasshoppers").unwrap());
         w.economy.bank[0] = 100_000 << 16;
         w.economy
             .unlock(1, w.flora.p.index("grasses").unwrap())
             .unwrap(); // its habitat
         w.economy.unlock(1, grasshoppers).unwrap();
-        let (base, drop) = (
-            w.economy.unit_cost(grasshoppers, false),
-            w.economy.unit_cost(grasshoppers, true),
-        );
-        assert!(drop > base, "the drop costs more");
+        let base = w.economy.unit_cost(grasshoppers);
         let spawn = |seq, row, col| Command {
             tick: 0,
             player: 1,
@@ -990,27 +1001,18 @@ mod tests {
                 col,
             },
         };
-        w.submit(spawn(0, 4, 4)); // own land: base price
-        w.submit(spawn(1, 15, 15)); // enemy grass: dropped there
+        w.submit(spawn(0, 4, 4));
+        w.submit(spawn(1, 15, 15)); // a click on enemy grass: no drop (D-245)
         let bank = w.economy.bank[0];
         w.step();
-        let group = w
-            .fauna
-            .p
-            .index("grasshoppers")
-            .map(|s| w.fauna.census(1)[s])
-            .unwrap();
-        let per_card = group / 2;
+        let count = i64::try_from(w.fauna.agents.len()).unwrap();
         let income = div_round(w.economy.income[0] * 8, 10); // the tick-0 flora period
-        assert_eq!(bank - w.economy.bank[0] + income, per_card * (base + drop));
-        assert!(w.fauna.agents.owner.iter().all(|&o| o == 1));
-        let on_enemy =
-            (0..w.fauna.agents.len()).filter(|&i| w.state.owner[w.fauna.agents.cell(i, 20)] == 2);
         assert_eq!(
-            i64::try_from(on_enemy.count()).unwrap(),
-            per_card,
-            "half of them landed on P2 grass"
+            bank - w.economy.bank[0] + income,
+            count * base,
+            "base price only"
         );
+        assert!((0..w.fauna.agents.len()).all(|i| w.fauna.agents.cell(i, 20) == 4 * 20 + 4));
     }
 
     #[test]

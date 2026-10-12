@@ -101,7 +101,7 @@
     ["S", "Stop"],
     ["Shift or Ctrl + 1–9", "Set a control group"],
     ["1–9", "Recall a control group"],
-    ["Shift + click", "Keep dropping the armed species"],
+    ["Shift + click", "Keep planting the armed species"],
     ["Q / E", "Rotate the camera"],
     ["Arrows / right-drag", "Pan"],
     ["Wheel", "Zoom"],

@@ -23,7 +23,6 @@ pub struct Sim {
     flora_every: u32,
     pace: f64,
     plant_radius: u32,
-    drop_radius: u32,
     victory_territory: f64,
     time_limit_s: u32,
     max_agents: u32,
@@ -56,7 +55,6 @@ impl Sim {
             flora_every: b.sim.flora_every_ticks,
             pace: b.sim.pace,
             plant_radius: b.flora.plant_radius,
-            drop_radius: b.fauna.drop_radius,
             victory_territory: b.r#match.victory_territory,
             time_limit_s: b.r#match.time_limit_s,
             max_agents: b.agents.max_agents,
@@ -257,12 +255,6 @@ impl Sim {
         self.relief_m
     }
 
-    /// Radius in cells around the click where a drop off your land lands (`[fauna] drop_radius`).
-    #[wasm_bindgen(getter, js_name = dropRadius)]
-    pub fn drop_radius(&self) -> u32 {
-        self.drop_radius
-    }
-
     /// Share of the map that wins now, the decay included (D-175), for display.
     #[wasm_bindgen(js_name = victoryNow)]
     pub fn victory_now(&self) -> f64 {
@@ -282,6 +274,13 @@ impl Sim {
     #[wasm_bindgen(getter, js_name = timeLimitS)]
     pub fn time_limit_s(&self) -> u32 {
         self.time_limit_s
+    }
+
+    /// A player's dens (D-245): the land and the water den cells, -1 for none yet.
+    #[must_use]
+    pub fn dens(&self, player: u8) -> Vec<i32> {
+        let d = self.world.fauna.dens[usize::from(player.clamp(1, 2)) - 1];
+        d.iter().map(|&k| i32::try_from(k).unwrap_or(-1)).collect()
     }
 
     /// Points banked by a player (1 or 2), for display.

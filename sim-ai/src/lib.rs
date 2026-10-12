@@ -15,7 +15,7 @@ use std::cmp::Reverse;
 
 use sim_core::balance::{Act, Balance};
 use sim_core::commands::{OrderKind, Payload};
-use sim_core::fauna::Role;
+use sim_core::fauna::{FREE, Role};
 use sim_core::fixed::ONE;
 use sim_core::terrain::SHALLOW;
 use sim_core::world::World;
@@ -500,25 +500,22 @@ impl Bot {
     /// catastrophes answer threats: outside the budgets.
     fn book(&mut self, v: &mut View, p: &Payload) {
         let w = v.w;
-        let n = v.n;
         let (cat, cost) = match p {
             Payload::Plant { species, .. } => {
                 let Some(i) = Bot::sheet(w, species) else {
                     return;
                 };
                 let cat = category(w, i);
-                (cat, w.economy.unit_cost(i, false) * disc_cells(self.radius))
+                (cat, w.economy.unit_cost(i) * disc_cells(self.radius))
             }
-            Payload::Spawn { species, row, col } => {
+            Payload::Spawn { species, .. } => {
                 let Some(s) = w.fauna.p.index(species) else {
                     return;
                 };
                 let i = w.economy.animal(s);
-                let k = *row as usize * n + *col as usize;
-                let away = w.state.owner.get(k) != Some(&self.player);
                 (
                     category(w, i),
-                    w.economy.unit_cost(i, away) * w.fauna.p.group_size(s),
+                    w.economy.unit_cost(i) * w.fauna.p.group_size(s),
                 )
             }
             Payload::Unlock { species } => {
@@ -693,7 +690,7 @@ impl Bot {
             if fa.role[s] == Role::Decomposer {
                 continue; // recyclers threaten nothing
             }
-            let cost = w.economy.unit_cost(w.economy.animal(s), false) >> 16;
+            let cost = w.economy.unit_cost(w.economy.animal(s)) >> 16;
             let weight = 3 * i.raiders[s] * cost
                 + if stalk { 2 * i.stalkers[s] * cost } else { 0 }
                 + if anticipate { i.seen[s] * cost } else { 0 };
@@ -724,7 +721,7 @@ impl Bot {
 
     /// Whether `units` of species `i` fit in the bank above the savings for the next unlock.
     fn can_pay(&self, v: &View, i: usize, units: i64) -> bool {
-        self.spare(v) >= v.w.economy.unit_cost(i, false) * units
+        self.spare(v) >= v.w.economy.unit_cost(i) * units
     }
 
     /// The bank above the savings (D-142): when the next unlock (an answer to a threat, or the
@@ -751,7 +748,7 @@ impl Bot {
         let active = [LAND, DEPTH, ARMY].map(|c| self.active(v, c));
         let army = match self.level.aggression().2 {
             Some(_) if active[ARMY] && self.deficit(ARMY, active) > 0 => {
-                self.raider(v).map_or(0, |s| self.drop_cost(v, s))
+                self.raider(v).map_or(0, |s| self.card_cost(v, s))
             }
             _ => 0,
         };
@@ -759,10 +756,10 @@ impl Bot {
         bank - keep(unlock) - keep(army)
     }
 
-    /// What a drop of grazer `s` on enemy land costs: a card, at the drop surcharge (D-061).
-    fn drop_cost(&self, v: &View, s: usize) -> i64 {
+    /// What a card of animal `s` costs.
+    fn card_cost(&self, v: &View, s: usize) -> i64 {
         let w = v.w;
-        w.economy.unit_cost(w.economy.animal(s), true) * w.fauna.p.group_size(s)
+        w.economy.unit_cost(w.economy.animal(s)) * w.fauna.p.group_size(s)
     }
 
     /// The raid grazer (D-192): the unlocked one that finds the most of its food on enemy land,
@@ -1088,7 +1085,7 @@ impl Bot {
             })
             .collect();
         cells.sort_unstable();
-        let price = |s: usize| w.economy.unit_cost(s, false);
+        let price = |s: usize| w.economy.unit_cost(s);
         for (tier, _, _, k) in cells {
             let fit = plants.iter().copied().filter(|&s| {
                 w.state.bio[s * n2 + k] == 0
@@ -1130,7 +1127,7 @@ impl Bot {
             return None; // calls are paced like a player's attention (D-142)
         }
         let at = self.own_near(v, v.home)?;
-        let s = self.pick(v, Role::Decomposer, 3, |s| self.varied(v, s, 8), at)?;
+        let s = self.pick(v, Role::Decomposer, 3, |s| self.varied(v, s, 8))?;
         Some(self.spawn(v, s, at))
     }
 
@@ -1154,35 +1151,54 @@ impl Bot {
         let at = self.own_near(v, v.home)?;
         let food = |s: usize| self.varied(v, s, Bot::food_for(v, s, &v.intel.own_plants));
         let cards = (self.level.aggression().3 * self.weights[ARMY] / ARMY_REF).clamp(2, 16);
-        let s = self.pick(v, Role::Herbivore, cards, food, at)?;
+        let s = self.pick(v, Role::Herbivore, cards, food)?;
         Some(self.spawn(v, s, at))
     }
 
-    /// A raid by drop (×1.5, D-061): the raid grazer (`raider`, D-192), dropped on the enemy cell
-    /// with its food nearest the breach (D-228). Normal and hard, at their drop pace (D-148,
-    /// scaled by the army weight), once the raid fund that `spare` keeps holds the drop's price.
+    /// Raiders (D-245): a card of the raid grazer (`raider`, D-192), bought at the den; `raid`
+    /// walks the herd to the breach once it is big enough. Normal and hard, at their pace (D-148,
+    /// scaled by the army weight), once the raid fund that `spare` keeps holds the card's price.
     fn drop_raiders(&self, v: &View) -> Option<Payload> {
         let every = self.paced(self.level.aggression().2?);
         if !self.every(v, every) {
             return None;
         }
-        let (w, n, n2) = (v.w, v.n, v.n * v.n);
-        let fa = &w.fauna.p;
         let s = self.raider(v)?;
-        if w.economy.bank[usize::from(self.player - 1)] < self.drop_cost(v, s) {
+        let w = v.w;
+        if w.economy.bank[usize::from(self.player - 1)] < self.card_cost(v, s) {
             return None; // the raid fund is not full yet
         }
-        let food = |k: usize| {
-            w.state.owner[k] == 3 - self.player
-                && (0..w.flora.p.species())
-                    .any(|j| fa.eats_plant(s, j) && w.state.bio[j * n2 + k] >= 1)
-        };
-        let aim = self.breach(v).map_or(v.home, |b| (b / n, b % n));
-        let k = (0..n2)
-            .filter(|&k| food(k))
-            .min_by_key(|&k| (dist2(k, n, aim), k))?;
-        Some(Payload::Spawn {
-            species: fa.names[s].clone(),
+        w.fauna
+            .spawn_site(&w.flora.p, &w.state, self.player, s)
+            .ok()?;
+        Some(self.spawn(v, s, v.home))
+    }
+
+    /// Attack-move the bot's free hunters to cell `k` (D-245: hunters walk from the den): those
+    /// that eat species `q`, or of species `h`; `None` for any. None if it has no such hunter.
+    fn send_hunters(
+        &self,
+        v: &View,
+        q: Option<usize>,
+        h: Option<usize>,
+        k: usize,
+    ) -> Option<Payload> {
+        let (w, n) = (v.w, v.n);
+        let (fa, a) = (&w.fauna.p, &w.fauna.agents);
+        let ids: Vec<u32> = (0..a.len())
+            .filter(|&i| {
+                let s = usize::from(a.sp[i]);
+                a.owner[i] == self.player
+                    && a.order[i] == FREE
+                    && fa.role[s] == Role::Predator
+                    && q.is_none_or(|q| fa.prey_rank(s, q).is_some())
+                    && h.is_none_or(|h| h == s)
+            })
+            .map(|i| a.id[i])
+            .collect();
+        (!ids.is_empty()).then(|| Payload::Order {
+            ids,
+            kind: OrderKind::Attack,
             row: u32::try_from(k / n).unwrap_or(0),
             col: u32::try_from(k % n).unwrap_or(0),
         })
@@ -1221,6 +1237,9 @@ impl Bot {
             else {
                 continue;
             };
+            if let Some(p) = self.send_hunters(v, Some(q), None, k) {
+                return Some(p);
+            }
             let at = (k / n, k % n);
             let rank = |h: usize| fa.prey_rank(h, q);
             let guard = if self.posture == Some(Posture::Rush) {
@@ -1228,13 +1247,9 @@ impl Bot {
             } else {
                 0
             };
-            if let Some(h) = self.pick(
-                v,
-                Role::Predator,
-                DEFEND_CARDS + guard,
-                |h| rank(h).map_or(0, |r| 3 - i64::try_from(r).unwrap_or(2)),
-                at,
-            ) {
+            if let Some(h) = self.pick(v, Role::Predator, DEFEND_CARDS + guard, |h| {
+                rank(h).map_or(0, |r| 3 - i64::try_from(r).unwrap_or(2))
+            }) {
                 return Some(self.spawn(v, h, at));
             }
         }
@@ -1259,8 +1274,11 @@ impl Bot {
             }
         }
         let (_, _, h, k) = best?;
+        if let Some(p) = self.send_hunters(v, None, Some(h), k) {
+            return Some(p);
+        }
         let at = (k / n, k % n);
-        let s = self.pick(v, Role::Predator, HUNT_CARDS, |x| i64::from(x == h), at)?;
+        let s = self.pick(v, Role::Predator, HUNT_CARDS, |x| i64::from(x == h))?;
         Some(self.spawn(v, s, at))
     }
 
@@ -1429,7 +1447,6 @@ impl Bot {
         role: Role,
         enough: i64,
         score: impl Fn(usize) -> i64,
-        at: (usize, usize),
     ) -> Option<usize> {
         let w = v.w;
         let fa = &w.fauna.p;
@@ -1447,11 +1464,11 @@ impl Bot {
                 fa.role[s] == role
                     && score(s) > 0
                     && w.economy.is_unlocked(self.player, i)
-                    && w.economy.affordable(self.player, w.economy.unit_cost(i, false)) >= 1 // the
+                    && w.economy.affordable(self.player, w.economy.unit_cost(i)) >= 1 // the
                     // savings hold back planting, not the few animals the bot keeps (D-142)
                     && w.fauna
-                        .spawn_site(&w.flora.p, &w.state, self.player, s, at)
-                        .is_ok() // it can land there now (habitat, food or prey)
+                        .spawn_site(&w.flora.p, &w.state, self.player, s)
+                        .is_ok() // it can come now (habitat, den, caps)
             })
             .max_by_key(|&s| (fa.group_size(s) <= 4, score(s), s))
     }

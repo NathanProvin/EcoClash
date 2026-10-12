@@ -6,8 +6,8 @@
 //! Spending (gamerules §4, §7; D-058), as in the prototype's `Economy`: species cards are
 //! unlocked per player (unlock cost 0 = unlocked at start). A card needs one unlocked species on
 //! the previous tier of its family (D-087) and, for an animal, one unlocked habitat plant. Planting
-//! costs `spawn_cost` per cell planted; spawning costs `spawn_cost` per animal, times
-//! `drop_surcharge` for any animal landing outside own land (D-061). A sandbox match (tools, checks) has
+//! costs `spawn_cost` per cell planted; spawning costs `spawn_cost` per animal, which
+//! appears at its owner's den (D-245). A sandbox match (tools, checks) has
 //! everything unlocked and free.
 //!
 //! Species indices here run over the whole stat sheet: plants first, then animals.
@@ -46,7 +46,6 @@ pub struct Economy {
     /// Per species (plants, then animals), Q16 points.
     unlock_cost: Vec<i64>,
     spawn_cost: Vec<i64>,
-    surcharge: i64,
     /// Biodiversity income (D-225, Q16): gain per species in a cell, and the cap of the factor.
     div_gain: i64,
     div_cap: i64,
@@ -80,7 +79,6 @@ impl Economy {
             tutorial: false,
             spawn_cost: costs(&|_, s| s),
             unlock_cost,
-            surcharge: round(b.economy.drop_surcharge * one),
             div_gain: round(b.economy.div_gain * one),
             div_cap: round(b.economy.div_cap * one),
             tree: fl
@@ -164,7 +162,6 @@ impl Economy {
             .i64s(&self.yld)
             .i64s(&self.unlock_cost)
             .i64s(&self.spawn_cost)
-            .i64(self.surcharge)
             .i64(self.pace)
             .i64(self.div_gain)
             .i64(self.div_cap);
@@ -257,19 +254,10 @@ impl Economy {
         Ok(())
     }
 
-    /// Cost of one planted cell or one spawned animal of species `i` (0 in a sandbox), with the
-    /// drop surcharge when the animal lands `outside` own land.
+    /// Cost of one planted cell or one spawned animal of species `i` (0 in a sandbox).
     #[must_use]
-    pub fn unit_cost(&self, i: usize, outside: bool) -> i64 {
-        if self.sandbox {
-            return 0;
-        }
-        let c = self.spawn_cost[i];
-        if outside {
-            div_round(c * self.surcharge, ONE_I)
-        } else {
-            c
-        }
+    pub fn unit_cost(&self, i: usize) -> i64 {
+        if self.sandbox { 0 } else { self.spawn_cost[i] }
     }
 
     /// How many units at `unit` points `player` can pay for.
@@ -344,15 +332,10 @@ mod tests {
                 .contains("biomass")
         );
         assert!(e.check_unlock(1, hazel).is_err());
-        assert_eq!(e.affordable(1, e.unit_cost(grasses, false)), 0);
-        assert_eq!(
-            e.unit_cost(fox, true),
-            div_round(e.unit_cost(fox, false) * e.surcharge, ONE_I),
-            "predator drop surcharge"
-        );
+        assert_eq!(e.affordable(1, e.unit_cost(grasses)), 0);
         e.sandbox = true;
         assert!(
-            e.is_unlocked(1, fox) && e.unit_cost(fox, true) == 0,
+            e.is_unlocked(1, fox) && e.unit_cost(fox) == 0,
             "sandbox: all free"
         );
     }

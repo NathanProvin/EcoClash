@@ -58,10 +58,10 @@ describe("strategicGroups", () => {
     expect(groups[0]?.ids).toHaveLength(5);
   });
 
-  it("drops small groups, with a higher bar for swarms", () => {
-    expect(strategicGroups(herd(0, GROUP.min - 1, 1, 1), 1, [false])).toEqual([]);
-    expect(strategicGroups(herd(0, GROUP.min, 1, 1), 1, [true])).toEqual([]); // a swarm
-    expect(strategicGroups(herd(0, GROUP.minSwarm, 1, 1), 1, [true])).toHaveLength(1);
+  it("shows even the smallest groups (play test: two hawks went unseen)", () => {
+    expect(GROUP.min).toBe(1);
+    expect(strategicGroups(herd(0, 1, 1, 1), 1, [false])).toHaveLength(1);
+    expect(strategicGroups(herd(0, 1, 1, 1), 1, [true])).toHaveLength(1); // a swarm
   });
 
   it("groups each side apart, so the enemy's herds get icons too (D-146)", () => {

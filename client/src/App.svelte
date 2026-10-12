@@ -395,8 +395,17 @@
   function projectIcons() {
     const v = viewer;
     if (!v || !iconGroups.length) return;
+    // Each icon over its animals' centre this frame (play test: smooth tracking; the 10 Hz
+    // regrouping alone made icons lag and jump).
+    const now: Record<number, { x: number; y: number }> = {};
+    for (const a of v.visibleAnimals()) now[a.id] = a;
     icons = iconGroups.flatMap((g) => {
-      const at = v.screenPoint({ row: g.row, col: g.col });
+      let [row, col, k] = [0, 0, 0];
+      for (const id of g.ids) {
+        const a = now[id];
+        if (a) [row, col, k] = [row + a.y, col + a.x, k + 1];
+      }
+      const at = v.screenPoint(k ? { row: row / k, col: col / k } : { row: g.row, col: g.col });
       return at.inView ? [{ ...g, x: at.x, y: at.y }] : [];
     });
   }
@@ -946,11 +955,9 @@
         if (p.player !== me) continue;
         if (p.taken) plantFx(p, p.species);
         else {
-          // Refused, nothing planted or paid (D-241): an error sound, the species armed again
-          // and its cursor pulsing; the sim's notice says why.
+          // Refused, nothing planted or paid (D-241): an error sound; the sim's notice says
+          // why. The cursor stays the basic one (play test: a click always disarms).
           audio.play("ui.error");
-          planting = p.species;
-          viewer?.denyGhost();
         }
       }
       for (const n of live.notices) {

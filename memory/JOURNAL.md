@@ -1172,3 +1172,20 @@
 - **Found in the browser:**
   - The first card of a species could read "population cap reached": with only a few habitat cells, the cap (0.5 per cell for swarms) rounded below a card. The cap is now never below one card while the species has habitat.
   - The habitat check now comes before the cap check, so a colony whose plants aren't grown yet reads "needs its habitat plants grown on your land".
+
+## 2026-10-12 (6) · Fog motion, planting cursor, den greens, earthy icons, frame spikes
+- **Fog:**
+  - neutral grey `#5f5f5f`, no blue;
+  - clouds about 2.5× faster than round 3 and more visible (colour ±16 %/8 %, opacity ±7 %);
+  - average opacity as the user approved.
+- **Planting:** a refused planting no longer re-arms the species. A click always returns to the basic cursor (Shift still keeps planting).
+- **Den:** one flower removed. A tiny spruce (tiers of cones) and a fern (the undergrowth's own frond model) added.
+- **Sowing seeds:** half their radius.
+- **Icons, earthy look:**
+  - family icons are pebble-shaped, matte, mottled, in deeper earth and leaf tones with a bark-dark rim;
+  - the build bar and its flyouts sit on dark loam under a bark rim; the tier rings follow the pebble shape.
+- **Strategic icons:**
+  - every group shows, even one animal (two hawks went unseen);
+  - a thick owner ring (enemy in threat red);
+  - placed each frame over the group's current centre, so they track smoothly.
+- **Worst-frame spikes (about 50 ms):** each den model made about 80 materials, each compiling a WebGPU pipeline, and the models were rebuilt whenever the visible dens changed (fog). Materials are now shared per colour, and den models are kept and only hidden. Not measured in the browser.

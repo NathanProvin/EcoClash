@@ -4,9 +4,9 @@
 
 import type { Animal } from "../replay/replay";
 
-/** Areas are squares of `area` cells; a group needs `min` animals (`minSwarm` for swarms,
- *  which come in large numbers). */
-export const GROUP = { area: 5, min: 3, minSwarm: 8 } as const;
+/** Areas are squares of `area` cells; a group needs `min` animals (`minSwarm` for swarms).
+ *  Play test: any group shows, even two hawks. */
+export const GROUP = { area: 5, min: 1, minSwarm: 1 } as const;
 
 export interface Group {
   /** Fauna species index. */

@@ -88,8 +88,9 @@ const OVERLAY_LIFT = 0.1;
 /** Opacity (0..255) of the fog (D-249): over cells never seen, and over cells seen before. */
 const FOG_DARK = 205;
 const FOG_SEEN = 125;
-/** The fog's colour: a darker grey, a little see-through so coasts and rivers show (D-249). */
-const FOG_GREY = "#5e6166";
+/** The fog's colour: a darker, neutral-warm grey, a little see-through so coasts and rivers
+ *  show (D-249; play test: less blue). */
+const FOG_GREY = "#5f5f5f";
 /** The sun's shadow map is redrawn every this many frames: shadows lag one frame behind the wind,
  *  invisibly, for half the shadow-pass cost (D-090). */
 const SHADOW_EVERY = 4; // D-151 (was 2): the sun barely moves
@@ -159,9 +160,10 @@ export class Viewer {
     this.fogFor = p;
     this.paintFog(this.lastFields?.vis);
   }
-  /** Den models (D-245, D-251), rebuilt when the dens change. */
+  /** Den models (D-245, D-251, D-253), one per den, kept while it stands (building one compiles
+   *  its materials: rebuilding them whenever a den left the fog cost a long frame). */
   private readonly dens = new THREE.Group();
-  private denKey = "";
+  private readonly denModels = new Map<string, THREE.Group>();
   /** Cells seen at least once (D-249). */
   private explored: Uint8Array | null = null;
   private readonly fogData: Uint8Array;
@@ -339,10 +341,10 @@ export class Viewer {
     });
     // Dark grey haze drifting slowly over the fogged land: two baked noise lookups, no geometry.
     const fog = texture(this.fogTex, uv());
-    const drift = this.noise(0.05, "g", time.mul(0.0075));
-    const wisp = this.noise(0.13, "b", time.mul(-0.0125));
-    fogMat.colorNode = color(FOG_GREY).mul(float(1).add(drift.mul(0.06)).add(wisp.mul(0.03)));
-    fogMat.opacityNode = fog.a.mul(float(0.985).add(drift.mul(0.015))).clamp(0, 1);
+    const drift = this.noise(0.05, "g", time.mul(0.02));
+    const wisp = this.noise(0.13, "b", time.mul(-0.032));
+    fogMat.colorNode = color(FOG_GREY).mul(float(1).add(drift.mul(0.16)).add(wisp.mul(0.08)));
+    fogMat.opacityNode = fog.a.mul(float(0.98).add(drift.mul(0.07))).clamp(0, 1);
     this.fogMesh = new THREE.Mesh(this.ground.geometry, fogMat);
     this.fogMesh.position.y = OVERLAY_LIFT;
     this.fogMesh.renderOrder = 19;
@@ -931,19 +933,25 @@ export class Viewer {
   setDens(
     dens: readonly { cell: number; water: boolean; owner: number; building?: boolean }[],
   ): void {
-    const key = dens
-      .map((d) => `${d.cell}${d.water ? "w" : ""}${d.building ? "b" : ""}${d.owner}`)
-      .join(",");
-    if (key === this.denKey) return;
-    this.denKey = key;
     if (!this.dens.parent) this.scene.add(this.dens);
-    this.dens.clear();
     const n = this.replay.meta.n;
+    const keep = new Set<string>();
     for (const d of dens) {
-      const m = denModel(d.water, PLAYER[d.owner === 2 ? 2 : 1].base);
-      m.position.copy(this.centre({ row: Math.floor(d.cell / n), col: d.cell % n }));
-      if (d.building) m.scale.setScalar(0.55); // a den being built (D-253)
-      this.dens.add(m);
+      const key = `${d.cell}${d.water ? "w" : ""}${d.building ? "b" : ""}${d.owner}`;
+      keep.add(key);
+      let m = this.denModels.get(key);
+      if (!m) {
+        m = denModel(d.water, PLAYER[d.owner === 2 ? 2 : 1].base);
+        m.position.copy(this.centre({ row: Math.floor(d.cell / n), col: d.cell % n }));
+        if (d.building) m.scale.setScalar(0.55); // a den being built (D-253)
+        this.denModels.set(key, m);
+        this.dens.add(m);
+      }
+      m.visible = true;
+    }
+    for (const [key, m] of this.denModels) {
+      if (keep.has(key)) continue;
+      m.visible = false; // out of sight or moved: hidden, kept for when it shows again
     }
   }
 

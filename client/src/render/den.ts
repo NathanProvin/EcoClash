@@ -6,6 +6,7 @@
 
 import * as THREE from "three/webgpu";
 import { CELL } from "./layout";
+import { frondGeometry } from "./shapes";
 
 /** Sizes (m) and colours. The land mound is 30 % bigger than the first version (play test). */
 const DEN = {
@@ -25,6 +26,8 @@ const DEN = {
   mud: "#4a3a2a",
   sticks: ["#6b5236", "#5a4430", "#7b6040", "#4f3b28"],
   leaf: "#4f8f3f",
+  spruce: "#2f5a35",
+  bark: "#4a3322",
   stem: "#3f6e33",
   petals: ["#f4f1ea", "#d58fc5", "#f2c94c"],
   heart: "#f2b632",
@@ -32,8 +35,22 @@ const DEN = {
   pad: "#3f7d3a",
 } as const;
 
-const flat = (color: string) =>
-  new THREE.MeshStandardNodeMaterial({ color, roughness: 0.95, flatShading: true });
+/** One material per colour, shared by every den (each new material compiles a pipeline). */
+const materials = new Map<string, THREE.Material>();
+const flat = (color: string) => {
+  let m = materials.get(color);
+  if (!m) {
+    m = new THREE.MeshStandardNodeMaterial({ color, roughness: 0.95, flatShading: true });
+    materials.set(color, m);
+  }
+  return m;
+};
+const fronds = new THREE.MeshStandardNodeMaterial({
+  color: "#5d8f3c",
+  roughness: 0.9,
+  flatShading: true,
+  side: THREE.DoubleSide,
+});
 
 /** A fixed pseudo-random value in [0, 1) for an index (shapes only, never the sim). */
 const hash = (i: number) => {
@@ -116,8 +133,19 @@ function burrow(): THREE.Group {
   mouth.add(rim);
   // The opening: a dark, deep-looking disc on the mound's face (the tunnel itself would hide
   // inside the solid mound), and a darker core for depth.
-  const dark = (c: string) =>
-    new THREE.MeshBasicNodeMaterial({ color: c, polygonOffset: true, polygonOffsetFactor: -2 });
+  const dark = (c: string) => {
+    const key = `dark${c}`;
+    let m = materials.get(key);
+    if (!m) {
+      m = new THREE.MeshBasicNodeMaterial({
+        color: c,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+      });
+      materials.set(key, m);
+    }
+    return m;
+  };
   const opening = new THREE.Mesh(new THREE.CircleGeometry(DEN.hole * 1.02, 16), dark("#2a1a0e"));
   opening.scale.set(1.15, 0.9, 1);
   opening.position.z = 0.04;
@@ -166,17 +194,42 @@ function burrow(): THREE.Group {
     g.add(p);
   }
 
-  // A few flowers on top: green on the heart of the colony.
+  // Two flowers, a tiny spruce and a fern on top: green on the heart of the colony.
   const flowers: [number, number, number][] = [
     [-0.35, -0.2, 0],
     [0.3, -0.35, 1],
-    [0.05, 0.05, 2],
   ];
-  for (const [fx, fz, c] of flowers) {
+  const at = (fx: number, fz: number) => {
     const x = fx * rx;
     const z = fz * rz;
+    return new THREE.Vector3(x, domeY(x, z, rx, h, rz) - 0.05, z);
+  };
+  const spruce = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, 0.3, 5), flat(DEN.bark));
+  trunk.position.y = 0.15;
+  spruce.add(trunk);
+  [0.38, 0.3, 0.2].forEach((r, i) => {
+    const tier = new THREE.Mesh(new THREE.ConeGeometry(r, 0.42, 7), flat(DEN.spruce));
+    tier.position.y = 0.38 + i * 0.24;
+    tier.rotation.y = i * 0.5;
+    spruce.add(tier);
+  });
+  spruce.scale.setScalar(0.6); // really small
+  spruce.position.copy(at(0.1, 0.25));
+  g.add(spruce);
+  // The fern: the undergrowth's own frond model (render/shapes), five fronds round a crown.
+  const fern = new THREE.Group();
+  for (let i = 0; i < 5; i++) {
+    const f = new THREE.Mesh(frondGeometry(), fronds);
+    f.scale.set(0.55, 0.45, 0.55);
+    f.rotation.y = (i / 5) * Math.PI * 2 + 0.3;
+    fern.add(f);
+  }
+  fern.position.copy(at(-0.1, -0.45));
+  g.add(fern);
+  for (const [fx, fz, c] of flowers) {
     const f = flower(DEN.petals[c] ?? DEN.petals[0], 0.45 + c * 0.08);
-    f.position.set(x, domeY(x, z, rx, h, rz) - 0.05, z);
+    f.position.copy(at(fx, fz));
     g.add(f);
   }
   return g;

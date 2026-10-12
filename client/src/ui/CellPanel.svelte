@@ -104,7 +104,7 @@
       {@const enemy = info.owner === 1 ? 2 : 1}
       <div
         class="row strength"
-        title="Strength: how full the owner's layers are (fast spreaders count most), raised by a canopy overhead, fertile soil and many species (plants and resident animals), lowered by an enemy canopy next door. Push: the summed strength of the enemy's cells next to it. When the push beats the strength, the cell's plants are smothered; a cell just taken is held for a while (D-236, D-230)."
+        title="Strength: how full the owner's layers are (fast spreaders count most), raised by taller layers, fertile soil and many species (plants and resident animals). Push: the summed strength of the enemy's cells next to it. When the push beats the strength, the cell's plants are smothered; a cell just taken is held for a while (D-236, D-243, D-230)."
       >
         <span class="name">Strength</span>
         <span class="vs"

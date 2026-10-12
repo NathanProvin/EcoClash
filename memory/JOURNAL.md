@@ -1189,3 +1189,7 @@
   - a thick owner ring (enemy in threat red);
   - placed each frame over the group's current centre, so they track smoothly.
 - **Worst-frame spikes (about 50 ms):** each den model made about 80 materials, each compiling a WebGPU pipeline, and the models were rebuilt whenever the visible dens changed (fog). Materials are now shared per colour, and den models are kept and only hidden. Not measured in the browser.
+
+## 2026-10-12 (7) · Alpha 1.5 released
+- Menu label "Alpha 1.5". `alpha-1.5` merged into main and pushed; CI deploys Cloudflare Pages and the relay.
+- The whole CI set was run locally before the push.

@@ -4,7 +4,7 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-12: **Alpha 1.5 rework** done on branch `alpha-1.5` (D-243…D-253, three play-test rounds included), not merged:
+- **Now:** 2026-10-12: **Alpha 1.5** released: the rework (D-243…D-253, play-test rounds included), merged to main and pushed (CI deploys Pages and the relay):
   - no shade, a layer multiplier and stronger biodiversity;
   - grazers by layer;
   - dens instead of drops;
@@ -14,7 +14,7 @@
   - fog of war;
   - a tuning pass.
 
-  Next: the user's play tests on the branch, then merge and release. Before: 2026-10-09: **Alpha 1.4** released, merged to main and pushed (CI deploys Pages and the relay). It brings:
+  Next: the user's play tests; the bot-balance pass (the bot never moves its den; style fingerprint test still ignored). Before: 2026-10-09: **Alpha 1.4** released, merged to main and pushed (CI deploys Pages and the relay). It brings:
   - strength as biological vigor (D-236);
   - longer-lived trees and slow soil built by recyclers (D-237);
   - controllable swarms (D-238);

@@ -2852,3 +2852,65 @@ Template:
   - **Cell card:** a "Front" section (strength vs push, enemy push) first, under the header.
   - **Planting cursor:** the ring turns alert red when the planting would not take (`game/planting.ts` `plantable`): no own or free unlocked land, rock or deep water, soil under the species' need (`soil_need` exported), dry or wet beyond its tolerance (the shallows seep), or a bank short of every plantable cell. The cap and the dead-wood bar are left to the sim.
   - The build bar's dock stacks above map banners, so its hints are never hidden.
+
+## D-243 · 2026-10-12 · Alpha 1.5 rework: shade removed, layer multiplier, stronger biodiversity
+- **Status:** accepted (user, rework plan of 2026-10-12)
+- **Context:** play tests show a strong snowball and fights decided by instant drops. The user asked for a deep rework (D-243…D-250), one step per commit on `alpha-1.5`.
+- **Decision:**
+  - The shade mechanic is removed entirely: no shade cap on growth, no canopy or side-shade term in strength. `shade_cast` / `shade_tolerance`, `canopy_gain`, `edge_shade` and the `shade` switch go away.
+  - Strength = vigor × `layer_mult[highest established layer]` × fertility × biodiversity, with `layer_mult = [1.0, 1.15, 1.3, 1.5]`.
+  - Biodiversity is raised: `div_gain` 0.6, `div_cap` 4, so two L1 species half grown beat one fully grown.
+
+## D-244 · 2026-10-12 · Grazers by role, impact by tier
+- **Status:** accepted (user)
+- **Decision:**
+  - A grazer eats every plant of its family's layer (H1 → L1, H2 → L2, H3 → L3, H4 → L4, HW → W), all at the primary diet yield, and that layer is its habitat.
+  - Its tier multiplies the damage on enemy plants (`[fauna] tier_damage = [1, 1.5, 2]`).
+  - Grazer sheets lose `eats` and `habitat`. Hunters and recyclers keep their lists.
+
+## D-245 · 2026-10-12 · Dens: no remote drops (supersedes D-061)
+- **Status:** accepted (user's den design)
+- **Decision:**
+  - Every bought animal appears at its owner's den, wherever the click lands.
+    - The land den is the first planted cell.
+    - The water den, used by swimmers, is the first own cell where an aquatic plant takes.
+    - A lost den moves to the nearest own cell.
+  - `drop_radius` and `drop_surcharge` are removed. Raids walk, and defence needs resident hunters or hunters sent in time.
+
+## D-246 · 2026-10-12 · Founders, habitat carrying capacity, spreading, hold order
+- **Status:** accepted (user)
+- **Decision:**
+  - **Founders and breeding:** cards found small groups, and breeding grows the army.
+  - **Carrying capacity:** a species' cap = `per_cell` × own cells holding its habitat (e.g. 5 rabbits per own L1 cell). It replaces the fixed animal `cap`.
+  - **Spreading:** idle animals in crowded or foodless cells move to the nearest own habitat cell with food and room.
+  - **Hold:** a new order (H + click) gathers the selection on a cell. Held animals do not spread, wander or flee; they eat or strike within reach.
+
+## D-247 · 2026-10-12 · Income from production, own-grazing above 50 %
+- **Status:** accepted (user; review lever 2)
+- **Decision:**
+  - **Plant income:** yield × (`stock_share` × cover + (1 − `stock_share`) × production). Production is the species' gross positive growth over r·K/4, and `stock_share` = 0.3.
+  - **Own-grazing:** own grazers bite own plants only where that plant's cover is ≥ `own_graze_min` (0.5), never below.
+- **Why:** mature land nets less and regrowing land more, which is a rubber band from ecology (Odum). Cropping own meadows feeds the herd and keeps the land productive.
+
+## D-248 · 2026-10-12 · Progressive catastrophes
+- **Status:** accepted (user)
+- **Decision:**
+  - Each card opens at `available_s`.
+  - New act `blight`: biomass of levels ≤ `max_level` falls to litter with `chance`. The new cards are the aphid outbreak (600, from 0 min) and the late frost (2 500, from 5 min).
+  - The spill opens at 10 min, the caterpillars at 15 and the storm at 20.
+  - The aggressive bot opens its raids with blights.
+
+## D-249 · 2026-10-12 · Fog of war (supersedes D-074)
+- **Status:** accepted (user)
+- **Decision:**
+  - Each own cell reveals `[fog] layer_sight[highest layer]` cells (1, 2, 3, 4; a bare own cell 1), and each animal its species' `sight`.
+  - Visibility is derived and not hashed. It is display and bot input only; lockstep peers hold the full state, and maphack is accepted.
+  - Out of sight, enemy animals are hidden and plants show their last seen state. The territory bar stays global.
+  - Fog is off in Sandbox and replays.
+
+## D-250 · 2026-10-12 · Tuning pass: slower colonization, yields, densities
+- **Status:** accepted (user; values are starting points for the user's play tests)
+- **Decision:**
+  - Plant spread (`growth`) is slowed.
+  - Yields are rebalanced for production income.
+  - Plant caps and animal `per_cell` densities are reviewed against the D-222 pyramid.

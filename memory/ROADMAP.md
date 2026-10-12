@@ -125,6 +125,18 @@ In this order:
 - [x] Bot-vs-bot batch runs: `sim-cli bench` (seeds × difficulties → phase markers, match length, win rates, calls; D-142).
 - [ ] One-page report; tune `pace`, `food_reserve`, caps, costs and the victory thresholds (Q-013) with it and the playtest feedback.
 
+## Alpha 1.5 · Gameplay and balance rework (D-243…D-250; branch `alpha-1.5`)
+Anti-snowball and "better ecosystem, more units" (user, 2026-10-12). One step per commit.
+- [x] 0. Spec: gamerules §3, §4.3, §6.3, §6.4, §7, §9.2, §10, §10b, §10d; D-243…D-250; INSTRUCTIONS.
+- [ ] 1. Shade removed; layer multiplier; biodiversity 0.6 / cap 4 (D-243).
+- [ ] 2. Grazers by role, damage by tier (D-244).
+- [ ] 3. Dens, no remote drops (D-245).
+- [ ] 4. Founders, habitat carrying capacity, spreading, hold order (D-246).
+- [ ] 5. Income from production, own-grazing above 50 % (D-247).
+- [ ] 6. Progressive catastrophes (D-248).
+- [ ] 7. Fog of war (D-249).
+- [ ] 8. Tuning: spread, yields, densities; `bench --handicap` (D-250).
+
 ## Gameplay · Three styles (D-225, D-226; before the UI/UX phase)
 Tall, wide and rush emerge from one conquest rule, map control stays the only victory. Branch `gameplay-changes`. Each step waits for the user's green light.
 - [x] 1. Spec: gamerules §3, §3.1, §6.1, §7, §10, §11.2; D-225, D-226; INSTRUCTIONS; CLAUDE.md. Dead trees: D-227.

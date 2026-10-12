@@ -16,7 +16,7 @@
 | Q-004 | Do agents reproduce on their own? | M0 (agents part) | resolved → D-023 |
 | Q-005 | Counter loop: what kills predators, friendly fire | M0 (agents part) | resolved → D-023 |
 | Q-006 | Unit control at 1–2k agents: per-unit or swarm/zone orders | M3 | resolved → D-018 |
-| Q-007 | Fog of war in v1? | M3 | resolved → D-074 |
+| Q-007 | Fog of war in v1? | M3 | resolved → D-074, then D-249 (fog) |
 | Q-008 | Map scale: world units per cell, agent size, speeds | M2 | resolved → D-040 (cell size: D-047) |
 | Q-009 | Colour-blind-safe player colours | M2 | resolved → D-040 |
 | Q-010 | Reference machine for performance budgets | M2 | resolved → D-040 |
@@ -38,7 +38,7 @@
 
 ## Q-006 · Unit control scale — resolved → D-018
 
-## Q-007 · Fog of war — resolved → D-074
+## Q-007 · Fog of war — resolved → D-074, superseded by D-249
 
 ## Q-008 · Map scale — resolved → D-040
 ## Q-009 · Player colours — resolved → D-040

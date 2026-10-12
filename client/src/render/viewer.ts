@@ -83,8 +83,9 @@ const BLEND_S = { min: 0.2, max: 2 } as const;
 const TINT = { wet: 1.5, dry: [0.55, 0.9], rock: [0.03, 0.1] } as const;
 /** Map overlays (D-135) float this far above the ground (m). */
 const OVERLAY_LIFT = 0.1;
-/** Opacity (0..255) of the dimming over a cell in the fog (D-249). */
-const FOG_ALPHA = 120;
+/** Opacity (0..255) of the fog (D-249): over cells never seen, and over cells seen before. */
+const FOG_DARK = 235;
+const FOG_SEEN = 150;
 /** The sun's shadow map is redrawn every this many frames: shadows lag one frame behind the wind,
  *  invisibly, for half the shadow-pass cost (D-090). */
 const SHADOW_EVERY = 4; // D-151 (was 2): the sun barely moves
@@ -143,9 +144,19 @@ export class Viewer {
   private readonly overlayTex: THREE.DataTexture;
   private readonly overlayMesh: THREE.Mesh;
   private overlay: OverlayId | null = null;
-  /** Fog of war (D-249): whose sight the map shows (0: none); fogged cells are dimmed and the
-   *  enemy's animals there hidden. */
-  fogPlayer = 0;
+  /** Fog of war (D-249): whose sight the map shows (0: none); fogged cells are dimmed (black
+   *  where never seen, dark where seen before, as in Age of Empires) and the enemy's animals
+   *  there hidden. */
+  private fogFor = 0;
+  get fogPlayer(): number {
+    return this.fogFor;
+  }
+  set fogPlayer(p: number) {
+    this.fogFor = p;
+    this.paintFog(this.lastFields?.vis);
+  }
+  /** Cells seen at least once (D-249). */
+  private explored: Uint8Array | null = null;
   private readonly fogData: Uint8Array;
   private readonly fogTex: THREE.DataTexture;
   private readonly fogMesh: THREE.Mesh;
@@ -906,13 +917,15 @@ export class Viewer {
 
   /** Dim the cells out of `fogPlayer`'s sight (D-249); none without fog. */
   private paintFog(vis: Uint8Array | undefined): void {
-    this.fogMesh.visible = !!vis && this.fogPlayer > 0;
+    this.fogMesh.visible = !!vis && this.fogFor > 0;
     if (!vis || !this.fogMesh.visible) return;
     const n = this.replay.meta.n;
+    const seen = (this.explored ??= new Uint8Array(n * n));
     for (let k = 0; k < n * n; k++) {
+      if (vis[k]) seen[k] = 1;
       // Texture row 0 is the near edge (+z); grid row 0 the far edge: flip rows, as the ground.
       const t = ((n - 1 - Math.floor(k / n)) * n + (k % n)) * 4;
-      this.fogData.set([10, 16, 26, vis[k] ? 0 : FOG_ALPHA], t);
+      this.fogData.set([6, 9, 14, vis[k] ? 0 : seen[k] ? FOG_SEEN : FOG_DARK], t);
     }
     this.fogTex.needsUpdate = true;
   }

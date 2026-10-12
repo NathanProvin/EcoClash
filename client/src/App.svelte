@@ -453,11 +453,12 @@
     // Most arrivals come with a call (D-179), not every one.
     if (call && Math.random() < DROP_CALL) setTimeout(() => audio.play(call, { at: place }), 450);
   });
-  // Fog of war (D-249): your sight during a match; the whole map once it is over.
+  // Fog of war (D-249): lifted once the match is over (set on with the viewer, below; `viewer`
+  // is not reactive, so an effect on it alone never ran).
   $effect(() => {
-    const on = !!live?.fog && !outcome;
-    if (live && outcome) live.fog = false;
-    if (viewer) viewer.fogPlayer = on && live ? live.me : 0;
+    if (!outcome || !live) return;
+    live.fog = false;
+    if (viewer) viewer.fogPlayer = 0;
   });
   /** Your population cap per animal species (D-246), refreshed with the fields. */
   const animalCaps = $derived.by(() => {
@@ -1071,6 +1072,7 @@
       }
       viewer = await Viewer.create(canvas, replay, quality, !!perfBench);
       viewer.resize();
+      viewer.fogPlayer = live?.fog ? live.me : 0; // your sight (D-249)
       // Dev only: lets a browser check drive the camera and the match (window.ecoViewer, ecoLive).
       if (import.meta.env.DEV) Object.assign(window, { ecoViewer: viewer, ecoLive: live });
       if (perfBench && live) {

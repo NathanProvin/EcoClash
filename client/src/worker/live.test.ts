@@ -234,7 +234,7 @@ test("fog of war: cells out of sight keep what was last seen there (D-249)", asy
   const live = await Live.start(1, 2);
   const worker = FakeWorker.last as FakeWorker;
   const fields = (owner: number[], vis: number[]) => ({
-    type: "fields",
+    type: "fields" as const,
     tick: 8,
     // owner, soil, grasses, oak: 4 cells each
     frame: new Uint8Array([...owner, 0, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0]).buffer,

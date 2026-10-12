@@ -276,6 +276,17 @@ impl Sim {
         self.time_limit_s
     }
 
+    /// What `player` sees (D-249): one byte per cell, 1 in sight, 0 in the fog.
+    #[wasm_bindgen(js_name = visibilityFrame)]
+    #[must_use]
+    pub fn visibility_frame(&self, player: u8) -> Vec<u8> {
+        self.world
+            .visible(player.clamp(1, 2))
+            .into_iter()
+            .map(u8::from)
+            .collect()
+    }
+
     /// A player's dens (D-245): the land and the water den cells, -1 for none yet.
     #[must_use]
     pub fn dens(&self, player: u8) -> Vec<i32> {

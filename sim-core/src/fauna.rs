@@ -296,6 +296,12 @@ impl FaunaParams {
         }
     }
 
+    /// How far species `s` sees, in cells.
+    #[must_use]
+    pub fn sight(&self, s: usize) -> i64 {
+        self.sight[s]
+    }
+
     /// The rank of plant `plant` in herbivore `s`'s diet (0: primary), if it eats it (D-123).
     #[must_use]
     pub fn plant_rank(&self, s: usize, plant: usize) -> Option<usize> {

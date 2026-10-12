@@ -197,6 +197,12 @@ plant_radius = 2          # a plant order seeds a disc of this radius, in cells 
 # [Proposed] rules behind switches (D-019)
 succession = true
 
+# Fog of war (D-249): an own cell reveals this many cells around it, by its highest established
+# layer L1..L4 (a bare own cell as L1); an animal reveals its species' sight. Display and bot input
+# only: lockstep peers hold the whole state.
+[fog]
+layer_sight = [1, 2, 3, 4]
+
 # Fauna agents (gamerules §5.2, §6; D-023, D-026). Species stats are in species.toml.
 [deadwood]
 natural_death_s = 7200  # mean life of a tree stand (ecology seconds, 2 h; D-237: was 1 h, D-152: 3 h): trees die of old age, standing (D-127)

@@ -134,7 +134,7 @@ Anti-snowball and "better ecosystem, more units" (user, 2026-10-12). One step pe
 - [x] 4. Founders, habitat carrying capacity, spreading, hold order (D-246).
 - [x] 5. Income from production, own-grazing above 50 % (D-247).
 - [x] 6. Progressive catastrophes (D-248).
-- [ ] 7. Fog of war (D-249).
+- [x] 7. Fog of war (D-249).
 - [ ] 8. Tuning: spread, yields, densities; `bench --handicap` (D-250).
 
 ## Gameplay · Three styles (D-225, D-226; before the UI/UX phase)

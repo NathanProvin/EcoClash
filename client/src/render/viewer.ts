@@ -83,6 +83,8 @@ const BLEND_S = { min: 0.2, max: 2 } as const;
 const TINT = { wet: 1.5, dry: [0.55, 0.9], rock: [0.03, 0.1] } as const;
 /** Map overlays (D-135) float this far above the ground (m). */
 const OVERLAY_LIFT = 0.1;
+/** Opacity (0..255) of the dimming over a cell in the fog (D-249). */
+const FOG_ALPHA = 120;
 /** The sun's shadow map is redrawn every this many frames: shadows lag one frame behind the wind,
  *  invisibly, for half the shadow-pass cost (D-090). */
 const SHADOW_EVERY = 4; // D-151 (was 2): the sun barely moves
@@ -141,6 +143,12 @@ export class Viewer {
   private readonly overlayTex: THREE.DataTexture;
   private readonly overlayMesh: THREE.Mesh;
   private overlay: OverlayId | null = null;
+  /** Fog of war (D-249): whose sight the map shows (0: none); fogged cells are dimmed and the
+   *  enemy's animals there hidden. */
+  fogPlayer = 0;
+  private readonly fogData: Uint8Array;
+  private readonly fogTex: THREE.DataTexture;
+  private readonly fogMesh: THREE.Mesh;
   private lastFields: Fields | null = null;
   private readonly heights: THREE.DataTexture;
   /** Baked tileable noise for the ground and water shaders (D-151). */
@@ -300,6 +308,24 @@ export class Viewer {
     this.overlayMesh.visible = false;
     this.overlayMesh.userData.family = "ground";
     this.scene.add(this.overlayMesh);
+    this.fogData = new Uint8Array(n * n * 4);
+    this.fogTex = new THREE.DataTexture(this.fogData, n, n);
+    this.fogTex.magFilter = THREE.LinearFilter; // soft edges
+    this.fogTex.minFilter = THREE.LinearFilter;
+    const fogMat = new THREE.MeshBasicNodeMaterial({
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+    });
+    const fog = texture(this.fogTex, uv());
+    fogMat.colorNode = fog.rgb;
+    fogMat.opacityNode = fog.a;
+    this.fogMesh = new THREE.Mesh(this.ground.geometry, fogMat);
+    this.fogMesh.position.y = OVERLAY_LIFT;
+    this.fogMesh.renderOrder = 19;
+    this.fogMesh.visible = false;
+    this.fogMesh.userData.family = "ground";
+    this.scene.add(this.fogMesh);
 
     // The map as a diorama slab: an earth cross-section on its sides, topsoil to bedrock.
     const slabMat = new THREE.MeshStandardNodeMaterial({ roughness: 1 });
@@ -878,6 +904,19 @@ export class Viewer {
     this.overlayTex.needsUpdate = true;
   }
 
+  /** Dim the cells out of `fogPlayer`'s sight (D-249); none without fog. */
+  private paintFog(vis: Uint8Array | undefined): void {
+    this.fogMesh.visible = !!vis && this.fogPlayer > 0;
+    if (!vis || !this.fogMesh.visible) return;
+    const n = this.replay.meta.n;
+    for (let k = 0; k < n * n; k++) {
+      // Texture row 0 is the near edge (+z); grid row 0 the far edge: flip rows, as the ground.
+      const t = ((n - 1 - Math.floor(k / n)) * n + (k % n)) * 4;
+      this.fogData.set([10, 16, 26, vis[k] ? 0 : FOG_ALPHA], t);
+    }
+    this.fogTex.needsUpdate = true;
+  }
+
   /** The weather now (D-132): its kind (null: clear) and phase, for the light and particles. */
   setWeather(kind: string | null, phase: "clear" | "alert" | "active"): void {
     this.weather.set(kind, phase);
@@ -943,6 +982,14 @@ export class Viewer {
     this.weather.update(dt);
     const t0 = Math.floor(tick);
     this.shown = interpolate(this.replay.animals(t0), this.replay.animals(t0 + 1), tick - t0);
+    const vis = this.fogPlayer ? this.lastFields?.vis : undefined;
+    if (vis) {
+      // The enemy's animals in the fog stay hidden (D-249).
+      const side = this.replay.meta.n;
+      this.shown = this.shown.filter(
+        (a) => a.owner === this.fogPlayer || vis[Math.floor(a.y) * side + Math.floor(a.x)],
+      );
+    }
     const dropped = this.replay.droppedAt?.bind(this.replay);
     const ms = performance.now();
     const h = (x: number, z: number) => this.field.at(x, z);
@@ -1028,6 +1075,7 @@ export class Viewer {
     this.owner = owner;
     this.lastFields = fields;
     if (this.overlay) this.paintOverlay(fields);
+    this.paintFog(fields.vis);
     const n = this.replay.meta.n;
     const tint = { 1: hexToRgb(PLAYER[1].base), 2: hexToRgb(PLAYER[2].base) };
     const herbs = this.herbs;

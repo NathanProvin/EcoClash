@@ -329,6 +329,8 @@ struct View<'a> {
     home: (usize, usize),
     enemy: (usize, usize),
     intel: Intel,
+    /// The cells the bot sees (D-249): it reads enemy animals and plants only there.
+    vis: Vec<bool>,
     /// Threats the bot answers now, worst first: animal species (D-191).
     threats: Vec<usize>,
     /// The front (D-225): each cell's strength for its owner (Q16); on own cells the enemy's push
@@ -455,7 +457,8 @@ impl Bot {
     /// What the bot reads from the world for one decision (D-191, D-225).
     fn view<'a>(&mut self, w: &'a World) -> View<'a> {
         let n = w.state.n;
-        let intel = self.intel(w);
+        let vis = w.visible(self.player);
+        let intel = self.intel(w, &vis);
         let threats = self.threats(w, &intel);
         let (strength, push, margin) = front(w, self.player);
         let mut view = View {
@@ -464,6 +467,7 @@ impl Bot {
             home: centroid(w, self.player).unwrap_or((n / 2, n / 2)),
             enemy: centroid(w, 3 - self.player).unwrap_or((n / 2, n / 2)),
             intel,
+            vis,
             threats,
             spare: 0,
             strength,
@@ -627,7 +631,7 @@ impl Bot {
 
     /// Read the map (D-191): enemy animals on own land, near own animals they eat, anywhere;
     /// plant cover per side; water.
-    fn intel(&self, w: &World) -> Intel {
+    fn intel(&self, w: &World, vis: &[bool]) -> Intel {
         let (n, n2) = (w.state.n, w.state.n * w.state.n);
         let (fa, a) = (&w.fauna.p, &w.fauna.agents);
         let ns = fa.names.len();
@@ -644,7 +648,7 @@ impl Bot {
         for j in (0..a.len()).filter(|&j| a.owner[j] == self.player) {
             mine[a.cell(j, n)] |= 1 << a.sp[j];
         }
-        for j in (0..a.len()).filter(|&j| a.owner[j] == 3 - self.player) {
+        for j in (0..a.len()).filter(|&j| a.owner[j] == 3 - self.player && vis[a.cell(j, n)]) {
             let (s, k) = (usize::from(a.sp[j]), a.cell(j, n));
             i.seen[s] += 1;
             if w.state.owner[k] == self.player && fa.role[s] == Role::Herbivore {
@@ -669,7 +673,7 @@ impl Bot {
             for k in (0..n2).filter(|&k| w.state.bio[s * n2 + k] >= 1) {
                 match w.state.owner[k] {
                     o if o == self.player => i.own_plants[s] += 1,
-                    o if o == 3 - self.player => i.enemy_plants[s] += 1,
+                    o if o == 3 - self.player && vis[k] => i.enemy_plants[s] += 1,
                     _ => {}
                 }
             }
@@ -1222,7 +1226,7 @@ impl Bot {
         }
         let (w, n) = (v.w, v.n);
         let (fa, a) = (&w.fauna.p, &w.fauna.agents);
-        let enemy = |j: usize| a.owner[j] == 3 - self.player;
+        let enemy = |j: usize| a.owner[j] == 3 - self.player && v.vis[a.cell(j, n)]; // D-249
         for &q in &v.threats {
             // Where most of them are: the cell with the most of species q.
             let mut cells: Vec<usize> = (0..a.len())
@@ -1340,7 +1344,7 @@ impl Bot {
             // Only where the disc spares the bot's own land (D-148): cards hit both sides.
             let near = near_own(usize::try_from(c.p.radius[k]).unwrap_or(0));
             let enemy: Vec<usize> = (0..n2)
-                .filter(|&e| w.state.owner[e] == 3 - self.player && !near[e])
+                .filter(|&e| w.state.owner[e] == 3 - self.player && !near[e] && v.vis[e])
                 .collect();
             let at = match c.p.act(k) {
                 Act::KillTrees => enemy
@@ -1771,16 +1775,12 @@ mod tests {
         for _ in 0..600 {
             w.step();
         }
+        // The enemy's animals, already where the test wants them (D-245: they would walk there
+        // from P1's den).
         for &(c, row, col) in calls {
-            send(
-                &mut w,
-                1,
-                Payload::Spawn {
-                    species: c.into(),
-                    row,
-                    col,
-                },
-            );
+            let s = w.fauna.p.index(c).expect("a species");
+            let at = usize::try_from(row * 38 + col).unwrap();
+            w.fauna.place(s, 1, at, w.fauna.p.group_size(s), 38);
         }
         let mut bot = Bot::new(2, level, Style::Balanced, &b);
         let mut sent = Vec::new();
@@ -1850,7 +1850,7 @@ mod tests {
                 level,
                 &|_| {},
                 &["grasses", "grasshoppers"],
-                &[("grasshoppers", 8, 8)],
+                &[("grasshoppers", 23, 29)], // just past its border: seen (D-249)
                 40,
             );
             unlocks(&sent)
@@ -2022,14 +2022,34 @@ mod tests {
         w
     }
 
+    /// D-249: the bot reads enemy animals through its fog: a herd far from its land goes unseen
+    /// until it comes near.
+    #[test]
+    fn the_bot_does_not_see_through_the_fog() {
+        let b = balance();
+        let mut w = painted(
+            &b,
+            &|r, _| if r >= 30 { 2 } else { u8::from(r < 4) },
+            &|_, _| vec!["grasses"],
+        );
+        let rabbits = w.fauna.p.index("rabbits").unwrap();
+        w.fauna.place(rabbits, 1, 15 * 38 + 10, 3, 38); // mid map, out of the bot's sight
+        let mut bot = Bot::new(2, Level::Hard, Style::Balanced, &b);
+        assert_eq!(bot.view(&w).intel.seen[rabbits], 0, "unseen");
+        w.fauna.place(rabbits, 1, 29 * 38 + 10, 3, 38); // at its border
+        assert_eq!(bot.view(&w).intel.seen[rabbits], 3, "seen");
+    }
+
     /// D-248: an army-heavy bot opens its raid with the cheap aphid blight, cast on enemy land
     /// clear of its own; a balanced normal bot does not.
     #[test]
     fn a_rush_bot_opens_raids_with_a_blight() {
         let b = balance();
-        let w = painted(&b, &|r, _| if r >= 19 { 2 } else { 1 }, &|_, _| {
+        let mut w = painted(&b, &|r, _| if r >= 19 { 2 } else { 1 }, &|_, _| {
             vec!["grasses"]
         });
+        let rabbits = w.fauna.p.index("rabbits").unwrap();
+        w.fauna.place(rabbits, 2, 17 * 38 + 10, 2, 38); // its raiders see the enemy's land (D-249)
         let mut bot = Bot::new(2, Level::Normal, Style::Rush, &b);
         let v = bot.view(&w);
         let Some(Payload::Catastrophe { kind, row, .. }) = bot.catastrophe(&v) else {

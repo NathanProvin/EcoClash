@@ -57,6 +57,7 @@ export interface Fields {
   deadwood?: Uint8Array; // live only: standing dead wood per cell, 0..255 (D-127)
   flood?: number[]; // live only: cells under flood water (D-132)
   moisture?: Uint8Array; // live only: moisture per cell, 0..255 (D-135)
+  vis?: Uint8Array; // live with fog only: 1 in sight, 0 in the fog (D-249)
 }
 
 /** What stands on one cell at one tick (the cell panel). */

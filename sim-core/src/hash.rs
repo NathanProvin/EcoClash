@@ -183,6 +183,9 @@ pub fn balance_hash(b: &Balance) -> u64 {
     crate::terrain::TerrainParams::from_balance(b).hash_into(&mut h);
     crate::catastrophe::CatastropheParams::from_balance(b).hash_into(&mut h);
     crate::weather::WeatherParams::from_balance(b).hash_into(&mut h);
+    for &r in &b.fog.layer_sight {
+        h.u64(u64::from(r)); // D-249: the bots read the world through it
+    }
     h.finish()
 }
 

@@ -177,6 +177,14 @@ pub struct CatastropheRule {
     pub effect: String,
 }
 
+/// `[fog]` (D-249): what each player sees. An own cell reveals `layer_sight` cells by its
+/// highest established layer (L1..L4; a bare own cell as L1); an animal its species' `sight`.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FogRules {
+    pub layer_sight: [u32; crate::flora::LEVELS],
+}
+
 /// `[deadwood]` (D-127): natural tree death, standing dead wood and its rot.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -516,6 +524,7 @@ pub struct Balance {
     pub agents: AgentRules,
     pub fauna: FaunaRules,
     pub deadwood: DeadwoodRules,
+    pub fog: FogRules,
     /// Catastrophe cards by name, in name order (D-129).
     pub catastrophes: std::collections::BTreeMap<String, CatastropheRule>,
     pub weather: WeatherRules,
@@ -537,6 +546,7 @@ struct BalanceFile {
     agents: AgentRules,
     fauna: FaunaRules,
     deadwood: DeadwoodRules,
+    fog: FogRules,
     catastrophes: std::collections::BTreeMap<String, CatastropheRule>,
     weather: WeatherRules,
     r#match: MatchRules,
@@ -558,6 +568,7 @@ impl Balance {
             agents: file.agents,
             fauna: file.fauna,
             deadwood: file.deadwood,
+            fog: file.fog,
             catastrophes: file.catastrophes,
             weather: file.weather,
             r#match: file.r#match,

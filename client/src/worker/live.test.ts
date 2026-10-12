@@ -137,6 +137,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
       [-1, -1],
     ],
     caps: [[10], [0]],
+    vis: new Uint8Array([1, 1, 1, 1]).buffer,
   });
   const unlocked = [
     [1, 0, 1],
@@ -226,4 +227,38 @@ test("plant orders decode to species names and taken flags (D-241)", () => {
     { player: 1, species: "grasses", row: 4, col: 5, taken: true },
     { player: 2, species: "lichen", row: 7, col: 8, taken: false },
   ]);
+});
+
+test("fog of war: cells out of sight keep what was last seen there (D-249)", async () => {
+  vi.stubGlobal("Worker", FakeWorker);
+  const live = await Live.start(1, 2);
+  const worker = FakeWorker.last as FakeWorker;
+  const fields = (owner: number[], vis: number[]) => ({
+    type: "fields",
+    tick: 8,
+    // owner, soil, grasses, oak: 4 cells each
+    frame: new Uint8Array([...owner, 0, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0]).buffer,
+    pressure: new Uint8Array(4).buffer,
+    strength: new Uint8Array(8).buffer,
+    cellIncome: new Uint8Array(4).buffer,
+    factor: [100, 100],
+    lock: new Uint8Array(8).buffer,
+    deadwood: new Uint8Array(4).buffer,
+    flood: [],
+    moisture: new Uint8Array(4).buffer,
+    bank: [0, 0],
+    income: [0, 0],
+    standing: [0, 0],
+    victory: 0.8,
+    dens: [
+      [0, -1],
+      [-1, -1],
+    ],
+    caps: [[1], [1]],
+    vis: new Uint8Array(vis).buffer,
+  });
+  worker.emit(fields([1, 1, 2, 2], [1, 1, 1, 1]));
+  worker.emit(fields([1, 1, 1, 1], [1, 1, 0, 1])); // P1 took cells 2 and 3; cell 2 is fogged
+  expect([...live.fields().owner]).toEqual([1, 1, 2, 1]);
+  expect(live.meta.series["territory_p1"]?.at(-1)).toBe(1); // the score keeps the truth
 });

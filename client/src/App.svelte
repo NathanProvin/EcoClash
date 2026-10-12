@@ -453,6 +453,12 @@
     // Most arrivals come with a call (D-179), not every one.
     if (call && Math.random() < DROP_CALL) setTimeout(() => audio.play(call, { at: place }), 450);
   });
+  // Fog of war (D-249): your sight during a match; the whole map once it is over.
+  $effect(() => {
+    const on = !!live?.fog && !outcome;
+    if (live && outcome) live.fog = false;
+    if (viewer) viewer.fogPlayer = on && live ? live.me : 0;
+  });
   /** Your population cap per animal species (D-246), refreshed with the fields. */
   const animalCaps = $derived.by(() => {
     void tick;
@@ -1047,6 +1053,7 @@
         // ?size=N wins (tools); in a lockstep match the host's seed and size win (D-219).
         const size = Number(q.get("size") ?? MAP_SIZES[s.map]);
         live = await Live.start(s.seed, size, s.sandbox, botSpec(s), relay, tutorial);
+        live.fog = !s.sandbox; // fog of war (D-249): off in a sandbox
         joining = false;
         player = live.me; // view your own side
         const other = relay

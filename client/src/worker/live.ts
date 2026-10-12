@@ -96,6 +96,7 @@ export type ToMain =
       victory: number; // the share of the map that wins now (D-175)
       dens: number[][]; // per player: the land and water den cells, -1 for none (D-245)
       caps: number[][]; // per player: the population cap of each animal species (D-246)
+      vis: ArrayBuffer; // per cell: 1 in your sight, 0 in the fog (D-249)
     }
   | { type: "notice"; notices: { player: number; text: string }[] }
   | { type: "net"; event: "desync" | "left"; tick: number }
@@ -180,6 +181,10 @@ export class Live implements Source {
   readonly victory: number;
   /** The share that wins now: the start share, then decaying (D-175). */
   victoryNow: number;
+  /** Fog of war (D-249): off in a sandbox (set by the caller). */
+  fog = true;
+  /** The plant fields last seen in each cell, under the fog (D-249). */
+  private seen: Fields | null = null;
   /** Per player: the population cap of each animal species, by fauna index (D-246). */
   caps: number[][] = [[], []];
   /** Per player: the land and water den cells, -1 for none yet (D-245). */
@@ -415,6 +420,7 @@ export class Live implements Source {
       this.victoryNow = m.victory;
       this.dens = m.dens;
       this.caps = m.caps;
+      if (this.fog) this.hide(new Uint8Array(m.vis));
     } else if (m.type === "notice") {
       const at = performance.now();
       this.notices = [...this.notices, ...m.notices.map((n) => ({ ...n, at }))].slice(-4);
@@ -461,6 +467,35 @@ export class Live implements Source {
   }
 
   /** Decode a frame, refresh the per-player plant census, and append a row to the HUD series. */
+  /** Fog of war (D-249): cells out of sight show what was last seen there (owner, plants,
+   *  front); the series and census, worked out before, keep the truth. */
+  private hide(vis: Uint8Array): void {
+    const f = this.current;
+    const last = this.seen;
+    f.vis = vis;
+    if (last) {
+      const layers = (g: Fields) => [
+        g.owner,
+        g.soil,
+        ...g.species,
+        ...g.cover,
+        ...[g.pressure, g.strength, g.deadwood].filter((x): x is Uint8Array => !!x),
+      ];
+      const [now, then] = [layers(f), layers(last)];
+      if (now.length === then.length)
+        for (let k = 0; k < vis.length; k++) {
+          if (vis[k]) continue;
+          now.forEach((a, i) => {
+            const b = then[i];
+            if (!b) return;
+            const per = a.length / vis.length; // strength: two bytes per cell
+            for (let j = 0; j < per; j++) a[k * per + j] = b[k * per + j] ?? 0;
+          });
+        }
+    }
+    this.seen = f;
+  }
+
   private decode(
     frame: number,
     bytes: Uint8Array,

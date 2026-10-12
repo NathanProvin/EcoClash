@@ -70,6 +70,8 @@ pub struct World {
     pub catastrophes: Catastrophes,
     /// Weather events and their alerts (D-132).
     pub weather: Weather,
+    /// Fog of war (D-249): cells an own cell reveals, by its highest layer L1..L4.
+    pub fog_sight: [u32; crate::flora::LEVELS],
     /// Why recent orders did nothing, for the UI: (player, text). Not part of the state hash;
     /// callers drain it (`take_notices`).
     pub notices: Vec<(u8, String)>,
@@ -147,6 +149,7 @@ impl World {
             economy: Economy::new(balance, &fauna.p),
             fauna,
             catastrophes: Catastrophes::new(CatastropheParams::from_balance(balance)),
+            fog_sight: balance.fog.layer_sight,
             weather: Weather::new(WeatherParams::from_balance(balance), seed),
             notices: Vec::new(),
             plantings: Vec::new(),
@@ -625,6 +628,40 @@ impl World {
             .collect()
     }
 
+    /// What `player` sees (D-249), one flag per cell: around each own cell, as far as its highest
+    /// established layer's `layer_sight` (a bare own cell as L1), and around each own animal, as
+    /// far as its species' sight. Derived from the state, never hashed: the display and the bots
+    /// read it; lockstep peers still hold the whole state.
+    #[must_use]
+    pub fn visible(&self, player: u8) -> Vec<bool> {
+        let n = self.state.n;
+        let ni = i64::try_from(n).unwrap_or(0);
+        let mut seen = vec![false; n * n];
+        let mut reveal = |k: usize, r: i64| {
+            let (y, x) = (
+                i64::try_from(k / n).unwrap_or(0),
+                i64::try_from(k % n).unwrap_or(0),
+            );
+            for yy in (y - r).max(0)..=(y + r).min(ni - 1) {
+                for xx in (x - r).max(0)..=(x + r).min(ni - 1) {
+                    if (yy - y).pow(2) + (xx - x).pow(2) <= r * r {
+                        seen[usize::try_from(yy * ni + xx).unwrap_or(0)] = true;
+                    }
+                }
+            }
+        };
+        let dom = self.flora.dominant(&self.state);
+        for k in (0..n * n).filter(|&k| self.state.owner[k] == player) {
+            let layer = usize::from(dom[k].max(1)) - 1;
+            reveal(k, i64::from(self.fog_sight[layer]));
+        }
+        let a = &self.fauna.agents;
+        for i in (0..a.len()).filter(|&i| a.owner[i] == player) {
+            reveal(a.cell(i, n), self.fauna.p.sight(usize::from(a.sp[i])));
+        }
+        seen
+    }
+
     /// Moisture per cell, 0..=255, for the map overlays (D-135).
     #[must_use]
     pub fn moisture_frame(&self) -> Vec<u8> {
@@ -667,6 +704,35 @@ mod tests {
             r.fill(0); // every card open (D-248 has its own test)
         }
         w
+    }
+
+    /// D-249: an own grass cell sees 1 cell, a tree cell 4, an animal its sight; the enemy's
+    /// land is no help.
+    #[test]
+    fn fog_reveals_by_layer_and_by_animal_sight() {
+        let mut w = World::new(&balance(), 3, 40);
+        let n = 40;
+        let grass = w.flora.p.index("grasses").unwrap();
+        let oak = w.flora.p.index("oak").unwrap();
+        let at = |r: usize, c: usize| r * n + c;
+        w.state.owner[at(2, 2)] = 1;
+        w.state.bio[grass * n * n + at(2, 2)] = w.flora.p.kmax[grass];
+        w.state.owner[at(15, 15)] = 1;
+        w.state.bio[oak * n * n + at(15, 15)] = w.flora.p.kmax[oak];
+        w.state.owner[at(10, 2)] = 2; // enemy land reveals nothing to P1
+        w.state.bio[grass * n * n + at(10, 2)] = w.flora.p.kmax[grass];
+        let seen = w.visible(1);
+        assert!(seen[at(3, 2)] && !seen[at(4, 2)], "grass: 1 cell");
+        assert!(seen[at(15, 19)] && !seen[at(15, 10)], "oak: 4 cells");
+        assert!(!seen[at(10, 2)] && !seen[at(10, 4)]);
+        let fox = w.fauna.p.index("fox").unwrap();
+        w.fauna.place(fox, 1, at(30, 20), 1, n);
+        let r = usize::try_from(w.fauna.p.sight(fox)).unwrap();
+        let seen = w.visible(1);
+        assert!(
+            seen[at(30, 20 - r)] && !seen[at(30, 20 - r - 1)],
+            "the fox's sight"
+        );
     }
 
     /// D-248: a card is refused before it opens; an aphid blight thins the herbs of its disc and

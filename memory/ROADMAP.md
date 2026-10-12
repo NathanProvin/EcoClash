@@ -128,7 +128,7 @@ In this order:
 ## Alpha 1.5 · Gameplay and balance rework (D-243…D-250; branch `alpha-1.5`)
 Anti-snowball and "better ecosystem, more units" (user, 2026-10-12). One step per commit.
 - [x] 0. Spec: gamerules §3, §4.3, §6.3, §6.4, §7, §9.2, §10, §10b, §10d; D-243…D-250; INSTRUCTIONS.
-- [ ] 1. Shade removed; layer multiplier; biodiversity 0.6 / cap 4 (D-243).
+- [x] 1. Shade removed; layer multiplier; biodiversity 0.6 / cap 4 (D-243).
 - [ ] 2. Grazers by role, damage by tier (D-244).
 - [ ] 3. Dens, no remote drops (D-245).
 - [ ] 4. Founders, habitat carrying capacity, spreading, hold order (D-246).

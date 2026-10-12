@@ -35,15 +35,10 @@ pub struct FloraRules {
     /// Brush radius of a player's plant order (a command parameter, not a rule: not hashed).
     pub plant_radius: u32,
     pub succession: bool,
-    pub shade: bool,
     /// Strength gain at full soil development (D-225): strength x (1 + fert_gain x soil).
     pub fert_gain: f64,
-    /// Strength gain under a closed canopy (D-236): strength x (1 + canopy_gain x the shade the
-    /// cell casts on its ground).
-    pub canopy_gain: f64,
-    /// Side shade (D-236): strength x (1 - edge_shade x the strongest enemy neighbour's ground
-    /// shade x this cell's own open ground).
-    pub edge_shade: f64,
+    /// Strength multiplier of a cell's highest established layer, L1..L4 (D-243).
+    pub layer_mult: [f64; crate::flora::LEVELS],
     /// Vigor floor (D-236): vigor = vigor_floor + (1 - vigor_floor) x the mean layer fill, so a
     /// cell just taken (layers at the establish threshold) is not defenceless.
     pub vigor_floor: f64,
@@ -392,14 +387,12 @@ pub struct FloraSpecies {
     pub family: String,
     pub tier: u8,
     // Model.
-    /// Height stratum, 1..=`flora::LEVELS`: shade and competition act between strata.
+    /// Height stratum, 1..=`flora::LEVELS`: competition acts within a stratum.
     pub level: u8,
     #[serde(default)]
     pub pioneer: bool,
     pub biomass_rate: f64,
     pub k_max: f64,
-    pub shade_cast: f64,
-    pub shade_tolerance: f64,
     pub soil_gain: f64,
     #[serde(default)]
     pub water_optimum: f64,
@@ -678,14 +671,13 @@ impl Balance {
         )?;
         check(f.hold_s >= 0.0, "[flora] hold_s must be >= 0".into())?;
         check(
-            (0.0..=4.0).contains(&f.canopy_gain)
-                && (0.0..=1.0).contains(&f.edge_shade)
+            f.layer_mult.iter().all(|m| (0.5..=4.0).contains(m))
                 && (0.0..=1.0).contains(&f.vigor_floor)
                 && (0.0..=1.0).contains(&f.shallow_seep)
                 && (0.0..=1.0).contains(&f.bedrock_boost)
                 && (0.0..=1.0).contains(&f.div_gain)
                 && (1.0..=8.0).contains(&f.div_cap),
-            "[flora] canopy_gain in 0..4; edge_shade, vigor_floor, shallow_seep, bedrock_boost, div_gain in 0..1; div_cap in 1..8"
+            "[flora] layer_mult in 0.5..4; vigor_floor, shallow_seep, bedrock_boost, div_gain in 0..1; div_cap in 1..8"
                 .into(),
         )?;
         check(
@@ -707,14 +699,6 @@ impl Balance {
             check(
                 s.cap > 0.0 && s.cap <= 1.0,
                 format!("{n}: cap is a share of the map, in 0..1 (D-045)"),
-            )?;
-            check(
-                (0.0..1.0).contains(&s.shade_cast),
-                format!("{n}: shade_cast must be in 0..1"),
-            )?;
-            check(
-                (0.0..=1.0).contains(&s.shade_tolerance),
-                format!("{n}: shade_tolerance must be in 0..1"),
             )?;
             // The fast flora step needs every established species to have biomass (D-038).
             check(
@@ -915,9 +899,9 @@ mod tests {
 
     #[test]
     fn rejects_bad_values_with_a_readable_error() {
-        let bad = SPECIES.replacen("shade_cast = 0.85", "shade_cast = 1.5", 1);
+        let bad = SPECIES.replacen("k_max = 7000", "k_max = 70000", 1);
         let err = Balance::from_toml(BALANCE, &bad).unwrap_err();
-        assert!(err.contains("beech") && err.contains("shade_cast"), "{err}");
+        assert!(err.contains("ferns") && err.contains("k_max"), "{err}");
         // D-123: at most three foods, primary first.
         let long = SPECIES.replacen(
             r#"eats = ["grasses", "wildflowers"]"#,

@@ -9,7 +9,6 @@ const fields: Fields = {
   soil: new Uint8Array([0, 255, 51, 0]),
   species: [new Uint8Array([200, 0, 0, 0]), new Uint8Array([10, 30, 0, 0])],
   cover: [new Uint8Array([255, 30, 0, 0]), new Uint8Array(4), new Uint8Array(4), new Uint8Array(4)],
-  shade: new Uint8Array([0, 0, 50, 100]),
 };
 
 describe("overlays", () => {
@@ -17,7 +16,6 @@ describe("overlays", () => {
     const soil = overlayValues("soil", fields, [], 2);
     [0, 1, 0.2, 0].forEach((v, k) => expect(soil[k]).toBeCloseTo(v));
     expect(overlayValues("L1", fields, [], 2)[0]).toBe(1);
-    expect([...overlayValues("shade", fields, [], 2)]).toEqual([0, 0, 0.5, 1]); // relative
   });
 
   it("shows the bedrock as classes, clear where there is none (D-240)", () => {

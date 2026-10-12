@@ -90,7 +90,6 @@ export type ToMain =
       lock: ArrayBuffer;
       deadwood: ArrayBuffer;
       flood: number[]; // cells under flood water (D-132)
-      shade: ArrayBuffer; // shade on the ground per cell, 0..255 (D-135)
       moisture: ArrayBuffer; // moisture per cell, 0..255 (D-135)
       bank: number[];
       income: number[];
@@ -407,7 +406,6 @@ export class Live implements Source {
       this.current.lock = new Uint8Array(m.lock);
       this.current.deadwood = new Uint8Array(m.deadwood);
       this.current.flood = m.flood;
-      this.current.shade = new Uint8Array(m.shade);
       this.current.moisture = new Uint8Array(m.moisture);
       this.victoryNow = m.victory;
     } else if (m.type === "notice") {

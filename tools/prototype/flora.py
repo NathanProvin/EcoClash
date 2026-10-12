@@ -96,7 +96,7 @@ class Flora:
         for n, s in zip(self.names, sp, strict=True):
             assert 1 <= s["level"] <= STRATA, n
             assert 0 < s["k_max"] <= U16, n
-            assert 0 <= s["shade_cast"] < 1 and 0 <= s["shade_tolerance"] <= 1, n
+            assert 0 <= s.get("shade_cast", 0) < 1 and 0 <= s.get("shade_tolerance", 1) <= 1, n
             assert s["biomass_rate"] * self.dt < 1, f"{n}: biomass_rate * dt must stay < 1"
             assert s["growth"] * self.dt <= 1, f"{n}: growth * dt must stay <= 1"
             assert 0 < s["cap"] <= 1, f"{n}: cap is a share of the map (D-045)"
@@ -114,8 +114,8 @@ class Flora:
         self.yld = col("yield")  # points per second per fully covered cell (economy)
         self.cap = col("cap", ONE)  # share of the map's cells per player (Q16, D-045)
         self.soil_dt = col("soil_gain", self.dt * U16)
-        self.cast = col("shade_cast", ONE)
-        self.tol = col("shade_tolerance", ONE)
+        self.cast = col("shade_cast", ONE, 0.0)  # shade retired in sim-core (D-243)
+        self.tol = col("shade_tolerance", ONE, 1.0)
         self.alpha = np.float64(f["niche_overlap"] * ONE)
         self.seed_b = self.kmax * f["seed_fraction"]
         self.est_thr = self.kmax * f["establish_threshold"]

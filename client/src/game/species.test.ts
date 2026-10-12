@@ -186,7 +186,7 @@ describe("build card helpers", () => {
 
   it("gives each card a few quick stats, in real seconds (D-106)", () => {
     const grass = quickStats(sp("grasses", "flora", 1, 1, 0));
-    expect(grass.map((q) => q.icon)).toEqual(["coin", "biomass", "spread", "cap", "soil", "shade"]);
+    expect(grass.map((q) => q.icon)).toEqual(["coin", "biomass", "spread", "cap", "soil"]);
     const fox = sp("fox", "fauna", 5, 1, 0);
     expect(quickStats(fox).map((q) => q.icon)).toEqual(["coin", "biomass", "egg", "cap"]);
     const breeds = (pace: number) => parseFloat(quickStats(fox, pace)[2]?.value ?? "");

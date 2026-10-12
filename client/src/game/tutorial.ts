@@ -123,7 +123,7 @@ export const OBJECTIVES: Objective[] = [
     title: "Grow a second layer",
     need: 1000, // Ferns 600 + a planting
     text: "Unlock Ferns in Undergrowth and plant them where your soil is rich.",
-    tip: "At the front, a taller layer shades and smothers the enemy's lower plants: that is how borders move.",
+    tip: "Each taller layer and each extra species makes a cell stronger at the front: that is how borders move.",
     point: ["family-L2"],
     done: (s) => s.layer >= 2,
   },

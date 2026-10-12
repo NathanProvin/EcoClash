@@ -409,13 +409,7 @@ impl Sim {
         self.world.pressure_frame()
     }
 
-    /// Standing dead wood per cell, 0..=255 (D-127).
-    /// Shade on the ground and moisture per cell, 0..=255, for the map overlays (D-135).
-    #[wasm_bindgen(js_name = shadeFrame)]
-    pub fn shade_frame(&self) -> Vec<u8> {
-        self.world.shade_frame()
-    }
-
+    /// Moisture per cell, 0..=255, for the map overlays (D-135).
     #[wasm_bindgen(js_name = moistureFrame)]
     pub fn moisture_frame(&self) -> Vec<u8> {
         self.world.moisture_frame()
@@ -553,7 +547,7 @@ fn species_table(b: &Balance) -> String {
                 "yield": s.yield_, "cap": s.cap, "effect": s.effect,
                 "water": s.water_optimum, "water_tolerance": s.water_tolerance,
                 "bedrock": s.bedrock, "bedrock_boost": b.flora.bedrock_boost,
-                "soil_gain": s.soil_gain, "shade_cast": s.shade_cast,
+                "soil_gain": s.soil_gain,
                 "soil_need": if s.pioneer { 0.0 } else {
                     (b.flora.soil_min_level[usize::from(s.level) - 1] - b.flora.soil_ramp).max(0.0)
                 },

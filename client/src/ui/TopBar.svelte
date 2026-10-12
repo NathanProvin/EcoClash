@@ -78,7 +78,6 @@
     soil: "soil",
     diversity: "diversity",
     moisture: "water",
-    shade: "shade",
     bedrock: "rock",
   } as const;
   const QUALITIES: [Quality, string][] = [

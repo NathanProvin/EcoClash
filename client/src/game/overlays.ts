@@ -7,8 +7,7 @@ import type { TerrainFrame } from "../render/terrain";
 import { BEDROCK_NAMES } from "./species";
 import { hexToRgb, OVERLAY_RAMPS } from "../render/palette";
 
-export type OverlayId =
-  "soil" | "L1" | "L2" | "L3" | "L4" | "diversity" | "moisture" | "shade" | "bedrock";
+export type OverlayId = "soil" | "L1" | "L2" | "L3" | "L4" | "diversity" | "moisture" | "bedrock";
 
 export interface Overlay {
   id: OverlayId;
@@ -42,7 +41,6 @@ export const OVERLAYS: Overlay[] = [
   { id: "moisture", label: "Moisture", high: "wet ground", ramp: "moisture", live: true, row: 2 },
   { id: "soil", label: "Soil", high: "fertile soil", ramp: "soil", row: 2 },
   { id: "diversity", label: "Diversity", high: "many species", ramp: "diversity", row: 3 },
-  { id: "shade", label: "Shade", high: "deep shade", ramp: "shade", live: true, row: 3 },
 ];
 
 /** Opacity of the overlay at value 0 and at value 1 (0..255); categories use one opacity. */
@@ -50,8 +48,7 @@ const ALPHA = [15, 170] as const;
 const CLASS_ALPHA = 150;
 
 /** Each cell's value, 0..1 (row-major, `n * n`). Diversity counts the plant species growing
- *  there and the animal species standing there, relative to the richest cell of the map; shade
- *  too is relative to the darkest cell. */
+ *  there and the animal species standing there, relative to the richest cell of the map. */
 export function overlayValues(
   id: OverlayId,
   fields: Fields,
@@ -76,10 +73,7 @@ export function overlayValues(
     }
   } else if (id === "soil") bytes(fields.soil);
   else if (id === "moisture") bytes(fields.moisture);
-  else if (id === "shade") {
-    bytes(fields.shade);
-    relative();
-  } else if (id === "diversity") {
+  else if (id === "diversity") {
     for (const c of fields.species)
       for (let k = 0; k < cells; k++) if (c[k]) out[k] = (out[k] ?? 0) + 1;
     const seen = new Set<number>();

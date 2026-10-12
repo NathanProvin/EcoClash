@@ -36,8 +36,6 @@ pub struct FloraParams {
     /// Colonization gauge speed per tick at full pressure (Q16): the `growth` stat.
     pub rate: Vec<i64>,
     pub soil_dt: Vec<i64>,
-    pub cast: Vec<i64>,
-    pub tol: Vec<i64>,
     pub alpha: i64,
     pub seed_b: Vec<i64>,
     pub est_thr: Vec<i64>,
@@ -59,12 +57,11 @@ pub struct FloraParams {
     /// Share of the map's cells each player may hold, per species (Q16; D-029, D-045).
     pub cap: Vec<i64>,
     pub succession: bool,
-    pub shade: bool,
     /// Strength gain at full soil development (Q16, D-225).
     pub fert: i64,
-    /// Strength gain under a full canopy, biodiversity gain per species and its cap (Q16, D-236).
-    pub canopy: i64,
-    pub edge: i64,
+    /// Strength multiplier of the cell's highest established layer (Q16, D-243).
+    pub layer: [i64; LEVELS],
+    /// Vigor floor, biodiversity gain per species and its cap (Q16, D-236).
     pub floor: i64,
     /// Least moisture response in the shallows (Q16, D-239).
     pub seep: i64,
@@ -134,8 +131,6 @@ impl FloraParams {
             kmax: v(kmax_f.clone()),
             rate: v(col(&|s| s.growth, dt * one)),
             soil_dt: v(col(&|s| s.soil_gain, dt * u16f)),
-            cast: v(col(&|s| s.shade_cast, one)),
-            tol: v(col(&|s| s.shade_tolerance, one)),
             alpha: round(f.niche_overlap * one),
             seed_b: v(kmax_f.iter().map(|k| k * f.seed_fraction).collect()),
             est_thr: v(kmax_f.iter().map(|k| k * f.establish_threshold).collect()),
@@ -156,10 +151,8 @@ impl FloraParams {
             cap: v(col(&|s| s.cap, one)),
             level,
             succession: f.succession,
-            shade: f.shade,
             fert: round(f.fert_gain * one),
-            canopy: round(f.canopy_gain * one),
-            edge: round(f.edge_shade * one),
+            layer: std::array::from_fn(|l| round(f.layer_mult[l] * one)),
             floor: round(f.vigor_floor * one),
             seep: round(f.shallow_seep * one),
             div: round(f.div_gain * one),
@@ -199,8 +192,6 @@ impl FloraParams {
             &self.rdt,
             &self.rate,
             &self.soil_dt,
-            &self.cast,
-            &self.tol,
             &self.seed_b,
             &self.est_thr,
             &self.smother,
@@ -224,14 +215,13 @@ impl FloraParams {
             .i64(self.water0)
             .i64(self.light0)
             .i64(self.fert)
-            .i64(self.canopy)
-            .i64(self.edge)
             .i64(self.floor)
             .i64(self.seep)
             .i64(self.div)
             .i64(self.div_cap)
             .i64(self.hold);
-        h.bytes(&[u8::from(self.succession), u8::from(self.shade)]);
+        h.i64s(&self.layer);
+        h.bytes(&[u8::from(self.succession)]);
     }
 }
 
@@ -483,31 +473,6 @@ impl Flora {
         response(x, self.p.w_opt[s], self.p.w_tol[s])
     }
 
-    /// The shade each stratum casts on the strata below, from the cover of each species (Q16):
-    /// `casts[u]` for stratum u + 1 (u = 0, the herbs, casts on nothing).
-    pub(crate) fn casts(&self, cover: impl Fn(usize) -> i64) -> [i64; LEVELS] {
-        let p = &self.p;
-        std::array::from_fn(|u| {
-            div(
-                p.strata[u].iter().map(|&j| p.cast[j] * cover(j)).sum(),
-                ONE_I,
-            )
-        })
-    }
-
-    /// The light left (Q16, ONE: full) for a plant of `level` with shade tolerance `tol` under
-    /// `casts`: each higher stratum blocks its cast, less the tolerated share.
-    pub(crate) fn light(casts: &[i64; LEVELS], level: u8, tol: i64) -> i64 {
-        let mut light = ONE_I;
-        for (u, &cast) in casts.iter().enumerate().skip(1) {
-            if usize::from(level) <= u {
-                let block = div(cast * (ONE_I - tol), ONE_I);
-                light = div(light * (ONE_I - block).max(0), ONE_I);
-            }
-        }
-        light
-    }
-
     /// Whether cell `k` lies on species `s`'s favourite bedrock (D-240).
     #[must_use]
     pub fn favoured(&self, st: &FloraState, s: usize, k: usize) -> bool {
@@ -597,66 +562,33 @@ impl Flora {
         i64::try_from(plants).unwrap_or(0) + i64::from(animals)
     }
 
-    /// The shade cell `k`'s plants cast on its ground (Q16, 0..=ONE).
-    fn ground_shade(&self, st: &FloraState, k: usize) -> i64 {
-        let cells = st.n * st.n;
-        let casts = self.casts(|s| div(st.bio[s * cells + k] * ONE_I, self.p.kmax[s]));
-        ONE_I - Self::light(&casts, 1, 0)
-    }
-
-    /// Strength of cell `k` for its owner (Q16, D-236): vigor x canopy x side shade x fertility
-    /// x biodiversity. Vigor: `floor` + (1 - `floor`) x the mean fill of the owner's established
+    /// Strength of cell `k` for its owner (Q16, D-236, D-243): vigor x layer x fertility x
+    /// biodiversity. Vigor: `floor` + (1 - `floor`) x the mean fill of the owner's established
     /// layers (each layer's summed cover, at most 1), weighted by its species' spread rate x
-    /// cover x light, so young or shaded layers weigh little. Canopy: 1 + `canopy` x the shade
-    /// cast on the ground. Side shade: 1 - `edge` x the strongest enemy neighbour's ground shade
-    /// x own open ground. Fertility: 1 + `fert` x soil development. Biodiversity: 1 + `div` x
-    /// species, at most `div_cap`.
+    /// cover, so young layers weigh little. Layer: `layer` of the highest established layer.
+    /// Fertility: 1 + `fert` x soil development. Biodiversity: 1 + `div` x species, at most
+    /// `div_cap`.
     #[must_use]
     pub fn strength(&self, st: &FloraState, k: usize) -> i64 {
-        self.strength_with(st, k, |m| self.ground_shade(st, m))
-    }
-
-    /// Every cell's strength (Q16, D-236), each cell's ground shade computed once.
-    #[must_use]
-    pub fn strengths(&self, st: &FloraState) -> Vec<i64> {
-        let cells = st.n * st.n;
-        let shade: Vec<i64> = (0..cells).map(|k| self.ground_shade(st, k)).collect();
-        (0..cells)
-            .map(|k| self.strength_with(st, k, |m| shade[m]))
-            .collect()
-    }
-
-    /// `strength`, with the neighbours' ground shade from `shade`.
-    fn strength_with(&self, st: &FloraState, k: usize, shade: impl Fn(usize) -> i64) -> i64 {
-        let (p, n, cells) = (&self.p, st.n, st.n * st.n);
+        let (p, cells) = (&self.p, st.n * st.n);
         let o = st.owner[k];
         if o == 0 {
             return 0;
         }
-        let mut cov = [0i64; 64]; // at most 64 species (the step's presence bitmask)
-        let mut est = 0u64;
-        for s in 0..p.species() {
-            let b = st.bio[s * cells + k];
-            if b > 0 {
-                cov[s] = div(b * ONE_I, p.kmax[s]);
-                est |= u64::from(b >= p.est_thr[s]) << s;
-            }
-        }
-        let cover = |s: usize| cov[s];
-        let casts = self.casts(cover);
-        let (mut num, mut den) = (0i64, 0i64);
+        let cover = |s: usize| div(st.bio[s * cells + k] * ONE_I, p.kmax[s]);
+        let est = |s: usize| st.bio[s * cells + k] >= p.est_thr[s];
+        let (mut num, mut den, mut top, mut count) = (0i64, 0i64, 0usize, 0i64);
         for (l, strat) in p.strata.iter().enumerate() {
-            if !strat.iter().any(|&s| est >> s & 1 == 1) {
+            let here = strat.iter().filter(|&&s| est(s)).count();
+            if here == 0 {
                 continue;
             }
-            let level = u8::try_from(l + 1).unwrap_or(u8::MAX);
+            count += i64::try_from(here).unwrap_or(0);
+            top = l;
             let fill = strat.iter().map(|&s| cover(s)).sum::<i64>().min(ONE_I);
             let weight: i64 = strat
                 .iter()
-                .map(|&s| {
-                    let light = Self::light(&casts, level, p.tol[s]);
-                    div(div(p.rate[s] * cover(s), ONE_I) * light, ONE_I)
-                })
+                .map(|&s| div(p.rate[s] * cover(s), ONE_I))
                 .sum();
             num += weight * fill;
             den += weight;
@@ -665,29 +597,18 @@ impl Flora {
             return 0;
         }
         let vigor = p.floor + div((ONE_I - p.floor) * div(num, den), ONE_I);
-        let open = Self::light(&casts, 1, 0);
-        let canopy = ONE_I + div(p.canopy * (ONE_I - open), ONE_I);
-        let (y, x) = (k / n, k % n);
-        let side = [
-            (y > 0).then(|| k - n),
-            (y + 1 < n).then(|| k + n),
-            (x > 0).then(|| k - 1),
-            (x + 1 < n).then(|| k + 1),
-        ]
-        .into_iter()
-        .flatten()
-        .filter(|&m| st.owner[m] != 0 && st.owner[m] != o)
-        .map(shade)
-        .max()
-        .unwrap_or(0);
-        let shaded = (ONE_I - div(div(p.edge * side, ONE_I) * open, ONE_I)).max(0);
         let fert = ONE_I + div(p.fert * st.soil[k], U16);
         let animals = self.residents.get(k).map_or(0, |r| r[usize::from(o) - 1]);
-        let species = i64::from(est.count_ones()) + i64::from(animals);
-        let diversity = (ONE_I + p.div * species).min(p.div_cap);
-        [canopy, shaded, fert, diversity]
+        let diversity = (ONE_I + p.div * (count + i64::from(animals))).min(p.div_cap);
+        [p.layer[top], fert, diversity]
             .into_iter()
             .fold(vigor, |v, m| div(v * m, ONE_I))
+    }
+
+    /// Every cell's strength (Q16).
+    #[must_use]
+    pub fn strengths(&self, st: &FloraState) -> Vec<i64> {
+        (0..st.n * st.n).map(|k| self.strength(st, k)).collect()
     }
 
     /// Each owned cell's strength and the enemy's push on it (Q16, D-225): the summed strength
@@ -862,18 +783,12 @@ impl Flora {
                 v
             });
 
-            // 1-2. Shade and logistic growth with competition, for the species present here.
-            let casts = self.casts(|j| cover[at(j)]);
+            // 1-2. Logistic growth with competition, for the species present here (no shade, D-243).
             let totals: [i64; LEVELS] =
                 std::array::from_fn(|l| p.strata[l].iter().map(|&j| cover[at(j)]).sum());
             for s in species().filter(|&s| bio[at(s)] > 0) {
-                let shade = if p.shade {
-                    Self::light(&casts, p.level[s], p.tol[s])
-                } else {
-                    ONE_I
-                };
                 let i = at(s);
-                let cap = div(shade * st.gauge[i], ONE_I).max(1);
+                let cap = st.gauge[i].max(1);
                 let total = totals[usize::from(p.level[s]) - 1];
                 let comp = cover[i] + div(p.alpha * (total - cover[i]), ONE_I);
                 growth[s] = grow_div(p.rdt[s] * bio[i] * (cap - comp), cap * ONE_I);
@@ -1081,27 +996,7 @@ impl Flora {
             .map(|i| self.suitability(st, i / cells, i % cells))
             .collect();
 
-        // 1. Shade: the cover of each upper stratum lowers the capacity of the species below it.
-        let mut shade = vec![ONE_I; ns * cells];
-        if p.shade {
-            for u in 1..LEVELS {
-                for k in 0..cells {
-                    let cast = div(
-                        p.strata[u]
-                            .iter()
-                            .map(|&j| p.cast[j] * cover[at(j, k)])
-                            .sum(),
-                        ONE_I,
-                    );
-                    for s in (0..ns).filter(|&s| usize::from(p.level[s]) <= u) {
-                        let block = div(cast * (ONE_I - p.tol[s]), ONE_I);
-                        shade[at(s, k)] = div(shade[at(s, k)] * (ONE_I - block).max(0), ONE_I);
-                    }
-                }
-            }
-        }
-
-        // 2. Growth: logistic toward capacity = shade x gauge, with competition in a stratum.
+        // 1-2. Growth: logistic toward capacity = gauge, with competition in a stratum (D-243).
         let mut growth = vec![0i64; ns * cells];
         for ids in &p.strata {
             for k in 0..cells {
@@ -1111,7 +1006,7 @@ impl Flora {
                     if !present(s, k) {
                         continue;
                     }
-                    let cap = div(shade[i] * st.gauge[i], ONE_I).max(1);
+                    let cap = st.gauge[i].max(1);
                     let comp = cover[i] + div(p.alpha * (total - cover[i]), ONE_I);
                     growth[i] = grow_div(p.rdt[s] * bio[i] * (cap - comp), cap * ONE_I);
                     if growth[i] > 0 && self.favoured(st, s, k) {
@@ -1640,11 +1535,10 @@ mod tests {
         assert_eq!(f.strength(&st, 0), f.p.div_cap, "biodiversity capped");
     }
 
-    /// D-236: strength follows the layers' fill (grazing lowers it), a young layer adds to it
-    /// (no dip), a canopy raises it, and an enemy canopy next door shades an open cell down
-    /// while a cell under its own canopy barely feels it.
+    /// D-236, D-243: strength follows the layers' fill (grazing lowers it), a young layer adds
+    /// to it (no dip), and the highest layer multiplies it by its `layer` factor.
     #[test]
-    fn strength_follows_fill_canopy_and_side_shade() {
+    fn strength_follows_fill_and_highest_layer() {
         let f = flora();
         let n = 4;
         let id = |name: &str| f.p.index(name).unwrap();
@@ -1663,32 +1557,30 @@ mod tests {
 
         let mut forest = base.clone();
         forest.bio[id("oak") * n * n] = f.p.kmax[id("oak")];
-        let canopy = f.strength(&forest, 0);
-        let d3 = (ONE_I + 3 * f.p.div).min(f.p.div_cap);
-        assert!(
-            canopy > div(div(full, ONE_I + 2 * f.p.div) * d3, ONE_I),
-            "a canopy adds more than its species"
+        let d = |c: i64| (ONE_I + c * f.p.div).min(f.p.div_cap);
+        let expect = div(
+            div(div(full * ONE_I, d(2)) * d(3), ONE_I) * f.p.layer[3],
+            ONE_I,
         );
+        assert!(
+            (f.strength(&forest, 0) - expect).abs() <= 2,
+            "a tree layer: x layer[L4] and one more species: {} vs {expect}",
+            f.strength(&forest, 0)
+        );
+    }
 
-        // k = 1 is P1's front cell; its enemy neighbour k = 2 grows a dense canopy.
-        let (k, e) = (1, 2);
-        let mut shaded = base.clone();
-        for t in ["oak", "hawthorn"].map(id) {
-            shaded.bio[t * n * n + e] = f.p.kmax[t];
+    /// D-243: two L1 species barely established (30 % each) beat one L1 species fully grown.
+    #[test]
+    fn two_half_l1_species_beat_one_full_grass() {
+        let f = flora();
+        let n = 4;
+        let id = |name: &str| f.p.index(name).unwrap();
+        let mut st = split_map(&f, n, 2, &["grasses"], &["grasses"]);
+        let one = f.strength(&st, 0);
+        for s in ["grasses", "lichen_and_moss"].map(id) {
+            st.bio[s * n * n] = f.p.est_thr[s]; // each just established: the layer 60 % filled
         }
-        let open_drop = f.strength(&base, k) - f.strength(&shaded, k);
-        assert!(
-            open_drop > f.strength(&base, k) / 4,
-            "open ground: shaded down"
-        );
-        let (mut own, mut both) = (base.clone(), shaded);
-        own.bio[id("beech") * n * n + k] = f.p.kmax[id("beech")];
-        both.bio[id("beech") * n * n + k] = f.p.kmax[id("beech")];
-        let canopy_drop = f.strength(&own, k) - f.strength(&both, k);
-        assert!(
-            canopy_drop * 4 < open_drop,
-            "own canopy: barely ({canopy_drop} vs {open_drop})"
-        );
+        assert!(f.strength(&st, 0) > one, "{} vs {one}", f.strength(&st, 0));
     }
 
     /// D-225: a straight front between equal sides holds; fertility tips it.

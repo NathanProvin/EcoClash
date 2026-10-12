@@ -38,7 +38,9 @@ pub fn line_clear(n: usize, stand: &dyn Fn(usize) -> bool, a: (i64, i64), b: (i6
 }
 
 /// The cells of a shortest path from `from` to `to` (both included), exploring at most `limit`
-/// cells; None when `to` cannot be reached within that.
+/// cells. When `to` cannot be reached (blocked, not standable, or too far to look), the path to
+/// the explored cell nearest it instead, so an order always gets as close as it can (play test:
+/// raids across the map and swimmers ordered onto land stayed put); None when no step helps.
 #[must_use]
 pub fn route(
     n: usize,
@@ -49,9 +51,6 @@ pub fn route(
 ) -> Option<Vec<usize>> {
     if from == to {
         return Some(vec![from]);
-    }
-    if !stand(to) {
-        return None;
     }
     let cells = n * n;
     let (ty, tx) = (to / n, to % n);
@@ -66,21 +65,15 @@ pub fn route(
     cost[from] = 0;
     open.push(Reverse((guess(from), from)));
     let mut explored = 0;
+    let mut best = (guess(from), from); // the explored cell nearest the goal
     while let Some(Reverse((_, k))) = open.pop() {
         if k == to {
-            let mut path = vec![to];
-            while let Some(&last) = path.last() {
-                if last == from {
-                    break;
-                }
-                path.push(came[last]);
-            }
-            path.reverse();
-            return Some(path);
+            return Some(path_to(&came, from, to));
         }
+        best = best.min((guess(k), k));
         explored += 1;
         if explored > limit {
-            return None;
+            break;
         }
         let (y, x) = (k / n, k % n);
         for (dy, dx) in [
@@ -120,7 +113,20 @@ pub fn route(
             }
         }
     }
-    None
+    (best.1 != from).then(|| path_to(&came, from, best.1))
+}
+
+/// The cells from `from` to `end` along the `came` links of a search.
+fn path_to(came: &[usize], from: usize, end: usize) -> Vec<usize> {
+    let mut path = vec![end];
+    while let Some(&last) = path.last() {
+        if last == from {
+            break;
+        }
+        path.push(came[last]);
+    }
+    path.reverse();
+    path
 }
 
 #[cfg(test)]
@@ -165,15 +171,14 @@ mod tests {
         assert_eq!(path.last(), Some(&20));
         assert!(path.iter().all(|&k| open[k]), "never on a blocked cell");
         assert!(path.contains(&4) && path.contains(&15), "through both gaps");
+        // A closed wall: the path ends at the open cell nearest the goal, beside the wall.
         let (n, open) = grid(&["..#..", "..#..", "..#..", "..#..", "..#.."]);
-        assert!(
-            route(n, &|k: usize| open[k], 0, 4, 100).is_none(),
-            "a closed wall"
-        );
-        assert!(
-            route(n, &|k: usize| open[k], 0, 4, 3).is_none(),
-            "or too far to look"
-        );
+        let path = route(n, &|k: usize| open[k], 0, 4, 100).expect("as close as it can");
+        assert_eq!(path.last(), Some(&1));
+        // Too far to look: the path heads toward the goal and stops short.
+        let (n, open) = grid(&["....", "....", "....", "...."]);
+        let path = route(n, &|k: usize| open[k], 0, 15, 2).expect("a first stretch");
+        assert!(path.len() > 1 && path.last() != Some(&15));
     }
 
     #[test]
@@ -181,7 +186,7 @@ mod tests {
         let (n, open) = grid(&[".#", "#."]);
         assert!(
             route(n, &|k: usize| open[k], 0, 3, 100).is_none(),
-            "two corners touch only"
+            "two corners touch only: no step helps"
         );
     }
 }

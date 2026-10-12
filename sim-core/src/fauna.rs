@@ -1483,10 +1483,20 @@ impl Fauna {
                     limit(a.x[i] + a.vx[i] * e + spread(rng, w)),
                 )
             });
-            // A target it cannot stand on (a flight into a pond, a stroll onto rock): stay.
-            let fits = pathing::cell_at(ty, tx, n)
-                .is_some_and(|k| self.p.medium[usize::from(a.sp[i])].stands(st.ground[k]));
-            let (ty, tx) = if fits { (ty, tx) } else { (a.y[i], a.x[i]) };
+            // A target it cannot stand on: an order or a meal there goes to the standable cell
+            // nearest it (an order onto water stops at the bank, larvae sent onto land go to the
+            // nearest water; play test); a stroll there (onto rock, into a pond) stays.
+            let medium = self.p.medium[usize::from(a.sp[i])];
+            let at = pathing::cell_at(ty, tx, n);
+            let fits = at.is_some_and(|k| medium.stands(st.ground[k]));
+            let (ty, tx) = match (fits, at) {
+                (true, _) => (ty, tx),
+                (false, Some(k)) if target[i].is_some() => {
+                    let ok: Vec<bool> = st.ground.iter().map(|&g| medium.stands(g)).collect();
+                    closest(&ok, n, k).map_or((a.y[i], a.x[i]), |c| (centre(c / n), centre(c % n)))
+                }
+                _ => (a.y[i], a.x[i]),
+            };
             if (ty, tx) != (a.ty[i], a.tx[i]) {
                 a.py[i] = ROUTE;
             }
@@ -2245,6 +2255,59 @@ mod tests {
             5,
             "room for two more: two births, not three"
         );
+    }
+
+    /// Play test: a long order around water arrives, even past the route search's reach (it
+    /// walks as far as it can, then routes again), and after a Stop.
+    #[test]
+    fn a_long_order_around_a_wall_arrives_after_a_stop() {
+        let (fl, mut fa, mut st, mut rng) = setup(40);
+        meadow(&fl, &mut st, "grasses");
+        for r in 0..39 {
+            st.ground[r * 40 + 20] = crate::terrain::DEEP; // a wall of deep water, a gap at the bottom
+        }
+        let rabbits = fa.p.index("rabbits").unwrap();
+        fa.p.rest.fill(0);
+        fa.agents
+            .push(rabbits, 1, centre(2), centre(2), ONE_I * 1000, 0);
+        let id = fa.agents.id[0];
+        fa.order(1, &[id], OrderKind::Stop, (0, 0));
+        fa.order(1, &[id], OrderKind::Move, (2, 37));
+        for t in 0..3000 {
+            fa.walk(&st, &mut rng);
+            if t % 8 == 0 {
+                fa.decide(&fl.p, &st, &mut rng);
+            }
+        }
+        assert!(
+            fa.agents.cell(0, 40) % 40 > 30,
+            "got across: {}",
+            fa.agents.cell(0, 40)
+        );
+    }
+
+    /// Play test: swimmers ordered onto land go to the water nearest the click.
+    #[test]
+    fn larvae_ordered_onto_land_go_to_the_nearest_water() {
+        let (fl, mut fa, mut st, mut rng) = setup(20);
+        for c in 0..20 {
+            st.ground[5 * 20 + c] = SHALLOW; // a stream along row 5
+        }
+        let larvae = fa.p.index("larvae").unwrap();
+        fa.p.rest.fill(0);
+        fa.agents
+            .push(larvae, 1, centre(5), centre(2), ONE_I * 1000, 0);
+        let id = fa.agents.id[0];
+        fa.order(1, &[id], OrderKind::Move, (9, 15)); // on land, below the stream
+        for t in 0..800 {
+            fa.walk(&st, &mut rng);
+            if t % 8 == 0 {
+                fa.decide(&fl.p, &st, &mut rng);
+            }
+        }
+        let k = fa.agents.cell(0, 20);
+        assert_eq!(k / 20, 5, "in the stream");
+        assert!(k % 20 >= 12, "next to the click: {}", k % 20);
     }
 
     /// D-246: a species' cap is `per_cell` x own cells holding its habitat.

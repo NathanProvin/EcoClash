@@ -1134,3 +1134,28 @@
   - the 3×3 deck with countdowns to each card's opening.
   The new cards' effects and sounds have not been seen in play yet.
 - **Checks:** the full CI set is green.
+
+## 2026-10-12 (3) · Alpha 1.5, play-test round 3 (D-253)
+- **Bugs fixed:**
+  - **Reeds and cattails could not be planted.** As non-pioneers they needed developed soil, which shallows barely build since D-237. Water plants now need none (`FloraSpecies::needs_soil`).
+  - **Orders that stayed put** (after a Stop, raids across the map, larvae). The route search gave up past 400 cells and the animal stayed; a goal it couldn't stand on also meant "stay".
+    - The search now covers the whole map (`path_cells` 4 000). When the goal can't be reached it walks to the nearest reachable cell.
+    - An order onto ground the animal can't stand on goes to the nearest cell it can (larvae → the nearest water, walkers → the bank).
+    - Sim tick with 1 500 animals: average 1.2 ms, worst tick 8.7 ms (flat map).
+  - **Esc left full screen.** Esc is now kept for the game (keyboard lock, Chromium).
+- **Look:**
+  - light grey fog with faint, half-speed clouds;
+  - a rebuilt den, 30 % bigger: lumpy mound, dark mouth with a dug-earth rim, roots, pebbles, three flowers;
+  - a beaver lodge for the water den;
+  - bought animals come out of the den's mouth, growing; the parachutes are gone.
+- **Move den (D-253):** 2 000 points, built over 20 s while both cells must hold, from the cell card.
+- **UI:**
+  - the menu button now comes before the full-screen button;
+  - "Waiting for the other player…" shows bottom left.
+- **Checked in the browser:**
+  - the fog;
+  - the new burrow close up;
+  - a Stop, then a Move across the map, which arrives.
+
+  Not yet seen: the lodge on a water map, the emergence from close up, Move den in play.
+- **Checks:** the full CI set is green.

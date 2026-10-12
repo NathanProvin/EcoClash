@@ -105,7 +105,7 @@ function burrow(): THREE.Group {
   // The entrance, on the front (+z): a lighter rim of dug earth round a deep, dark tunnel.
   const mouth = new THREE.Group();
   const y0 = h * 0.38;
-  const z0 = rz * Math.sqrt(Math.max(0, 1 - (y0 / h) ** 2)) * 0.98;
+  const z0 = rz * Math.sqrt(Math.max(0, 1 - (y0 / h) ** 2)) * (1 + DEN.lumps);
   mouth.position.set(0, y0, z0);
   mouth.rotation.x = -0.35;
   const rim = new THREE.Mesh(
@@ -114,20 +114,18 @@ function burrow(): THREE.Group {
   );
   rim.scale.set(1.15, 0.9, 1);
   mouth.add(rim);
-  const tunnel = new THREE.Mesh(
-    new THREE.CylinderGeometry(DEN.hole, DEN.hole * 0.8, DEN.hole * 3, 14, 1, true),
-    new THREE.MeshBasicNodeMaterial({ color: DEN.hole_color, side: THREE.DoubleSide }),
-  );
-  tunnel.rotation.x = Math.PI / 2;
-  tunnel.position.z = -DEN.hole * 1.4;
-  tunnel.scale.set(1.15, 1, 0.9);
-  mouth.add(tunnel);
-  const back = new THREE.Mesh(
-    new THREE.CircleGeometry(DEN.hole * 0.9, 14),
-    new THREE.MeshBasicNodeMaterial({ color: DEN.hole_color }),
-  );
-  back.position.z = -DEN.hole * 2.8;
-  mouth.add(back);
+  // The opening: a dark, deep-looking disc on the mound's face (the tunnel itself would hide
+  // inside the solid mound), and a darker core for depth.
+  const dark = (c: string) =>
+    new THREE.MeshBasicNodeMaterial({ color: c, polygonOffset: true, polygonOffsetFactor: -2 });
+  const opening = new THREE.Mesh(new THREE.CircleGeometry(DEN.hole * 1.02, 16), dark("#2a1a0e"));
+  opening.scale.set(1.15, 0.9, 1);
+  opening.position.z = 0.04;
+  mouth.add(opening);
+  const core = new THREE.Mesh(new THREE.CircleGeometry(DEN.hole * 0.7, 16), dark(DEN.hole_color));
+  core.scale.set(1.15, 0.9, 1);
+  core.position.set(0, -DEN.hole * 0.08, 0.06);
+  mouth.add(core);
   g.add(mouth);
   // Dug earth spilling out of the entrance.
   const spill = new THREE.Mesh(

@@ -2859,13 +2859,13 @@ Template:
 - **Decision:**
   - The shade mechanic is removed entirely: no shade cap on growth, no canopy or side-shade term in strength. `shade_cast` / `shade_tolerance`, `canopy_gain`, `edge_shade` and the `shade` switch go away.
   - Strength = vigor × `layer_mult[highest established layer]` × fertility × biodiversity, with `layer_mult = [1.0, 1.15, 1.3, 1.5]`.
-  - Biodiversity is raised: `div_gain` 0.6, `div_cap` 4, so two L1 species half grown beat one fully grown.
+  - Biodiversity is raised: `div_gain` 0.6, `div_cap` 4, so two L1 species half grown beat one fully grown. (Play test 2026-10-12: 0.5.)
 
 ## D-244 · 2026-10-12 · Grazers by role, impact by tier
 - **Status:** accepted (user)
 - **Decision:**
   - A grazer eats every plant of its family's layer (H1 → L1, H2 → L2, H3 → L3, H4 → L4, HW → W), all at the primary diet yield, and that layer is its habitat.
-  - Its tier multiplies the damage on enemy plants (`[fauna] tier_damage = [1, 1.5, 2]`).
+  - Its tier multiplies the damage on enemy plants (`[fauna] tier_damage = [1, 1.5, 2]`; play test 2026-10-12: [1, 2, 3]).
   - Grazer sheets lose `eats` and `habitat`. Hunters and recyclers keep their lists.
 
 ## D-245 · 2026-10-12 · Dens: no remote drops (supersedes D-061)
@@ -2912,6 +2912,7 @@ Template:
 - **Status:** accepted (user; values are starting points for the user's play tests)
 - **Decision:**
   - Plant spread (`growth`): ×0.7 on pioneers, ×0.8 on the rest.
+  - Play test 2026-10-12: L1 and L2 spread ×0.7 again; L3 and L4 spread and `biomass_rate` ×1.3.
   - Plant `yield` ×2, so that income at 10 min matches Alpha 1.4 under production income: 29/s against 26/s, bots Normal vs Normal, 8 seeds.
   - Animal densities:
     - `per_cell` = the old fixed cap / 20, so the old cap is reached at 20 habitat cells (rabbits 5, fox 1, lynx 0.4);

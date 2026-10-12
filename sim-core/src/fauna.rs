@@ -2716,8 +2716,8 @@ mod tests {
         assert!(eaten > 0);
         assert_eq!(
             lost,
-            6 * eaten,
-            "graze_damage 4 x tier_damage 1.5 (rabbits: tier 2)"
+            8 * eaten,
+            "graze_damage 4 x tier_damage 2 (rabbits: tier 2)"
         );
         assert!(st.dead[k] > 0, "the eaten part goes to litter");
     }
@@ -2771,7 +2771,7 @@ mod tests {
         assert!(!fa.p.eats_plant(sp("bison"), plant("reeds")));
         assert_eq!(
             fa.p.damage[sp("bison")],
-            2 * fa.p.damage[sp("grasshoppers")]
+            3 * fa.p.damage[sp("grasshoppers")]
         );
     }
 

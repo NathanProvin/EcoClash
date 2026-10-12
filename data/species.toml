@@ -37,7 +37,7 @@
 #   defaulting to [fauna]; rest = chance to stay put at an idle decision (stop-and-go).
 
 [flora.lichen_and_moss]
-growth = 0.875
+growth = 0.612
 spawn_cost = 18
 unlock_cost = 0
 yield = 0.1
@@ -55,7 +55,7 @@ water_tolerance = 0.9
 bedrock = "schist_granite"
 
 [flora.grasses]
-growth = 0.84
+growth = 0.588
 spawn_cost = 22
 unlock_cost = 170
 yield = 0.24
@@ -73,7 +73,7 @@ water_tolerance = 0.5
 bedrock = "silt_sand"
 
 [flora.wildflowers]
-growth = 0.64
+growth = 0.448
 spawn_cost = 40
 unlock_cost = 1500
 yield = 0.4
@@ -91,7 +91,7 @@ water_tolerance = 0.4
 bedrock = "clay_limestone"
 
 [flora.ferns]
-growth = 0.21
+growth = 0.147
 spawn_cost = 35
 unlock_cost = 800
 yield = 0.28
@@ -109,7 +109,7 @@ water_tolerance = 0.35
 bedrock = "schist_granite"
 
 [flora.nettle]
-growth = 0.56
+growth = 0.392
 spawn_cost = 60
 unlock_cost = 1600
 yield = 0.32
@@ -127,7 +127,7 @@ water_tolerance = 0.4
 bedrock = "silt_sand"
 
 [flora.bramble]
-growth = 0.64
+growth = 0.448
 spawn_cost = 60
 unlock_cost = 3200
 yield = 0.36
@@ -145,7 +145,7 @@ water_tolerance = 0.55
 bedrock = "clay_limestone"
 
 [flora.elder]
-growth = 0.48
+growth = 0.624
 spawn_cost = 100
 unlock_cost = 3000
 yield = 0.4
@@ -155,7 +155,7 @@ family = "L3"
 tier = 1
 level = 3
 pioneer = false
-biomass_rate = 0.08
+biomass_rate = 0.104
 k_max = 20000
 soil_gain = 0.0001
 water_optimum = 0.65
@@ -163,7 +163,7 @@ water_tolerance = 0.4
 bedrock = "schist_granite"
 
 [flora.hawthorn]
-growth = 0.4
+growth = 0.52
 spawn_cost = 120
 unlock_cost = 6000
 yield = 0.5
@@ -173,7 +173,7 @@ family = "L3"
 tier = 2
 level = 3
 pioneer = false
-biomass_rate = 0.04
+biomass_rate = 0.052
 k_max = 25000
 soil_gain = 0.0001
 water_optimum = 0.35
@@ -181,7 +181,7 @@ water_tolerance = 0.45
 bedrock = "clay_limestone"
 
 [flora.hazel]
-growth = 0.56
+growth = 0.728
 spawn_cost = 150
 unlock_cost = 9000
 yield = 0.6
@@ -191,7 +191,7 @@ family = "L3"
 tier = 3
 level = 3
 pioneer = false
-biomass_rate = 0.05
+biomass_rate = 0.065
 k_max = 22000
 soil_gain = 0.0001
 water_optimum = 0.55
@@ -199,7 +199,7 @@ water_tolerance = 0.4
 bedrock = "silt_sand"
 
 [flora.oak]
-growth = 0.24
+growth = 0.312
 spawn_cost = 200
 unlock_cost = 12000
 yield = 1.6
@@ -209,7 +209,7 @@ family = "L4"
 tier = 1
 level = 4
 pioneer = false
-biomass_rate = 0.0135
+biomass_rate = 0.0175
 k_max = 60000
 soil_gain = 0.0003
 water_optimum = 0.5
@@ -217,7 +217,7 @@ water_tolerance = 0.45
 bedrock = "clay_limestone"
 
 [flora.chestnut]
-growth = 0.4
+growth = 0.52
 spawn_cost = 220
 unlock_cost = 15000
 yield = 1.8
@@ -227,7 +227,7 @@ family = "L4"
 tier = 2
 level = 4
 pioneer = false
-biomass_rate = 0.027
+biomass_rate = 0.0351
 k_max = 62000
 soil_gain = 0.0003
 water_optimum = 0.35
@@ -235,7 +235,7 @@ water_tolerance = 0.4
 bedrock = "schist_granite"
 
 [flora.beech]
-growth = 0.32
+growth = 0.416
 spawn_cost = 250
 unlock_cost = 18000
 yield = 2
@@ -245,7 +245,7 @@ family = "L4"
 tier = 3
 level = 4
 pioneer = false
-biomass_rate = 0.018
+biomass_rate = 0.0234
 k_max = 65000
 soil_gain = 0.0003
 water_optimum = 0.6
@@ -253,7 +253,7 @@ water_tolerance = 0.35
 bedrock = "silt_sand"
 
 [flora.algae_and_lilies]
-growth = 0.7
+growth = 0.49
 spawn_cost = 20
 unlock_cost = 500
 yield = 0.3
@@ -271,7 +271,7 @@ water_tolerance = 0.25
 bedrock = "silt_sand"
 
 [flora.reeds]
-growth = 0.56
+growth = 0.392
 spawn_cost = 30
 unlock_cost = 1200
 yield = 0.5
@@ -289,7 +289,7 @@ water_tolerance = 0.35
 bedrock = "silt_sand"
 
 [flora.cattails]
-growth = 0.4
+growth = 0.52
 spawn_cost = 60
 unlock_cost = 3000
 yield = 0.8
@@ -299,7 +299,7 @@ family = "W"
 tier = 3
 level = 3
 pioneer = false
-biomass_rate = 0.08
+biomass_rate = 0.104
 k_max = 20000
 soil_gain = 0.0004
 water_optimum = 0.9

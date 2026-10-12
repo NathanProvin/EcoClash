@@ -123,7 +123,7 @@ export type Source = Pick<
   unlocked?: (player: number) => Set<string>;
   /** The generated map (live matches, D-083); replays are flat. */
   terrain?: TerrainFrame;
-  /** When an animal was dropped by a spawn order (ms, performance.now), for its parachute. */
+  /** When an animal was bought by a spawn order (ms, performance.now), to bring it out of the den. */
   droppedAt?: (id: number) => number | undefined;
 };
 

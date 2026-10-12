@@ -104,7 +104,7 @@ export type ToMain =
   | { type: "net"; event: "desync" | "left"; tick: number }
   | { type: "error"; message: string };
 
-/** How long a dropped animal is remembered, for its parachute (ms; the fall is shorter). */
+/** How long a bought animal is remembered, to bring it out of the den (ms). */
 const DROP_MEMORY_MS = 5000;
 
 /** Why an order did nothing, shown for a few seconds. */

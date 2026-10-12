@@ -161,7 +161,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
   worker.emit({ type: "tick", tick: 8, agents: agents([[1, 0, 0, 0, 1]]), ...tick });
   worker.emit({ type: "tick", tick: 9, agents: agents([[1, 0, 1, 0, 1]]), ...tick });
   expect(live.result).toBeNull();
-  expect(live.droppedAt(1)).toBeDefined(); // ids 1 and 2 were dropped: they parachute in
+  expect(live.droppedAt(1)).toBeDefined(); // ids 1 and 2 were bought: they come out of the den
   expect(live.droppedAt(3)).toBeUndefined();
   expect([live.wasCalled(2), live.wasCalled(3)]).toEqual([true, false]); // 3 was born (D-141)
   expect(live.meta.series["standing_p1"]?.[live.seriesIndex()]).toBe(5000);

@@ -711,7 +711,7 @@ impl Bot {
             }
             let cost = w.economy.unit_cost(w.economy.animal(s)) >> 16;
             let weight = 3 * i.raiders[s] * cost
-                + 10 * at_den[s] * cost
+                + 10 * at_den.get(s).copied().unwrap_or(0) * cost
                 + if stalk { 2 * i.stalkers[s] * cost } else { 0 }
                 + if anticipate { i.seen[s] * cost } else { 0 };
             if weight == 0 {

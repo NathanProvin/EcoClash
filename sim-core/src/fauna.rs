@@ -91,6 +91,8 @@ pub struct FaunaParams {
     /// A drop lands within this many cells of the click (D-061).
     /// The aquatic plants (family W), whose cells make a water den (D-245).
     water_plants: u32,
+    /// Flora ticks to build a moved den (D-253).
+    pub den_build: i64,
     flee: i64,
     refuge: u32,
     refuge_cover: i64,
@@ -256,6 +258,7 @@ impl FaunaParams {
             soil_per_dead: round(fa.soil_per_dead * one),
             lockout: round(fa.lockout_s * hz / f64::from(b.sim.flora_every_ticks)),
             water_plants: flora_mask(&["W".to_string()]),
+            den_build: round(fa.den_build_s * hz / f64::from(b.sim.flora_every_ticks)).max(1),
             flee,
             refuge: flora_mask(&fa.refuge_flora),
             refuge_cover: round(fa.refuge_cover * one),
@@ -404,6 +407,7 @@ impl FaunaParams {
             self.diet_yield[2],
             self.own_graze,
             self.own_min,
+            self.den_build,
             self.soil_per_dead,
             self.lockout,
             self.flee,
@@ -652,6 +656,9 @@ pub struct Fauna {
     /// Each player's dens (D-245), `[land, water]` cells (`NO_DEN`: none yet): every bought
     /// animal appears there. Hashed with the agents.
     pub dens: [[usize; 2]; 2],
+    /// A land den being moved (D-253), per player: the new cell and the flora ticks left. Both
+    /// cells are dens until it is built. Hashed with the dens.
+    pub den_move: [Option<(usize, i64)>; 2],
 }
 
 /// No den yet (D-245).
@@ -694,6 +701,7 @@ impl Fauna {
             bite: ONE_I,
             kills: Vec::new(),
             dens: [[NO_DEN; 2]; 2],
+            den_move: [None; 2],
         }
     }
 
@@ -1660,6 +1668,17 @@ impl Fauna {
                 }
             }
             self.dens[usize::from(player) - 1] = [land, water];
+        }
+        // A moved den is built (D-253).
+        for p in 0..2 {
+            if let Some((cell, left)) = self.den_move[p] {
+                if left <= 1 {
+                    self.dens[p][0] = cell;
+                    self.den_move[p] = None;
+                } else {
+                    self.den_move[p] = Some((cell, left - 1));
+                }
+            }
         }
     }
 

@@ -51,6 +51,7 @@ class FakeWorker {
           tickHz: 10,
           pace: 1,
           plantRadius: 2,
+          denMoveCost: 2000,
           victory: 0.6,
           timeLimitS: 1200,
           terrain: new Uint8Array(8).buffer,
@@ -137,6 +138,7 @@ test("live source decodes frames into census, HUD series, animals and cells", as
       [-1, -1],
     ],
     caps: [[10], [0]],
+    moves: [[], []],
     vis: new Uint8Array([1, 1, 1, 1]).buffer,
   });
   const unlocked = [
@@ -255,6 +257,7 @@ test("fog of war: cells out of sight keep what was last seen there (D-249)", asy
       [-1, -1],
     ],
     caps: [[1], [1]],
+    moves: [[], []],
     vis: new Uint8Array(vis).buffer,
   });
   worker.emit(fields([1, 1, 2, 2], [1, 1, 1, 1]));

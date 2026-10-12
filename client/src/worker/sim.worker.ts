@@ -49,6 +49,7 @@ function sendFields(s: Sim) {
   const victory = s.victoryNow();
   const dens = [[...s.dens(1)], [...s.dens(2)]]; // D-245
   const caps = [[...s.animalCaps(1)], [...s.animalCaps(2)]]; // D-246
+  const moves = [[...s.denMove(1)], [...s.denMove(2)]]; // D-253
   const vis = s.visibilityFrame(net?.player ?? 1).buffer as ArrayBuffer; // fog of war (D-249) // the share that wins now (D-175)
   post(
     {
@@ -69,6 +70,7 @@ function sendFields(s: Sim) {
       victory,
       dens,
       caps,
+      moves,
       vis,
     },
     [frame, pressure, strength, cellIncome, lock, deadwood, moisture, vis],
@@ -187,6 +189,7 @@ async function begin(
     tickHz: s.tickHz,
     pace: s.pace,
     plantRadius: s.plantRadius,
+    denMoveCost: s.denMoveCost, // D-253
     victory: s.victoryTerritory,
     timeLimitS: s.timeLimitS,
     maxAgents: s.maxAgents,

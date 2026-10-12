@@ -51,6 +51,8 @@ pub struct Economy {
     div_cap: i64,
     /// Share of a plant's income from its standing cover, the rest from its growth (Q16, D-247).
     stock: i64,
+    /// What moving the land den costs (Q16, D-253).
+    pub den_move: i64,
     /// Per species: (is an animal, family, tier) for the unlock rule.
     tree: Vec<(bool, String, u8)>,
     /// Per animal species: habitat plants (bitmask over plant species).
@@ -84,6 +86,7 @@ impl Economy {
             div_gain: round(b.economy.div_gain * one),
             div_cap: round(b.economy.div_cap * one),
             stock: round(b.economy.stock_share * one),
+            den_move: round(b.economy.den_move_cost * one),
             tree: fl
                 .iter()
                 .map(|(_, s)| (false, s.family.clone(), s.tier))
@@ -174,7 +177,8 @@ impl Economy {
             .i64(self.pace)
             .i64(self.div_gain)
             .i64(self.div_cap)
-            .i64(self.stock);
+            .i64(self.stock)
+            .i64(self.den_move);
         for (animal, family, tier) in &self.tree {
             h.u64(u64::from(*animal))
                 .u64(family.len() as u64)

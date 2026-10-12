@@ -467,6 +467,25 @@
     const names = live?.meta.fauna.names ?? [];
     return Object.fromEntries(names.map((name, i) => [name, caps[i] ?? 0]));
   });
+  /** "Move den here" on the cell card (D-253): your own grown land cell, not the den, with no
+   *  move under way. */
+  const denMoveHere = $derived.by(() => {
+    void tick;
+    const l = live;
+    const c = cell;
+    const info = cellInfo;
+    if (!l || !c || !info || outcome || info.owner !== me || info.ground !== 0) return undefined;
+    const k = c.row * l.meta.n + c.col;
+    const grown = info.plants.some((p) => p.cover >= 0.3);
+    if (!grown || l.dens[me - 1]?.[0] === k || (l.moves[me - 1]?.length ?? 0) > 0) return undefined;
+    return {
+      cost: l.denMoveCost,
+      go: () => {
+        l.moveDen(me, c.row, c.col);
+        toast("Your den moves there: it is built in a few seconds; hold both cells.", "info", c);
+      },
+    };
+  });
   /** The dens on the map (D-245, D-251): yours always, the enemy's once in sight. */
   function showDens() {
     const v = viewer;
@@ -475,9 +494,9 @@
     const vis = l.fields().vis;
     v.setDens(
       [1, 2].flatMap((p) =>
-        (l.dens[p - 1] ?? []).flatMap((cell, i) =>
+        [...(l.dens[p - 1] ?? []), l.moves[p - 1]?.[0] ?? -1].flatMap((cell, i) =>
           cell >= 0 && (p === me || !l.fog || vis?.[cell])
-            ? [{ cell, water: i === 1, owner: p }]
+            ? [{ cell, water: i === 1, owner: p, building: i === 2 }]
             : [],
         ),
       ),
@@ -1591,6 +1610,7 @@
           me={live ? me : player}
           onZoom={() => cell && viewer?.zoomToCell(cell)}
           onClose={() => inspect(null)}
+          moveDen={denMoveHere}
         />
       {/if}
       {#if unit}

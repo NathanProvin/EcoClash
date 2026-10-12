@@ -59,6 +59,8 @@ pub struct FloraRules {
 #[derive(Clone, Debug, Deserialize)]
 pub struct EconomyRules {
     pub start_budget: f64,
+    /// Moving the land den costs this (D-253).
+    pub den_move_cost: f64,
     /// Production income (D-247): a plant's income per cell is yield x (stock_share x cover +
     /// (1 - stock_share) x its gross growth over the peak logistic growth r.K/4).
     pub stock_share: f64,
@@ -258,6 +260,8 @@ pub struct FaunaRules {
     pub own_graze: f64,
     /// Own grazers bite an own plant only above this cover, and never below it (D-247).
     pub own_graze_min: f64,
+    /// Real seconds to build a moved den (D-253).
+    pub den_build_s: f64,
     /// Enemy plants lose this many times what a grazer eats (D-152): the rest is trampled to
     /// litter, so raids break fronts without feeding the raiders more.
     #[serde(default = "one")]

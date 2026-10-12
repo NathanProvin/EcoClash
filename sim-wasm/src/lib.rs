@@ -288,6 +288,35 @@ impl Sim {
             .collect()
     }
 
+    /// What moving the land den costs, in points (D-253).
+    #[wasm_bindgen(getter, js_name = denMoveCost)]
+    #[must_use]
+    #[allow(clippy::float_arithmetic, clippy::cast_precision_loss)] // display only
+    pub fn den_move_cost(&self) -> f64 {
+        self.world.economy.den_move as f64 / 65536.0
+    }
+
+    /// A player's den move under way (D-253): the new cell and the seconds left; empty if none.
+    #[wasm_bindgen(js_name = denMove)]
+    #[must_use]
+    pub fn den_move(&self, player: u8) -> Vec<u32> {
+        let w = &self.world;
+        #[allow(clippy::cast_precision_loss)]
+        let every = w.flora_every() as f64;
+        w.fauna.den_move[usize::from(player.clamp(1, 2)) - 1]
+            .map(|(cell, left)| {
+                #[allow(
+                    clippy::float_arithmetic,
+                    clippy::cast_possible_truncation,
+                    clippy::cast_sign_loss,
+                    clippy::cast_precision_loss
+                )]
+                let s = (left as f64 * every / f64::from(self.tick_hz)).ceil() as u32;
+                vec![u32::try_from(cell).unwrap_or(0), s]
+            })
+            .unwrap_or_default()
+    }
+
     /// A player's dens (D-245): the land and the water den cells, -1 for none yet.
     #[must_use]
     pub fn dens(&self, player: u8) -> Vec<i32> {

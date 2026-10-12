@@ -928,8 +928,12 @@ export class Viewer {
   }
 
   /** Show the dens (D-245, D-251): `cell` row-major, `water` for a water den. */
-  setDens(dens: readonly { cell: number; water: boolean; owner: number }[]): void {
-    const key = dens.map((d) => `${d.cell}${d.water ? "w" : ""}${d.owner}`).join(",");
+  setDens(
+    dens: readonly { cell: number; water: boolean; owner: number; building?: boolean }[],
+  ): void {
+    const key = dens
+      .map((d) => `${d.cell}${d.water ? "w" : ""}${d.building ? "b" : ""}${d.owner}`)
+      .join(",");
     if (key === this.denKey) return;
     this.denKey = key;
     if (!this.dens.parent) this.scene.add(this.dens);
@@ -938,6 +942,7 @@ export class Viewer {
     for (const d of dens) {
       const m = denModel(d.water, PLAYER[d.owner === 2 ? 2 : 1].base);
       m.position.copy(this.centre({ row: Math.floor(d.cell / n), col: d.cell % n }));
+      if (d.building) m.scale.setScalar(0.55); // a den being built (D-253)
       this.dens.add(m);
     }
   }

@@ -354,6 +354,20 @@ impl World {
                     self.notices.push((c.player, format!("{species}: {why}")));
                 }
             }
+            Payload::MoveDen { row, col } => {
+                let n = self.state.n;
+                let (Ok(r), Ok(c2)) = (usize::try_from(*row), usize::try_from(*col)) else {
+                    self.rejected += 1;
+                    return;
+                };
+                if !valid_player || r >= n || c2 >= n {
+                    self.rejected += 1;
+                    return;
+                }
+                if let Err(why) = self.move_den(c.player, r * n + c2) {
+                    self.notices.push((c.player, format!("den: {why}")));
+                }
+            }
             Payload::Grant { amount } => {
                 if !self.economy.tutorial || !valid_player {
                     self.rejected += 1;
@@ -443,9 +457,11 @@ impl World {
             })
         };
         // The den is the heart (D-251): whoever loses its den cell loses; both on one tick, a draw.
+        // A den being moved counts twice (D-253): both cells must hold.
         let fallen = [1u8, 2].map(|p| {
-            let den = self.fauna.dens[usize::from(p) - 1][0];
-            den != NO_DEN && self.state.owner.get(den) != Some(&p)
+            let pi = usize::from(p) - 1;
+            let lost = |den: usize| den != NO_DEN && self.state.owner.get(den) != Some(&p);
+            lost(self.fauna.dens[pi][0]) || self.fauna.den_move[pi].is_some_and(|(c, _)| lost(c))
         });
         if !self.economy.tutorial && fallen.contains(&true) {
             let winner = match fallen {
@@ -595,6 +611,10 @@ impl World {
             h.u64(u64::from(o.winner)).u64(o.reason as u64).u64(o.tick);
         }
         self.fauna.agents.hash_into(&mut h);
+        for m in self.fauna.den_move {
+            let (cell, left) = m.unwrap_or((0, -1)); // D-253
+            h.u64(u64::try_from(cell).unwrap_or(0)).i64(left);
+        }
         for &den in self.fauna.dens.as_flattened() {
             // D-245; NO_DEN as u64::MAX, the same on 32-bit wasm and native.
             h.u64(
@@ -641,6 +661,39 @@ impl World {
             .into_iter()
             .flat_map(|[s, p]| [tenths(s), tenths(p)])
             .collect()
+    }
+
+    /// Ticks per flora tick.
+    #[must_use]
+    pub fn flora_every(&self) -> u64 {
+        self.flora_every
+    }
+
+    /// Start moving `player`'s land den to cell `k` (D-253): an own land cell with an established
+    /// plant, not the den itself, with no move under way, paid now (free in a sandbox).
+    fn move_den(&mut self, player: u8, k: usize) -> Result<(), String> {
+        let (pi, n2) = (usize::from(player) - 1, self.state.n * self.state.n);
+        let fl = &self.flora.p;
+        let den = self.fauna.dens[pi][0];
+        if den == NO_DEN || self.fauna.den_move[pi].is_some() {
+            return Err("no den to move, or a move is under way".into());
+        }
+        let rooted = (0..fl.species()).any(|s| self.state.bio[s * n2 + k] >= fl.est_thr[s]);
+        let land = crate::balance::Medium::Walk.stands(self.state.ground[k]);
+        if k == den || self.state.owner[k] != player || !rooted || !land {
+            return Err("pick one of your own grown land cells".into());
+        }
+        let cost = if self.economy.sandbox {
+            0
+        } else {
+            self.economy.den_move
+        };
+        if self.economy.bank[pi] < cost {
+            return Err(format!("needs {} biomass", cost / i64::from(ONE)));
+        }
+        self.economy.pay(player, cost);
+        self.fauna.den_move[pi] = Some((k, self.fauna.p.den_build));
+        Ok(())
     }
 
     /// What `player` sees (D-249), one flag per cell: around each own cell, as far as its highest
@@ -760,6 +813,70 @@ mod tests {
         }
         let n = left(&w, fox);
         assert!((60..=140).contains(&n), "about half survive: {n}");
+    }
+
+    /// D-253: moving the den costs, takes `den_build_s`, needs an own grown cell, and both cells
+    /// must hold until it is built.
+    #[test]
+    fn moving_the_den() {
+        let mv = |seq: u32, row: u32, col: u32| Command {
+            tick: 0,
+            player: 1,
+            seq,
+            payload: Payload::MoveDen { row, col },
+        };
+        let start = |w: &mut World| {
+            w.setup_plant(1, "grasses", 4, 4, 3);
+            w.setup_plant(2, "grasses", 12, 12, 2);
+            w.fauna.found_den(1, 4 * 16 + 4);
+            w.fauna.found_den(2, 12 * 16 + 12);
+            w.economy.bank[0] = 10_000 << 16;
+            let g = w.flora.p.index("grasses").unwrap();
+            w.state.bio[g * 256 + 5 * 16 + 6] = w.flora.p.kmax[g]; // the new site, grown
+        };
+        let mut w = World::new(&balance(), 3, 16);
+        start(&mut w);
+        for _ in 0..every() * 10 {
+            w.step(); // the grass establishes
+        }
+        let bank = w.economy.bank[0];
+        w.submit(Command {
+            tick: w.tick,
+            ..mv(0, 12, 12)
+        }); // enemy land: refused
+        w.submit(Command {
+            tick: w.tick,
+            ..mv(1, 5, 6)
+        });
+        w.step();
+        assert!(w.take_notices().iter().any(|(_, t)| t.starts_with("den:")));
+        assert_eq!(w.fauna.den_move[0].map(|m| m.0), Some(5 * 16 + 6));
+        assert!(w.economy.bank[0] < bank, "paid");
+        let build = u64::try_from(w.fauna.p.den_build).unwrap();
+        for _ in 0..every() * (build + 1) {
+            w.step();
+        }
+        assert_eq!(w.fauna.dens[0][0], 5 * 16 + 6, "built");
+        assert!(w.fauna.den_move[0].is_none());
+
+        let mut w = World::new(&balance(), 3, 16);
+        start(&mut w);
+        for _ in 0..every() * 10 {
+            w.step();
+        }
+        w.submit(Command {
+            tick: w.tick,
+            ..mv(0, 5, 6)
+        });
+        w.step();
+        w.state.owner[5 * 16 + 6] = 2; // the new site falls while it is built
+        for _ in 0..every() {
+            w.step();
+        }
+        assert_eq!(
+            w.result.map(|o| (o.winner, o.reason)),
+            Some((2, Reason::Den))
+        );
     }
 
     /// D-251: the player whose den cell is lost loses the match.

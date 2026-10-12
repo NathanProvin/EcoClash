@@ -54,6 +54,7 @@ export type ToMain =
       tickHz: number;
       pace: number;
       plantRadius: number;
+      denMoveCost: number;
       victory: number;
       timeLimitS: number;
       maxAgents: number;
@@ -96,6 +97,7 @@ export type ToMain =
       victory: number; // the share of the map that wins now (D-175)
       dens: number[][]; // per player: the land and water den cells, -1 for none (D-245)
       caps: number[][]; // per player: the population cap of each animal species (D-246)
+      moves: number[][]; // per player: a den move under way, [cell, seconds left] or [] (D-253)
       vis: ArrayBuffer; // per cell: 1 in your sight, 0 in the fog (D-249)
     }
   | { type: "notice"; notices: { player: number; text: string }[] }
@@ -175,6 +177,10 @@ export class Live implements Source {
   netProblem = "";
   result: Outcome | null = null;
   readonly plantRadius: number;
+  /** What moving the land den costs (D-253). */
+  readonly denMoveCost: number;
+  /** Per player: a den move under way, [cell, seconds left], or [] (D-253). */
+  moves: number[][] = [[], []];
   /** The generated map (D-083), for the renderer. */
   readonly terrain: TerrainFrame;
   /** Share of the map that wins, and the match length (s): for the "victory near" alerts. */
@@ -226,6 +232,7 @@ export class Live implements Source {
     const plants = species.filter((s) => s.kind === "flora");
     const animals = species.filter((s) => s.kind === "fauna");
     this.plantRadius = ready.plantRadius;
+    this.denMoveCost = ready.denMoveCost;
     const map = new Uint8Array(ready.terrain);
     const cells = ready.n * ready.n;
     this.terrain = {
@@ -307,6 +314,12 @@ export class Live implements Source {
    *  lands, or says why it cannot come). */
   spawn(player: 1 | 2, species: string, row: number, col: number): void {
     this.send({ type: "command", player, payload: { type: "spawn", species, row, col } });
+  }
+
+  /** Move the land den to a cell (D-253); the sim refuses it, with a notice, unless it is one of
+   *  the player's own grown land cells and the bank pays. */
+  moveDen(player: 1 | 2, row: number, col: number): void {
+    this.send({ type: "command", player, payload: { type: "move_den", row, col } });
   }
 
   /** Play catastrophe card `kind` centred on a cell (D-129); the sim refuses it, with a notice,
@@ -420,6 +433,7 @@ export class Live implements Source {
       this.victoryNow = m.victory;
       this.dens = m.dens;
       this.caps = m.caps;
+      this.moves = m.moves;
       if (this.fog) this.hide(new Uint8Array(m.vis));
     } else if (m.type === "notice") {
       const at = performance.now();

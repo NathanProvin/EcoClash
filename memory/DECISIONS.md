@@ -2955,3 +2955,12 @@ Template:
   - **Client:** a looks table by card (icon, colour, sound cue, grid cell). New procedural sounds: chainsaw, hunters (dogs and gunshots), bait, epidemic.
     - This fixes the catastrophe cues, which never played: the table's act names never matched the keys.
   - **Bots:** hard fells visible woods and culls visible herds of 4 or more.
+
+## D-253 · 2026-10-12 · Move den; water den as a beaver lodge
+- **Status:** accepted (user, play test round 3)
+- **Decision:**
+  - The land den stays the heart. A lost water den relocates for free.
+  - A `MoveDen { row, col }` command moves the land den to an own land cell with an established plant. It costs `[economy] den_move_cost` (2 000) and is built over `[fauna] den_build_s` (20 s), during which both cells are dens (`Fauna::den_move`, hashed). One move at a time.
+  - The cell card offers "Move den here". The new den shows as a half-size burrow until it is built.
+  - The water den is drawn as a beaver lodge.
+  - Bots do not move their den yet.

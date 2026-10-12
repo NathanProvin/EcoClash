@@ -328,6 +328,7 @@ A species can be bought when **all** of the following hold:
    - **Water den:** the player's first own cell where an aquatic plant takes. Swimmers appear there.
    - **The land den is the player's heart (D-251):** it never moves, and a player whose den cell is not theirs any more (taken, grazed bare, poisoned) loses the match at once, like a MOBA ancient. Both on one tick: a draw. The water den moves to the nearest own cell with an aquatic plant.
    - The den shows as a burrow (a stick lodge for the water den), visible to the enemy once in sight.
+   - **Move den (D-253):** a player may move the land den to an own grown land cell (the cell card's button), paying `den_move_cost` (2000). The new burrow is built over `den_build_s` (20 s); until then both cells are dens, and losing either loses the match. One move at a time.
 
 Every bought animal appears at its den, at the base price, wherever the player clicks: there are no remote drops. Raids walk across the front, and a defence needs hunters living near it or sent in time.
 

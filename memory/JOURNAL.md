@@ -1093,3 +1093,26 @@
   - the test helper `uncapped()` gives land plants the neutral V1 water need, so the rule tests check mechanisms, not tuned data;
   - the relay test checks that both players bought the same cards and at least two, not a price-dependent count.
 - **Lesson:** run every CI step before pushing (`py:test`, `npm run test -w relay`, `relay:lint`, `rs:wasm`, `client:build`), not just the Rust and client suites.
+
+## 2026-10-12 · Alpha 1.5 gameplay and balance rework (D-243…D-250)
+- **Goal (user):** a more playable and fun game. Fix the snowball, and bring back "a better ecosystem breeds more units". Plan approved, one commit per step on `alpha-1.5`.
+- **Done:**
+  - spec (gamerules, D-243…D-250);
+  - shade removed, layer multiplier, biodiversity 0.6 / cap 4;
+  - grazers eat their whole layer, trampling by tier;
+  - dens: bought animals appear at home and walk (no drops, no ×1.5); the tutorial's airdrop step is removed;
+  - habitat carrying capacity (`per_cell`), founding groups, herds spreading, hold order (H);
+  - income from production, own grazers crop above 50 % cover;
+  - catastrophes open over time; aphid and frost blights; the rush bot casts them ahead of raids;
+  - fog of war (layer sight, animal sight, last-seen fields, dimming, bots fogged);
+  - tuning (D-250).
+- **Checks:** every CI step run locally and green (Rust, wasm, client, py, relay).
+- **Bench:**
+  - Normal vs Normal: income at 10 min back at the old level;
+  - land at 5 min down from 34–42 % to 31 %;
+  - raids from 10 min;
+  - 1–2 lead changes per match.
+- **Not seen in the browser yet:** the den marker, fog dimming, the H order. The user's play test comes first.
+- **Open:**
+  - the bot-balance pass (style fingerprint test still ignored);
+  - `bench --handicap`, the unit-panel hold button and a fog switch, if wanted.

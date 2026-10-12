@@ -4,7 +4,17 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-09: **Alpha 1.4** released, merged to main and pushed (CI deploys Pages and the relay). It brings:
+- **Now:** 2026-10-12: **Alpha 1.5 rework** done on branch `alpha-1.5` (D-243…D-250), not merged:
+  - no shade, a layer multiplier and stronger biodiversity;
+  - grazers by layer;
+  - dens instead of drops;
+  - habitat caps, spreading and the hold order;
+  - production income;
+  - progressive catastrophes;
+  - fog of war;
+  - a tuning pass.
+
+  Next: the user's play tests on the branch, then merge and release. Before: 2026-10-09: **Alpha 1.4** released, merged to main and pushed (CI deploys Pages and the relay). It brings:
   - strength as biological vigor (D-236);
   - longer-lived trees and slow soil built by recyclers (D-237);
   - controllable swarms (D-238);
@@ -17,7 +27,7 @@
   Next: the user's play tests (the user's own tests are the balance reference); then the bot-balance pass (style fingerprint test ignored, raids, recyclers, trees). Before: 2026-10-08: **Alpha 1.3** released: the gameplay rework (conquest by strength and push D-225, dead trees per owner D-227, bot styles and balance D-228…D-231) and the UI/UX pass (D-232…D-235: clickable strategic icons and food-web focus, strength on the cell card, game feel: income pulse, capture rhythm, combo badge, kills, crumbs, saplings; larger animals, front line on water). Merged to main and pushed (CI deploys Pages and the relay). Next: playtest feedback; Gameplay step 3 targets still partly missed (D-229); M6 leftovers. Herb culling (D-224) merged to main (not pushed). Before: 2026-10-07: **Alpha 1.2** released: the food pyramid with wider cycles and online 1v1 on the Cloudflare relay (D-218…D-222), merged to main and deployed (Pages + relay). Played across two machines by the user. Next: playtest feedback; M6 leftovers (replays, pause, state dumps).
 - **Next:** Gameplay · Three styles (steps 2–6) → UI/UX juice → M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
-- **Last updated:** 2026-10-09
+- **Last updated:** 2026-10-12
 
 ---
 
@@ -135,7 +145,7 @@ Anti-snowball and "better ecosystem, more units" (user, 2026-10-12). One step pe
 - [x] 5. Income from production, own-grazing above 50 % (D-247).
 - [x] 6. Progressive catastrophes (D-248).
 - [x] 7. Fog of war (D-249).
-- [ ] 8. Tuning: spread, yields, densities; `bench --handicap` (D-250).
+- [x] 8. Tuning: spread, yields, densities (D-250); `bench --handicap` not built (the comeback count covers it).
 
 ## Gameplay · Three styles (D-225, D-226; before the UI/UX phase)
 Tall, wide and rush emerge from one conquest rule, map control stays the only victory. Branch `gameplay-changes`. Each step waits for the user's green light.

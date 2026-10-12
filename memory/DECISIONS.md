@@ -2911,6 +2911,22 @@ Template:
 ## D-250 · 2026-10-12 · Tuning pass: slower colonization, yields, densities
 - **Status:** accepted (user; values are starting points for the user's play tests)
 - **Decision:**
-  - Plant spread (`growth`) is slowed.
-  - Yields are rebalanced for production income.
-  - Plant caps and animal `per_cell` densities are reviewed against the D-222 pyramid.
+  - Plant spread (`growth`): ×0.7 on pioneers, ×0.8 on the rest.
+  - Plant `yield` ×2, so that income at 10 min matches Alpha 1.4 under production income: 29/s against 26/s, bots Normal vs Normal, 8 seeds.
+  - Animal densities:
+    - `per_cell` = the old fixed cap / 20, so the old cap is reached at 20 habitat cells (rabbits 5, fox 1, lynx 0.4);
+    - swarms 0.5 per cell, because 12.5 filled the 1 000-animal ceiling.
+  - Founding groups (D-246):
+    - mammals 2;
+    - swarms a third of before, at least 2;
+    - breeding period ×0.7;
+    - `food_reserve` 100.
+- **Bench** (Normal vs Normal, 8 seeds, 30 min; Alpha 1.4 in brackets):
+  - land at 5 min 31 % (34–42 %);
+  - first raid 10 min (22 min);
+  - lead changes 1.1 to 1.9 per match;
+  - more species called (rabbits and voles now).
+- **Not built:**
+  - `bench --handicap`: the bench's comeback count covers it for now.
+  - The unit-panel hold button: the H key does the job.
+  - An Options switch for fog: fog is off only in a sandbox.

@@ -37,10 +37,10 @@
 #   defaulting to [fauna]; rest = chance to stay put at an idle decision (stop-and-go).
 
 [flora.lichen_and_moss]
-growth = 1.25
+growth = 0.875
 spawn_cost = 18
 unlock_cost = 0
-yield = 0.05
+yield = 0.1
 cap = 0.75
 effect = "Pioneer: spreads a little slower than grasses, carpets poor ground; fastest soil development."
 family = "L1"
@@ -55,10 +55,10 @@ water_tolerance = 0.9
 bedrock = "schist_granite"
 
 [flora.grasses]
-growth = 1.2
+growth = 0.84
 spawn_cost = 22
 unlock_cost = 170
-yield = 0.12
+yield = 0.24
 cap = 0.75
 effect = "Pioneer: fastest spread; the main early income."
 family = "L1"
@@ -73,10 +73,10 @@ water_tolerance = 0.5
 bedrock = "silt_sand"
 
 [flora.wildflowers]
-growth = 0.8
+growth = 0.64
 spawn_cost = 40
 unlock_cost = 1500
-yield = 0.2
+yield = 0.4
 cap = 0.4
 effect = "Flowering meadow: the best herbaceous income."
 family = "L1"
@@ -91,10 +91,10 @@ water_tolerance = 0.4
 bedrock = "clay_limestone"
 
 [flora.ferns]
-growth = 0.3
+growth = 0.21
 spawn_cost = 35
 unlock_cost = 800
-yield = 0.14
+yield = 0.28
 cap = 0.45
 effect = "Hardy understory on bare or damp ground."
 family = "L2"
@@ -109,10 +109,10 @@ water_tolerance = 0.35
 bedrock = "schist_granite"
 
 [flora.nettle]
-growth = 0.7
+growth = 0.56
 spawn_cost = 60
 unlock_cost = 1600
-yield = 0.16
+yield = 0.32
 cap = 0.3
 effect = "Stinging: most grazers leave it alone; dense on developed soil."
 family = "L2"
@@ -127,10 +127,10 @@ water_tolerance = 0.4
 bedrock = "silt_sand"
 
 [flora.bramble]
-growth = 0.8
+growth = 0.64
 spawn_cost = 60
 unlock_cost = 3200
-yield = 0.18
+yield = 0.36
 cap = 0.3
 effect = "Thorny refuge: own small animals inside cannot be hunted."
 family = "L2"
@@ -145,10 +145,10 @@ water_tolerance = 0.55
 bedrock = "clay_limestone"
 
 [flora.elder]
-growth = 0.6
+growth = 0.48
 spawn_cost = 100
 unlock_cost = 3000
-yield = 0.2
+yield = 0.4
 cap = 0.35
 effect = "Fastest shrub, short-lived: the first shrub foothold."
 family = "L3"
@@ -163,10 +163,10 @@ water_tolerance = 0.4
 bedrock = "schist_granite"
 
 [flora.hawthorn]
-growth = 0.5
+growth = 0.4
 spawn_cost = 120
 unlock_cost = 6000
-yield = 0.25
+yield = 0.5
 cap = 0.35
 effect = "Thorny refuge: own small animals inside cannot be hunted."
 family = "L3"
@@ -181,10 +181,10 @@ water_tolerance = 0.45
 bedrock = "clay_limestone"
 
 [flora.hazel]
-growth = 0.7
+growth = 0.56
 spawn_cost = 150
 unlock_cost = 9000
-yield = 0.3
+yield = 0.6
 cap = 0.35
 effect = "Shade-tolerant shrub: grows under own trees; its nuts feed squirrels."
 family = "L3"
@@ -199,10 +199,10 @@ water_tolerance = 0.4
 bedrock = "silt_sand"
 
 [flora.oak]
-growth = 0.3
+growth = 0.24
 spawn_cost = 200
 unlock_cost = 12000
-yield = 0.8
+yield = 1.6
 cap = 0.3
 effect = "Light canopy: the understory thrives beneath it."
 family = "L4"
@@ -217,10 +217,10 @@ water_tolerance = 0.45
 bedrock = "clay_limestone"
 
 [flora.chestnut]
-growth = 0.5
+growth = 0.4
 spawn_cost = 220
 unlock_cost = 15000
-yield = 0.9
+yield = 1.8
 cap = 0.3
 effect = "Fastest-growing tree."
 family = "L4"
@@ -235,10 +235,10 @@ water_tolerance = 0.4
 bedrock = "schist_granite"
 
 [flora.beech]
-growth = 0.4
+growth = 0.32
 spawn_cost = 250
 unlock_cost = 18000
-yield = 1
+yield = 2
 cap = 0.3
 effect = "Tall canopy: the strongest tree layer."
 family = "L4"
@@ -253,10 +253,10 @@ water_tolerance = 0.35
 bedrock = "silt_sand"
 
 [flora.algae_and_lilies]
-growth = 1.0
+growth = 0.7
 spawn_cost = 20
 unlock_cost = 500
-yield = 0.15
+yield = 0.3
 cap = 0.3
 effect = "Aquatic pioneer: carpets the shallows, never dry land."
 family = "W"
@@ -271,10 +271,10 @@ water_tolerance = 0.25
 bedrock = "silt_sand"
 
 [flora.reeds]
-growth = 0.7
+growth = 0.56
 spawn_cost = 30
 unlock_cost = 1200
-yield = 0.25
+yield = 0.5
 cap = 0.2
 effect = "Reed beds: the shallows and wet banks; a crossing point on the river."
 family = "W"
@@ -289,10 +289,10 @@ water_tolerance = 0.35
 bedrock = "silt_sand"
 
 [flora.cattails]
-growth = 0.5
+growth = 0.4
 spawn_cost = 60
 unlock_cost = 3000
-yield = 0.4
+yield = 0.8
 cap = 0.3
 effect = "Dense stands in the shallows: small water animals hide in them."
 family = "W"
@@ -311,7 +311,7 @@ growth = 14
 spawn_cost = 200
 unlock_cost = 250
 yield = 0.01
-per_cell = 15
+per_cell = 0.5
 effect = "Decomposer: turns dead biomass into soil development."
 family = "D"
 tier = 1
@@ -333,7 +333,7 @@ growth = 18
 spawn_cost = 250
 unlock_cost = 400
 yield = 0.02
-per_cell = 15
+per_cell = 0.5
 effect = "Mycelium: decomposes the litter of shrubs and woods."
 family = "D"
 tier = 2
@@ -379,7 +379,7 @@ growth = 21
 spawn_cost = 300
 unlock_cost = 600
 yield = 0.02
-per_cell = 12.5
+per_cell = 0.5
 effect = "Fast meadow grazer."
 family = "H1"
 tier = 1
@@ -443,7 +443,7 @@ growth = 21
 spawn_cost = 350
 unlock_cost = 1000
 yield = 0.02
-per_cell = 12.5
+per_cell = 0.5
 effect = "Grazes ferns and moss; lives on herbs, so it counters ferns early."
 family = "H2"
 tier = 1
@@ -507,7 +507,7 @@ growth = 21
 spawn_cost = 450
 unlock_cost = 1500
 yield = 0.03
-per_cell = 12.5
+per_cell = 0.5
 effect = "Defoliates elder and nettle; lives in the undergrowth, so it counters shrubs early."
 family = "H3"
 tier = 1
@@ -571,7 +571,7 @@ growth = 21
 spawn_cost = 550
 unlock_cost = 3000
 yield = 0.03
-per_cell = 12.5
+per_cell = 0.5
 effect = "Bores into oaks and chestnuts; lives in shrubs, so it counters forests early."
 family = "H4"
 tier = 1
@@ -636,7 +636,7 @@ growth = 21
 spawn_cost = 300
 unlock_cost = 1500
 yield = 0.02
-per_cell = 12.5
+per_cell = 0.5
 effect = "Aquatic larvae: graze the pond; adults become dragonflies."
 family = "HW"
 tier = 1

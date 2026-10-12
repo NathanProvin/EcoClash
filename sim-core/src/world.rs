@@ -659,7 +659,8 @@ impl World {
             );
             for yy in (y - r).max(0)..=(y + r).min(ni - 1) {
                 for xx in (x - r).max(0)..=(x + r).min(ni - 1) {
-                    if (yy - y).pow(2) + (xx - x).pow(2) <= r * r {
+                    // r² + r: a round disc, not a diamond, at small radii (play test).
+                    if (yy - y).pow(2) + (xx - x).pow(2) <= r * r + r {
                         seen[usize::try_from(yy * ni + xx).unwrap_or(0)] = true;
                     }
                 }
@@ -779,7 +780,7 @@ mod tests {
         assert_eq!((o.winner, o.reason), (2, Reason::Den));
     }
 
-    /// D-249: an own grass cell sees 1 cell, a tree cell 4, an animal its sight; the enemy's
+    /// D-249: an own grass cell sees 2 cells, a tree cell 5, an animal its sight; the enemy's
     /// land is no help.
     #[test]
     fn fog_reveals_by_layer_and_by_animal_sight() {
@@ -795,8 +796,8 @@ mod tests {
         w.state.owner[at(10, 2)] = 2; // enemy land reveals nothing to P1
         w.state.bio[grass * n * n + at(10, 2)] = w.flora.p.kmax[grass];
         let seen = w.visible(1);
-        assert!(seen[at(3, 2)] && !seen[at(4, 2)], "grass: 1 cell");
-        assert!(seen[at(15, 19)] && !seen[at(15, 10)], "oak: 4 cells");
+        assert!(seen[at(4, 2)] && !seen[at(5, 2)], "grass: 2 cells");
+        assert!(seen[at(15, 20)] && !seen[at(15, 9)], "oak: 5 cells");
         assert!(!seen[at(10, 2)] && !seen[at(10, 4)]);
         let fox = w.fauna.p.index("fox").unwrap();
         w.fauna.place(fox, 1, at(30, 20), 1, n);

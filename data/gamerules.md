@@ -435,7 +435,7 @@ Random weather events hit the whole map, both players alike. There is one per ha
 
 ## 10d. Fog of war (D-249)
 
-Each player sees only around their own land and animals. An own cell reveals a radius set by its highest established layer (`[fog] layer_sight`: L1 1, L2 2, L3 3, L4 4 cells; a bare own cell 1); an animal reveals its species' `sight`. Out of sight, the enemy's animals are hidden and its plants and frontier show their last seen state. The territory bar stays global (it is the score). Fog is display and bot input only: lockstep peers still hold the full state. Off in Sandbox and replays.
+Each player sees only around their own land and animals. An own cell reveals a radius set by its highest established layer (`[fog] layer_sight`: L1 2, L2 3, L3 4, L4 5 cells; a bare own cell 2; round discs, r² + r); an animal reveals its species' `sight`. Out of sight, the enemy's animals are hidden and its plants and frontier show their last seen state. The territory bar stays global (it is the score). Fog is display and bot input only: lockstep peers still hold the full state. Off in Sandbox and replays.
 
 ## 11. Game phases, endgame and anti-stalemate
 

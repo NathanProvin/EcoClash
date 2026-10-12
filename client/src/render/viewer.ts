@@ -33,6 +33,7 @@ import {
 import { interpolate, type Animal, type Fields, type Source } from "../replay/replay";
 import { OVERLAYS, overlayValues, paintOverlay, type OverlayId } from "../game/overlays";
 import { denModel } from "./den";
+import { FOG_RES, fogMask } from "./fog";
 import { AnimalView } from "./animals";
 import { OrderLines, type OrderKind } from "./orders";
 import { Ghost, type GhostSpec } from "./ghost";
@@ -85,8 +86,10 @@ const TINT = { wet: 1.5, dry: [0.55, 0.9], rock: [0.03, 0.1] } as const;
 /** Map overlays (D-135) float this far above the ground (m). */
 const OVERLAY_LIFT = 0.1;
 /** Opacity (0..255) of the fog (D-249): over cells never seen, and over cells seen before. */
-const FOG_DARK = 235;
-const FOG_SEEN = 150;
+const FOG_DARK = 250;
+const FOG_SEEN = 185;
+/** The fog's colour: a dark grey haze (D-249). */
+const FOG_GREY = "#45474b";
 /** The sun's shadow map is redrawn every this many frames: shadows lag one frame behind the wind,
  *  invisibly, for half the shadow-pass cost (D-090). */
 const SHADOW_EVERY = 4; // D-151 (was 2): the sun barely moves
@@ -323,18 +326,23 @@ export class Viewer {
     this.overlayMesh.visible = false;
     this.overlayMesh.userData.family = "ground";
     this.scene.add(this.overlayMesh);
-    this.fogData = new Uint8Array(n * n * 4);
-    this.fogTex = new THREE.DataTexture(this.fogData, n, n);
-    this.fogTex.magFilter = THREE.LinearFilter; // soft edges
+    // FOG_RES texels per cell, blurred (`fogMask`): smooth sight circles (D-249).
+    const fm = n * FOG_RES;
+    this.fogData = new Uint8Array(fm * fm * 4);
+    this.fogTex = new THREE.DataTexture(this.fogData, fm, fm);
+    this.fogTex.magFilter = THREE.LinearFilter;
     this.fogTex.minFilter = THREE.LinearFilter;
     const fogMat = new THREE.MeshBasicNodeMaterial({
       transparent: true,
       depthWrite: false,
       depthTest: false,
     });
+    // Dark grey haze drifting slowly over the fogged land: two baked noise lookups, no geometry.
     const fog = texture(this.fogTex, uv());
-    fogMat.colorNode = fog.rgb;
-    fogMat.opacityNode = fog.a;
+    const drift = this.noise(0.05, "g", time.mul(0.015));
+    const wisp = this.noise(0.13, "b", time.mul(-0.025));
+    fogMat.colorNode = color(FOG_GREY).mul(float(1).add(drift.mul(0.3)).add(wisp.mul(0.15)));
+    fogMat.opacityNode = fog.a.mul(float(0.97).add(drift.mul(0.03))).clamp(0, 1);
     this.fogMesh = new THREE.Mesh(this.ground.geometry, fogMat);
     this.fogMesh.position.y = OVERLAY_LIFT;
     this.fogMesh.renderOrder = 19;
@@ -940,12 +948,9 @@ export class Viewer {
     if (!vis || !this.fogMesh.visible) return;
     const n = this.replay.meta.n;
     const seen = (this.explored ??= new Uint8Array(n * n));
-    for (let k = 0; k < n * n; k++) {
-      if (vis[k]) seen[k] = 1;
-      // Texture row 0 is the near edge (+z); grid row 0 the far edge: flip rows, as the ground.
-      const t = ((n - 1 - Math.floor(k / n)) * n + (k % n)) * 4;
-      this.fogData.set([6, 9, 14, vis[k] ? 0 : seen[k] ? FOG_SEEN : FOG_DARK], t);
-    }
+    for (let k = 0; k < n * n; k++) if (vis[k]) seen[k] = 1;
+    const mask = fogMask(vis, seen, n, FOG_DARK, FOG_SEEN);
+    for (let t = 0; t < mask.length; t++) this.fogData[t * 4 + 3] = mask[t] ?? 0;
     this.fogTex.needsUpdate = true;
   }
 

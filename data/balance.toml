@@ -201,7 +201,7 @@ succession = true
 # layer L1..L4 (a bare own cell as L1); an animal reveals its species' sight. Display and bot input
 # only: lockstep peers hold the whole state.
 [fog]
-layer_sight = [1, 2, 3, 4]
+layer_sight = [2, 3, 4, 5]  # play test 2026-10-12: +1 for every layer
 
 # Fauna agents (gamerules §5.2, §6; D-023, D-026). Species stats are in species.toml.
 [deadwood]

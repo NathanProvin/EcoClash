@@ -2907,6 +2907,7 @@ Template:
   - Visibility is derived and not hashed. It is display and bot input only; lockstep peers hold the full state, and maphack is accepted.
   - Out of sight, enemy animals are hidden and plants show their last seen state. The territory bar stays global.
   - Fog is off in Sandbox and replays.
+  - Play test 2026-10-12: sight +1 per layer (2, 3, 4, 5); round discs (d² ≤ r² + r); the mask drawn at 4 texels per cell and blurred, for smooth edges; dark grey with a slow noise drift (two baked-noise lookups in the shader); black-grey where never seen, lighter where seen before.
 
 ## D-250 · 2026-10-12 · Tuning pass: slower colonization, yields, densities
 - **Status:** accepted (user; values are starting points for the user's play tests)

@@ -7,7 +7,8 @@
 #   spawn_cost   plants: points per cell planted; animals: points per animal
 #   unlock_cost  points to unlock the species card (0 = available at start)
 #   yield        points per second: per fully covered cell (plants), per animal (animals)
-#   cap          plants: share of the map's cells per player (0..1, D-045); animals: max animals per player
+#   cap          plants: share of the map's cells per player (0..1, D-045)
+#   per_cell     animals: carrying capacity, animals per own cell holding their habitat (D-246)
 #   effect       special effect, shown in the UI
 #
 # Tech tree (D-087): family = the build-bar group, tier = small (1), medium (2), large (3). A card
@@ -306,11 +307,11 @@ water_tolerance = 0.35
 bedrock = "silt_sand"
 
 [fauna.earthworms]
-growth = 20
+growth = 14
 spawn_cost = 200
 unlock_cost = 250
 yield = 0.01
-cap = 300
+per_cell = 15
 effect = "Decomposer: turns dead biomass into soil development."
 family = "D"
 tier = 1
@@ -324,15 +325,15 @@ bite = 15
 upkeep = 0.01
 speed = 0.8
 sight = 4
-group = 6
+group = 2
 wobble = 0.3
 
 [fauna.fungi]
-growth = 25
+growth = 18
 spawn_cost = 250
 unlock_cost = 400
 yield = 0.02
-cap = 300
+per_cell = 15
 effect = "Mycelium: decomposes the litter of shrubs and woods."
 family = "D"
 tier = 2
@@ -346,15 +347,15 @@ bite = 20
 upkeep = 0.008
 speed = 0.4
 sight = 4
-group = 6
+group = 2
 wobble = 0.2
 
 [fauna.black_woodpecker]
-growth = 90
+growth = 63
 spawn_cost = 400
 unlock_cost = 5000
 yield = 0.08
-cap = 10
+per_cell = 0.5
 effect = "Breaks down dead trees fastest, so trees can grow back."
 family = "D"
 tier = 3
@@ -374,11 +375,11 @@ wobble = 0.15
 rest = 0.4
 
 [fauna.grasshoppers]
-growth = 30
+growth = 21
 spawn_cost = 300
 unlock_cost = 600
 yield = 0.02
-cap = 250
+per_cell = 12.5
 effect = "Fast meadow grazer."
 family = "H1"
 tier = 1
@@ -390,15 +391,15 @@ bite = 25
 upkeep = 0.012
 speed = 1.5
 sight = 6
-group = 8
+group = 3
 wobble = 0.3
 
 [fauna.rabbits]
-growth = 30
+growth = 21
 spawn_cost = 800
 unlock_cost = 1000
 yield = 0.12
-cap = 100
+per_cell = 5
 effect = "Heavy grazer: breaks meadow frontiers."
 family = "H1"
 tier = 2
@@ -410,17 +411,17 @@ bite = 240
 upkeep = 0.01
 speed = 1.2
 sight = 8
-group = 3
+group = 2
 wobble = 0.08
 wobble_keep = 0.9
 rest = 0.5
 
 [fauna.bison]
-growth = 150
+growth = 105
 spawn_cost = 3000
 unlock_cost = 7000
 yield = 0.5
-cap = 20
+per_cell = 1
 effect = "Herd grazer: mows enemy meadows wholesale."
 family = "H1"
 tier = 3
@@ -438,11 +439,11 @@ wobble_keep = 0.9
 rest = 0.6
 
 [fauna.slugs]
-growth = 30
+growth = 21
 spawn_cost = 350
 unlock_cost = 1000
 yield = 0.02
-cap = 250
+per_cell = 12.5
 effect = "Grazes ferns and moss; lives on herbs, so it counters ferns early."
 family = "H2"
 tier = 1
@@ -454,15 +455,15 @@ bite = 30
 upkeep = 0.01
 speed = 0.6
 sight = 5
-group = 6
+group = 2
 wobble = 0.25
 
 [fauna.bank_vole]
-growth = 40
+growth = 28
 spawn_cost = 450
 unlock_cost = 1500
 yield = 0.08
-cap = 100
+per_cell = 5
 effect = "Small rodent of the undergrowth."
 family = "H2"
 tier = 2
@@ -474,17 +475,17 @@ bite = 120
 upkeep = 0.01
 speed = 0.6
 sight = 6
-group = 4
+group = 2
 wobble = 0.1
 wobble_keep = 0.9
 rest = 0.5
 
 [fauna.roe_deer]
-growth = 120
+growth = 84
 spawn_cost = 2000
 unlock_cost = 6000
 yield = 0.35
-cap = 30
+per_cell = 1.5
 effect = "Browser of the undergrowth and shrubs."
 family = "H2"
 tier = 3
@@ -502,11 +503,11 @@ wobble_keep = 0.9
 rest = 0.6
 
 [fauna.caterpillars]
-growth = 30
+growth = 21
 spawn_cost = 450
 unlock_cost = 1500
 yield = 0.03
-cap = 250
+per_cell = 12.5
 effect = "Defoliates elder and nettle; lives in the undergrowth, so it counters shrubs early."
 family = "H3"
 tier = 1
@@ -518,15 +519,15 @@ bite = 36
 upkeep = 0.01
 speed = 0.8
 sight = 6
-group = 8
+group = 3
 wobble = 0.25
 
 [fauna.red_squirrel]
-growth = 45
+growth = 31
 spawn_cost = 600
 unlock_cost = 2250
 yield = 0.09
-cap = 100
+per_cell = 5
 effect = "Nut eater of hazels; takes elderberries too."
 family = "H3"
 tier = 2
@@ -544,11 +545,11 @@ wobble_keep = 0.9
 rest = 0.5
 
 [fauna.red_deer]
-growth = 150
+growth = 105
 spawn_cost = 3500
 unlock_cost = 8000
 yield = 0.45
-cap = 24
+per_cell = 1.2
 effect = "Large browser: strips shrub fronts."
 family = "H3"
 tier = 3
@@ -566,11 +567,11 @@ wobble_keep = 0.9
 rest = 0.6
 
 [fauna.bark_beetles]
-growth = 30
+growth = 21
 spawn_cost = 550
 unlock_cost = 3000
 yield = 0.03
-cap = 250
+per_cell = 12.5
 effect = "Bores into oaks and chestnuts; lives in shrubs, so it counters forests early."
 family = "H4"
 tier = 1
@@ -582,15 +583,15 @@ bite = 40
 upkeep = 0.01
 speed = 0.8
 sight = 6
-group = 8
+group = 3
 wobble = 0.25
 
 [fauna.beaver]
-growth = 60
+growth = 42
 spawn_cost = 900
 unlock_cost = 4500
 yield = 0.1
-cap = 30
+per_cell = 1.5
 effect = "Fells chestnuts and oaks near water."
 family = "H4"
 tier = 2
@@ -609,11 +610,11 @@ wobble_keep = 0.9
 rest = 0.5
 
 [fauna.wild_boar]
-growth = 120
+growth = 84
 spawn_cost = 3000
 unlock_cost = 9000
 yield = 0.4
-cap = 20
+per_cell = 1
 effect = "Roots under the trees: eats mast and turf."
 family = "H4"
 tier = 3
@@ -625,17 +626,17 @@ bite = 900
 upkeep = 0.003
 speed = 1.0
 sight = 10
-group = 3
+group = 2
 wobble = 0.06
 wobble_keep = 0.9
 rest = 0.5
 
 [fauna.larvae]
-growth = 30
+growth = 21
 spawn_cost = 300
 unlock_cost = 1500
 yield = 0.02
-cap = 250
+per_cell = 12.5
 effect = "Aquatic larvae: graze the pond; adults become dragonflies."
 family = "HW"
 tier = 1
@@ -648,15 +649,15 @@ bite = 25
 upkeep = 0.012
 speed = 0.8
 sight = 5
-group = 8
+group = 3
 wobble = 0.3
 
 [fauna.roach]
-growth = 40
+growth = 28
 spawn_cost = 450
 unlock_cost = 2250
 yield = 0.08
-cap = 100
+per_cell = 5
 effect = "Shoal fish: grazes water plants."
 family = "HW"
 tier = 2
@@ -669,17 +670,17 @@ bite = 120
 upkeep = 0.01
 speed = 1.0
 sight = 6
-group = 4
+group = 2
 wobble = 0.15
 wobble_keep = 0.85
 rest = 0.3
 
 [fauna.mallard]
-growth = 60
+growth = 42
 spawn_cost = 800
 unlock_cost = 3375
 yield = 0.1
-cap = 30
+per_cell = 1.5
 effect = "Dabbling duck: water plants and bank grass."
 family = "HW"
 tier = 3
@@ -692,17 +693,17 @@ bite = 200
 upkeep = 0.006
 speed = 0.8
 sight = 10
-group = 3
+group = 2
 wobble = 0.08
 wobble_keep = 0.9
 rest = 0.5
 
 [fauna.great_tit]
-growth = 60
+growth = 42
 spawn_cost = 400
 unlock_cost = 800
 yield = 0.05
-cap = 50
+per_cell = 2.5
 effect = "Hunts insects: caterpillars, bark beetles and grasshopper swarms."
 family = "P1"
 tier = 1
@@ -721,11 +722,11 @@ wobble = 0.2
 rest = 0.2
 
 [fauna.frog]
-growth = 60
+growth = 42
 spawn_cost = 400
 unlock_cost = 2500
 yield = 0.06
-cap = 50
+per_cell = 2.5
 effect = "Hunts insects on the banks."
 family = "P1"
 tier = 2
@@ -745,11 +746,11 @@ wobble_keep = 0.9
 rest = 0.6
 
 [fauna.badger]
-growth = 120
+growth = 84
 spawn_cost = 1500
 unlock_cost = 6000
 yield = 0.3
-cap = 20
+per_cell = 1
 effect = "Digs out soil life and insects: earthworms, slugs, beetles."
 family = "P1"
 tier = 3
@@ -768,11 +769,11 @@ wobble_keep = 0.9
 rest = 0.4
 
 [fauna.weasel]
-growth = 60
+growth = 42
 spawn_cost = 400
 unlock_cost = 1200
 yield = 0.08
-cap = 30
+per_cell = 1.5
 effect = "Small, quick hunter of voles, rabbits and tits: the first rabbit answer."
 family = "P2"
 tier = 1
@@ -791,11 +792,11 @@ wobble_keep = 0.9
 rest = 0.3
 
 [fauna.pine_marten]
-growth = 120
+growth = 84
 spawn_cost = 2500
 unlock_cost = 9000
 yield = 0.5
-cap = 20
+per_cell = 1
 effect = "Agile woodland hunter: squirrels, tits and weasels."
 family = "P2"
 tier = 3
@@ -814,11 +815,11 @@ wobble_keep = 0.9
 rest = 0.3
 
 [fauna.fox]
-growth = 120
+growth = 84
 spawn_cost = 1200
 unlock_cost = 4000
 yield = 0.25
-cap = 20
+per_cell = 1
 effect = "Hunts rabbits and weasels; drop it on enemy grazers."
 family = "P2"
 tier = 2
@@ -837,11 +838,11 @@ wobble_keep = 0.9
 rest = 0.4
 
 [fauna.lynx]
-growth = 180
+growth = 126
 spawn_cost = 2500
 unlock_cost = 6000
 yield = 0.8
-cap = 8
+per_cell = 0.4
 effect = "Forest stalker: deer, beavers and wildcats."
 family = "P3"
 tier = 1
@@ -860,11 +861,11 @@ wobble_keep = 0.9
 rest = 0.5
 
 [fauna.wolf]
-growth = 180
+growth = 126
 spawn_cost = 3500
 unlock_cost = 9000
 yield = 1.0
-cap = 8
+per_cell = 0.4
 effect = "Pack hunter of large herbivores: red deer, bison, boar."
 family = "P3"
 tier = 2
@@ -883,11 +884,11 @@ wobble_keep = 0.9
 rest = 0.4
 
 [fauna.brown_bear]
-growth = 240
+growth = 168
 spawn_cost = 5000
 unlock_cost = 14000
 yield = 1.5
-cap = 6
+per_cell = 0.3
 effect = "Apex omnivore: bison, beavers and roe deer."
 family = "P3"
 tier = 3
@@ -906,11 +907,11 @@ wobble_keep = 0.9
 rest = 0.5
 
 [fauna.pike]
-growth = 90
+growth = 63
 spawn_cost = 800
 unlock_cost = 2500
 yield = 0.15
-cap = 30
+per_cell = 1.5
 effect = "Ambush fish: hunts larvae, roach and frogs."
 family = "PW"
 tier = 1
@@ -930,11 +931,11 @@ wobble_keep = 0.9
 rest = 0.6
 
 [fauna.heron]
-growth = 120
+growth = 84
 spawn_cost = 1200
 unlock_cost = 4500
 yield = 0.2
-cap = 20
+per_cell = 1
 effect = "Wading bird: spears frogs, larvae and young pike."
 family = "PW"
 tier = 2
@@ -954,11 +955,11 @@ wobble_keep = 0.9
 rest = 0.6
 
 [fauna.otter]
-growth = 150
+growth = 105
 spawn_cost = 2500
 unlock_cost = 8000
 yield = 0.35
-cap = 12
+per_cell = 0.6
 effect = "Top of the river food web."
 family = "PW"
 tier = 3
@@ -979,11 +980,11 @@ rest = 0.4
 
 # Superpredators (S, D-187, D-197): each eats the hunters below it, so a defence can be answered.
 [fauna.hawk]
-growth = 90
+growth = 63
 spawn_cost = 400
 unlock_cost = 1500
 yield = 0.08
-cap = 30
+per_cell = 1.5
 effect = "Kestrel, hobby or sparrowhawk: takes great tits, voles and grasshoppers."
 family = "S"
 tier = 1
@@ -1002,11 +1003,11 @@ wobble = 0.15
 rest = 0.2
 
 [fauna.wildcat]
-growth = 120
+growth = 84
 spawn_cost = 1000
 unlock_cost = 3500
 yield = 0.15
-cap = 15
+per_cell = 0.75
 effect = "Ambusher of the undergrowth: weasels, hawks on the ground, squirrels."
 family = "S"
 tier = 2
@@ -1025,11 +1026,11 @@ wobble_keep = 0.9
 rest = 0.4
 
 [fauna.eagle_owl]
-growth = 150
+growth = 105
 spawn_cost = 2500
 unlock_cost = 8000
 yield = 0.3
-cap = 10
+per_cell = 0.5
 effect = "Night superpredator: foxes, hawks and herons."
 family = "S"
 tier = 3

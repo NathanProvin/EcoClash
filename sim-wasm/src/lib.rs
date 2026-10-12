@@ -283,6 +283,19 @@ impl Sim {
         d.iter().map(|&k| i32::try_from(k).unwrap_or(-1)).collect()
     }
 
+    /// A player's population cap per animal species (D-246), by fauna index.
+    #[wasm_bindgen(js_name = animalCaps)]
+    #[must_use]
+    pub fn animal_caps(&self, player: u8) -> Vec<u32> {
+        let w = &self.world;
+        let pi = usize::from(player.clamp(1, 2)) - 1;
+        w.fauna
+            .caps(&w.flora.p, &w.state)
+            .iter()
+            .map(|c| u32::try_from(c[pi]).unwrap_or(0))
+            .collect()
+    }
+
     /// Points banked by a player (1 or 2), for display.
     #[allow(clippy::float_arithmetic, clippy::cast_precision_loss)] // display only, never fed back
     pub fn bank(&self, player: u8) -> f64 {
@@ -560,7 +573,7 @@ fn species_table(b: &Balance) -> String {
             "medium": format!("{:?}", s.medium).to_lowercase(),
             "stats": {
                 "growth": s.growth, "spawn_cost": s.spawn_cost, "unlock_cost": s.unlock_cost,
-                "yield": s.yield_, "cap": s.cap, "effect": s.effect, "speed": s.speed,
+                "yield": s.yield_, "cap": s.per_cell, "effect": s.effect, "speed": s.speed,
             },
         })
     });

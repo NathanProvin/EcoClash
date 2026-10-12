@@ -34,6 +34,7 @@ pub const FRAME_BYTES: usize = 12;
 pub const FREE: u8 = 0;
 const MOVE: u8 = 1;
 const ATTACK: u8 = 2;
+const HOLD: u8 = 3;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Role {
@@ -60,6 +61,8 @@ pub struct FaunaParams {
     /// Recyclers' foods by rank (D-127): `LITTER`, `DEADWOOD`, or 0.
     rank_rot: Vec<[u8; DIET_RANKS]>,
     small: Vec<bool>,
+    /// Drawn and counted as a swarm (D-065): a view for renderers and the bot, not hashed.
+    pub swarm: Vec<bool>,
     /// Energy capacity, in biomass units (full energy = body x ONE).
     pub body: Vec<i64>,
     /// Biomass eaten per flora tick.
@@ -70,8 +73,8 @@ pub struct FaunaParams {
     speed: Vec<i64>,
     sight: Vec<i64>,
     group: Vec<i64>,
-    /// Animals per player.
-    cap: Vec<i64>,
+    /// Carrying capacity (Q16, D-246): animals per own cell holding the species' habitat.
+    pub per_cell: Vec<i64>,
     /// Flora ticks between two births.
     breed: Vec<i64>,
     /// Points per second per animal (Q16).
@@ -222,6 +225,7 @@ impl FaunaParams {
                 round(fa.diet_yield.get(r).copied().unwrap_or(1.0) * one)
             }),
             small: sp.iter().map(|s| s.small).collect(),
+            swarm: sp.iter().map(|s| s.swarm).collect(),
             body: sp.iter().map(|s| i64::from(s.body)).collect(),
             bite: sp.iter().map(|s| round(s.bite * dt)).collect(),
             upkeep: sp
@@ -234,7 +238,7 @@ impl FaunaParams {
                 .collect(),
             sight,
             group: sp.iter().map(|s| i64::from(s.group)).collect(),
-            cap: sp.iter().map(|s| i64::from(s.cap)).collect(),
+            per_cell: sp.iter().map(|s| round(s.per_cell * one)).collect(),
             breed: sp.iter().map(|s| round(s.growth / dt).max(1)).collect(),
             yld: sp.iter().map(|s| round(s.yield_ * one)).collect(),
             transfer: round(fa.transfer * one),
@@ -372,7 +376,7 @@ impl FaunaParams {
             &self.speed,
             &self.sight,
             &self.group,
-            &self.cap,
+            &self.per_cell,
             &self.breed,
             &self.prey_per,
             &self.yld,
@@ -710,10 +714,10 @@ impl Fauna {
                 (a.py[i], a.px[i]) = (a.y[i], a.x[i]);
                 continue;
             }
-            a.order[i] = if kind == OrderKind::Move {
-                MOVE
-            } else {
-                ATTACK
+            a.order[i] = match kind {
+                OrderKind::Move => MOVE,
+                OrderKind::Hold => HOLD,
+                OrderKind::Attack | OrderKind::Stop => ATTACK,
             };
             let r = self.p.scatter;
             (a.gy[i], a.gx[i]) = (
@@ -1135,7 +1139,8 @@ impl Fauna {
     /// decomposers `reserve` bites of their food (diet flora on any land; dead biomass), counted
     /// over both players since they eat the same plants and litter; predators `prey_per` huntable
     /// prey of either side (own prey when home hunting is on, Alpha 1.2), counted over their
-    /// owner's predators only. The player and species caps stay as safety ceilings (D-023, D-029).
+    /// owner's predators only. Each species stops at its habitat cap (`caps`, D-246); the
+    /// player cap is a safety ceiling.
     fn reproduce(&mut self, fl: &FloraParams, st: &FloraState) {
         let safe = self.safe(fl, st);
         let (a, p, n) = (&mut self.agents, &self.p, st.n);
@@ -1147,6 +1152,7 @@ impl Fauna {
             count[pi] += 1;
             kin[usize::from(a.sp[i])][pi] += 1;
         }
+        let caps = Self::caps_with(p, fl, st);
         let len = a.len();
         let ready: Vec<bool> = (0..len)
             .map(|i| a.energy[i] >= p.body[usize::from(a.sp[i])] * ONE_I && a.cooldown[i] == 0)
@@ -1157,7 +1163,7 @@ impl Fauna {
         for i in (0..len).filter(|&i| ready[i]) {
             let (s, pl) = (usize::from(a.sp[i]), a.owner[i]);
             let pi = usize::from(pl - 1);
-            if count[pi] >= p.player_cap || kin[s][pi] >= p.cap[s] {
+            if count[pi] >= p.player_cap || kin[s][pi] >= caps[s][pi] {
                 continue;
             }
             let (food, load) = &windows[&(s, pl)];
@@ -1202,8 +1208,8 @@ impl Fauna {
             if a.order[i] == MOVE && arrived {
                 a.order[i] = FREE;
             }
-            if a.order[i] == MOVE {
-                target[i] = Some((a.gy[i], a.gx[i]));
+            if a.order[i] == MOVE || a.order[i] == HOLD {
+                target[i] = Some((a.gy[i], a.gx[i])); // a hold keeps them there (D-246)
             }
         }
         let a = &self.agents;
@@ -1370,6 +1376,67 @@ impl Fauna {
             }
         }
 
+        // 2b. Spreading (D-246): a free animal left without a target, in a cell crowded past its
+        //     species' density or with nothing to eat, heads for the nearest own habitat cell with
+        //     room (in sight first, then anywhere); each move fills that cell for the next one.
+        let established = |k: usize, mask: u32| {
+            (0..fl.names.len()).any(|j| mask >> j & 1 == 1 && st.bio[j * n2 + k] >= fl.est_thr[j])
+        };
+        for &s in &species {
+            let room_per = ((p.per_cell[s] + ONE_I - 1) / ONE_I).max(1);
+            let food_here = |k: usize| match p.role[s] {
+                Role::Herbivore => bits(p.eats_flora[s]).any(|j| st.bio[j * n2 + k] >= p.bite[s]),
+                Role::Decomposer => p.rot_stock(s, st, k) >= p.bite[s],
+                Role::Predator => true,
+            };
+            for pl in PLAYERS {
+                let mine: Vec<usize> = (0..len)
+                    .filter(|&i| usize::from(a.sp[i]) == s && a.owner[i] == pl)
+                    .collect();
+                let mut crowd = vec![0i64; n2];
+                for &i in &mine {
+                    crowd[a.cell(i, n)] += 1;
+                }
+                let movers: Vec<usize> = mine
+                    .into_iter()
+                    .filter(|&i| {
+                        let k = a.cell(i, n);
+                        target[i].is_none()
+                            && a.order[i] == FREE
+                            && (crowd[k] > room_per || !food_here(k))
+                    })
+                    .collect();
+                if movers.is_empty() {
+                    continue;
+                }
+                let mut room: Vec<bool> = (0..n2)
+                    .map(|k| {
+                        st.owner[k] == pl
+                            && crowd[k] < room_per
+                            && p.medium[s].stands(st.ground[k])
+                            && food_here(k)
+                            && established(k, p.habitat[s])
+                    })
+                    .collect();
+                for i in movers {
+                    let at = a.cell(i, n);
+                    let Some(k) = self
+                        .nearest(&room, n, at, p.sight[s])
+                        .or_else(|| closest(&room, n, at))
+                    else {
+                        break; // no room anywhere: they wander
+                    };
+                    let r = p.scatter;
+                    target[i] = Some((
+                        centre(k / n) + offset(a.id[i], 3, r),
+                        centre(k % n) + offset(a.id[i], 4, r),
+                    ));
+                    crowd[k] += 1;
+                    room[k] = crowd[k] < room_per;
+                }
+            }
+        }
+
         // 3. Attack-moves with nothing in sight head on to their goal; there, with nothing left to
         //    eat in sight, the raid is over (D-160) and they go free. Everyone else strolls to a random point
         //    within `wander` cells (D-065), centred one flora period ahead along its velocity so
@@ -1439,9 +1506,10 @@ impl Fauna {
         let kin = (0..a.len())
             .filter(|&i| a.owner[i] == player && usize::from(a.sp[i]) == s)
             .count();
+        let cap = Self::caps_with(p, fl, st)[s][usize::from(player.clamp(1, 2)) - 1];
         let count = p.group[s]
             .min(p.player_cap - i64::try_from(mine).unwrap_or(i64::MAX))
-            .min(p.cap[s] - i64::try_from(kin).unwrap_or(i64::MAX));
+            .min(cap - i64::try_from(kin).unwrap_or(i64::MAX));
         if count <= 0 {
             return Err("population cap reached".into());
         }
@@ -1461,6 +1529,34 @@ impl Fauna {
             (false, true) => Err("no water den yet: grow an aquatic plant on your land".into()),
             (false, false) => Err("no den: plant your first patch".into()),
         }
+    }
+
+    /// Each species' population cap per player (D-246): `per_cell` x the player's own cells
+    /// holding an established plant of its habitat.
+    #[must_use]
+    pub fn caps(&self, fl: &FloraParams, st: &FloraState) -> Vec<[i64; 2]> {
+        Self::caps_with(&self.p, fl, st)
+    }
+
+    fn caps_with(p: &FaunaParams, fl: &FloraParams, st: &FloraState) -> Vec<[i64; 2]> {
+        let n2 = st.n * st.n;
+        let mut cells = vec![[0i64; 2]; p.names.len()];
+        for k in (0..n2).filter(|&k| matches!(st.owner[k], 1 | 2)) {
+            let est = (0..fl.names.len())
+                .filter(|&j| st.bio[j * n2 + k] >= fl.est_thr[j])
+                .fold(0u32, |m, j| m | 1 << j);
+            let pi = usize::from(st.owner[k]) - 1;
+            for (s, c) in cells.iter_mut().enumerate() {
+                if p.habitat[s] & est != 0 {
+                    c[pi] += 1;
+                }
+            }
+        }
+        cells
+            .iter()
+            .zip(&p.per_cell)
+            .map(|(c, &d)| c.map(|x| div_round(x * d, ONE_I)))
+            .collect()
     }
 
     /// Found `player`'s land den on cell `k` if it has none (D-245): its first planting.
@@ -2054,7 +2150,10 @@ mod tests {
         );
 
         let full = fa.p.body[worms] * ONE_I * 2;
-        fa.p.cap[worms] = 3;
+        let lichen = fl.p.index("lichen_and_moss").unwrap();
+        st.owner[9] = 1; // one habitat cell (L1) of P1: room for 3 (D-246)
+        st.bio[lichen * 64 + 9] = fl.p.kmax[lichen];
+        fa.p.per_cell[worms] = ONE_I * 3;
         for _ in 0..2 {
             fa.agents.push(worms, 1, centre(1), centre(1), full, 0);
         }
@@ -2080,6 +2179,10 @@ mod tests {
         let (fl, mut fa, mut st, mut rng) = setup(16);
         let worms = fa.p.index("earthworms").unwrap();
         let need = fa.p.bite[worms] * fa.p.reserve; // litter per worm in sight
+        let lichen = fl.p.index("lichen_and_moss").unwrap();
+        st.owner[8 * 16 + 8] = 1; // a habitat cell with room for many (D-246): food decides
+        st.bio[lichen * 256 + 8 * 16 + 8] = fl.p.kmax[lichen];
+        fa.p.per_cell[worms] = ONE_I * 100;
         st.dead[8 * 16 + 8] = need * 3; // room for three worms around the centre
         let full = fa.p.body[worms] * ONE_I * 2;
         for _ in 0..3 {
@@ -2095,6 +2198,57 @@ mod tests {
             5,
             "room for two more: two births, not three"
         );
+    }
+
+    /// D-246: a species' cap is `per_cell` x own cells holding its habitat.
+    #[test]
+    fn the_cap_follows_the_habitat_cells() {
+        let (fl, fa, mut st, _) = setup(8);
+        let rabbits = fa.p.index("rabbits").unwrap();
+        assert_eq!(fa.caps(&fl.p, &st)[rabbits], [0, 0], "no land, no room");
+        meadow(&fl, &mut st, "grasses"); // 32 L1 cells each
+        let per = fa.p.per_cell[rabbits];
+        assert_eq!(fa.caps(&fl.p, &st)[rabbits][0], div_round(32 * per, ONE_I));
+        st.owner[0] = 2; // a cell lost
+        assert_eq!(fa.caps(&fl.p, &st)[rabbits][0], div_round(31 * per, ONE_I));
+    }
+
+    /// D-246: a crowded herd spreads over free habitat by itself; a hold keeps it gathered, and
+    /// Stop lets it spread again.
+    #[test]
+    fn a_crowded_herd_spreads_and_a_hold_keeps_it_together() {
+        let (fl, mut fa, mut st, mut rng) = setup(16);
+        meadow(&fl, &mut st, "grasses");
+        let rabbits = fa.p.index("rabbits").unwrap();
+        fa.p.per_cell[rabbits] = ONE_I; // one per cell
+        fa.p.rest.fill(0);
+        for _ in 0..6 {
+            fa.agents
+                .push(rabbits, 1, centre(8), centre(3), ONE_I * 100, 0);
+        }
+        let cells = |fa: &Fauna| {
+            let mut c: Vec<usize> = (0..fa.agents.len())
+                .map(|i| fa.agents.cell(i, 16))
+                .collect();
+            c.sort_unstable();
+            c.dedup();
+            c.len()
+        };
+        let run = |fa: &mut Fauna, st: &mut FloraState, rng: &mut Pcg32| {
+            for t in 0..160 {
+                fa.walk(st, rng);
+                if t % 8 == 0 {
+                    fa.decide(&fl.p, st, rng);
+                }
+            }
+        };
+        let ids: Vec<u32> = fa.agents.id.clone();
+        fa.order(1, &ids, OrderKind::Hold, (8, 3));
+        run(&mut fa, &mut st, &mut rng);
+        assert_eq!(cells(&fa), 1, "held: gathered on one cell");
+        fa.order(1, &ids, OrderKind::Stop, (0, 0));
+        run(&mut fa, &mut st, &mut rng);
+        assert!(cells(&fa) >= 5, "free: spread out ({} cells)", cells(&fa));
     }
 
     #[test]
@@ -2255,9 +2409,9 @@ mod tests {
                 }
             }
             fl.p.cap[b] = ONE_I * 3 / 100; // refuges stay patches: 3 % of the map
-            fa.p.cap[rabbits] = 5000;
+            fa.p.per_cell[rabbits] = ONE_I * 5000;
             fa.p.player_cap = 5000;
-            fa.p.cap[fox] = 90;
+            fa.p.per_cell[fox] = ONE_I * 90;
             for k in 0..12 {
                 fa.agents
                     .push(rabbits, 2, centre(20 + k), centre(40 + k), ONE_I * 150, 0);
@@ -2313,7 +2467,8 @@ mod tests {
         fl.p.cap[b] = ONE_I * 3 / 100; // refuges stay patches
         fa.p.player_cap = 5000;
         for &s in &sp {
-            fa.p.cap[s] = 5000; // safety ceilings off: the food decides
+            fa.p.per_cell[s] = ONE_I * 5000; // safety ceilings off: the food decides
+            fa.p.habitat[s] = 1 << g; // every level lives on the meadow (D-246)
         }
         let full = |s: usize| fa.p.body[s] * ONE_I;
         for (s, count) in sp.into_iter().zip(start) {

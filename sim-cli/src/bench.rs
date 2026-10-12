@@ -470,10 +470,11 @@ pub fn play(b: &Balance, seed: u64, size: usize, seats: [Seat; 2], minutes: u64)
                         .count() as u64;
                 }
                 if now == 20 * 60 {
+                    let caps = w.fauna.caps(&w.flora.p, &w.state); // D-246
                     m.capped[p] = census
                         .iter()
                         .enumerate()
-                        .filter(|&(s, &c)| c > 0 && c >= i64::from(b.fauna_species[s].1.cap))
+                        .filter(|&(s, &c)| c > 0 && c >= caps[s][p])
                         .count() as u64;
                 }
             }

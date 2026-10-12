@@ -51,6 +51,9 @@ pub enum OrderKind {
     Attack,
     /// Stop now and act on its own again.
     Stop,
+    /// Gather on the cell and stay there (D-246): no spreading, wandering or fleeing; it still
+    /// eats or strikes within reach.
+    Hold,
 }
 
 /// One command, timestamped by the tick it executes at.

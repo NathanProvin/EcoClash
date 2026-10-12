@@ -138,8 +138,8 @@ def test_breeding_waits_for_the_cooldown_and_the_species_cap():
 
 def test_spawn_respects_the_species_cap():
     bal = uncapped()
-    bal["fauna"]["earthworms"]["cap"] = 4
+    bal["fauna"]["earthworms"]["cap"] = 1
     _, fl, fa, st = world(bal=bal)
     fl.plant(st, 1, "grasses", everywhere(8), frac=1.0)
     ag, n = fa.spawn(st, Agents.empty(), 1, "earthworms", (4, 4))
-    assert n == 4 < fa.group[fa.idx("earthworms")]
+    assert n == 1 < fa.group[fa.idx("earthworms")]

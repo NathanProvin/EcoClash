@@ -294,7 +294,7 @@ refuge_cover = 0.5      # summed cover of refuge flora that hides small fauna (D
 shallow_speed = 0.5
 path_cells = 400
 # Local carrying capacity (D-066): a birth needs food nearby, within the species' sight.
-food_reserve = 150      # grazers, decomposers: seconds of bites the food in sight must hold per animal
+food_reserve = 100      # grazers, decomposers: seconds of bites the food in sight must hold per animal (D-246: was 150)
 prey_per_predator = 3   # predators: a birth needs this many huntable prey in sight per predator, own and enemy
 prey_per_superpredator = 2  # superpredators (S): the same, per superpredator (Alpha 1.2)
 own_catch = 0.2         # home hunting (Alpha 1.2): catch chance on own prey; enemy prey always comes first

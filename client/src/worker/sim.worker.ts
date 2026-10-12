@@ -47,7 +47,8 @@ function sendFields(s: Sim) {
   const income = [s.income(1), s.income(2)];
   const standing = [s.standing(1), s.standing(2)];
   const victory = s.victoryNow();
-  const dens = [[...s.dens(1)], [...s.dens(2)]]; // D-245 // the share that wins now (D-175)
+  const dens = [[...s.dens(1)], [...s.dens(2)]]; // D-245
+  const caps = [[...s.animalCaps(1)], [...s.animalCaps(2)]]; // D-246 // the share that wins now (D-175)
   post(
     {
       type: "fields",
@@ -66,6 +67,7 @@ function sendFields(s: Sim) {
       standing,
       victory,
       dens,
+      caps,
     },
     [frame, pressure, strength, cellIncome, lock, deadwood, moisture],
   );

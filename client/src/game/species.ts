@@ -99,11 +99,12 @@ export function cardState(meta: ReplayMeta, s: Species, unlocked: Set<string>): 
   return tierOk && habitatOk ? "available" : "locked";
 }
 
-/** The population cap as shown: a share of the map for plants (D-045), a head count for animals. */
+/** The population cap as shown: a share of the map for plants (D-045); for animals, heads per
+ *  own habitat cell (D-246; the sheet's `per_cell`, sent as `cap`). */
 export function capText(s: Species): string {
   return s.kind === "flora"
     ? `${Math.round(s.stats.cap * 100)} % of map`
-    : `${s.stats.cap} animals`;
+    : `${s.stats.cap} per habitat cell`;
 }
 
 /** Family names, in build-bar order (D-087, D-105): land plants, land animals, the water
@@ -283,7 +284,7 @@ export function statTone(key: keyof typeof PLANT_STATS, s: Species, plants: read
 /** The quick stats of a species, in real seconds: the stat sheet counts ecology seconds, which
  *  run at `pace` per real second (D-069). Plants: the cost of a full planting (`cells` per order,
  *  D-242), yield per cell, spread, map share, and soil build-up, each toned against
- *  the mean of `plants`; animals: cost (×1.5 off your land), yield, breeding period, head cap. */
+ *  the mean of `plants`; animals: cost, yield, breeding period, heads per habitat cell. */
 export function quickStats(
   s: Species,
   pace = 1,
@@ -327,9 +328,9 @@ export function quickStats(
         },
       ]
     : [
-        { icon: "coin", value: `${cost}`, title: "Cost each, ×1.5 off your land" },
+        { icon: "coin", value: `${cost}`, title: "Cost each" },
         { icon: "biomass", value: `+${r(y * pace)}/s`, title: "Biomass per animal" },
         { icon: "egg", value: `${r(growth / pace)}s`, title: "Breeds at most this often" },
-        { icon: "cap", value: `${cap}`, title: "Most animals one side may have" },
+        { icon: "cap", value: `${cap}/cell`, title: "Most animals per own cell of their habitat" },
       ];
 }

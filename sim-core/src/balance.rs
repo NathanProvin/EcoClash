@@ -417,8 +417,8 @@ pub struct FaunaSpecies {
     pub unlock_cost: f64,
     #[serde(rename = "yield")]
     pub yield_: f64,
-    /// Animals per player.
-    pub cap: u32,
+    /// Carrying capacity (D-246): animals per own cell holding its habitat.
+    pub per_cell: f64,
     pub effect: String,
     /// Tech-tree family (D, H1..H4, HW, P1..P3, PW; D-087) and tier within it.
     pub family: String,

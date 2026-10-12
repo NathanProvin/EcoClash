@@ -99,6 +99,7 @@
     ["Right-click", "Move (on enemy land: attack-move)"],
     ["A, then click", "Attack-move"],
     ["S", "Stop"],
+    ["H, then click", "Hold: gather there and stay"],
     ["Shift or Ctrl + 1–9", "Set a control group"],
     ["1–9", "Recall a control group"],
     ["Shift + click", "Keep planting the armed species"],

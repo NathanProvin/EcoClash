@@ -1,5 +1,5 @@
 // Order lines (D-162): a faint curved ribbon on the ground from a group under orders to the point
-// it was sent to, silvery grey for a move, fire red for an attack. It starts at the group's
+// it was sent to, silvery grey for a move, fire red for an attack, leaf green for a hold (D-246). It starts at the group's
 // centre each frame, so it shortens as they go, and it goes when no animal of the order still
 // follows it (the order byte of the animal frame, D-161). It is a reminder, not a fixture: it
 // holds a few seconds, then fades out even while the animals still walk (D-234).
@@ -19,14 +19,14 @@ export const ORDER_LINE = {
   opacity: 0.4,
   hold_s: 2.5,
   fade_s: 1,
-  colors: { move: "#c9cdd2", attack: "#e2452b" },
+  colors: { move: "#c9cdd2", attack: "#e2452b", hold: "#8fd16a" },
 } as const;
 
 export type OrderKind = keyof typeof ORDER_LINE.colors;
 /** Milliseconds before an animal's order byte must match its line's order. */
 const GRACE_MS = 1000;
 /** The order byte of the animal frame for each kind. */
-const ORDER_BYTE: Record<OrderKind, number> = { move: 1, attack: 2 };
+const ORDER_BYTE: Record<OrderKind, number> = { move: 1, attack: 2, hold: 3 };
 
 /** `segments + 1` points (x, z) of a quadratic curve from `a` to `b`, its middle pushed to the
  *  left of the way (seen from above, going from a to b) by `bend` times the length. */
@@ -103,7 +103,11 @@ export class OrderLines {
         depthWrite: false,
         side: THREE.DoubleSide,
       });
-    this.materials = { move: make(ORDER_LINE.colors.move), attack: make(ORDER_LINE.colors.attack) };
+    this.materials = {
+      move: make(ORDER_LINE.colors.move),
+      attack: make(ORDER_LINE.colors.attack),
+      hold: make(ORDER_LINE.colors.hold),
+    };
     for (let i = 0; i < ORDER_LINE.segments; i++) {
       const v = i * 2;
       this.index.push(v, v + 1, v + 2, v + 1, v + 3, v + 2);

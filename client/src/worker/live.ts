@@ -95,6 +95,7 @@ export type ToMain =
       standing: number[];
       victory: number; // the share of the map that wins now (D-175)
       dens: number[][]; // per player: the land and water den cells, -1 for none (D-245)
+      caps: number[][]; // per player: the population cap of each animal species (D-246)
     }
   | { type: "notice"; notices: { player: number; text: string }[] }
   | { type: "net"; event: "desync" | "left"; tick: number }
@@ -179,6 +180,8 @@ export class Live implements Source {
   readonly victory: number;
   /** The share that wins now: the start share, then decaying (D-175). */
   victoryNow: number;
+  /** Per player: the population cap of each animal species, by fauna index (D-246). */
+  caps: number[][] = [[], []];
   /** Per player: the land and water den cells, -1 for none yet (D-245). */
   dens: number[][] = [
     [-1, -1],
@@ -348,7 +351,7 @@ export class Live implements Source {
   order(
     player: 1 | 2,
     ids: number[],
-    kind: "move" | "attack" | "stop",
+    kind: "move" | "attack" | "stop" | "hold",
     row: number,
     col: number,
   ): void {
@@ -411,6 +414,7 @@ export class Live implements Source {
       this.current.moisture = new Uint8Array(m.moisture);
       this.victoryNow = m.victory;
       this.dens = m.dens;
+      this.caps = m.caps;
     } else if (m.type === "notice") {
       const at = performance.now();
       this.notices = [...this.notices, ...m.notices.map((n) => ({ ...n, at }))].slice(-4);

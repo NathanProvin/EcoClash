@@ -139,7 +139,8 @@
   let selection = $state(new Set<number>());
   let confirmLeave = $state(false); // "leave the match?" dialog
   let planting: string | null = $state(null); // species armed for the next map click
-  let attackArmed = $state(false); // A pressed: the next map click is an attack-move
+  // A or H pressed: the next map click is an attack-move or a hold (D-246).
+  let armedOrder: "attack" | "hold" | null = $state(null);
   const groups = new SvelteMap<number, number[]>(); // control groups: digit -> animal ids
   let rightDown: { x: number; y: number } | null = null;
   // Notifications (D-077): toasts, raid pings still showing, and arrows to the off-screen ones.
@@ -451,6 +452,13 @@
     const call = callOf(name);
     // Most arrivals come with a call (D-179), not every one.
     if (call && Math.random() < DROP_CALL) setTimeout(() => audio.play(call, { at: place }), 450);
+  });
+  /** Your population cap per animal species (D-246), refreshed with the fields. */
+  const animalCaps = $derived.by(() => {
+    void tick;
+    const caps = live?.caps[me - 1] ?? [];
+    const names = live?.meta.fauna.names ?? [];
+    return Object.fromEntries(names.map((name, i) => [name, caps[i] ?? 0]));
   });
   /** Your dens on screen (D-245), refreshed every frame. */
   let denMarks: { x: number; y: number; water: boolean }[] = $state([]);
@@ -1146,7 +1154,10 @@
   }
 
   /** Order the selected animals (live match only). */
-  function order(kind: "move" | "attack" | "stop", at?: { row: number; col: number } | null) {
+  function order(
+    kind: "move" | "attack" | "stop" | "hold",
+    at?: { row: number; col: number } | null,
+  ) {
     if (!live || !selection.size) return;
     live.order(me, [...selection], kind, at?.row ?? 0, at?.col ?? 0);
     audio.play("fx.order");
@@ -1198,9 +1209,9 @@
       box = null;
       return;
     }
-    if (click && attackArmed) {
-      order("attack", viewer.pickCell(box.x0, box.y0));
-      if (!e.shiftKey) attackArmed = false;
+    if (click && armedOrder) {
+      order(armedOrder, viewer.pickCell(box.x0, box.y0));
+      if (!e.shiftKey) armedOrder = null;
       box = null;
       return;
     }
@@ -1258,7 +1269,9 @@
       else select(groups.get(Number(digit)) ?? []);
       e.preventDefault();
     } else if (key === "a" && live && selection.size) {
-      attackArmed = true;
+      armedOrder = "attack";
+    } else if (key === "h" && live && selection.size) {
+      armedOrder = "hold";
     } else if (key === "s" && live && selection.size) {
       order("stop");
     } else if (e.code === "Space") {
@@ -1275,7 +1288,7 @@
     } else if (key === "Escape") {
       if (confirmLeave) confirmLeave = false;
       else if (techOpen) techOpen = false;
-      else if (attackArmed) attackArmed = false;
+      else if (armedOrder) armedOrder = null;
       else if (castArmed) castArmed = null;
       else if (planting) planting = null;
       else {
@@ -1444,7 +1457,7 @@
   <canvas
     bind:this={canvas}
     aria-label="Match view: click a cell to inspect it, drag to select your animals"
-    class:planting={attackArmed}
+    class:planting={!!armedOrder}
     class:dropping={!!planting}
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
@@ -1527,14 +1540,16 @@
         planting = null;
       }}
     />
-    {#if attackArmed || planting || castArmed}
+    {#if armedOrder || planting || castArmed}
       <p class="hint">
         {#if castArmed}
           <strong>{label(castArmed)}:</strong> click the centre of the area · it hits both sides · Esc:
           cancel
-        {:else if attackArmed}
+        {:else if armedOrder === "attack"}
           <strong>Attack-move:</strong> click a cell: your animals go there, feeding on any enemy food
           on the way · Esc: cancel
+        {:else if armedOrder === "hold"}
+          <strong>Hold:</strong> click a cell: your animals gather there and stay · Esc: cancel
         {:else if planting}
           <strong>Planting {label(planting)}:</strong>
           click a cell · Shift: keep going · Esc: cancel
@@ -1564,6 +1579,7 @@
         fauna={replay?.meta.fauna.names ?? []}
         {me}
         selected={selectedNames}
+        caps={animalCaps}
         onPick={(name, add) => pickSpecies(name, add)}
       />
     {/if}

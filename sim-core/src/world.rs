@@ -579,7 +579,12 @@ impl World {
         self.fauna.agents.hash_into(&mut h);
         for &den in self.fauna.dens.as_flattened() {
             // D-245; NO_DEN as u64::MAX, the same on 32-bit wasm and native.
-            h.u64(u64::try_from(den).ok().filter(|_| den != NO_DEN).unwrap_or(u64::MAX));
+            h.u64(
+                u64::try_from(den)
+                    .ok()
+                    .filter(|_| den != NO_DEN)
+                    .unwrap_or(u64::MAX),
+            );
         }
         h.finish()
     }

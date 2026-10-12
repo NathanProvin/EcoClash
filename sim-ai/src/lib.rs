@@ -784,7 +784,7 @@ impl Bot {
                 (self.varied(v, s, score), s)
             })
             .filter(|&(score, _)| score > 0)
-            .max_by_key(|&(score, s)| (rush || fa.group_size(s) <= 4, score, s))
+            .max_by_key(|&(score, s)| (rush || !fa.swarm[s], score, s))
             .map(|(_, s)| s)
     }
 
@@ -1384,7 +1384,7 @@ impl Bot {
         for &id in &ids {
             if let Ok(i) = a.id.binary_search(&id) {
                 let s = usize::from(a.sp[i]);
-                if w.fauna.p.group_size(s) <= 4 {
+                if !w.fauna.p.swarm[s] {
                     units += 1;
                 } else {
                     swarms[s] += 1;
@@ -1470,7 +1470,7 @@ impl Bot {
                         .spawn_site(&w.flora.p, &w.state, self.player, s)
                         .is_ok() // it can come now (habitat, den, caps)
             })
-            .max_by_key(|&s| (fa.group_size(s) <= 4, score(s), s))
+            .max_by_key(|&s| (!fa.swarm[s], score(s), s))
     }
 
     /// Cards of species `s` the bot has on the map: animals over the card size; a swarm counts as
@@ -1481,7 +1481,7 @@ impl Bot {
             .filter(|&i| a.owner[i] == self.player && usize::from(a.sp[i]) == s)
             .count();
         let mine = i64::try_from(mine).unwrap_or(i64::MAX);
-        if fa.group_size(s) > 4 {
+        if fa.swarm[s] {
             mine.min(1)
         } else {
             mine / fa.group_size(s).max(1)

@@ -36,6 +36,9 @@ def load_balance(path: Path = BALANCE, species: Path = SPECIES) -> dict:
     balance = tomllib.loads(path.read_text(encoding="utf-8"))
     for kind, tables in tomllib.loads(species.read_text(encoding="utf-8")).items():
         balance[kind] |= tables
+    for s in tables.values():  # the retired prototype keeps a fixed head cap (sim-core: D-246)
+        if isinstance(s, dict) and "per_cell" in s:
+            s.setdefault("cap", round(s["per_cell"] * 20))
     return balance
 
 

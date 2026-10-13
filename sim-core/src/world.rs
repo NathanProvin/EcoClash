@@ -698,14 +698,15 @@ impl World {
 
     /// What `player` sees (D-249), one flag per cell: around each own cell, as far as its highest
     /// established layer's `layer_sight` (a bare own cell as L1), and around each own animal, as
-    /// far as its species' sight. Derived from the state, never hashed: the display and the bots
+    /// far as its species' vision; a swimmer sees water cells only (D-255). Derived from the state, never hashed: the display and the bots
     /// read it; lockstep peers still hold the whole state.
     #[must_use]
     pub fn visible(&self, player: u8) -> Vec<bool> {
         let n = self.state.n;
         let ni = i64::try_from(n).unwrap_or(0);
         let mut seen = vec![false; n * n];
-        let mut reveal = |k: usize, r: i64| {
+        let ground = &self.state.ground;
+        let mut reveal = |k: usize, r: i64, water: bool| {
             let (y, x) = (
                 i64::try_from(k / n).unwrap_or(0),
                 i64::try_from(k % n).unwrap_or(0),
@@ -713,8 +714,11 @@ impl World {
             for yy in (y - r).max(0)..=(y + r).min(ni - 1) {
                 for xx in (x - r).max(0)..=(x + r).min(ni - 1) {
                     // r² + r: a round disc, not a diamond, at small radii (play test).
-                    if (yy - y).pow(2) + (xx - x).pow(2) <= r * r + r {
-                        seen[usize::try_from(yy * ni + xx).unwrap_or(0)] = true;
+                    let c = usize::try_from(yy * ni + xx).unwrap_or(0);
+                    if (yy - y).pow(2) + (xx - x).pow(2) <= r * r + r
+                        && (!water || crate::terrain::is_water(ground[c]))
+                    {
+                        seen[c] = true;
                     }
                 }
             }
@@ -722,11 +726,12 @@ impl World {
         let dom = self.flora.dominant(&self.state);
         for k in (0..n * n).filter(|&k| self.state.owner[k] == player) {
             let layer = usize::from(dom[k].max(1)) - 1;
-            reveal(k, i64::from(self.fog_sight[layer]));
+            reveal(k, i64::from(self.fog_sight[layer]), false);
         }
         let a = &self.fauna.agents;
         for i in (0..a.len()).filter(|&i| a.owner[i] == player) {
-            reveal(a.cell(i, n), self.fauna.p.sight(usize::from(a.sp[i])));
+            let (r, water) = self.fauna.p.vision(usize::from(a.sp[i]));
+            reveal(a.cell(i, n), r, water);
         }
         seen
     }
@@ -897,8 +902,8 @@ mod tests {
         assert_eq!((o.winner, o.reason), (2, Reason::Den));
     }
 
-    /// D-249: an own grass cell sees 2 cells, a tree cell 5, an animal its sight; the enemy's
-    /// land is no help.
+    /// D-249: an own grass cell sees 2 cells, a tree cell 5, an animal its vision (D-255); the
+    /// enemy's land is no help.
     #[test]
     fn fog_reveals_by_layer_and_by_animal_sight() {
         let mut w = World::new(&balance(), 3, 40);
@@ -918,12 +923,29 @@ mod tests {
         assert!(!seen[at(10, 2)] && !seen[at(10, 4)]);
         let fox = w.fauna.p.index("fox").unwrap();
         w.fauna.place(fox, 1, at(30, 20), 1, n);
-        let r = usize::try_from(w.fauna.p.sight(fox)).unwrap();
+        let r = usize::try_from(w.fauna.p.vision(fox).0).unwrap();
         let seen = w.visible(1);
         assert!(
             seen[at(30, 20 - r)] && !seen[at(30, 20 - r - 1)],
-            "the fox's sight"
+            "the fox's vision"
         );
+    }
+
+    /// D-255: a fish sees the water only, not the bank beside it.
+    #[test]
+    fn a_fish_reveals_water_cells_only() {
+        let mut w = World::new(&balance(), 3, 40);
+        let n = 40;
+        let at = |r: usize, c: usize| r * n + c;
+        w.state.ground.fill(crate::terrain::LAND);
+        for c in 0..n {
+            w.state.ground[at(20, c)] = crate::terrain::DEEP; // a river along row 20
+        }
+        let pike = w.fauna.p.index("pike").unwrap();
+        w.fauna.place(pike, 1, at(20, 20), 1, n);
+        let seen = w.visible(1);
+        assert!(seen[at(20, 21)], "the river beside it");
+        assert!(!seen[at(19, 20)] && !seen[at(21, 20)], "not the banks");
     }
 
     /// D-248: a card is refused before it opens; an aphid blight thins the herbs of its disc and

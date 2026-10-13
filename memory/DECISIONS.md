@@ -2964,3 +2964,94 @@ Template:
   - The cell card offers "Move den here". The new den shows as a half-size burrow until it is built.
   - The water den is drawn as a beaver lodge.
   - Bots do not move their den yet.
+
+## D-254 · 2026-10-13 · Alpha 1.6 balance: cheaper, faster woods; quicker breeding; slower animals
+- **Status:** accepted (user)
+- **Decision:**
+  - Shrubs and trees (L3, L4): `unlock_cost` ×0.85 (elder 2 550 … beech 15 300); `growth` and `biomass_rate` ×1.15.
+  - Animals: breeding period (`growth`) ×0.9; `speed` ×0.75 ("they move too fast on the map"). Drift and hunting reach are shares of speed and follow.
+  - Walking: a blocked diagonal step now slides along the obstacle instead of stopping. Slower rabbits stuck on a wall corner showed it.
+
+## D-255 · 2026-10-13 · Fog vision per species (amends D-249)
+- **Status:** accepted (user: "fog of war is nullified when having many animals around")
+- **Decision:**
+  - A new per-species `vision` (cells) sets what an animal reveals in the fog. `sight` keeps its gameplay role: food, prey and room search, and local carrying capacity. Narrowing the fog does not change breeding or hunting.
+  - Values follow the animal:
+    - insects, worms, fungi: 1–2;
+    - small mammals and the frog: 2–3;
+    - large grazers, canids and mustelids: 4–7;
+    - felids: wildcat 9, lynx 10;
+    - birds: great tit 7, woodpecker and heron 8, eagle-owl 11, hawk 12.
+  - Swimmers (larvae, roach, pike) reveal water cells only.
+  - `vision` is in the balance hash, because it is bot input.
+
+## D-256 · 2026-10-13 · Organic main menu: a pebble path (amends D-164, D-166)
+- **Status:** accepted (user picked the pebble path among three layouts)
+- **Decision:**
+  - The glass panel is gone. The title floats over the landscape.
+  - The entries (home and Play modes) are pebble buttons set left and right along a worn footpath. Each pebble has a family pictogram and a tone: Play is gold and larger; Ranked "soon" is greyed moss.
+  - Setups and Options sit on a loam slab under a bark rim. Choices, tabs and presets are small pebbles; the chosen one is gold.
+  - The pebble shape, loam and bark are shared tokens and classes in `app.css` (`--pebble`, `--loam`, `--bark`, `.pebble`, `.loam`), now also used by the family icons and the build bar.
+  - The sounds and the menu logic are unchanged.
+
+## D-257 · 2026-10-13 · Tutorial for the Alpha 1.5 loop (amends D-117, D-139)
+- **Status:** accepted (user chose the full loop)
+- **Decision:** 16 objectives:
+  1. welcome;
+  2. found your den (the heart);
+  3. through the fog (explanation);
+  4. spread (income from growth);
+  5. read the soil;
+  6. grasses (biodiversity);
+  7. a second layer (strength by layer);
+  8. the food web (grazers by layer);
+  9. call rabbits (out of the den, habitat cap);
+  10. command;
+  11. **guard your den** (H + click, a hold);
+  12. grow the herd;
+  13. raid (taking the den wins);
+  14. defend with great tits (scripted swarm, unchanged);
+  15. **strike from afar** (cast the aphid outbreak);
+  16. take 55 %.
+- The bank top-ups follow current prices. Moving the den, recyclers, weather and bigger hunters are left to discover (tips).
+
+## D-258 · 2026-10-13 · Menu title with depth, cyan Play, abstract spine (amends D-256)
+- **Status:** accepted (user, review of D-256)
+- **Decision:**
+  - **Title:** "Eco" in moss and "Clash" in gold italic, set in Fraunces (a soft organic serif, SOFT axis full). It is self-hosted through `@fontsource-variable/fraunces`, latin about 60 KB, so there is no external request under COEP. A stepped extrusion in darker tones of each colour plus a soft drop shadow gives it depth.
+  - **Play:** a vibrant cyan pebble.
+  - **The spine behind the stones:** the footpath is replaced by faint abstract lines: three stream currents drifting slowly (still under reduced motion), a vine with four curls, and a scatter of pebble dots.
+
+## D-259 · 2026-10-13 · Tutorial: overlays, tiers, pushing, grazer kinds, biomass; no figures (amends D-257)
+- **Status:** accepted (user)
+- **Decision:** 21 steps. New ones:
+  - close the Soil overlay;
+  - Bedrock and Moisture (favourite rock, wet and dry tastes), then close it again;
+  - "Push the enemy back": strength from fill, layer, soil and above all the biodiversity combo;
+  - "Four kinds of grazers": one per layer, then hunters and great predators.
+
+  Reworked:
+  - the Grasses step becomes "Tech up", with three tiers per family unlocked with biomass;
+  - biomass is the currency, earned mostly by growing plants and less from mature cells;
+  - grazers crop their own land only up to a point but strip enemy cells bare.
+- The texts give no figures (sight, densities). Only the objective goals keep their percentage.
+
+## D-260 · 2026-10-13 · Pastel Play, grained stones, upright title (amends D-258)
+- **Status:** accepted (user, review of D-258)
+- **Decision:**
+  - Play is a pastel verdigris (`#a9cdbf` → `#4f766b`) instead of the vibrant cyan.
+  - The `.pebble` stones (menu, options) drop their round spots for a fine mineral grain (an inline SVG fractal noise) over faint slanted sediment strata. The family icons keep their own look.
+  - "Clash" in the title is upright, no longer italic.
+
+## D-261 · 2026-10-13 · Tutorial: back navigation, bullets, a starting budget (amends D-259)
+- **Status:** accepted (user)
+- **Decision:**
+  - The objectives panel has ‹ and › arrows to review earlier steps. A reviewed step is marked "done" and the pointer follows it. The view returns to the current step when the tutorial moves on.
+  - Step texts are short bullets (at most 90 characters, one idea each). Species lists are gone. A test keeps them free of figures, except the goal lines.
+  - The tutorial grants `TUTORIAL_BUDGET` = 4 000 biomass at its start, on top of the per-step top-ups, so players can unlock and try species without getting stuck. This is a tutorial-only constant, kept beside `RAID`.
+
+## D-262 · 2026-10-13 · Title outline; Alpha 1.6 released
+- **Status:** accepted (user)
+- **Decision:**
+  - The title gets a dark bark outline (`--bark-dark`, 3 px stroke painted under the fill, so 1.5 px shows), like the stones' rim.
+  - The menu label is "Alpha 1.6". `alpha-1.6` is merged into main and tagged `v1.6-alpha`.

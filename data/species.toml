@@ -32,7 +32,8 @@
 #   alone builds full soil in about 28 min; recyclers speed it up).
 #   Animals: role, eats, habitat, small = can hide in a refuge, swarm = drawn as a swarm, not a
 #   unit (D-065), body (energy capacity), bite (1/s), upkeep (share of body per s), speed and
-#   sight (cells), group (animals per spawned card), medium = walk, swim, amphibious or fly (D-084).
+#   sight (cells: food, prey and room search), vision (cells revealed in the fog, D-255; swimmers
+#   reveal water only), group (animals per spawned card), medium = walk, swim, amphibious or fly (D-084).
 #   Movement (D-088): wobble / wobble_keep = drift kick (share of speed) and drift kept per tick,
 #   defaulting to [fauna]; rest = chance to stay put at an idle decision (stop-and-go).
 
@@ -145,9 +146,9 @@ water_tolerance = 0.55
 bedrock = "clay_limestone"
 
 [flora.elder]
-growth = 0.624
+growth = 0.718
 spawn_cost = 100
-unlock_cost = 3000
+unlock_cost = 2550
 yield = 0.4
 cap = 0.35
 effect = "Fastest shrub, short-lived: the first shrub foothold."
@@ -155,7 +156,7 @@ family = "L3"
 tier = 1
 level = 3
 pioneer = false
-biomass_rate = 0.104
+biomass_rate = 0.1196
 k_max = 20000
 soil_gain = 0.0001
 water_optimum = 0.65
@@ -163,9 +164,9 @@ water_tolerance = 0.4
 bedrock = "schist_granite"
 
 [flora.hawthorn]
-growth = 0.52
+growth = 0.598
 spawn_cost = 120
-unlock_cost = 6000
+unlock_cost = 5100
 yield = 0.5
 cap = 0.35
 effect = "Thorny refuge: own small animals inside cannot be hunted."
@@ -173,7 +174,7 @@ family = "L3"
 tier = 2
 level = 3
 pioneer = false
-biomass_rate = 0.052
+biomass_rate = 0.0598
 k_max = 25000
 soil_gain = 0.0001
 water_optimum = 0.35
@@ -181,9 +182,9 @@ water_tolerance = 0.45
 bedrock = "clay_limestone"
 
 [flora.hazel]
-growth = 0.728
+growth = 0.837
 spawn_cost = 150
-unlock_cost = 9000
+unlock_cost = 7650
 yield = 0.6
 cap = 0.35
 effect = "Shade-tolerant shrub: grows under own trees; its nuts feed squirrels."
@@ -191,7 +192,7 @@ family = "L3"
 tier = 3
 level = 3
 pioneer = false
-biomass_rate = 0.065
+biomass_rate = 0.07475
 k_max = 22000
 soil_gain = 0.0001
 water_optimum = 0.55
@@ -199,9 +200,9 @@ water_tolerance = 0.4
 bedrock = "silt_sand"
 
 [flora.oak]
-growth = 0.312
+growth = 0.359
 spawn_cost = 200
-unlock_cost = 12000
+unlock_cost = 10200
 yield = 1.6
 cap = 0.3
 effect = "Light canopy: the understory thrives beneath it."
@@ -209,7 +210,7 @@ family = "L4"
 tier = 1
 level = 4
 pioneer = false
-biomass_rate = 0.0175
+biomass_rate = 0.02013
 k_max = 60000
 soil_gain = 0.0003
 water_optimum = 0.5
@@ -217,9 +218,9 @@ water_tolerance = 0.45
 bedrock = "clay_limestone"
 
 [flora.chestnut]
-growth = 0.52
+growth = 0.598
 spawn_cost = 220
-unlock_cost = 15000
+unlock_cost = 12750
 yield = 1.8
 cap = 0.3
 effect = "Fastest-growing tree."
@@ -227,7 +228,7 @@ family = "L4"
 tier = 2
 level = 4
 pioneer = false
-biomass_rate = 0.0351
+biomass_rate = 0.04036
 k_max = 62000
 soil_gain = 0.0003
 water_optimum = 0.35
@@ -235,9 +236,9 @@ water_tolerance = 0.4
 bedrock = "schist_granite"
 
 [flora.beech]
-growth = 0.416
+growth = 0.478
 spawn_cost = 250
-unlock_cost = 18000
+unlock_cost = 15300
 yield = 2
 cap = 0.3
 effect = "Tall canopy: the strongest tree layer."
@@ -245,7 +246,7 @@ family = "L4"
 tier = 3
 level = 4
 pioneer = false
-biomass_rate = 0.0234
+biomass_rate = 0.02691
 k_max = 65000
 soil_gain = 0.0003
 water_optimum = 0.6
@@ -307,7 +308,7 @@ water_tolerance = 0.35
 bedrock = "silt_sand"
 
 [fauna.earthworms]
-growth = 20
+growth = 18
 spawn_cost = 200
 unlock_cost = 250
 yield = 0.01
@@ -323,13 +324,14 @@ swarm = true
 body = 50
 bite = 15
 upkeep = 0.01
-speed = 0.8
+speed = 0.6
 sight = 4
+vision = 1
 group = 2
 wobble = 0.3
 
 [fauna.fungi]
-growth = 26
+growth = 23
 spawn_cost = 250
 unlock_cost = 400
 yield = 0.02
@@ -345,13 +347,14 @@ swarm = true
 body = 60
 bite = 20
 upkeep = 0.008
-speed = 0.4
+speed = 0.3
 sight = 4
+vision = 1
 group = 2
 wobble = 0.2
 
 [fauna.black_woodpecker]
-growth = 90
+growth = 81
 spawn_cost = 400
 unlock_cost = 5000
 yield = 0.08
@@ -368,14 +371,15 @@ medium = "fly"
 body = 600
 bite = 90
 upkeep = 0.004
-speed = 3
+speed = 2.25
 sight = 12
+vision = 8
 group = 1
 wobble = 0.15
 rest = 0.4
 
 [fauna.grasshoppers]
-growth = 30
+growth = 27
 spawn_cost = 300
 unlock_cost = 600
 yield = 0.02
@@ -389,13 +393,14 @@ swarm = true
 body = 80
 bite = 25
 upkeep = 0.012
-speed = 1.5
+speed = 1.125
 sight = 6
+vision = 2
 group = 3
 wobble = 0.3
 
 [fauna.rabbits]
-growth = 30
+growth = 27
 spawn_cost = 800
 unlock_cost = 1000
 yield = 0.12
@@ -409,15 +414,16 @@ swarm = false
 body = 600
 bite = 240
 upkeep = 0.01
-speed = 1.2
+speed = 0.9
 sight = 8
+vision = 3
 group = 2
 wobble = 0.08
 wobble_keep = 0.9
 rest = 0.5
 
 [fauna.bison]
-growth = 150
+growth = 135
 spawn_cost = 3000
 unlock_cost = 7000
 yield = 0.5
@@ -431,15 +437,16 @@ swarm = false
 body = 6000
 bite = 1200
 upkeep = 0.003
-speed = 0.8
+speed = 0.6
 sight = 10
+vision = 5
 group = 2
 wobble = 0.04
 wobble_keep = 0.9
 rest = 0.6
 
 [fauna.slugs]
-growth = 30
+growth = 27
 spawn_cost = 350
 unlock_cost = 1000
 yield = 0.02
@@ -453,13 +460,14 @@ swarm = true
 body = 100
 bite = 30
 upkeep = 0.01
-speed = 0.6
+speed = 0.45
 sight = 5
+vision = 1
 group = 2
 wobble = 0.25
 
 [fauna.bank_vole]
-growth = 40
+growth = 36
 spawn_cost = 450
 unlock_cost = 1500
 yield = 0.08
@@ -473,15 +481,16 @@ swarm = false
 body = 300
 bite = 120
 upkeep = 0.01
-speed = 0.6
+speed = 0.45
 sight = 6
+vision = 2
 group = 2
 wobble = 0.1
 wobble_keep = 0.9
 rest = 0.5
 
 [fauna.roe_deer]
-growth = 120
+growth = 108
 spawn_cost = 2000
 unlock_cost = 6000
 yield = 0.35
@@ -495,15 +504,16 @@ swarm = false
 body = 3000
 bite = 700
 upkeep = 0.004
-speed = 1.2
+speed = 0.9
 sight = 10
+vision = 5
 group = 2
 wobble = 0.05
 wobble_keep = 0.9
 rest = 0.6
 
 [fauna.caterpillars]
-growth = 30
+growth = 27
 spawn_cost = 450
 unlock_cost = 1500
 yield = 0.03
@@ -517,13 +527,14 @@ swarm = true
 body = 120
 bite = 36
 upkeep = 0.01
-speed = 0.8
+speed = 0.6
 sight = 6
+vision = 1
 group = 3
 wobble = 0.25
 
 [fauna.red_squirrel]
-growth = 44
+growth = 40
 spawn_cost = 600
 unlock_cost = 2250
 yield = 0.09
@@ -537,15 +548,16 @@ swarm = false
 body = 400
 bite = 150
 upkeep = 0.01
-speed = 1.0
+speed = 0.75
 sight = 8
+vision = 3
 group = 3
 wobble = 0.1
 wobble_keep = 0.9
 rest = 0.5
 
 [fauna.red_deer]
-growth = 150
+growth = 135
 spawn_cost = 3500
 unlock_cost = 8000
 yield = 0.45
@@ -559,15 +571,16 @@ swarm = false
 body = 5000
 bite = 1000
 upkeep = 0.003
-speed = 1.2
+speed = 0.9
 sight = 12
+vision = 5
 group = 2
 wobble = 0.05
 wobble_keep = 0.9
 rest = 0.6
 
 [fauna.bark_beetles]
-growth = 30
+growth = 27
 spawn_cost = 550
 unlock_cost = 3000
 yield = 0.03
@@ -581,13 +594,14 @@ swarm = true
 body = 120
 bite = 40
 upkeep = 0.01
-speed = 0.8
+speed = 0.6
 sight = 6
+vision = 1
 group = 3
 wobble = 0.25
 
 [fauna.beaver]
-growth = 60
+growth = 54
 spawn_cost = 900
 unlock_cost = 4500
 yield = 0.1
@@ -602,15 +616,16 @@ medium = "amphibious"
 body = 1200
 bite = 300
 upkeep = 0.006
-speed = 0.8
+speed = 0.6
 sight = 8
+vision = 4
 group = 2
 wobble = 0.06
 wobble_keep = 0.9
 rest = 0.5
 
 [fauna.wild_boar]
-growth = 120
+growth = 108
 spawn_cost = 3000
 unlock_cost = 9000
 yield = 0.4
@@ -624,15 +639,16 @@ swarm = false
 body = 4000
 bite = 900
 upkeep = 0.003
-speed = 1.0
+speed = 0.75
 sight = 10
+vision = 4
 group = 2
 wobble = 0.06
 wobble_keep = 0.9
 rest = 0.5
 
 [fauna.larvae]
-growth = 30
+growth = 27
 spawn_cost = 300
 unlock_cost = 1500
 yield = 0.02
@@ -647,13 +663,14 @@ medium = "swim"
 body = 80
 bite = 25
 upkeep = 0.012
-speed = 0.8
+speed = 0.6
 sight = 5
+vision = 2
 group = 3
 wobble = 0.3
 
 [fauna.roach]
-growth = 40
+growth = 36
 spawn_cost = 450
 unlock_cost = 2250
 yield = 0.08
@@ -668,15 +685,16 @@ medium = "swim"
 body = 300
 bite = 120
 upkeep = 0.01
-speed = 1.0
+speed = 0.75
 sight = 6
+vision = 3
 group = 2
 wobble = 0.15
 wobble_keep = 0.85
 rest = 0.3
 
 [fauna.mallard]
-growth = 60
+growth = 54
 spawn_cost = 800
 unlock_cost = 3375
 yield = 0.1
@@ -691,15 +709,16 @@ medium = "amphibious"
 body = 800
 bite = 200
 upkeep = 0.006
-speed = 0.8
+speed = 0.6
 sight = 10
+vision = 6
 group = 2
 wobble = 0.08
 wobble_keep = 0.9
 rest = 0.5
 
 [fauna.great_tit]
-growth = 60
+growth = 54
 spawn_cost = 400
 unlock_cost = 800
 yield = 0.05
@@ -715,14 +734,15 @@ swarm = false
 medium = "fly"
 body = 200
 upkeep = 0.005
-speed = 4
+speed = 3
 sight = 10
+vision = 7
 group = 2
 wobble = 0.2
 rest = 0.2
 
 [fauna.frog]
-growth = 60
+growth = 54
 spawn_cost = 400
 unlock_cost = 2500
 yield = 0.06
@@ -738,15 +758,16 @@ swarm = false
 medium = "amphibious"
 body = 300
 upkeep = 0.005
-speed = 1.5
+speed = 1.125
 sight = 6
+vision = 2
 group = 2
 wobble = 0.1
 wobble_keep = 0.9
 rest = 0.6
 
 [fauna.badger]
-growth = 120
+growth = 108
 spawn_cost = 1500
 unlock_cost = 6000
 yield = 0.3
@@ -761,15 +782,16 @@ small = false
 swarm = false
 body = 1500
 upkeep = 0.003
-speed = 2
+speed = 1.5
 sight = 10
+vision = 4
 group = 1
 wobble = 0.06
 wobble_keep = 0.9
 rest = 0.4
 
 [fauna.weasel]
-growth = 60
+growth = 54
 spawn_cost = 400
 unlock_cost = 1200
 yield = 0.08
@@ -784,15 +806,16 @@ small = true
 swarm = false
 body = 500
 upkeep = 0.005
-speed = 3.5
+speed = 2.625
 sight = 10
+vision = 3
 group = 2
 wobble = 0.1
 wobble_keep = 0.9
 rest = 0.3
 
 [fauna.pine_marten]
-growth = 120
+growth = 108
 spawn_cost = 2500
 unlock_cost = 9000
 yield = 0.5
@@ -807,15 +830,16 @@ small = false
 swarm = false
 body = 3500
 upkeep = 0.003
-speed = 4.2
+speed = 3.15
 sight = 12
+vision = 5
 group = 1
 wobble = 0.08
 wobble_keep = 0.9
 rest = 0.3
 
 [fauna.fox]
-growth = 120
+growth = 108
 spawn_cost = 1200
 unlock_cost = 4000
 yield = 0.25
@@ -830,15 +854,16 @@ small = false
 swarm = false
 body = 3000
 upkeep = 0.003
-speed = 3.5
+speed = 2.625
 sight = 12
+vision = 6
 group = 1
 wobble = 0.06
 wobble_keep = 0.9
 rest = 0.4
 
 [fauna.lynx]
-growth = 180
+growth = 162
 spawn_cost = 2500
 unlock_cost = 6000
 yield = 0.8
@@ -853,15 +878,16 @@ small = false
 swarm = false
 body = 5000
 upkeep = 0.002
-speed = 4
+speed = 3
 sight = 14
+vision = 10
 group = 1
 wobble = 0.05
 wobble_keep = 0.9
 rest = 0.5
 
 [fauna.wolf]
-growth = 180
+growth = 162
 spawn_cost = 3500
 unlock_cost = 9000
 yield = 1.0
@@ -876,15 +902,16 @@ small = false
 swarm = false
 body = 6000
 upkeep = 0.002
-speed = 4.5
+speed = 3.375
 sight = 16
+vision = 7
 group = 2
 wobble = 0.05
 wobble_keep = 0.9
 rest = 0.4
 
 [fauna.brown_bear]
-growth = 240
+growth = 216
 spawn_cost = 5000
 unlock_cost = 14000
 yield = 1.5
@@ -899,15 +926,16 @@ small = false
 swarm = false
 body = 9000
 upkeep = 0.0015
-speed = 2.5
+speed = 1.875
 sight = 14
+vision = 5
 group = 1
 wobble = 0.04
 wobble_keep = 0.9
 rest = 0.5
 
 [fauna.pike]
-growth = 90
+growth = 81
 spawn_cost = 800
 unlock_cost = 2500
 yield = 0.15
@@ -923,15 +951,16 @@ swarm = false
 medium = "swim"
 body = 800
 upkeep = 0.004
-speed = 2.5
+speed = 1.875
 sight = 8
+vision = 4
 group = 1
 wobble = 0.04
 wobble_keep = 0.9
 rest = 0.6
 
 [fauna.heron]
-growth = 120
+growth = 108
 spawn_cost = 1200
 unlock_cost = 4500
 yield = 0.2
@@ -947,15 +976,16 @@ swarm = false
 medium = "amphibious"
 body = 1200
 upkeep = 0.003
-speed = 2
+speed = 1.5
 sight = 12
+vision = 8
 group = 1
 wobble = 0.04
 wobble_keep = 0.9
 rest = 0.6
 
 [fauna.otter]
-growth = 150
+growth = 135
 spawn_cost = 2500
 unlock_cost = 8000
 yield = 0.35
@@ -971,8 +1001,9 @@ swarm = false
 medium = "amphibious"
 body = 2500
 upkeep = 0.003
-speed = 2.5
+speed = 1.875
 sight = 12
+vision = 5
 group = 1
 wobble = 0.08
 wobble_keep = 0.9
@@ -980,7 +1011,7 @@ rest = 0.4
 
 # Superpredators (S, D-187, D-197): each eats the hunters below it, so a defence can be answered.
 [fauna.hawk]
-growth = 90
+growth = 81
 spawn_cost = 400
 unlock_cost = 1500
 yield = 0.08
@@ -996,14 +1027,15 @@ swarm = false
 medium = "fly"
 body = 800
 upkeep = 0.004
-speed = 6
+speed = 4.5
 sight = 14
+vision = 12
 group = 1
 wobble = 0.15
 rest = 0.2
 
 [fauna.wildcat]
-growth = 120
+growth = 108
 spawn_cost = 1000
 unlock_cost = 3500
 yield = 0.15
@@ -1018,15 +1050,16 @@ small = false
 swarm = false
 body = 1600
 upkeep = 0.004
-speed = 4
+speed = 3
 sight = 12
+vision = 9
 group = 1
 wobble = 0.06
 wobble_keep = 0.9
 rest = 0.4
 
 [fauna.eagle_owl]
-growth = 150
+growth = 135
 spawn_cost = 2500
 unlock_cost = 8000
 yield = 0.3
@@ -1042,8 +1075,9 @@ swarm = false
 medium = "fly"
 body = 3000
 upkeep = 0.003
-speed = 4
+speed = 3
 sight = 16
+vision = 11
 group = 1
 wobble = 0.1
 rest = 0.3

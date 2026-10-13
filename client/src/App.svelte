@@ -19,7 +19,15 @@
   } from "./game/setup";
   import { ALL_TIPS, loadSeen, saveSeen, TIPS, TipWatch } from "./game/tips";
   import { lookOf } from "./game/catastrophes";
-  import { advance, DEFEND_TITLE, OBJECTIVES, RAID, topUp, TUTORIAL_SETUP } from "./game/tutorial";
+  import {
+    advance,
+    DEFEND_TITLE,
+    OBJECTIVES,
+    RAID,
+    topUp,
+    TUTORIAL_BUDGET,
+    TUTORIAL_SETUP,
+  } from "./game/tutorial";
   import { loadReplay, type Fields, type Role, type Source, type Species } from "./replay/replay";
   import { Live, type Outcome } from "./worker/live";
   import {
@@ -166,7 +174,10 @@
   let tutorial = $state(false); // the match is the tutorial (M5a 8b)
   let castArmed: string | null = $state(null); // the catastrophe card armed (D-129)
   let tutorialStep = $state(0);
+  let tutorialBack = $state(0); // steps the player stepped back to review (D-261)
   let raidOrdered = false; // an order sent animals onto enemy land (tutorial)
+  let holdOrdered = false; // a hold order was given (tutorial, D-257)
+  let castDone = false; // a catastrophe card was cast (tutorial, D-257)
   /** Tutorial (D-139): explanation steps the player clicked Next on; the tech tree opened. */
   let acked = new SvelteSet<number>();
   let techSeen = false;
@@ -732,6 +743,8 @@
           .visibleAnimals()
           .filter((a) => a.owner === 3 - me && fauna[a.species]?.name === "grasshoppers").length,
         raidOver: raidWaves >= RAID.waves,
+        held: holdOrdered,
+        cast: castDone,
       });
       if (step !== tutorialStep) {
         tutorialStep = step;
@@ -1082,6 +1095,7 @@
         const size = Number(q.get("size") ?? MAP_SIZES[s.map]);
         live = await Live.start(s.seed, size, s.sandbox, botSpec(s), relay, tutorial);
         live.fog = !s.sandbox; // fog of war (D-249): off in a sandbox
+        if (tutorial) live.grant(live.me, TUTORIAL_BUDGET); // room to try species (D-261)
         joining = false;
         player = live.me; // view your own side
         const other = relay
@@ -1200,6 +1214,7 @@
     if (kind !== "stop") speak(selection, ORDER_CALL, 150); // D-182
     if (kind !== "stop" && at) viewer?.addOrder([...selection], at, kind); // its line (D-162)
     if (kind !== "stop" && at && enemyAt(at)) raidOrdered = true; // for the tutorial
+    if (kind === "hold" && at) holdOrdered = true;
   }
 
   /** An enemy cell: enemy land, or enemy animals on it (right-click there attacks). */
@@ -1240,7 +1255,10 @@
     const click = Math.abs(box.x1 - box.x0) < 4 && Math.abs(box.y1 - box.y0) < 4;
     if (click && castArmed && live) {
       const at = viewer.pickCell(box.x0, box.y0);
-      if (at) live.catastrophe(me, castArmed, at.row, at.col);
+      if (at) {
+        live.catastrophe(me, castArmed, at.row, at.col);
+        castDone = true; // for the tutorial
+      }
       if (!e.shiftKey) castArmed = null;
       box = null;
       return;
@@ -1408,11 +1426,14 @@
   async function launch(asTutorial = false) {
     tutorial = asTutorial;
     tutorialStep = 0;
+    tutorialBack = 0;
     acked = new SvelteSet();
     techSeen = false;
     raidWaves = 0;
     raidNext = 0;
     raidOrdered = false;
+    holdOrdered = false;
+    castDone = false;
     if (!asTutorial) saveSetup(setup);
     inMenu = false;
     await open(LIVE);
@@ -1590,8 +1611,8 @@
       <pre class="perf-detail">{perfDetail}</pre>
     {/if}
     {#if live && tutorial && !outcome}
-      <Objectives step={tutorialStep} onMenu={toMenu} onNext={nextStep} />
-      <TourPointer targets={OBJECTIVES[tutorialStep]?.point} />
+      <Objectives step={tutorialStep} bind:back={tutorialBack} onMenu={toMenu} onNext={nextStep} />
+      <TourPointer targets={OBJECTIVES[tutorialStep - tutorialBack]?.point} />
     {:else if live && homeless && !outcome}
       <p class="found panel">
         <strong>Choose your spawn.</strong> Pick a plant in the bar and click anywhere on land.

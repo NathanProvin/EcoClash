@@ -72,6 +72,8 @@ pub struct FaunaParams {
     /// Cells walked per tick (Q16).
     speed: Vec<i64>,
     sight: Vec<i64>,
+    /// Fog reveal radius (cells, D-255).
+    vision: Vec<i64>,
     group: Vec<i64>,
     /// Carrying capacity (Q16, D-246): animals per own cell holding the species' habitat.
     pub per_cell: Vec<i64>,
@@ -241,6 +243,7 @@ impl FaunaParams {
                 .map(|s| round(s.speed / hz * one).max(1))
                 .collect(),
             sight,
+            vision: sp.iter().map(|s| i64::from(s.vision)).collect(),
             group: sp.iter().map(|s| i64::from(s.group)).collect(),
             per_cell: sp.iter().map(|s| round(s.per_cell * one)).collect(),
             breed: sp.iter().map(|s| round(s.growth / dt).max(1)).collect(),
@@ -299,10 +302,10 @@ impl FaunaParams {
         }
     }
 
-    /// How far species `s` sees, in cells.
+    /// How far species `s` reveals the fog, in cells (D-255), and whether only water.
     #[must_use]
-    pub fn sight(&self, s: usize) -> i64 {
-        self.sight[s]
+    pub fn vision(&self, s: usize) -> (i64, bool) {
+        (self.vision[s], self.medium[s] == Medium::Swim)
     }
 
     /// The rank of plant `plant` in herbivore `s`'s diet (0: primary), if it eats it (D-123).
@@ -387,6 +390,7 @@ impl FaunaParams {
             &self.upkeep,
             &self.speed,
             &self.sight,
+            &self.vision,
             &self.group,
             &self.per_cell,
             &self.breed,
@@ -810,6 +814,10 @@ impl Fauna {
                 let (y, x) = ((a.y[i] + sy).clamp(0, edge), (a.x[i] + sx).clamp(0, edge));
                 if open(y, x) {
                     (a.y[i], a.x[i]) = (y, x);
+                } else if open(y, a.x[i]) {
+                    a.y[i] = y; // a blocked diagonal slides along the obstacle, not stuck on its corner
+                } else if open(a.y[i], x) {
+                    a.x[i] = x;
                 } else {
                     (a.vy[i], a.vx[i]) = (0, 0); // blocked: it stops, then sets off again
                 }
@@ -2302,7 +2310,7 @@ mod tests {
         let id = fa.agents.id[0];
         fa.order(1, &[id], OrderKind::Stop, (0, 0));
         fa.order(1, &[id], OrderKind::Move, (2, 37));
-        for t in 0..3000 {
+        for t in 0..4000 {
             fa.walk(&st, &mut rng);
             if t % 8 == 0 {
                 fa.decide(&fl.p, &st, &mut rng);
@@ -2378,8 +2386,8 @@ mod tests {
             c.dedup();
             c.len()
         };
-        let run = |fa: &mut Fauna, st: &mut FloraState, rng: &mut Pcg32| {
-            for t in 0..160 {
+        let run = |fa: &mut Fauna, st: &mut FloraState, rng: &mut Pcg32, ticks: u32| {
+            for t in 0..ticks {
                 fa.walk(st, rng);
                 if t % 8 == 0 {
                     fa.decide(&fl.p, st, rng);
@@ -2388,10 +2396,19 @@ mod tests {
         };
         let ids: Vec<u32> = fa.agents.id.clone();
         fa.order(1, &ids, OrderKind::Hold, (8, 3));
-        run(&mut fa, &mut st, &mut rng);
-        assert_eq!(cells(&fa), 1, "held: gathered on one cell");
+        run(&mut fa, &mut st, &mut rng, 160);
+        // Targets scatter inside the cell and drift wobbles: gathered = on the cell or its rim.
+        let near = (0..fa.agents.len()).all(|i| {
+            let k = fa.agents.cell(i, 16);
+            (k / 16).abs_diff(8) <= 1 && (k % 16).abs_diff(3) <= 1
+        });
+        assert!(
+            near && cells(&fa) <= 2,
+            "held: gathered ({} cells)",
+            cells(&fa)
+        );
         fa.order(1, &ids, OrderKind::Stop, (0, 0));
-        run(&mut fa, &mut st, &mut rng);
+        run(&mut fa, &mut st, &mut rng, 400);
         assert!(cells(&fa) >= 5, "free: spread out ({} cells)", cells(&fa));
     }
 

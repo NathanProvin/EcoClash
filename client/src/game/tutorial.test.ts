@@ -47,18 +47,23 @@ describe("tutorial objectives (D-139)", () => {
       [{ owned: SPREAD_GOAL }, 2], // the fog explanation waits for Next
       [{ acked: new Set([0, 2]) }, 4], // fog read, spread done
       [{ overlay: "soil" }, 5], // read the soil
-      [{ unlocked: grasses }, 5], // unlocked, not planted yet: rabbits would find no food
-      [{ plants: grown }, 6],
-      [{ layer: 2 }, 7], // a second layer
-      [{ techOpened: true }, 8],
-      [{ animals: 2 }, 9],
-      [{ selected: 2 }, 10],
-      [{ held: true }, 11], // guarding the den
-      [{ born: HERD_BIRTHS }, 12],
-      [{ onEnemy: 1 }, 13], // raid
-      [{ fauna: new Set(["rabbits"]) }, 13], // no hunter yet: still defending
-      [{ fauna: new Set(["rabbits", "great_tit"]) }, 14],
-      [{ cast: true }, 15], // a catastrophe
+      [{ overlay: null }, 6], // closed it
+      [{ overlay: "bedrock" }, 7], // rock and water
+      [{ overlay: null }, 8], // closed again
+      [{ unlocked: grasses }, 8], // unlocked, not planted yet: rabbits would find no food
+      [{ plants: grown }, 9],
+      [{ layer: 2 }, 10], // a second layer; pushing waits for Next
+      [{ acked: new Set([0, 2, 10]) }, 11],
+      [{ techOpened: true }, 12], // the grazer kinds wait for Next
+      [{ acked: new Set([0, 2, 10, 12]) }, 13],
+      [{ animals: 2 }, 14],
+      [{ selected: 2 }, 15],
+      [{ held: true }, 16], // guarding the den
+      [{ born: HERD_BIRTHS }, 17],
+      [{ onEnemy: 1 }, 18], // raid
+      [{ fauna: new Set(["rabbits"]) }, 18], // no hunter yet: still defending
+      [{ fauna: new Set(["rabbits", "great_tit"]) }, 19],
+      [{ cast: true }, 20], // a catastrophe
       [{ owned: TUTORIAL_GOAL }, OBJECTIVES.length],
     ];
     for (const [change, next] of steps) {
@@ -80,8 +85,10 @@ describe("tutorial objectives (D-139)", () => {
     // Rabbits called before the soil overlay was opened do not skip the soil step.
     expect(advance(4, at({ owned: 0.1, animals: 3, selected: 3 }))).toBe(4);
     expect(advance(4, at({ overlay: "moisture" }))).toBe(4); // another overlay
-    expect(advance(6, at({ layer: 1 }))).toBe(6); // herbs only
-    expect(advance(10, at({ selected: 2, born: 3 }))).toBe(10); // no hold yet
+    expect(advance(9, at({ layer: 1 }))).toBe(9); // herbs only
+    expect(advance(15, at({ selected: 2, born: 3 }))).toBe(15); // no hold yet
+    expect(advance(5, at({ overlay: "soil" }))).toBe(5); // soil still on: not cleared
+    expect(advance(6, at({ overlay: "moisture" }))).toBe(7); // moisture counts as well
   });
 
   it("tops the bank up to a step's need, never down (D-144)", () => {

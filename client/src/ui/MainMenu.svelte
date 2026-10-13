@@ -23,6 +23,8 @@
   import type { Quality } from "../render/quality";
   import OptionsMenu from "./OptionsMenu.svelte";
   import FamilyIcon from "./FamilyIcon.svelte";
+  // The title face (D-258): Fraunces, a soft organic serif, self-hosted (latin, about 60 KB).
+  import "@fontsource-variable/fraunces/soft.css";
   import { audio } from "../audio/engine";
 
   // The build badge and feedback link (M5a 9, D-157): set by the deploy (VITE_BUILD) and in
@@ -141,10 +143,25 @@
 </script>
 
 {#snippet trail()}
-  <!-- A worn footpath winding up between the stones (D-256). -->
-  <svg class="trail" viewBox="0 0 100 300" preserveAspectRatio="none" aria-hidden="true">
-    <path d="M50 300 C 10 250, 90 210, 45 160 S 15 70, 55 0" />
-    <path class="worn" d="M50 300 C 10 250, 90 210, 45 160 S 15 70, 55 0" />
+  <!-- The spine of the menu (D-258): faint, abstract lines behind the stones, a stream's
+       currents, a climbing vine with its curls, and a scatter of pebbles. -->
+  <svg class="trail" viewBox="0 0 200 300" preserveAspectRatio="none" aria-hidden="true">
+    <g class="stream">
+      <path d="M88 300 C 60 250, 140 220, 104 165 S 58 80, 112 0" />
+      <path d="M100 300 C 72 252, 152 218, 116 163 S 70 78, 124 0" />
+      <path d="M112 300 C 86 254, 162 214, 128 161 S 84 76, 136 0" />
+    </g>
+    <g class="vine">
+      <path d="M118 300 C 150 255, 72 225, 96 172 S 150 95, 92 0" />
+      <path d="M131 262 c 14 -6 18 -20 6 -24 c -8 -2 -10 8 -3 9" />
+      <path d="M86 196 c -16 -2 -22 -16 -10 -22 c 8 -3 12 6 5 9" />
+      <path d="M124 118 c 16 -4 20 -18 8 -23 c -8 -3 -11 7 -4 9" />
+      <path d="M104 46 c -15 -4 -18 -18 -6 -22 c 8 -2 10 7 3 9" />
+    </g>
+    <path
+      class="stones"
+      d="M70 282h0M84 268h0M142 246h0M156 232h0M58 204h0M146 178h0M66 150h0M150 126h0M60 96h0M136 70h0M74 42h0M128 18h0"
+    />
   </svg>
 {/snippet}
 
@@ -167,12 +184,12 @@
     </div>
   </div>
   <div class="content">
-    <h1>ECO<span>CLASH</span></h1>
+    <h1><span class="eco">Eco</span><span class="clash">Clash</span></h1>
     {#if view === "home"}
       <p class="tagline">Grow your ecosystem. Outgrow your opponent.</p>
       <nav class="path" aria-label="Main menu">
         {@render trail()}
-        <button class="pebble gold stone big" style:--x="0px" onclick={() => (view = "modes")}>
+        <button class="pebble stone big cyan" style:--x="0px" onclick={() => (view = "modes")}>
           <FamilyIcon family="L4" bare size={30} />Play
         </button>
         <button
@@ -485,21 +502,43 @@
     padding: 24px 16px 40px;
     max-width: 100%;
   }
-  /* The title (D-164): moss green ECO, gold CLASH, a dark outline and a shadow behind. */
+  /* The title (D-164, D-258): a soft serif in moss and gold, carved out of the page by a
+     stepped extrusion in darker tones of each colour, then a soft drop shadow. */
   h1 {
-    margin: 0;
-    font-size: clamp(2.6rem, 7vw, 4.6rem);
-    font-weight: 900;
-    letter-spacing: 0.08em;
-    color: #7fa650;
-    -webkit-text-stroke: 2px #1c2116;
+    margin: 0 0 4px;
+    font-family: "Fraunces Variable", Georgia, serif;
+    font-size: clamp(3rem, 8.5vw, 5.6rem);
+    font-weight: 800;
+    font-variation-settings: "SOFT" 100;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    -webkit-text-stroke: 1px rgba(20, 16, 8, 0.6);
     paint-order: stroke fill;
-    text-shadow:
-      0 5px 0 rgba(0, 0, 0, 0.35),
-      0 10px 28px rgba(0, 0, 0, 0.55);
   }
-  h1 span {
-    color: var(--gold);
+  .eco {
+    color: #95c25c;
+    text-shadow:
+      0 1px 0 #6e9640,
+      0 2px 0 #5a7d33,
+      0 3px 0 #4a6a29,
+      0 4px 0 #3b5720,
+      0 5px 0 #2d4518,
+      0 6px 0 #1f3110,
+      0 10px 14px rgba(0, 0, 0, 0.45),
+      0 18px 36px rgba(0, 0, 0, 0.4);
+  }
+  .clash {
+    font-style: italic;
+    color: #ecd08a;
+    text-shadow:
+      0 1px 0 #c9a95e,
+      0 2px 0 #ad8d47,
+      0 3px 0 #937536,
+      0 4px 0 #7a5f28,
+      0 5px 0 #614a1d,
+      0 6px 0 #463513,
+      0 10px 14px rgba(0, 0, 0, 0.45),
+      0 18px 36px rgba(0, 0, 0, 0.4);
   }
   .tagline {
     margin: 0 0 12px;
@@ -530,17 +569,36 @@
   }
   .trail path {
     fill: none;
-    stroke: rgba(58, 42, 24, 0.55);
-    stroke-width: 14;
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
-    filter: blur(1.5px);
   }
-  .trail path.worn {
-    stroke: rgba(214, 186, 132, 0.28);
-    stroke-width: 2;
-    stroke-dasharray: 2 9;
-    filter: none;
+  .stream path {
+    stroke: rgba(160, 222, 230, 0.32);
+    stroke-width: 1.2;
+    stroke-dasharray: 26 14 6 14;
+    animation: flow 14s linear infinite;
+  }
+  .stream path:nth-child(2) {
+    stroke-opacity: 0.7;
+    animation-duration: 19s;
+  }
+  .vine path {
+    stroke: rgba(184, 220, 130, 0.34);
+    stroke-width: 1.4;
+  }
+  .trail .stones {
+    stroke: rgba(236, 220, 184, 0.34);
+    stroke-width: 6;
+  }
+  @keyframes flow {
+    to {
+      stroke-dashoffset: -120;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stream path {
+      animation: none;
+    }
   }
   .stone {
     position: relative;
@@ -617,6 +675,11 @@
   .dim {
     --hi: #7d8471;
     --lo: #33382c;
+  }
+  /* Play (D-258): a vibrant cyan stone, the one thing to press. */
+  .cyan {
+    --hi: #4ff0f5;
+    --lo: #0a7f96;
   }
   small {
     margin-left: 6px;

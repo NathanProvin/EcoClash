@@ -3014,3 +3014,24 @@ Template:
   15. **strike from afar** (cast the aphid outbreak);
   16. take 55 %.
 - The bank top-ups follow current prices. Moving the den, recyclers, weather and bigger hunters are left to discover (tips).
+
+## D-258 · 2026-10-13 · Menu title with depth, cyan Play, abstract spine (amends D-256)
+- **Status:** accepted (user, review of D-256)
+- **Decision:**
+  - **Title:** "Eco" in moss and "Clash" in gold italic, set in Fraunces (a soft organic serif, SOFT axis full). It is self-hosted through `@fontsource-variable/fraunces`, latin about 60 KB, so there is no external request under COEP. A stepped extrusion in darker tones of each colour plus a soft drop shadow gives it depth.
+  - **Play:** a vibrant cyan pebble.
+  - **The spine behind the stones:** the footpath is replaced by faint abstract lines: three stream currents drifting slowly (still under reduced motion), a vine with four curls, and a scatter of pebble dots.
+
+## D-259 · 2026-10-13 · Tutorial: overlays, tiers, pushing, grazer kinds, biomass; no figures (amends D-257)
+- **Status:** accepted (user)
+- **Decision:** 21 steps. New ones:
+  - close the Soil overlay;
+  - Bedrock and Moisture (favourite rock, wet and dry tastes), then close it again;
+  - "Push the enemy back": strength from fill, layer, soil and above all the biodiversity combo;
+  - "Four kinds of grazers": one per layer, then hunters and great predators.
+
+  Reworked:
+  - the Grasses step becomes "Tech up", with three tiers per family unlocked with biomass;
+  - biomass is the currency, earned mostly by growing plants and less from mature cells;
+  - grazers crop their own land only up to a point but strip enemy cells bare.
+- The texts give no figures (sight, densities). Only the objective goals keep their percentage.

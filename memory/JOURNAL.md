@@ -1209,3 +1209,15 @@
 - **Tutorial (D-257):** 16 steps, with new ones on the den, fog, hold, catastrophes, the habitat cap and biodiversity tips; prices updated.
   - Checked in the browser: the first three steps (founding advances to the fog step).
   - Not played through: the hold and catastrophe steps (unit-tested).
+
+## 2026-10-13 (2) · Menu polish, tutorial depth
+- **Menu (D-258):**
+  - the title is Fraunces with a stepped extrusion;
+  - Play is cyan;
+  - the footpath became faint abstract lines (stream currents, vine curls, pebble dots). First pass too faint; opacities raised.
+  - Checked in the browser.
+- **Tutorial (D-259):** 21 steps; no figures in the texts.
+  - New steps: overlay close steps, Bedrock and Moisture, pushing and the biodiversity combo, the four grazer kinds.
+  - Reworked: tiers as tech-ups, biomass as the currency.
+  - Unit-tested. The new texts were not seen on screen; the longest run to about 14 lines in the 300 px panel.
+- **New dependency:** `@fontsource-variable/fraunces`, the self-hosted title font.

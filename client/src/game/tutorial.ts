@@ -85,12 +85,12 @@ const acked = (s: TutorialState, i: number) => s.acked.has(i);
 
 /** Players start with lichen & moss only (D-118); grasses then feed the rabbits, the first animal
  *  that can be selected and ordered (grasshoppers are a swarm). The `need`s follow the prices in
- *  species.toml and balance.toml. */
+ *  species.toml and balance.toml. The texts give no figures (D-258): only the goals do. */
 export const OBJECTIVES: Objective[] = [
   {
     title: "Welcome to the valley",
     text: "The bar at the top is your dashboard: the coloured bar shows your land (blue, from the left) against your rival's (orange), then your species alive, your biomass and what it earns each second.",
-    tip: "Biomass buys everything: new species, plants, animals, catastrophes.",
+    tip: "Biomass is the currency of the game: it pays for new species, plantings, animals and catastrophes.",
     point: ["resources"],
     ack: true,
     done: acked,
@@ -104,7 +104,7 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     title: "Through the fog",
-    text: "You only see around your land and your animals. Taller plants see farther (herbs 2 cells, trees 5). Animals see by kind: insects barely, deer a little, birds of prey and wildcats far, fish only the water.",
+    text: "You only see around your land and your animals. Taller plants see farther than herbs. Animals see by kind: insects barely, grazers a little, birds of prey and wildcats far, fish only the water.",
     tip: "Out of sight, enemy animals vanish and enemy land shows as you last saw it.",
     ack: true,
     done: acked,
@@ -112,45 +112,76 @@ export const OBJECTIVES: Objective[] = [
   {
     title: "Let it spread",
     text: `Plants creep into free land next to them on their own. Plant more along your border to speed it up. Goal: ${Math.round(SPREAD_GOAL * 100)} % of the map.`,
-    tip: "Income comes from growth: young, growing land earns more than old, full land.",
+    tip: "Biomass comes mostly from growing plants: young cells that still grow earn the most, and a mature, full cell earns less and less.",
     point: ["land"],
     done: (s) => s.owned >= SPREAD_GOAL,
   },
   {
     title: "Read the soil",
     text: "Plants grow in four layers: herbs, undergrowth, shrubs, trees. A taller layer needs richer soil, and your herbs slowly build it. Open the display menu and turn on the Soil overlay to see where it is ready.",
-    tip: "The Moisture and Bedrock overlays show where each plant grows best.",
     point: ["overlay-soil", "display"],
     done: (s) => s.overlay === "soil",
   },
   {
-    title: "Plant Grasses",
+    title: "Clear the view",
+    text: "Turn the Soil overlay off again with the same button: overlays are for planning, the map reads better without them.",
+    point: ["overlay-soil", "display"],
+    done: (s) => s.overlay === null,
+  },
+  {
+    title: "Rock and water",
+    text: "Two more overlays help you choose where to plant. Bedrock shows the rock under the soil: each plant grows faster on its favourite rock. Moisture shows wet and dry ground: each plant has its own taste, ferns and elder like it wet, lichen and hawthorn dry. Turn on Bedrock or Moisture.",
+    tip: "Click a cell: the plant cards in the build bar fade where they would grow poorly.",
+    point: ["overlay-bedrock", "overlay-moisture", "display"],
+    done: (s) => s.overlay === "bedrock" || s.overlay === "moisture",
+  },
+  {
+    title: "Clear the view again",
+    text: "Turn the overlay off. Come back to it whenever you plan a new planting.",
+    point: ["overlay-bedrock", "overlay-moisture", "display"],
+    done: (s) => s.overlay === null,
+  },
+  {
+    title: "Tech up: Grasses",
     need: 500, // unlock 170 + a planting (about 13 cells × 22)
-    text: "Open Herbs: the Grasses card fills with colour as you save up. Click it when its padlock turns gold: it unlocks and comes to hand. Plant grasses over your lichen.",
-    tip: "Biodiversity: every extra species in a cell makes it stronger at the front and earn more.",
+    text: "Every family of plants and animals has three tiers, like teching up units: lichen is the herbs' first tier, Grasses the second. Spend biomass to unlock the next tier: open Herbs, click Grasses when its padlock turns gold, then plant grasses over your lichen.",
+    tip: "A higher tier needs the tier below it in the same family.",
     point: ["family-L1"],
     done: (s) => s.plants.has("grasses"),
   },
   {
     title: "Grow a second layer",
     need: 1300, // Ferns 800 + a planting (about 13 cells × 35)
-    text: "Unlock Ferns in Undergrowth and plant them where your soil is rich.",
-    tip: "A cell's strength rises with its highest layer: that is how borders move.",
+    text: "Ferns are the first tier of the undergrowth. Unlock them and plant them where your soil is rich.",
     point: ["family-L2"],
     done: (s) => s.layer >= 2,
   },
   {
+    title: "Push the enemy back",
+    text: "Borders move by themselves: a thriving cell pushes into a weaker enemy cell next to it until it takes it. A cell's strength comes from how full its plants are, its highest layer, its soil, and above all its biodiversity: every extra species in the cell multiplies its strength and its income. Stack species and layers along the front and the combo carries your border forward.",
+    tip: "The Diversity overlay and the cell card show the combo of each cell.",
+    ack: true,
+    done: acked,
+  },
+  {
     title: "Who eats whom",
     text: "Open the tech tree (T): it is a food web. Hover a species to light up its food and its hunters.",
-    tip: "Grazers eat one layer: rabbits the herbs, deer the undergrowth, squirrels the shrubs.",
+    tip: "Every species has an answer somewhere in the web.",
     point: ["tech"],
     done: (s) => s.techOpened,
+  },
+  {
+    title: "Four kinds of grazers",
+    text: "Grazers come in four kinds, one per plant layer: herb eaters (grasshoppers, rabbits, bison), undergrowth eaters (slugs, voles, roe deer), shrub eaters (caterpillars, squirrels, red deer) and tree eaters (bark beetles, beavers, wild boar). Hunters eat the grazers, and the great predators eat the hunters.",
+    tip: "A grazer lives on its layer: its herd grows with the cells of that layer you hold.",
+    ack: true,
+    done: acked,
   },
   {
     title: "Call rabbits",
     need: 3500, // Grasshoppers 600 + Rabbits 1000 + a card of two (800 each)
     text: "In Grazers (yellow), unlock Grasshoppers, then Rabbits, then click Rabbits: they come out of your den and walk from there.",
-    tip: "A herd only grows as big as its habitat: about 5 rabbits per cell of your herbs.",
+    tip: "A herd only grows as big as its habitat: the more herb cells you hold, the bigger it can get.",
     point: ["family-H1"],
     done: (s) => s.animals > 0,
   },
@@ -168,13 +199,13 @@ export const OBJECTIVES: Objective[] = [
   },
   {
     title: "Grow your herd",
-    text: "Well-fed animals breed on your land. Keep your rabbits at home on your grass for a while and watch the herd grow.",
+    text: "Well-fed animals breed. At home your grazers crop your own plants, but only up to a point: they never eat a cell down, so your land keeps growing. Keep your rabbits on your grass for a while and watch the herd grow.",
     tip: "A strong herd at home is the raid you send later.",
     done: (s) => s.born >= HERD_BIRTHS,
   },
   {
     title: "Raid the enemy",
-    text: "Select your herd, press A, then click enemy land: they march there and graze it bare, and bare land is free to take.",
+    text: "On enemy land, grazers hold nothing back: they strip the cells of their layer bare, and bare land is free to take. Select your herd, press A, then click enemy land.",
     tip: "In a real match, taking the enemy's den wins at once.",
     done: (s) => s.onEnemy > 0,
   },
@@ -182,7 +213,7 @@ export const OBJECTIVES: Objective[] = [
     title: DEFEND_TITLE,
     need: 1800, // Great tit 800 + a card of two (400 each) + spare
     text: "The enemy is sending grasshopper swarms onto your meadows! Great tits eat them: unlock Great tit in Insect eaters, call it, then send it onto the swarm (A + click).",
-    tip: "Every grazer has a hunter: the tech tree shows who eats whom.",
+    tip: "Hunters at home also live off your own herds' surplus: keep a few near your grazers.",
     point: ["family-L3", "family-P1"],
     // Fallback: a bot left without grass cannot raid; then the unlock is enough.
     done: (s) =>

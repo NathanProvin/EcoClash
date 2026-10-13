@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   advance,
+  DEFEND_TITLE,
   HERD_BIRTHS,
   OBJECTIVES,
   SPREAD_GOAL,
@@ -24,6 +25,8 @@ const at = (s: Partial<TutorialState>): TutorialState => ({
   fauna: new Set(),
   swarm: 0,
   raidOver: false,
+  held: false,
+  cast: false,
   ...s,
 });
 const grasses = new Set(["lichen_and_moss", "grasses"]);
@@ -40,19 +43,22 @@ describe("tutorial objectives (D-139)", () => {
     let s = at({ acked: new Set([0]) });
     let step = advance(0, s);
     const steps: [Partial<TutorialState>, number][] = [
-      [{ owned: 0.01 }, 2], // founded
-      [{ owned: SPREAD_GOAL }, 3], // spread
-      [{ overlay: "soil" }, 4], // read the soil
-      [{ unlocked: grasses }, 4], // unlocked, not planted yet: rabbits would find no food
-      [{ plants: grown }, 5],
-      [{ layer: 2 }, 6], // a second layer
-      [{ techOpened: true }, 7],
-      [{ animals: 2 }, 8],
-      [{ selected: 2 }, 9],
-      [{ born: HERD_BIRTHS }, 10],
-      [{ onEnemy: 1 }, 11], // raid
-      [{ fauna: new Set(["rabbits"]) }, 11], // no hunter yet: still defending
-      [{ fauna: new Set(["rabbits", "great_tit"]) }, 12],
+      [{ owned: 0.01 }, 2], // founded: the den
+      [{ owned: SPREAD_GOAL }, 2], // the fog explanation waits for Next
+      [{ acked: new Set([0, 2]) }, 4], // fog read, spread done
+      [{ overlay: "soil" }, 5], // read the soil
+      [{ unlocked: grasses }, 5], // unlocked, not planted yet: rabbits would find no food
+      [{ plants: grown }, 6],
+      [{ layer: 2 }, 7], // a second layer
+      [{ techOpened: true }, 8],
+      [{ animals: 2 }, 9],
+      [{ selected: 2 }, 10],
+      [{ held: true }, 11], // guarding the den
+      [{ born: HERD_BIRTHS }, 12],
+      [{ onEnemy: 1 }, 13], // raid
+      [{ fauna: new Set(["rabbits"]) }, 13], // no hunter yet: still defending
+      [{ fauna: new Set(["rabbits", "great_tit"]) }, 14],
+      [{ cast: true }, 15], // a catastrophe
       [{ owned: TUTORIAL_GOAL }, OBJECTIVES.length],
     ];
     for (const [change, next] of steps) {
@@ -64,21 +70,23 @@ describe("tutorial objectives (D-139)", () => {
 
   it("lets the defense end on the unlock when the bot cannot raid", () => {
     const tit = new Set(["lichen_and_moss", "great_tit"]);
-    expect(advance(11, at({ unlocked: tit }))).toBe(11); // waves still coming
-    expect(advance(11, at({ unlocked: tit, raidOver: true, swarm: 3 }))).toBe(11); // prey to hunt
-    expect(advance(11, at({ unlocked: tit, raidOver: true }))).toBe(12);
+    const d = OBJECTIVES.findIndex((o) => o.title === DEFEND_TITLE);
+    expect(advance(d, at({ unlocked: tit }))).toBe(d); // waves still coming
+    expect(advance(d, at({ unlocked: tit, raidOver: true, swarm: 3 }))).toBe(d); // prey to hunt
+    expect(advance(d, at({ unlocked: tit, raidOver: true }))).toBe(d + 1);
   });
 
   it("does not skip a step done out of order", () => {
     // Rabbits called before the soil overlay was opened do not skip the soil step.
-    expect(advance(3, at({ owned: 0.1, animals: 3, selected: 3 }))).toBe(3);
-    expect(advance(3, at({ overlay: "moisture" }))).toBe(3); // another overlay
-    expect(advance(5, at({ layer: 1 }))).toBe(5); // herbs only
+    expect(advance(4, at({ owned: 0.1, animals: 3, selected: 3 }))).toBe(4);
+    expect(advance(4, at({ overlay: "moisture" }))).toBe(4); // another overlay
+    expect(advance(6, at({ layer: 1 }))).toBe(6); // herbs only
+    expect(advance(10, at({ selected: 2, born: 3 }))).toBe(10); // no hold yet
   });
 
   it("tops the bank up to a step's need, never down (D-144)", () => {
     const step = OBJECTIVES.findIndex((o) => o.title === "Grow a second layer");
-    expect(topUp(step, 200)).toBe(800);
+    expect(topUp(step, 200)).toBe(1100);
     expect(topUp(step, 5000)).toBe(0);
     expect(topUp(0, 0)).toBe(0); // no need: nothing granted
   });

@@ -42,6 +42,7 @@
   <div class="group" role="group" onpointerenter={enter} onpointerleave={leave}>
     <button
       class="item"
+      data-tour="catastrophes"
       class:open
       class:armed={armed !== null}
       aria-expanded={open}

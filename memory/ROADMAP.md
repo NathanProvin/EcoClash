@@ -119,6 +119,7 @@ Goal: a build strangers can play against the bot and understand at a glance. One
   - "Play again" on the end screen.
 - [x] **8a. First-match tips** (D-082): contextual, once each, through the notification stack; switch in Options.
 - [x] **8b. Tutorial** (D-117): a "Tutorial" entry next to Play: the easy bot on a small meadows map (seed 2), six objectives in order (found with lichen, spread to 5 %, unlock grasses, call rabbits, raid with A + click, hold 55 %; D-120), progress dots, a "Tutorial complete" panel.
+  Reworked for Alpha 1.5+: den, fog, hold, habitat caps, biodiversity, catastrophes (D-257).
 - [x] **9. Static deploy** (Cloudflare Pages, D-157): live; **Alpha 1** released and played by outside testers (2026-10-05).
 
 ## World overhaul (before M5a 8b and 9; user, 2026-09-30)

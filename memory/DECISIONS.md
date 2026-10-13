@@ -2993,3 +2993,24 @@ Template:
   - Setups and Options sit on a loam slab under a bark rim. Choices, tabs and presets are small pebbles; the chosen one is gold.
   - The pebble shape, loam and bark are shared tokens and classes in `app.css` (`--pebble`, `--loam`, `--bark`, `.pebble`, `.loam`), now also used by the family icons and the build bar.
   - The sounds and the menu logic are unchanged.
+
+## D-257 · 2026-10-13 · Tutorial for the Alpha 1.5 loop (amends D-117, D-139)
+- **Status:** accepted (user chose the full loop)
+- **Decision:** 16 objectives:
+  1. welcome;
+  2. found your den (the heart);
+  3. through the fog (explanation);
+  4. spread (income from growth);
+  5. read the soil;
+  6. grasses (biodiversity);
+  7. a second layer (strength by layer);
+  8. the food web (grazers by layer);
+  9. call rabbits (out of the den, habitat cap);
+  10. command;
+  11. **guard your den** (H + click, a hold);
+  12. grow the herd;
+  13. raid (taking the den wins);
+  14. defend with great tits (scripted swarm, unchanged);
+  15. **strike from afar** (cast the aphid outbreak);
+  16. take 55 %.
+- The bank top-ups follow current prices. Moving the den, recyclers, weather and bigger hunters are left to discover (tips).

@@ -167,6 +167,8 @@
   let castArmed: string | null = $state(null); // the catastrophe card armed (D-129)
   let tutorialStep = $state(0);
   let raidOrdered = false; // an order sent animals onto enemy land (tutorial)
+  let holdOrdered = false; // a hold order was given (tutorial, D-257)
+  let castDone = false; // a catastrophe card was cast (tutorial, D-257)
   /** Tutorial (D-139): explanation steps the player clicked Next on; the tech tree opened. */
   let acked = new SvelteSet<number>();
   let techSeen = false;
@@ -732,6 +734,8 @@
           .visibleAnimals()
           .filter((a) => a.owner === 3 - me && fauna[a.species]?.name === "grasshoppers").length,
         raidOver: raidWaves >= RAID.waves,
+        held: holdOrdered,
+        cast: castDone,
       });
       if (step !== tutorialStep) {
         tutorialStep = step;
@@ -1200,6 +1204,7 @@
     if (kind !== "stop") speak(selection, ORDER_CALL, 150); // D-182
     if (kind !== "stop" && at) viewer?.addOrder([...selection], at, kind); // its line (D-162)
     if (kind !== "stop" && at && enemyAt(at)) raidOrdered = true; // for the tutorial
+    if (kind === "hold" && at) holdOrdered = true;
   }
 
   /** An enemy cell: enemy land, or enemy animals on it (right-click there attacks). */
@@ -1240,7 +1245,10 @@
     const click = Math.abs(box.x1 - box.x0) < 4 && Math.abs(box.y1 - box.y0) < 4;
     if (click && castArmed && live) {
       const at = viewer.pickCell(box.x0, box.y0);
-      if (at) live.catastrophe(me, castArmed, at.row, at.col);
+      if (at) {
+        live.catastrophe(me, castArmed, at.row, at.col);
+        castDone = true; // for the tutorial
+      }
       if (!e.shiftKey) castArmed = null;
       box = null;
       return;
@@ -1413,6 +1421,8 @@
     raidWaves = 0;
     raidNext = 0;
     raidOrdered = false;
+    holdOrdered = false;
+    castDone = false;
     if (!asTutorial) saveSetup(setup);
     inMenu = false;
     await open(LIVE);

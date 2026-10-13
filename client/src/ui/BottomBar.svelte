@@ -375,14 +375,9 @@
   /* Earthy panels (play test): dark loam under a bark rim, not a glassy dashboard. */
   .bar,
   .flyout {
-    background:
-      radial-gradient(ellipse at 30% 0%, rgba(201, 164, 106, 0.1), transparent 60%),
-      linear-gradient(180deg, rgba(48, 37, 26, 0.88), rgba(28, 22, 15, 0.92));
-    border: 1px solid rgba(160, 124, 78, 0.45);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 228, 180, 0.08),
-      inset 0 -2px 6px rgba(0, 0, 0, 0.35),
-      0 6px 18px rgba(0, 0, 0, 0.35);
+    background: var(--loam);
+    border: 1px solid var(--bark);
+    box-shadow: var(--loam-shadow);
   }
   .bar {
     display: flex;
@@ -471,7 +466,7 @@
   }
   .tile {
     padding: 2px;
-    border-radius: 42% 58% 46% 54% / 52% 44% 56% 48%; /* the pebble of its icon */
+    border-radius: var(--pebble); /* the pebble of its icon */
   }
   .tile:hover {
     transform: translateY(-2px);

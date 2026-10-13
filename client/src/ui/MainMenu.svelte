@@ -3,7 +3,8 @@
   // "Play" lists the modes (D-137): Sandbox, Multiplayer and Ranked (soon), AI opponent; a mode
   // opens its setup (map size and seed, plus the bot level against the AI), remembered per browser;
   // "Options" holds the display settings and the list of shortcuts; "Species" shows the tech tree
-  // with every species (D-140). Background: drop an image at client/public/menu/background.webp
+  // with every species (D-140). Entries are pebbles along a footpath, setups sit on a loam slab
+  // (D-256). Background: drop an image at client/public/menu/background.webp
   // and it replaces the painted placeholder.
   import {
     BOTS,
@@ -21,6 +22,7 @@
   } from "../game/setup";
   import type { Quality } from "../render/quality";
   import OptionsMenu from "./OptionsMenu.svelte";
+  import FamilyIcon from "./FamilyIcon.svelte";
   import { audio } from "../audio/engine";
 
   // The build badge and feedback link (M5a 9, D-157): set by the deploy (VITE_BUILD) and in
@@ -66,12 +68,26 @@
     none: "No opponent",
   };
   /** The Play modes, in the menu's order; Ranked comes later (M6). */
-  const MODES: { id: Mode | null; name: string; hint: string }[] = [
-    { id: "sandbox", name: "Sandbox", hint: "Everything unlocked and free, no opponent" },
-    { id: "online", name: "Multiplayer", hint: "A 1v1 online: host a match or join one by code" },
-    { id: null, name: "Ranked", hint: "Ranked matches: coming soon" },
-    { id: "ai", name: "AI opponent", hint: "A match against the bot" },
+  const MODES: { id: Mode | null; name: string; hint: string; icon: string; tone: string }[] = [
+    {
+      id: "sandbox",
+      name: "Sandbox",
+      hint: "Everything unlocked and free, no opponent",
+      icon: "L3",
+      tone: "moss",
+    },
+    {
+      id: "online",
+      name: "Multiplayer",
+      hint: "A 1v1 online: host a match or join one by code",
+      icon: "P3",
+      tone: "river",
+    },
+    { id: null, name: "Ranked", hint: "Ranked matches: coming soon", icon: "S", tone: "dim" },
+    { id: "ai", name: "AI opponent", hint: "A match against the bot", icon: "P2", tone: "gold" },
   ];
+  /** Where each stone of the path sits, left or right of the trail (px), in order (D-256). */
+  const SWAY = [-46, 52, -30, 40, -10];
   function pick(mode: Mode) {
     setup = forMode(setup, mode);
     view = mode;
@@ -124,6 +140,14 @@
   }
 </script>
 
+{#snippet trail()}
+  <!-- A worn footpath winding up between the stones (D-256). -->
+  <svg class="trail" viewBox="0 0 100 300" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M50 300 C 10 250, 90 210, 45 160 S 15 70, 55 0" />
+    <path class="worn" d="M50 300 C 10 250, 90 210, 45 160 S 15 70, 55 0" />
+  </svg>
+{/snippet}
+
 <div class="menu" onpointerover={hover} role="presentation">
   <!-- The out-of-focus landscape, drifting like a slow camera move (D-164). -->
   <div class="scene" aria-hidden="true">
@@ -146,33 +170,61 @@
     <h1>ECO<span>CLASH</span></h1>
     {#if view === "home"}
       <p class="tagline">Grow your ecosystem. Outgrow your opponent.</p>
-      <nav aria-label="Main menu">
-        <button class="primary" onclick={() => (view = "modes")}>Play</button>
-        <button onclick={onTutorial} title="A short guided match against the easy bot">
-          Tutorial
+      <nav class="path" aria-label="Main menu">
+        {@render trail()}
+        <button class="pebble gold stone big" style:--x="0px" onclick={() => (view = "modes")}>
+          <FamilyIcon family="L4" bare size={30} />Play
         </button>
-        <button onclick={onSpecies} title="Every species and who eats whom">Species</button>
-        <button onclick={() => (view = "options")}>Options</button>
+        <button
+          class="pebble stone moss"
+          style:--x="{SWAY[1]}px"
+          onclick={onTutorial}
+          title="A guided match: every core mechanic, step by step"
+        >
+          <FamilyIcon family="L1" bare size={24} />Tutorial
+        </button>
+        <button
+          class="pebble stone rust"
+          style:--x="{SWAY[2]}px"
+          onclick={onSpecies}
+          title="Every species and who eats whom"
+        >
+          <FamilyIcon family="P2" bare size={24} />Species
+        </button>
+        <button
+          class="pebble stone earth"
+          style:--x="{SWAY[3]}px"
+          onclick={() => (view = "options")}
+        >
+          <FamilyIcon family="D" bare size={24} />Options
+        </button>
       </nav>
     {:else if view === "modes"}
-      <nav aria-label="Play">
-        {#each MODES as m (m.name)}
+      <nav class="path" aria-label="Play">
+        {@render trail()}
+        {#each MODES as m, i (m.name)}
           {@const id = m.id}
           <button
-            class:primary={id === "ai"}
+            class="pebble stone {m.tone}"
+            class:gold={m.tone === "gold"}
+            style:--x="{SWAY[i] ?? 0}px"
             disabled={id === null}
             title={m.hint}
             onclick={() => id && pick(id)}
           >
-            {m.name}
+            <FamilyIcon family={m.icon} bare size={24} />{m.name}
             {#if id === null}<small>soon</small>{/if}
           </button>
         {/each}
-        <button onclick={() => (view = "home")}>Back</button>
+        <button
+          class="pebble stone small earth"
+          style:--x="{SWAY[4]}px"
+          onclick={() => (view = "home")}>Back</button
+        >
       </nav>
     {:else if view === "sandbox" || view === "ai" || view === "online"}
       <form
-        class="panel-form"
+        class="panel-form loam slab"
         aria-label={view === "ai"
           ? "Match against the AI"
           : view === "online"
@@ -193,7 +245,7 @@
             <legend>Difficulty</legend>
             <div class="choices three">
               {#each BOTS.filter((b) => b !== "none") as b (b)}
-                <label class="choice" class:on={setup.bot === b}>
+                <label class="pebble choice" class:gold={setup.bot === b}>
                   <input type="radio" name="bot" value={b} bind:group={setup.bot} />
                   {BOT_NAMES[b]}
                 </label>
@@ -204,7 +256,11 @@
             <legend>Bot style</legend>
             <div class="choices three">
               {#each STYLES as st (st)}
-                <label class="choice" class:on={setup.style === st} title={STYLE_NAMES[st][1]}>
+                <label
+                  class="pebble choice"
+                  class:gold={setup.style === st}
+                  title={STYLE_NAMES[st][1]}
+                >
                   <input type="radio" name="style" value={st} bind:group={setup.style} />
                   {STYLE_NAMES[st][0]}
                 </label>
@@ -216,7 +272,7 @@
           <legend>Map size</legend>
           <div class="choices three">
             {#each Object.keys(MAP_SIZES) as m (m)}
-              <label class="choice" class:on={setup.map === m}>
+              <label class="pebble choice" class:gold={setup.map === m}>
                 <input type="radio" name="map" value={m} bind:group={setup.map} />
                 {MAP_NAMES[m as MapSize]}
               </label>
@@ -227,14 +283,19 @@
           Map seed
           <span class="seed">
             <input type="number" min="1" max="999999" bind:value={setup.seed} />
-            <button type="button" onclick={() => (setup.seed = randomSeed())} title="A new map">
+            <button
+              class="pebble"
+              type="button"
+              onclick={() => (setup.seed = randomSeed())}
+              title="A new map"
+            >
               Random
             </button>
           </span>
         </label>
         {#if view === "online"}
           <nav class="actions">
-            <button class="primary" type="button" onclick={() => onOnline(roomCode())}>
+            <button class="pebble gold stone" type="button" onclick={() => onOnline(roomCode())}>
               Host a match
             </button>
           </nav>
@@ -250,6 +311,7 @@
                 bind:value={typed}
               />
               <button
+                class="pebble"
                 type="button"
                 disabled={!cleanCode(typed)}
                 onclick={() => onOnline(cleanCode(typed))}
@@ -259,12 +321,16 @@
             </span>
           </label>
           <nav class="actions">
-            <button type="button" onclick={() => (view = "modes")}>Back</button>
+            <button class="pebble stone small earth" type="button" onclick={() => (view = "modes")}
+              >Back</button
+            >
           </nav>
         {:else}
           <nav class="actions">
-            <button class="primary" type="submit">Start</button>
-            <button type="button" onclick={() => (view = "modes")}>Back</button>
+            <button class="pebble gold stone" type="submit">Start</button>
+            <button class="pebble stone small earth" type="button" onclick={() => (view = "modes")}
+              >Back</button
+            >
           </nav>
         {/if}
       </form>
@@ -409,17 +475,15 @@
     text-transform: none;
     color: var(--ink-soft);
   }
+  /* No panel (D-256): the title and the stones stand in the landscape itself. */
   .content {
     position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 14px;
-    padding: 36px 56px 40px;
-    border-radius: 18px;
-    background: var(--panel);
-    box-shadow: var(--trim);
-    backdrop-filter: blur(4px);
+    padding: 24px 16px 40px;
+    max-width: 100%;
   }
   /* The title (D-164): moss green ECO, gold CLASH, a dark outline and a shadow behind. */
   h1 {
@@ -445,36 +509,114 @@
   nav {
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 10px;
-    width: min(280px, 70vw);
   }
-  nav button {
-    padding: 12px 18px;
-    border-radius: 10px;
-    border: 1px solid var(--line);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
-    font-size: 1.05em;
+  /* The stones along the trail (D-256): pebbles in the build bar's look, each sat a little left
+     or right of the path (--x), each a slightly different shape. */
+  .path {
+    position: relative;
+    gap: 16px;
+    padding: 10px 0 18px;
+    width: min(340px, calc(100vw - 32px));
+  }
+  .trail {
+    position: absolute;
+    inset: -16px 0 -24px;
+    width: 100%;
+    height: calc(100% + 40px);
+    overflow: visible;
+    pointer-events: none;
+  }
+  .trail path {
+    fill: none;
+    stroke: rgba(58, 42, 24, 0.55);
+    stroke-width: 14;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+    filter: blur(1.5px);
+  }
+  .trail path.worn {
+    stroke: rgba(214, 186, 132, 0.28);
+    stroke-width: 2;
+    stroke-dasharray: 2 9;
+    filter: none;
+  }
+  .stone {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-width: 168px;
+    padding: 12px 26px 13px 22px;
+    font-size: 1.02em;
     font-weight: 800;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
+    text-shadow: 0 1px 2px rgba(20, 10, 2, 0.6);
+    translate: var(--x, 0) 0;
     cursor: var(--cursor-pointer);
     transition:
-      border-color 0.12s,
-      box-shadow 0.12s,
-      transform 0.12s;
+      transform 0.15s,
+      box-shadow 0.15s,
+      filter 0.15s;
   }
-  nav button:hover:not(:disabled) {
-    border-color: var(--gold);
-    box-shadow: 0 0 14px rgba(216, 180, 92, 0.45);
-    transform: translateY(-1px);
+  .stone:nth-of-type(2n) {
+    border-radius: 54% 46% 58% 42% / 46% 56% 44% 54%;
   }
-  nav .primary {
-    border-color: var(--gold);
-    background: linear-gradient(180deg, rgba(216, 180, 92, 0.45), rgba(216, 180, 92, 0.15));
+  .stone:nth-of-type(3n) {
+    border-radius: 48% 52% 40% 60% / 58% 46% 54% 42%;
   }
-  nav button:disabled {
-    opacity: 0.5;
+  .stone.big {
+    min-width: 220px;
+    padding: 18px 36px 19px 30px;
+    font-size: 1.35em;
+  }
+  .stone.small {
+    min-width: 120px;
+    padding: 8px 20px;
+    font-size: 0.9em;
+  }
+  .stone:hover:not(:disabled),
+  .stone:focus-visible {
+    transform: translateY(-3px) rotate(-1deg);
+    filter: brightness(1.08);
+    box-shadow:
+      inset 0 2px 3px rgba(255, 232, 190, 0.16),
+      inset 0 -3px 6px rgba(18, 10, 4, 0.45),
+      0 0 0 2px var(--gold),
+      0 6px 14px rgba(0, 0, 0, 0.45),
+      0 0 18px rgba(216, 180, 92, 0.4);
+  }
+  .stone:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+  }
+  .stone:disabled {
+    filter: saturate(0.35) brightness(0.8);
+    opacity: 0.75;
     cursor: var(--cursor);
+  }
+  /* Stone tones: the family-icon earths. */
+  .moss {
+    --hi: #93ad5e;
+    --lo: #3d5426;
+  }
+  .river {
+    --hi: #5f978c;
+    --lo: #1b403c;
+  }
+  .rust {
+    --hi: #ab5d4a;
+    --lo: #4b1d14;
+  }
+  .earth {
+    --hi: #9c7a55;
+    --lo: #45301c;
+  }
+  .dim {
+    --hi: #7d8471;
+    --lo: #33382c;
   }
   small {
     margin-left: 6px;
@@ -487,8 +629,13 @@
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
-    width: min(340px, 80vw);
+    width: min(380px, calc(100vw - 32px));
     margin: 4px 0 0;
+  }
+  /* A slab of loam under a bark rim (the build bar's panels), its corners worn uneven. */
+  .slab {
+    padding: 20px 22px 22px;
+    border-radius: 22px 30px 26px 34px / 30px 24px 32px 26px;
   }
   fieldset {
     margin: 0;
@@ -503,38 +650,43 @@
   .choices {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    margin-top: 6px;
+    gap: 8px;
+    margin-top: 8px;
   }
   .choices.three {
     grid-template-columns: 1fr 1fr 1fr;
   }
+  /* The options are small pebbles; the chosen one turns gold (D-165, D-256). */
   .choice {
     padding: 8px 10px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    color: var(--ink);
-    cursor: var(--cursor-pointer);
-  }
-  .choice {
     text-align: center;
+    font-weight: 700;
+    cursor: var(--cursor-pointer);
     transition:
-      border-color 0.12s,
+      transform 0.12s,
       box-shadow 0.12s;
   }
-  .choice:hover {
-    border-color: var(--gold);
+  .choice:nth-child(2n) {
+    border-radius: 54% 46% 58% 42% / 46% 56% 44% 54%;
   }
-  /* The selected choice wears the primary button's mustard (D-165). */
-  .choice.on {
-    border-color: var(--gold);
-    background: linear-gradient(180deg, rgba(216, 180, 92, 0.45), rgba(216, 180, 92, 0.15));
-    box-shadow: 0 0 12px rgba(216, 180, 92, 0.35);
-    font-weight: 800;
+  .choice:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 2px 3px rgba(255, 232, 190, 0.12),
+      inset 0 -3px 6px rgba(18, 10, 4, 0.45),
+      0 0 0 1.5px var(--gold);
+  }
+  .choice:not(.gold) {
+    --hi: #6b5a40;
+    --lo: #2e2416;
   }
   /* START and BACK, centred under the setup (D-165). */
   .actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
     align-self: center;
+    gap: 14px;
     margin-top: 6px;
   }
   .choice input {
@@ -552,17 +704,22 @@
   }
   .seed input {
     width: 7em;
-    padding: 4px 8px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: var(--well);
+    padding: 5px 10px;
+    border: 1px solid var(--bark);
+    border-radius: 12px 16px 12px 16px;
+    background: rgba(12, 8, 4, 0.45);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
   }
   .seed button {
-    padding: 4px 10px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: var(--well);
+    --hi: #6b5a40;
+    --lo: #2e2416;
+    padding: 5px 14px;
+    font-weight: 700;
     cursor: var(--cursor-pointer);
+  }
+  .seed button:disabled {
+    opacity: 0.5;
+    cursor: var(--cursor);
   }
   .foot {
     position: absolute;

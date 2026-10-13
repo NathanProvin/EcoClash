@@ -91,7 +91,7 @@
     height: var(--size);
     /* Earthy and organic (play test): a pebble-like shape, a matte, mottled ground in the
        family's tone, a soft warm top light, a bark-dark rim. */
-    border-radius: 42% 58% 46% 54% / 52% 44% 56% 48%;
+    border-radius: var(--pebble);
     color: rgba(250, 244, 226, 0.94);
     background:
       radial-gradient(circle at 22% 78%, rgba(20, 12, 4, 0.22) 0 16%, transparent 17%),
@@ -102,7 +102,7 @@
     box-shadow:
       inset 0 2px 3px rgba(255, 232, 190, 0.12),
       inset 0 -3px 6px rgba(18, 10, 4, 0.45),
-      0 0 0 1.5px rgba(36, 24, 14, 0.85),
+      0 0 0 1.5px var(--bark-dark),
       0 2px 4px rgba(0, 0, 0, 0.35);
   }
   .icon.bare {

@@ -90,13 +90,14 @@
   const caps = (k: string) => k.split(/\s*,\s*then\s*|\s*\/\s*|\s+or\s+|\s*\+\s*/).filter(Boolean);
 </script>
 
-<div class="options" aria-label="Options">
+<div class="options loam" aria-label="Options">
   <div class="tabs" role="tablist">
     {#each TABS as t (t.id)}
       <button
         role="tab"
+        class="pebble"
         aria-selected={tab === t.id}
-        class:on={tab === t.id}
+        class:gold={tab === t.id}
         onclick={() => (tab = t.id)}>{t.name}</button
       >
     {/each}
@@ -107,7 +108,11 @@
       <p class="heading">Quality</p>
       <div class="presets">
         {#each PRESETS as p (p.id)}
-          <button class="preset" class:on={quality === p.id} onclick={() => onQuality(p.id)}>
+          <button
+            class="pebble preset"
+            class:gold={quality === p.id}
+            onclick={() => onQuality(p.id)}
+          >
             <span class="bars" aria-hidden="true">
               {#each [1, 2, 3] as b (b)}<span class:lit={b <= p.bars}></span>{/each}
             </span>
@@ -164,16 +169,19 @@
   </div>
 
   <nav class="back">
-    <button onclick={onBack}>Back</button>
+    <button class="pebble" onclick={onBack}>Back</button>
   </nav>
 </div>
 
 <style>
+  /* A loam slab with pebble tabs and buttons, like the main menu's stones (D-256). */
   .options {
     display: flex;
     flex-direction: column;
     gap: 14px;
-    width: min(560px, 86vw);
+    width: min(560px, calc(100vw - 32px));
+    padding: 18px 20px 20px;
+    border-radius: 22px 30px 26px 34px / 30px 24px 32px 26px;
   }
   .tabs {
     display: flex;
@@ -183,15 +191,20 @@
   .tabs button,
   .preset,
   .back button {
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
-    color: var(--ink);
     cursor: var(--cursor-pointer);
     transition:
-      border-color 0.12s,
       box-shadow 0.12s,
       transform 0.12s;
+  }
+  .tabs button:not(.gold),
+  .preset:not(.gold),
+  .back button {
+    --hi: #6b5a40;
+    --lo: #2e2416;
+  }
+  .tabs button:nth-child(2n),
+  .preset:nth-child(2n) {
+    border-radius: 54% 46% 58% 42% / 46% 56% 44% 54%;
   }
   .tabs button {
     padding: 9px 18px;
@@ -202,22 +215,19 @@
   .tabs button:hover,
   .preset:hover,
   .back button:hover {
-    border-color: var(--gold);
-    box-shadow: 0 0 14px rgba(216, 180, 92, 0.35);
-  }
-  .on,
-  .tabs button.on,
-  .preset.on {
-    border-color: var(--gold);
-    background: linear-gradient(180deg, rgba(216, 180, 92, 0.45), rgba(216, 180, 92, 0.15));
-    box-shadow: 0 0 12px rgba(216, 180, 92, 0.35);
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 2px 3px rgba(255, 232, 190, 0.12),
+      inset 0 -3px 6px rgba(18, 10, 4, 0.45),
+      0 0 0 2px var(--gold),
+      0 0 14px rgba(216, 180, 92, 0.35);
   }
   .page {
     min-height: 236px;
     padding: 16px 18px;
-    border-radius: 14px;
-    background: rgba(0, 0, 0, 0.18);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    border-radius: 16px 20px 14px 22px;
+    background: rgba(12, 8, 4, 0.3);
+    box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.45);
   }
   .heading {
     margin: 0 0 10px;
@@ -411,7 +421,7 @@
     justify-content: center;
   }
   .back button {
-    width: min(280px, 70vw);
+    width: min(220px, 70vw);
     padding: 12px 18px;
     font-size: 1.05em;
     font-weight: 800;

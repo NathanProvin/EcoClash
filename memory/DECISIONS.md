@@ -2984,3 +2984,12 @@ Template:
     - birds: great tit 7, woodpecker and heron 8, eagle-owl 11, hawk 12.
   - Swimmers (larvae, roach, pike) reveal water cells only.
   - `vision` is in the balance hash, because it is bot input.
+
+## D-256 · 2026-10-13 · Organic main menu: a pebble path (amends D-164, D-166)
+- **Status:** accepted (user picked the pebble path among three layouts)
+- **Decision:**
+  - The glass panel is gone. The title floats over the landscape.
+  - The entries (home and Play modes) are pebble buttons set left and right along a worn footpath. Each pebble has a family pictogram and a tone: Play is gold and larger; Ranked "soon" is greyed moss.
+  - Setups and Options sit on a loam slab under a bark rim. Choices, tabs and presets are small pebbles; the chosen one is gold.
+  - The pebble shape, loam and bark are shared tokens and classes in `app.css` (`--pebble`, `--loam`, `--bark`, `.pebble`, `.loam`), now also used by the family icons and the build bar.
+  - The sounds and the menu logic are unchanged.

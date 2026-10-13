@@ -2964,3 +2964,10 @@ Template:
   - The cell card offers "Move den here". The new den shows as a half-size burrow until it is built.
   - The water den is drawn as a beaver lodge.
   - Bots do not move their den yet.
+
+## D-254 · 2026-10-13 · Alpha 1.6 balance: cheaper, faster woods; quicker breeding; slower animals
+- **Status:** accepted (user)
+- **Decision:**
+  - Shrubs and trees (L3, L4): `unlock_cost` ×0.85 (elder 2 550 … beech 15 300); `growth` and `biomass_rate` ×1.15.
+  - Animals: breeding period (`growth`) ×0.9; `speed` ×0.75 ("they move too fast on the map"). Drift and hunting reach are shares of speed and follow.
+  - Walking: a blocked diagonal step now slides along the obstacle instead of stopping. Slower rabbits stuck on a wall corner showed it.

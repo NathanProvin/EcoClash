@@ -3035,3 +3035,10 @@ Template:
   - biomass is the currency, earned mostly by growing plants and less from mature cells;
   - grazers crop their own land only up to a point but strip enemy cells bare.
 - The texts give no figures (sight, densities). Only the objective goals keep their percentage.
+
+## D-260 · 2026-10-13 · Pastel Play, grained stones, upright title (amends D-258)
+- **Status:** accepted (user, review of D-258)
+- **Decision:**
+  - Play is a pastel verdigris (`#a9cdbf` → `#4f766b`) instead of the vibrant cyan.
+  - The `.pebble` stones (menu, options) drop their round spots for a fine mineral grain (an inline SVG fractal noise) over faint slanted sediment strata. The family icons keep their own look.
+  - "Clash" in the title is upright, no longer italic.

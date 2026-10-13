@@ -1221,3 +1221,8 @@
   - Reworked: tiers as tech-ups, biomass as the currency.
   - Unit-tested. The new texts were not seen on screen; the longest run to about 14 lines in the 300 px panel.
 - **New dependency:** `@fontsource-variable/fraunces`, the self-hosted title font.
+
+## 2026-10-13 (3) · Menu: pastel Play, grained stones, upright title (D-260)
+- The user's review: the cyan was too loud, the round spots unconvincing, the italic unwanted.
+- Play is now pastel verdigris; the stones have a noise grain over sediment strata; "Clash" is upright.
+- Checked in the browser.

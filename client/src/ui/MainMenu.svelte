@@ -189,7 +189,7 @@
       <p class="tagline">Grow your ecosystem. Outgrow your opponent.</p>
       <nav class="path" aria-label="Main menu">
         {@render trail()}
-        <button class="pebble stone big cyan" style:--x="0px" onclick={() => (view = "modes")}>
+        <button class="pebble stone big verdigris" style:--x="0px" onclick={() => (view = "modes")}>
           <FamilyIcon family="L4" bare size={30} />Play
         </button>
         <button
@@ -528,7 +528,6 @@
       0 18px 36px rgba(0, 0, 0, 0.4);
   }
   .clash {
-    font-style: italic;
     color: #ecd08a;
     text-shadow:
       0 1px 0 #c9a95e,
@@ -676,10 +675,11 @@
     --hi: #7d8471;
     --lo: #33382c;
   }
-  /* Play (D-258): a vibrant cyan stone, the one thing to press. */
-  .cyan {
-    --hi: #4ff0f5;
-    --lo: #0a7f96;
+  /* Play (D-260): a pastel verdigris stone, sage turned toward lichen blue: it stands out from
+     the moss, rust and loam stones without shouting. */
+  .verdigris {
+    --hi: #a9cdbf;
+    --lo: #4f766b;
   }
   small {
     margin-left: 6px;

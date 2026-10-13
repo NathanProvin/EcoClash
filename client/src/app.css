@@ -167,7 +167,8 @@ select.btn option {
     inset 0 1px 0 rgba(255, 228, 180, 0.08), inset 0 -2px 6px rgba(0, 0, 0, 0.35),
     0 6px 18px rgba(0, 0, 0, 0.35);
 }
-/* A matte, mottled pebble in its tone (--hi, --lo), a warm top light and a bark-dark rim. */
+/* A matte stone in its tone (--hi, --lo), a warm top light and a bark-dark rim. Texture (D-260):
+   a fine mineral grain (SVG fractal noise) over faint sediment strata, not round spots. */
 .pebble {
   --hi: #7c9c4f;
   --lo: #32491f;
@@ -175,10 +176,14 @@ select.btn option {
   border-radius: var(--pebble);
   color: rgba(250, 244, 226, 0.94);
   background:
-    radial-gradient(circle at 22% 78%, rgba(20, 12, 4, 0.22) 0 16%, transparent 17%),
-    radial-gradient(circle at 70% 68%, rgba(20, 12, 4, 0.16) 0 11%, transparent 12%),
-    radial-gradient(circle at 78% 24%, rgba(255, 236, 196, 0.1) 0 13%, transparent 14%),
-    radial-gradient(circle at 30% 30%, rgba(255, 236, 196, 0.08) 0 9%, transparent 10%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.07 0 0 0 0 0.03 0 0 0 1.1 -0.45'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E"),
+    repeating-linear-gradient(
+      -8deg,
+      rgba(255, 236, 200, 0.05) 0 2px,
+      transparent 2px 7px,
+      rgba(20, 12, 4, 0.07) 7px 9px,
+      transparent 9px 15px
+    ),
     radial-gradient(ellipse at 40% 20%, var(--hi), var(--lo) 78%);
   box-shadow:
     inset 0 2px 3px rgba(255, 232, 190, 0.12),

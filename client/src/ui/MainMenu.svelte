@@ -31,7 +31,7 @@
   // .env (VITE_FEEDBACK_URL); a dev server shows "dev" and no link.
   const BUILD: string = import.meta.env.VITE_BUILD ?? "dev";
   /** The release shown on the main menu (D-217). */
-  const VERSION = "Alpha 1.5";
+  const VERSION = "Alpha 1.6";
   const FEEDBACK: string | undefined = import.meta.env.VITE_FEEDBACK_URL || undefined;
 
   let {
@@ -512,7 +512,7 @@
     font-variation-settings: "SOFT" 100;
     letter-spacing: 0.01em;
     line-height: 1;
-    -webkit-text-stroke: 1px rgba(20, 16, 8, 0.6);
+    -webkit-text-stroke: 3px var(--bark-dark); /* half shows outside: the stones' rim (D-262) */
     paint-order: stroke fill;
   }
   .eco {

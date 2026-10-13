@@ -3049,3 +3049,9 @@ Template:
   - The objectives panel has ‹ and › arrows to review earlier steps. A reviewed step is marked "done" and the pointer follows it. The view returns to the current step when the tutorial moves on.
   - Step texts are short bullets (at most 90 characters, one idea each). Species lists are gone. A test keeps them free of figures, except the goal lines.
   - The tutorial grants `TUTORIAL_BUDGET` = 4 000 biomass at its start, on top of the per-step top-ups, so players can unlock and try species without getting stuck. This is a tutorial-only constant, kept beside `RAID`.
+
+## D-262 · 2026-10-13 · Title outline; Alpha 1.6 released
+- **Status:** accepted (user)
+- **Decision:**
+  - The title gets a dark bark outline (`--bark-dark`, 3 px stroke painted under the fill, so 1.5 px shows), like the stones' rim.
+  - The menu label is "Alpha 1.6". `alpha-1.6` is merged into main and tagged `v1.6-alpha`.

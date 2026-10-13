@@ -4,13 +4,14 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-13: **Alpha 1.6** in progress on branch `alpha-1.6` (not merged):
+- **Now:** 2026-10-13: **Alpha 1.6** released (tag `v1.6-alpha`), merged to main and pushed (CI deploys Pages and the relay):
   - the organic main menu (D-256);
   - the tutorial rework (D-257);
   - the balance pass: cheaper and faster woods, quicker breeding, animals 25 % slower (D-254);
-  - fog vision per species (D-255).
+  - fog vision per species (D-255);
+  - menu polish and tutorial depth (D-258…D-262).
 
-  Next: the user's play tests, then merge and release (menu label still "Alpha 1.5"). Before: 2026-10-12: **Alpha 1.5** released: the rework (D-243…D-253, play-test rounds included), merged to main and pushed (CI deploys Pages and the relay):
+  Next: the user's play tests; the bot-balance pass. Before: 2026-10-12: **Alpha 1.5** released: the rework (D-243…D-253, play-test rounds included), merged to main and pushed (CI deploys Pages and the relay):
   - no shade, a layer multiplier and stronger biodiversity;
   - grazers by layer;
   - dens instead of drops;
@@ -147,7 +148,7 @@ In this order:
 - [x] 2. Fog vision per species; fish see the water only (D-255).
 - [x] 3. Organic main menu: pebbles along a footpath, loam slabs (D-256).
 - [x] 4. Tutorial for the Alpha 1.5 loop, 16 steps (D-257).
-- [ ] 5. Play tests, merge, release (menu label "Alpha 1.6").
+- [x] 5. Play tests, merge, release: menu label "Alpha 1.6", tag `v1.6-alpha` (D-262).
 
 ## Alpha 1.5 · Gameplay and balance rework (D-243…D-250; branch `alpha-1.5`)
 Anti-snowball and "better ecosystem, more units" (user, 2026-10-12). One step per commit.

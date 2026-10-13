@@ -1233,3 +1233,7 @@
   - the bank starts at about 5.1K;
   - "‹" shows the welcome step marked done;
   - "›" comes back.
+
+## 2026-10-13 (5) · Alpha 1.6 released
+- Title outline in bark-dark (D-262); menu label "Alpha 1.6".
+- `alpha-1.6` merged into main, tagged `v1.6-alpha`, pushed; CI deploys Pages and the relay. The whole CI set was run locally before the push.

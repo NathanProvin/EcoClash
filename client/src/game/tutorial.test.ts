@@ -98,6 +98,16 @@ describe("tutorial objectives (D-139)", () => {
     expect(topUp(0, 0)).toBe(0); // no need: nothing granted
   });
 
+  it("keeps its texts short bullets, with figures only in the goals (D-261)", () => {
+    for (const o of OBJECTIVES) {
+      expect(o.text.length).toBeGreaterThan(0);
+      for (const line of o.text) {
+        expect(line.length, o.title).toBeLessThanOrEqual(90);
+        if (!line.includes("%")) expect(line, o.title).not.toMatch(/\d/);
+      }
+    }
+  });
+
   it("never goes back once an objective is done", () => {
     expect(advance(4, at({}))).toBe(4); // land lost after founding: still on the current step
   });

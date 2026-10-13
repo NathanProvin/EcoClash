@@ -3042,3 +3042,10 @@ Template:
   - Play is a pastel verdigris (`#a9cdbf` → `#4f766b`) instead of the vibrant cyan.
   - The `.pebble` stones (menu, options) drop their round spots for a fine mineral grain (an inline SVG fractal noise) over faint slanted sediment strata. The family icons keep their own look.
   - "Clash" in the title is upright, no longer italic.
+
+## D-261 · 2026-10-13 · Tutorial: back navigation, bullets, a starting budget (amends D-259)
+- **Status:** accepted (user)
+- **Decision:**
+  - The objectives panel has ‹ and › arrows to review earlier steps. A reviewed step is marked "done" and the pointer follows it. The view returns to the current step when the tutorial moves on.
+  - Step texts are short bullets (at most 90 characters, one idea each). Species lists are gone. A test keeps them free of figures, except the goal lines.
+  - The tutorial grants `TUTORIAL_BUDGET` = 4 000 biomass at its start, on top of the per-step top-ups, so players can unlock and try species without getting stuck. This is a tutorial-only constant, kept beside `RAID`.

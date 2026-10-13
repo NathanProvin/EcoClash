@@ -1226,3 +1226,10 @@
 - The user's review: the cyan was too loud, the round spots unconvincing, the italic unwanted.
 - Play is now pastel verdigris; the stones have a noise grain over sediment strata; "Clash" is upright.
 - Checked in the browser.
+
+## 2026-10-13 (4) · Tutorial: back arrows, bullets, a 4 000 budget (D-261)
+- Review arrows in the objectives panel; bullet texts with a test (no figures outside the goals); 4 000 biomass granted at the start.
+- Checked in the browser:
+  - the bank starts at about 5.1K;
+  - "‹" shows the welcome step marked done;
+  - "›" comes back.

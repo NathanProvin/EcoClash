@@ -72,6 +72,8 @@ pub struct FaunaParams {
     /// Cells walked per tick (Q16).
     speed: Vec<i64>,
     sight: Vec<i64>,
+    /// Fog reveal radius (cells, D-255).
+    vision: Vec<i64>,
     group: Vec<i64>,
     /// Carrying capacity (Q16, D-246): animals per own cell holding the species' habitat.
     pub per_cell: Vec<i64>,
@@ -241,6 +243,7 @@ impl FaunaParams {
                 .map(|s| round(s.speed / hz * one).max(1))
                 .collect(),
             sight,
+            vision: sp.iter().map(|s| i64::from(s.vision)).collect(),
             group: sp.iter().map(|s| i64::from(s.group)).collect(),
             per_cell: sp.iter().map(|s| round(s.per_cell * one)).collect(),
             breed: sp.iter().map(|s| round(s.growth / dt).max(1)).collect(),
@@ -299,10 +302,10 @@ impl FaunaParams {
         }
     }
 
-    /// How far species `s` sees, in cells.
+    /// How far species `s` reveals the fog, in cells (D-255), and whether only water.
     #[must_use]
-    pub fn sight(&self, s: usize) -> i64 {
-        self.sight[s]
+    pub fn vision(&self, s: usize) -> (i64, bool) {
+        (self.vision[s], self.medium[s] == Medium::Swim)
     }
 
     /// The rank of plant `plant` in herbivore `s`'s diet (0: primary), if it eats it (D-123).
@@ -387,6 +390,7 @@ impl FaunaParams {
             &self.upkeep,
             &self.speed,
             &self.sight,
+            &self.vision,
             &self.group,
             &self.per_cell,
             &self.breed,

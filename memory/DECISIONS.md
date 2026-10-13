@@ -2971,3 +2971,16 @@ Template:
   - Shrubs and trees (L3, L4): `unlock_cost` ×0.85 (elder 2 550 … beech 15 300); `growth` and `biomass_rate` ×1.15.
   - Animals: breeding period (`growth`) ×0.9; `speed` ×0.75 ("they move too fast on the map"). Drift and hunting reach are shares of speed and follow.
   - Walking: a blocked diagonal step now slides along the obstacle instead of stopping. Slower rabbits stuck on a wall corner showed it.
+
+## D-255 · 2026-10-13 · Fog vision per species (amends D-249)
+- **Status:** accepted (user: "fog of war is nullified when having many animals around")
+- **Decision:**
+  - A new per-species `vision` (cells) sets what an animal reveals in the fog. `sight` keeps its gameplay role: food, prey and room search, and local carrying capacity. Narrowing the fog does not change breeding or hunting.
+  - Values follow the animal:
+    - insects, worms, fungi: 1–2;
+    - small mammals and the frog: 2–3;
+    - large grazers, canids and mustelids: 4–7;
+    - felids: wildcat 9, lynx 10;
+    - birds: great tit 7, woodpecker and heron 8, eagle-owl 11, hawk 12.
+  - Swimmers (larvae, roach, pike) reveal water cells only.
+  - `vision` is in the balance hash, because it is bot input.

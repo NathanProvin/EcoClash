@@ -482,8 +482,11 @@ pub struct FaunaSpecies {
     pub upkeep: f64,
     /// Cells per second.
     pub speed: f64,
-    /// Cells.
+    /// Cells: how far it looks for food, prey and room (D-066).
     pub sight: u32,
+    /// Cells it reveals in the fog (D-249, D-255): display and bot input only. Swimmers reveal
+    /// water cells only.
+    pub vision: u32,
     /// Animals per spawned card.
     pub group: u32,
     /// Where it can stand (D-084): walk (land, shallows), swim (water), amphibious (land and

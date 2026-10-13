@@ -4,7 +4,13 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-12: **Alpha 1.5** released: the rework (D-243…D-253, play-test rounds included), merged to main and pushed (CI deploys Pages and the relay):
+- **Now:** 2026-10-13: **Alpha 1.6** in progress on branch `alpha-1.6` (not merged):
+  - the organic main menu (D-256);
+  - the tutorial rework (D-257);
+  - the balance pass: cheaper and faster woods, quicker breeding, animals 25 % slower (D-254);
+  - fog vision per species (D-255).
+
+  Next: the user's play tests, then merge and release (menu label still "Alpha 1.5"). Before: 2026-10-12: **Alpha 1.5** released: the rework (D-243…D-253, play-test rounds included), merged to main and pushed (CI deploys Pages and the relay):
   - no shade, a layer multiplier and stronger biodiversity;
   - grazers by layer;
   - dens instead of drops;
@@ -27,7 +33,7 @@
   Next: the user's play tests (the user's own tests are the balance reference); then the bot-balance pass (style fingerprint test ignored, raids, recyclers, trees). Before: 2026-10-08: **Alpha 1.3** released: the gameplay rework (conquest by strength and push D-225, dead trees per owner D-227, bot styles and balance D-228…D-231) and the UI/UX pass (D-232…D-235: clickable strategic icons and food-web focus, strength on the cell card, game feel: income pulse, capture rhythm, combo badge, kills, crumbs, saplings; larger animals, front line on water). Merged to main and pushed (CI deploys Pages and the relay). Next: playtest feedback; Gameplay step 3 targets still partly missed (D-229); M6 leftovers. Herb culling (D-224) merged to main (not pushed). Before: 2026-10-07: **Alpha 1.2** released: the food pyramid with wider cycles and online 1v1 on the Cloudflare relay (D-218…D-222), merged to main and deployed (Pages + relay). Played across two machines by the user. Next: playtest feedback; M6 leftovers (replays, pause, state dumps).
 - **Next:** Gameplay · Three styles (steps 2–6) → UI/UX juice → M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
-- **Last updated:** 2026-10-12
+- **Last updated:** 2026-10-13
 
 ---
 
@@ -135,6 +141,13 @@ In this order:
 ## M7-lite · Balance loop (pulled forward, D-073)
 - [x] Bot-vs-bot batch runs: `sim-cli bench` (seeds × difficulties → phase markers, match length, win rates, calls; D-142).
 - [ ] One-page report; tune `pace`, `food_reserve`, caps, costs and the victory thresholds (Q-013) with it and the playtest feedback.
+
+## Alpha 1.6 · Menu, tutorial, balance (branch `alpha-1.6`; user, 2026-10-13)
+- [x] 1. Balance: L3/L4 unlock −15 %, growth and biomass rate +15 %; breeding period −10 %; animal speed −25 % (D-254).
+- [x] 2. Fog vision per species; fish see the water only (D-255).
+- [x] 3. Organic main menu: pebbles along a footpath, loam slabs (D-256).
+- [x] 4. Tutorial for the Alpha 1.5 loop, 16 steps (D-257).
+- [ ] 5. Play tests, merge, release (menu label "Alpha 1.6").
 
 ## Alpha 1.5 · Gameplay and balance rework (D-243…D-250; branch `alpha-1.5`)
 Anti-snowball and "better ecosystem, more units" (user, 2026-10-12). One step per commit.

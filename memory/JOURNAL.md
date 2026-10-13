@@ -1193,3 +1193,19 @@
 ## 2026-10-12 (7) · Alpha 1.5 released
 - Menu label "Alpha 1.5". `alpha-1.5` merged into main and pushed; CI deploys Cloudflare Pages and the relay.
 - The whole CI set was run locally before the push.
+
+## 2026-10-13 · Alpha 1.6: menu, tutorial, balance, fog vision
+- **Branch** `alpha-1.6` from main.
+- **Balance (D-254):**
+  - shrubs and trees unlock 15 % cheaper and grow 15 % faster (`growth`, `biomass_rate`);
+  - breeding period −10 %;
+  - animals 25 % slower.
+
+  Slower rabbits wedged on a wall corner, so a blocked diagonal step now slides along the obstacle. Two timing tests were adjusted: a longer route run, and a hold "gathered" meaning on the cell or its rim.
+- **Fog (D-255):** a new `vision` per species, fog only; `sight` still drives food search and breeding. Insects see 1–2 cells, hawks 12, and fish see the water only. Test: `a_fish_reveals_water_cells_only`. Native vs WASM hashes are identical.
+- **Main menu (D-256):** the user chose the pebble path. Stones sit along a worn footpath, and setups and Options are loam slabs with pebble chips. The shared tokens are in `app.css`, and the family icons and build bar now use them.
+  - Checked in the browser: home, modes, AI setup, Options.
+  - Not checked: phone width. The browser window would not resize; the stones fit 368 px by layout.
+- **Tutorial (D-257):** 16 steps, with new ones on the den, fog, hold, catastrophes, the habitat cap and biodiversity tips; prices updated.
+  - Checked in the browser: the first three steps (founding advances to the fog step).
+  - Not played through: the hold and catastrophe steps (unit-tested).

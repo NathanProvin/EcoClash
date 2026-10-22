@@ -3199,3 +3199,27 @@ Template:
   - `hard_moves_a_den_the_front_reached`;
   - `enemy_culls_on_cooldown_open_a_raid_window`;
   - `hard_unlocks_the_plant_that_pays_back_soonest`.
+
+## D-269 · 2026-10-22 · Playing on a phone: touch controls, landscape layout
+- **Status:** accepted (user: landscape with a rotate prompt; one finger pans, two fingers zoom; tap orders; first tap info, second tap acts)
+- **Problem** (Android browser):
+  - A one-finger drag both panned the map (`MapControls`) and drew a selection box (`App`).
+  - Nothing could order units: there is no right click, and Attack, Hold and Stop were keys only.
+  - The browser sends a pointer leave right after each tap, so the build-bar flyout opened then closed itself (`pin` never cleared the close timer), and the catastrophe deck toggled shut.
+  - A tap on a card bought or armed it without showing its info.
+  - At 915×412 the menus ran off the screen, and the cell card covered the build bar.
+- **Decision:**
+  - **Gestures:** `game/touch.ts` (`TouchGesture`, tested) tells pan, tap, long-press box (450 ms, 10 px) and pinch apart.
+    - `MapControls` keeps one-finger pan and two-finger zoom and rotate.
+    - A tap runs the click path; with animals selected, a tap on the map orders them like a right click.
+    - A long press then a drag draws the box, with panning held off (`Viewer.setPan`).
+  - **Order buttons:** on touch screens, Attack, Hold and Stop sit in the selection panel.
+  - **Flyouts:** hover handlers ignore touch, and a tap pins.
+  - **Cards:** on touch, the first tap on a species or catastrophe card shows its info, the second acts. The species tooltip flips left near the screen edge.
+  - **Layout** (`max-height: 500px`): the menu column scrolls and tightens; the cell and unit cards sit above the build bar, narrower, and scroll inside.
+  - **Portrait:** a touch screen shows a turn-your-phone card. Full screen also locks landscape where allowed.
+  - Long presses select no text. Touch screens start on the Low preset unless a choice is stored.
+  - Mouse and keyboard behaviour is unchanged.
+- **Checked:**
+  - In an iframe at 915×412 in the desktop browser: the menu, the AI setup (Start reachable), the build bar and flyouts, the cell card, and mouse planting.
+  - Not checked: real touch input and the portrait card, which the desktop browser cannot emulate here. The user's Android phone is the test.

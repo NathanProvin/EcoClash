@@ -75,6 +75,7 @@ A **1v1 real-time strategy game where each player grows an ecosystem**. Players 
 - Orders draw a faint curve to their goal, grey for a move, red for an attack (D-162); an attack holds until the area is grazed bare (D-160).
 - Play catastrophe cards (D-129, D-248), opening over time from the cheap aphid outbreak at 0 min to the storm at 20 min: processionary caterpillars, a violent storm, a chemical spill. Expensive, paid at each use, then cooling down; they hit both sides in their disc (gamerules §10b).
 - Standard RTS unit control (D-053, D-161): drag or click to select (a click on any animal shows its unit card; swarms are selected from the unit list or their strategic icon, D-238), right-click to move (on an enemy cell: attack-move), A + click to attack-move, S to stop, H + click to hold (gather and stay, D-246), Shift or Ctrl + 1–9 to set a control group, 1–9 to recall it. The camera pans with the arrow keys or a right-drag.
+- Touch (phones, D-269): one finger pans the map, two fingers pinch to zoom and twist to rotate; a tap acts as a click, and with animals selected a tap on the map orders them (attack on enemy ground); a long press then a drag draws the selection box; Attack, Hold and Stop buttons replace A, H and S. On cards, the first tap shows the info and the second acts.
 - Camera: top-down RTS camera with pan, zoom and limited tilt.
 
 ### 2.5 Post-v1 ideas (do NOT implement before v1 is done)
@@ -315,6 +316,7 @@ Quality presets (low / medium / high; shadows apply from the next match, D-133):
 ## 8. UI
 
 - Svelte + CSS, a calm **frosted HUD** (D-048, D-064): translucent blurred panels with a thin light border over the diorama, bold numbers, few words (names in tooltips), settings grouped in one menu, one sans-serif font (e.g. Inter), and the player colours from §7.1. Theme tokens live in `client/src/app.css`.
+- **Phones (D-269):** landscape only (a turn-your-phone card in portrait; full screen locks landscape on Android). Below 500 px of height the menus scroll and the side cards sit above the build bar and scroll inside. Touch screens start on the Low preset.
 - **Audio (D-176…D-185, D-233):** procedural Web Audio (`client/src/audio/`): buses into a compressed master, cues for UI, world events and animals (calls on drop, selection and orders), weather ambience with three rotating wind voices and a macro layer up close, generated music that turns tense on raids, family unlock motifs, end stingers; recorded files replace cues through `public/audio/manifest.json`; Options → Audio, M to mute.
 - **Species icons:** every species has its own silhouette on its family's tile (`client/src/ui/glyphs.ts`, D-167). A square image with a transparent background, 128 px or more, at `client/public/icons/species/<species name>.webp` replaces it.
 - Screens: main menu, settings (quality presets, keybinds), match setup (vs AI / vs player), in-game HUD (biomass, territory %, selected units, minimap), end screen with **live biomass/territory charts** of the match.

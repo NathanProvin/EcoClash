@@ -1331,3 +1331,16 @@
   - The others are neutral against bots; den moves fire rarely, so their trigger was widened to 6 cells.
 - **Ladder** re-tuned for the stronger Hard: income [1.15, 1.25, 1.5] → 84 / 85 / 100.
 - **Checks:** Rust, WASM, client tests green; four new bot tests.
+
+## 2026-10-22 (7) · Phones: touch controls and landscape layout (D-269)
+- **Branch** `mobile` from `alpha-1.7`.
+- **Map:** a one-finger drag pans, a tap acts, a long press then a drag boxes, a pinch zooms; with animals selected a tap orders them. Attack, Hold and Stop buttons on touch.
+- **Build bar:** the flyout no longer closes itself after a tap; the first tap on a card shows its info, the second acts. Same fixes in the catastrophe deck.
+- **Layout** at 915×412 (a temporary iframe page, removed):
+  - menu and setup screens now scroll (Start was unreachable);
+  - the cell card fits between the bars;
+  - rotate card in portrait;
+  - landscape lock in full screen;
+  - Low preset on touch.
+- **Found:** Vite's watcher missed files edited in place by a script, so the dev server served stale CSS until restarted.
+- **Not verified:** real touch gestures and the portrait card (no touch emulation here); needs the user's phone.

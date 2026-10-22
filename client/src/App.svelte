@@ -65,6 +65,7 @@
   import UnitList from "./ui/UnitList.svelte";
   import { shortNotice } from "./game/notices";
   import { plantable } from "./game/planting";
+  import { TouchGesture } from "./game/touch";
   import { audio } from "./audio/engine";
   import { ambience, moodOf } from "./audio/ambience";
   import { unlockSound, voiceOf } from "./audio/sounds";
@@ -151,6 +152,8 @@
   let armedOrder: "attack" | "hold" | null = $state(null);
   const groups = new SvelteMap<number, number[]>(); // control groups: digit -> animal ids
   let rightDown: { x: number; y: number } | null = null;
+  /** The touch gesture on the map (D-269): pan, tap, long-press box or pinch. */
+  const gesture = new TouchGesture();
   // Notifications (D-077): toasts, raid pings still showing, and arrows to the off-screen ones.
   const SCAN_MS = 1000; // raid and unlock checks, once a second
   const EDGE = 28; // arrows keep this far from the screen edge (px)
@@ -1223,9 +1226,19 @@
     return !!info && (info.owner === 3 - me || info.animals.some((a) => a.owner !== me));
   }
 
-  function onPointerDown(e: PointerEvent) {
+  /** The pointer's position on the canvas. */
+  function canvasXY(e: PointerEvent): [number, number] {
     const r = canvas.getBoundingClientRect();
-    const [x, y] = [e.clientX - r.left, e.clientY - r.top];
+    return [e.clientX - r.left, e.clientY - r.top];
+  }
+
+  function onPointerDown(e: PointerEvent) {
+    const [x, y] = canvasXY(e);
+    if (e.pointerType === "touch") {
+      // Touch (D-269): MapControls pans and pinches; the gesture tells a tap or a box at the end.
+      if (gesture.down(x, y, e.timeStamp) === "pinch") endBox();
+      return;
+    }
     if (e.button === 2) rightDown = { x, y }; // a right click orders; a right drag pans
     if (e.button !== 0) return;
     box = { x0: x, y0: y, x1: x, y1: y };
@@ -1233,17 +1246,39 @@
   }
 
   function onPointerMove(e: PointerEvent) {
-    const r = canvas.getBoundingClientRect();
-    const [x, y] = [e.clientX - r.left, e.clientY - r.top];
+    const [x, y] = canvasXY(e);
     if (planting && viewer) viewer.aimGhost(x, y, canPlantAt);
+    if (e.pointerType === "touch") {
+      // A long press then a drag draws the box, with the map held still (D-269).
+      if (!gesture.active || gesture.move(x, y, e.timeStamp) !== "box") return;
+      if (!box) {
+        viewer?.setPan(false);
+        navigator.vibrate?.(10);
+        box = { x0: gesture.x0, y0: gesture.y0, x1: x, y1: y };
+      } else box = { ...box, x1: x, y1: y };
+      return;
+    }
     if (!box) return;
     box = { ...box, x1: x, y1: y };
   }
 
+  /** Drop the selection box and give the map back to one-finger panning. */
+  function endBox() {
+    box = null;
+    viewer?.setPan(true);
+  }
+
   function onPointerUp(e: PointerEvent) {
+    if (e.pointerType === "touch") {
+      const kind = gesture.up();
+      if (gesture.active) return; // more fingers still down: a pinch
+      if (kind === "tap") tapAt(gesture.x0, gesture.y0);
+      else if (kind === "box" && box) boxSelect(box);
+      endBox();
+      return;
+    }
     if (e.button === 2 && rightDown && viewer) {
-      const r = canvas.getBoundingClientRect();
-      const [x, y] = [e.clientX - r.left, e.clientY - r.top];
+      const [x, y] = canvasXY(e);
       if (Math.abs(x - rightDown.x) < 4 && Math.abs(y - rightDown.y) < 4) {
         const at = viewer.pickCell(x, y);
         if (at) order(enemyAt(at) ? "attack" : "move", at);
@@ -1253,51 +1288,75 @@
     }
     if (!box || !viewer) return;
     const click = Math.abs(box.x1 - box.x0) < 4 && Math.abs(box.y1 - box.y0) < 4;
-    if (click && castArmed && live) {
-      const at = viewer.pickCell(box.x0, box.y0);
+    if (click) clickAt(box.x0, box.y0, e.shiftKey);
+    else boxSelect(box);
+    box = null;
+  }
+
+  /** A touch tap (D-269): with own animals selected and nothing armed, a tap on the map orders
+   *  them, as a right click does (attack on enemy ground); on an animal, or with nothing
+   *  selected, it acts as a click. */
+  function tapAt(x: number, y: number) {
+    if (viewer && live && selection.size && !castArmed && !armedOrder && !planting) {
+      if (viewer.pick(x, y, x, y, null)[0] === undefined) {
+        const at = viewer.pickCell(x, y);
+        if (at) order(enemyAt(at) ? "attack" : "move", at);
+        return;
+      }
+    }
+    clickAt(x, y, false);
+  }
+
+  /** A click at (x, y): cast an armed card, aim an armed order, plant, or pick what is there.
+   *  `keep` (Shift) keeps the card, order or planting armed. */
+  function clickAt(x: number, y: number, keep: boolean) {
+    if (!viewer) return;
+    if (castArmed && live) {
+      const at = viewer.pickCell(x, y);
       if (at) {
         live.catastrophe(me, castArmed, at.row, at.col);
         castDone = true; // for the tutorial
       }
-      if (!e.shiftKey) castArmed = null;
-      box = null;
+      if (!keep) castArmed = null;
       return;
     }
-    if (click && armedOrder) {
-      order(armedOrder, viewer.pickCell(box.x0, box.y0));
-      if (!e.shiftKey) armedOrder = null;
-      box = null;
+    if (armedOrder) {
+      order(armedOrder, viewer.pickCell(x, y));
+      if (!keep) armedOrder = null;
       return;
     }
-    const at = click && planting && live ? viewer.pickCell(box.x0, box.y0) : null;
+    const at = planting && live ? viewer.pickCell(x, y) : null;
     if (at && planting && live) {
       // Shift keeps the order armed, like RTS build orders. The planting plays when the sim
       // takes the order (D-241, `plantFx`).
       live.plant(me, planting, at.row, at.col);
-      if (!e.shiftKey) planting = null;
-    } else if (click) {
-      // A click on an animal (anyone's) shows its card, and selects it when it is yours
-      // (D-161); elsewhere it inspects the cell under the cursor.
-      const hit = viewer.pick(box.x0, box.y0, box.x0, box.y0, null)[0];
-      const mine = live ? me : player;
-      if (hit !== undefined) {
-        const a = viewer.visibleAnimals().find((x) => x.id === hit);
-        if (a?.owner === mine) select([hit]);
-        unitIds = [hit];
-        inspect(null);
-        // Its food web on the build bar, as for a strategic icon (D-235).
-        const name = a ? replay?.meta.fauna.names[a.species] : undefined;
-        focus = (name && replay?.meta.species.find((s) => s.name === name)) || null;
-      } else {
-        unitIds = [];
-        inspect(viewer.pickCell(box.x0, box.y0));
-      }
-    } else {
-      const ids = viewer.pick(box.x0, box.y0, box.x1, box.y1, live ? me : player); // own animals
-      select(ids);
-      unitIds = ids;
+      if (!keep) planting = null;
+      return;
     }
-    box = null;
+    // A click on an animal (anyone's) shows its card, and selects it when it is yours (D-161);
+    // elsewhere it inspects the cell under the cursor.
+    const hit = viewer.pick(x, y, x, y, null)[0];
+    const mine = live ? me : player;
+    if (hit !== undefined) {
+      const a = viewer.visibleAnimals().find((v) => v.id === hit);
+      if (a?.owner === mine) select([hit]);
+      unitIds = [hit];
+      inspect(null);
+      // Its food web on the build bar, as for a strategic icon (D-235).
+      const name = a ? replay?.meta.fauna.names[a.species] : undefined;
+      focus = (name && replay?.meta.species.find((s) => s.name === name)) || null;
+    } else {
+      unitIds = [];
+      inspect(viewer.pickCell(x, y));
+    }
+  }
+
+  /** Select the own animals inside a drawn box. */
+  function boxSelect(b: { x0: number; y0: number; x1: number; y1: number }) {
+    if (!viewer) return;
+    const ids = viewer.pick(b.x0, b.y0, b.x1, b.y1, live ? me : player); // own animals
+    select(ids);
+    unitIds = ids;
   }
 
   function inspect(c: { row: number; col: number } | null) {
@@ -1520,6 +1579,10 @@
     onpointermove={onPointerMove}
     onpointerleave={() => viewer?.aimGhost(null)}
     onpointerup={onPointerUp}
+    onpointercancel={() => {
+      gesture.cancel();
+      endBox();
+    }}
     oncontextmenu={(e) => e.preventDefault()}
   ></canvas>
 

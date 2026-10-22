@@ -146,7 +146,7 @@ In this order:
 ## Alpha 1.7 · Species balance, stronger bots, quick match (branch `alpha-1.7`; user, 2026-10-22)
 Plan: species reports → proposals → the user's play tests; then a self-play search for the bot's knobs; a quick-match queue on the Cloudflare relay (no Hetzner server needed).
 - [x] A1. `sim-cli sheet`: every species' costs, income, payback, fill time, breeding, grazer damage, eaters; flags (tier cheaper than the one below, payback and damage outliers, nothing hunts it, no bot plan).
-- [ ] A2. Food-chain pyramids per named chain (`CHAIN=` in `pyramid_report`).
+- [x] A2. Food-chain pyramids per named chain (`CHAIN=` in `pyramid_report`; `SPECIES_FILE=` variants, `CAPS=1` keeps the per-cell ceilings).
 - [ ] A3. Species use in bot matches (`sim-cli bench` roster).
 - [ ] A4. Report and proposals; the user picks.
 - [ ] A5. Apply; the user's play tests.

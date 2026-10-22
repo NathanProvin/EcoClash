@@ -1237,3 +1237,23 @@
 ## 2026-10-13 (5) · Alpha 1.6 released
 - Title outline in bark-dark (D-262); menu label "Alpha 1.6".
 - `alpha-1.6` merged into main, tagged `v1.6-alpha`, pushed; CI deploys Pages and the relay. The whole CI set was run locally before the push.
+
+## 2026-10-22 · Alpha 1.7: species sheet, food-chain reports
+- **Branch** `alpha-1.7` from main. Plan: species reports → proposals → the user's play tests; a self-play search for the bot; a quick-match queue on the Cloudflare relay (no Hetzner server needed).
+- **`sim-cli sheet`:** derived figures per species and flags. Flags today:
+  - black woodpecker card < fungi;
+  - brown bear card < wolf;
+  - swarm grazers deal 0.1–0.2× the grazer median damage per point;
+  - bison 2.2×;
+  - nothing hunts fungi or the black woodpecker.
+- **Food-chain harness:** `pyramid()` became `chain()`, for any plants and animals. The old test is unchanged and still passes.
+- **Single chains** (`CAPS=1`, 8 seeds, 30 min): most hold.
+  - The hawk wipes out the great tits. It eats them first and stays fed on grasshoppers, so home hunting stays open.
+  - The heron starves above plentiful pike. Pike share its larvae, so they count as competitors, and its home-hunting rule (own prey only in surplus) stays shut.
+  - Wolf and bear can't live on bison alone (3/8 and 1/8).
+  - A chain fully grown in hawthorn hides every small prey (hawthorn is a refuge).
+  - Recyclers stay at their cap whichever hunter is added (badger, pine marten, hawk, eagle-owl all live on them): a predator for a recycler is safe.
+- **Mixed webs** (meadow, forest, water; all species together):
+  - Fast-breeding small hunters crowd out the big ones: in the meadow, weasels win and fox, hawk, eagle-owl and great tit die.
+  - Tried, not kept (awaiting the user): "a hunter does not count the species it eats as a competitor" (`rival`). Fox and eagle-owl then live in the meadow and the weasel is held down. Hawk, badger and great tit still drop out.
+  - Diet variants tried: hawk eats black woodpecker instead of great tit; badger eats fungi instead of bark beetles; heron eats roach instead of pike.

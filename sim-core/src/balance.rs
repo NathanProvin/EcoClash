@@ -131,6 +131,8 @@ pub struct BotLevel {
     /// Seconds between two reads of the enemy (0: no adaptation) and the shift (points, D-228).
     pub adapt_s: u64,
     pub adapt_shift: i64,
+    /// Casts every catastrophe card on the enemy (D-252); otherwise only a rush bot's blights.
+    pub casts: bool,
 }
 
 impl BotLevel {
@@ -149,6 +151,7 @@ impl BotLevel {
             anticipate: false,
             adapt_s: 0,
             adapt_shift: 0,
+            casts: false,
         }
     }
 
@@ -167,6 +170,7 @@ impl BotLevel {
             anticipate: false,
             adapt_s: 120,
             adapt_shift: 12,
+            casts: false,
         }
     }
 
@@ -185,6 +189,7 @@ impl BotLevel {
             anticipate: true,
             adapt_s: 60,
             adapt_shift: 25,
+            casts: true,
         }
     }
 }

@@ -1464,7 +1464,7 @@ impl Bot {
     fn catastrophe(&self, v: &View) -> Option<Payload> {
         // An army-heavy bot opens its raids with the cheap blights (D-248), at any level.
         let rush = self.weights[ARMY] >= 50;
-        if !(self.level == Level::Hard || rush) || !self.every(v, CALL_S) {
+        if !(self.lv.casts || rush) || !self.every(v, CALL_S) {
             return None;
         }
         let breach = self.breach(v);
@@ -1507,9 +1507,7 @@ impl Bot {
         };
         for k in 0..c.p.names.len() {
             let blight = c.p.act(k) == Act::Blight;
-            if w.tick < c.ready[pi][k]
-                || self.spare(v) < c.p.cost[k]
-                || (self.level != Level::Hard && !blight)
+            if w.tick < c.ready[pi][k] || self.spare(v) < c.p.cost[k] || (!self.lv.casts && !blight)
             {
                 continue;
             }

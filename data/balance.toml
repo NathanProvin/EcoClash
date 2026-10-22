@@ -34,6 +34,53 @@ tall = [20, 60, 20]
 rush = [20, 20, 60]
 balanced = [34, 33, 33]
 
+# How each level plays (Alpha 1.7, B1; D-060, D-148, D-191, D-228); seconds unless named ticks, 0 = off.
+# period_ticks between decisions; found_ticks before founding; actions per decision; raid_s between
+# raids of raid_herd units; drop_s between bought raids; grazer_cards kept; reaction_s before a threat
+# is answered; stalkers: answers hunters near its herds; anticipate: answers any enemy species seen;
+# adapt_s between reads of the enemy and adapt_shift points toward its counter.
+[bots.easy]
+period_ticks = 60
+found_ticks = 150
+actions = 2
+raid_s = 90
+raid_herd = 8
+drop_s = 0
+grazer_cards = 4
+reaction_s = 60
+stalkers = false
+anticipate = false
+adapt_s = 0
+adapt_shift = 0
+
+[bots.normal]
+period_ticks = 30
+found_ticks = 100
+actions = 3
+raid_s = 45
+raid_herd = 4
+drop_s = 90
+grazer_cards = 6
+reaction_s = 15
+stalkers = true
+anticipate = false
+adapt_s = 120
+adapt_shift = 12
+
+[bots.hard]
+period_ticks = 15
+found_ticks = 60
+actions = 4
+raid_s = 30
+raid_herd = 5
+drop_s = 60
+grazer_cards = 8
+reaction_s = 0
+stalkers = true
+anticipate = true
+adapt_s = 60
+adapt_shift = 25
+
 [agents]
 max_agents = 2000        # §5.4 budget; per player: half
 

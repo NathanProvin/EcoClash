@@ -96,6 +96,97 @@ pub struct BotRules {
     /// Play styles (D-228): the share of spending (%) each puts on land, depth and army.
     #[serde(default)]
     pub styles: BotStyles,
+    /// How each level plays (Alpha 1.7, B1): pace, raids, reaction, adaptation. Not hashed: bots
+    /// only send commands, and online matches have none.
+    #[serde(default = "BotLevel::easy")]
+    pub easy: BotLevel,
+    #[serde(default = "BotLevel::normal")]
+    pub normal: BotLevel,
+    #[serde(default = "BotLevel::hard")]
+    pub hard: BotLevel,
+}
+
+/// `[bots.easy]`, `[bots.normal]`, `[bots.hard]` (Alpha 1.7): one level's play (D-060, D-148,
+/// D-191, D-228). Times in seconds unless named ticks; 0 turns a feature off.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct BotLevel {
+    /// Ticks between two decisions.
+    pub period_ticks: u64,
+    /// Ticks before founding the colony (D-101).
+    pub found_ticks: u64,
+    /// Commands per decision at most.
+    pub actions: usize,
+    /// Seconds between raids, and the herd of units a raid needs (D-148).
+    pub raid_s: u64,
+    pub raid_herd: usize,
+    /// Seconds between bought raids (0: never).
+    pub drop_s: u64,
+    /// Grazer cards kept on the map.
+    pub grazer_cards: i64,
+    /// Seconds a threat must last before an answer (D-191); answers stalkers; anticipates.
+    pub reaction_s: u64,
+    pub stalkers: bool,
+    pub anticipate: bool,
+    /// Seconds between two reads of the enemy (0: no adaptation) and the shift (points, D-228).
+    pub adapt_s: u64,
+    pub adapt_shift: i64,
+}
+
+impl BotLevel {
+    #[must_use]
+    pub fn easy() -> BotLevel {
+        BotLevel {
+            period_ticks: 60,
+            found_ticks: 150,
+            actions: 2,
+            raid_s: 90,
+            raid_herd: 8,
+            drop_s: 0,
+            grazer_cards: 4,
+            reaction_s: 60,
+            stalkers: false,
+            anticipate: false,
+            adapt_s: 0,
+            adapt_shift: 0,
+        }
+    }
+
+    #[must_use]
+    pub fn normal() -> BotLevel {
+        BotLevel {
+            period_ticks: 30,
+            found_ticks: 100,
+            actions: 3,
+            raid_s: 45,
+            raid_herd: 4,
+            drop_s: 90,
+            grazer_cards: 6,
+            reaction_s: 15,
+            stalkers: true,
+            anticipate: false,
+            adapt_s: 120,
+            adapt_shift: 12,
+        }
+    }
+
+    #[must_use]
+    pub fn hard() -> BotLevel {
+        BotLevel {
+            period_ticks: 15,
+            found_ticks: 60,
+            actions: 4,
+            raid_s: 30,
+            raid_herd: 5,
+            drop_s: 60,
+            grazer_cards: 8,
+            reaction_s: 0,
+            stalkers: true,
+            anticipate: true,
+            adapt_s: 60,
+            adapt_shift: 25,
+        }
+    }
 }
 
 /// `[bots.styles]` (D-228): spending weights in % (land, depth, army), each summing to 100.
@@ -124,6 +215,9 @@ impl Default for BotRules {
         BotRules {
             income: [1.0, 1.0, 1.0],
             styles: BotStyles::default(),
+            easy: BotLevel::easy(),
+            normal: BotLevel::normal(),
+            hard: BotLevel::hard(),
         }
     }
 }
@@ -702,6 +796,12 @@ impl Balance {
                 .iter()
                 .all(|w| w.iter().sum::<u32>() == 100),
             "[bots.styles] weights must sum to 100".into(),
+        )?;
+        let bl = [self.bots.easy, self.bots.normal, self.bots.hard];
+        check(
+            bl.iter()
+                .all(|l| l.period_ticks > 0 && l.actions > 0 && l.raid_herd > 0),
+            "[bots.easy|normal|hard] period_ticks, actions and raid_herd must be > 0".into(),
         )?;
         check(
             (0.0..=4.0).contains(&f.fert_gain),

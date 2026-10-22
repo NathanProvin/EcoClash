@@ -1323,3 +1323,11 @@
 - **Decay to 38 min:** no effect on its own; the den decides early matches.
 - **Den ring:** back outside the budgets. Median end 25:45, even seats; tall 19 in the matrix.
 - **World is Clone, a tick about 1 ms native:** look-ahead for a harder bot is feasible (see the ideas given to the user).
+
+## 2026-10-22 (6) · Hard's tactics (D-268)
+- **Built:** layered den raids, raid control (retreat, guarded cells skipped, escort), den moves, raid timing, payback unlocks; Hard only (`tactics`).
+- **Hard with tactics** against Hard without: 33/48.
+  - Payback unlocks carry the gain (23/48 without).
+  - The others are neutral against bots; den moves fire rarely, so their trigger was widened to 6 cells.
+- **Ladder** re-tuned for the stronger Hard: income [1.15, 1.25, 1.5] → 84 / 85 / 100.
+- **Checks:** Rust, WASM, client tests green; four new bot tests.

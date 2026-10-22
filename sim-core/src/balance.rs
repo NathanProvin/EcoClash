@@ -133,6 +133,10 @@ pub struct BotLevel {
     pub adapt_shift: i64,
     /// Casts every catastrophe card on the enemy (D-252); otherwise only a rush bot's blights.
     pub casts: bool,
+    /// Hard's tactics (Alpha 1.7): layered den raids, raid control, den moves, timing, payback
+    /// unlocks.
+    #[serde(default)]
+    pub tactics: bool,
 }
 
 impl BotLevel {
@@ -152,6 +156,7 @@ impl BotLevel {
             adapt_s: 0,
             adapt_shift: 0,
             casts: false,
+            tactics: false,
         }
     }
 
@@ -171,6 +176,7 @@ impl BotLevel {
             adapt_s: 120,
             adapt_shift: 12,
             casts: false,
+            tactics: false,
         }
     }
 
@@ -190,6 +196,7 @@ impl BotLevel {
             adapt_s: 60,
             adapt_shift: 25,
             casts: true,
+            tactics: true,
         }
     }
 }

@@ -33,7 +33,7 @@ pub const FRAME_BYTES: usize = 12;
 /// Standing orders (`Agents::order`): none (the animal acts on its own).
 pub const FREE: u8 = 0;
 const MOVE: u8 = 1;
-const ATTACK: u8 = 2;
+pub const ATTACK: u8 = 2;
 pub const HOLD: u8 = 3;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

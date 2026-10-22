@@ -152,8 +152,8 @@ Plan: species reports → proposals → the user's play tests; then a self-play 
 - [ ] A5. Apply; the user's play tests. Round 1: D-263 (food web), D-264 (prices, swarm damage, bison, fertility; bot saving fix).
 - [x] B1. Bot knobs into `[bots.easy|normal|hard]` (same values, same bench output).
 - [x] B2. `sim-cli tune`: (1+1) self-play search on Hard. First run: no gain beyond noise (D-266).
-- [ ] B3. Bot logic gaps: moving the den, den defence, the ignored style fingerprint test.
-- [ ] B4. Ship the tuned Hard, ladder kept.
+- [x] B3. Bot logic gaps: den defence (D-265, D-266), moving the den and Hard's tactics (D-268). The ignored style fingerprint test stays ignored.
+- [x] B4. Ship the tuned Hard, ladder kept (D-266, D-268: 84 / 85 / 100).
 - [ ] C1–C4. Quick-match queue: `relay/queue.mjs`, a `Queue` Durable Object, the Multiplayer button, the deploy.
 - [ ] Release: "Alpha 1.7", tag `v1.7-alpha`.
 

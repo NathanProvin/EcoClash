@@ -24,7 +24,7 @@ decay_to_s = 2280        # ... and ends at 38 min (D-148, D-265, D-267)
 # Bot difficulty (D-143): the bots' income factor by level (easy, normal, hard); humans earn 1.
 # With play quality (easy plays at home, hard adds drops and catastrophes) it makes the ladder.
 [bots]
-income = [1.1, 1.25, 1.6]
+income = [1.15, 1.25, 1.5]
 
 # Bot play styles (D-228): % of spending on land (spreading), depth (species per cell, fertility)
 # and army (grazers for raids). Hunters and catastrophes answer threats outside these budgets.
@@ -39,7 +39,8 @@ balanced = [34, 33, 33]
 # raids of raid_herd units; drop_s between bought raids; grazer_cards kept; reaction_s before a threat
 # is answered; stalkers: answers hunters near its herds; anticipate: answers any enemy species seen;
 # adapt_s between reads of the enemy and adapt_shift points toward its counter; casts: every
-# catastrophe card (else only a rush bot's blights).
+# catastrophe card (else only a rush bot's blights); tactics: layered den raids, raid control, den
+# moves, timing, payback unlocks (Alpha 1.7).
 [bots.easy]
 period_ticks = 60
 found_ticks = 150
@@ -54,6 +55,7 @@ anticipate = false
 adapt_s = 0
 adapt_shift = 0
 casts = false
+tactics = false
 
 [bots.normal]
 period_ticks = 30
@@ -69,6 +71,7 @@ anticipate = false
 adapt_s = 120
 adapt_shift = 12
 casts = false
+tactics = false
 
 [bots.hard]
 period_ticks = 15
@@ -84,6 +87,7 @@ anticipate = true
 adapt_s = 60
 adapt_shift = 25
 casts = true
+tactics = true
 
 [agents]
 max_agents = 2000        # §5.4 budget; per player: half

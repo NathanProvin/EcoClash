@@ -3177,3 +3177,25 @@ Template:
   - **Food chains** (`CAPS=1`): frogs hold on land (34 on 64 grasshoppers and 32 slugs); the full meadow web keeps every species in 8/8 seeds but the eagle-owl (7/8); wolves live on deer and boar.
   - Tried: decay from 25 to 38 min, with no change (24:04).
 - **Still missed:** tall at 19 % (the reactive den ring weighs on its depth budget); great tit above 25 % of calls.
+
+## D-268 · 2026-10-22 · Hard's tactics
+- **Status:** accepted (user: implement ideas 2 to 6 of the harder-bot list)
+- **Decision:** a `tactics` level setting (Hard only) adds, in `sim-ai`:
+  - **Layered den raids:** with the enemy den seen, a grazer that eats one of its plants no own grazer eats yet scores 4× as a raider, so every layer of the den gets an eater. Blights open on the den itself.
+  - **Raid control:**
+    - raiders on an attack order fall back home when an enemy hunter that eats them is within 2 cells (`retreat`);
+    - raids are steered off front cells such hunters guard (`breach`);
+    - the free hunters escort each raid.
+  - **Den moves** (D-253): with enemy land within 6 cells of the den, or the den pushed, the bot moves it to the grown inner cell farthest from the enemy, when that doubles the distance. Moves start before contact, because a den under move counts twice.
+  - **Timing:** raids come twice as often, one unit smaller, while the weather slows regrowth or every enemy culling card cools down (`raid_window`).
+  - **Payback unlocks:** when the plan's next card is a plant, the planned plant whose unlock pays back soonest on the bot's own land (price over yield × own cells it would suit and lacks).
+- **Measure** (Hard with tactics against Hard without, same income, 48 matches in both seat orders): 33/48 (69 %).
+  - **Ablation:** without payback unlocks 23/48; without each of the others 32–33/48.
+  - **How often each fires** (8 matches): retreat 720, layered raider choice about 1 000, timing 74, escort 74, den moves 2 (dens fall to raids before fronts near them).
+  - The four neutral features answer human habits (hunters at the den, raids on a layered den, slow fronts) more than bot ones; they are kept for the play tests.
+- **Ladder:** with tactics Hard beat Normal 90 %, so `[bots] income` [1.1, 1.25, 1.6] → [1.15, 1.25, 1.5]: Hard > Normal 84 %, Normal > Easy 85 %, Hard > Easy 100 % (32 matches per pair).
+- **Tests:**
+  - `hard_raiders_fall_back_from_hunters`;
+  - `hard_moves_a_den_the_front_reached`;
+  - `enemy_culls_on_cooldown_open_a_raid_window`;
+  - `hard_unlocks_the_plant_that_pays_back_soonest`.

@@ -15,8 +15,8 @@ use std::cmp::Reverse;
 
 use sim_core::balance::{Act, Balance, BotLevel};
 use sim_core::commands::{OrderKind, Payload};
-use sim_core::fauna::{FREE, HOLD, Role};
-use sim_core::fixed::ONE;
+use sim_core::fauna::{ATTACK, FREE, HOLD, Role};
+use sim_core::fixed::{ONE, Q16};
 use sim_core::terrain::SHALLOW;
 use sim_core::world::World;
 
@@ -245,6 +245,8 @@ const STALK_CELLS: usize = 3;
 const DEN_GUARD: usize = 3;
 /// Hunters the bot keeps holding at its den (Alpha 1.7): most dens fell to raids grazing them bare.
 const GARRISON: usize = 2;
+/// Raiders fall back from enemy hunters that eat them this close (cells; tactics).
+const RETREAT_CELLS: usize = 2;
 /// A cull card is worth its price on a cell with at least this many enemy animals (D-252).
 const CULL_HERD: i64 = 4;
 
@@ -263,6 +265,8 @@ pub struct Bot {
     level: Level,
     /// The level's play (`Level::params`); `sim-cli tune` swaps in variants (B2).
     pub lv: BotLevel,
+    /// Plant yields (Q16 points per covered cell and second), for payback unlocks (tactics).
+    yld: Vec<i64>,
     pub style: Style,
     /// The style's weights, and the weights now (after adaptation), in % (land, depth, army).
     base: [i64; 3],
@@ -339,6 +343,9 @@ impl Bot {
             player,
             level,
             lv: level.params(b),
+            yld: (b.flora_species.iter())
+                .map(|(_, s)| i64::from(Q16::from_balance(s.yield_).0))
+                .collect(),
             style,
             base,
             weights: base,
@@ -388,12 +395,14 @@ impl Bot {
         // Threats first (D-191), outside the budgets; then the categories at or below their
         // share, furthest below first (D-228). A category over its share waits: the bot saves
         // for the others rather than spend its money elsewhere.
-        let reactive: [Play; 6] = [
+        let reactive: [Play; 8] = [
             Bot::catastrophe,
+            Bot::retreat,
             Bot::defend,
             Bot::guard_den,
             Bot::layer_den,
             Bot::garrison,
+            Bot::move_den,
             Bot::unlock,
         ];
         let budgets: [&[Play]; 3] = [
@@ -843,6 +852,16 @@ impl Bot {
                 .map(|h| v.intel.seen[h])
                 .sum()
         };
+        // Layered den raids (tactics, Alpha 1.7): with the enemy den seen, a grazer eating one of its
+        // plants that no own grazer eats yet counts 4 times: every layer of the den gets an eater.
+        let den = self.den_plants(v);
+        let a = &w.fauna.agents;
+        let eaten = |j: usize| {
+            (0..a.len()).any(|i| {
+                a.owner[i] == self.player && fa.plant_rank(usize::from(a.sp[i]), j).is_some()
+            })
+        };
+        let open: Vec<usize> = den.into_iter().filter(|&j| !eaten(j)).collect();
         (0..fa.names.len())
             .filter(|&s| {
                 fa.role[s] == Role::Herbivore
@@ -850,6 +869,8 @@ impl Bot {
             })
             .map(|s| {
                 let score = Bot::food_for(v, s, &v.intel.enemy_plants) - 8 * hunted(s);
+                let fills = open.iter().any(|&j| fa.plant_rank(s, j).is_some());
+                let score = score * if fills { 4 } else { 1 };
                 (self.varied(v, s, score), s)
             })
             .filter(|&(score, _)| score > 0)
@@ -877,14 +898,20 @@ impl Bot {
                 None => {}
             }
         }
-        self.plan(v).into_iter().find_map(|name| {
+        let next = self.plan(v).into_iter().find_map(|name| {
             let i = Bot::sheet(w, name)?;
             match w.economy.check_unlock(self.player, i) {
                 Ok(()) => Some(i),
                 Err(e) if e.ends_with("biomass") => Some(i),
                 Err(_) => None,
             }
-        })
+        });
+        // Payback unlocks (tactics, Alpha 1.7): when the plan's next card is a plant, the planned
+        // plant that pays back soonest on the bot's land.
+        match next {
+            Some(i) if self.lv.tactics && i < w.flora.p.species() => self.payback_plant(v).or(next),
+            _ => next,
+        }
     }
 
     /// The plan for this map: the backbone, with the water cards on maps with water (D-192),
@@ -1550,8 +1577,15 @@ impl Bot {
                         .filter(|&k| herd[k] >= CULL_HERD)
                         .max_by_key(|&k| (herd[k], k))
                 }
-                // Just ahead of the raid: the enemy cell clear of own land nearest the breach.
+                // Just ahead of the raid: the enemy cell clear of own land nearest the breach (the
+                // den itself once seen, tactics: it opens a layered raid).
                 Act::Blight => {
+                    let den = w.fauna.dens[usize::from(2 - self.player)][0];
+                    let breach = if self.lv.tactics && den < n2 && v.vis[den] {
+                        Some(den)
+                    } else {
+                        breach
+                    };
                     let aim = breach.map_or(v.home, |b| (b / n, b % n));
                     enemy.iter().copied().min_by_key(|&k| (dist2(k, n, aim), k))
                 }
@@ -1567,10 +1601,149 @@ impl Bot {
         None
     }
 
+    /// Raid control (tactics, Alpha 1.7): own grazers on an attack order with an enemy hunter
+    /// that eats them within RETREAT_CELLS fall back home, to raid again later.
+    fn retreat(&self, v: &View) -> Option<Payload> {
+        if !self.lv.tactics {
+            return None;
+        }
+        let (w, n) = (v.w, v.n);
+        let (fa, a) = (&w.fauna.p, &w.fauna.agents);
+        let hunters: Vec<(usize, usize)> = (0..a.len())
+            .filter(|&j| a.owner[j] == 3 - self.player && v.vis[a.cell(j, n)])
+            .filter(|&j| fa.role[usize::from(a.sp[j])] == Role::Predator)
+            .map(|j| (usize::from(a.sp[j]), a.cell(j, n)))
+            .collect();
+        let near = RETREAT_CELLS * RETREAT_CELLS;
+        let ids: Vec<u32> = (0..a.len())
+            .filter(|&i| a.owner[i] == self.player && a.order[i] == ATTACK)
+            .filter(|&i| fa.role[usize::from(a.sp[i])] == Role::Herbivore)
+            .filter(|&i| {
+                let (s, k) = (usize::from(a.sp[i]), a.cell(i, n));
+                hunters.iter().any(|&(h, c)| {
+                    fa.prey_rank(h, s).is_some() && dist2(c, n, (k / n, k % n)) <= near
+                })
+            })
+            .map(|i| a.id[i])
+            .collect();
+        (!ids.is_empty()).then(|| Payload::Order {
+            ids,
+            kind: OrderKind::Move,
+            row: u32::try_from(v.home.0).unwrap_or(0),
+            col: u32::try_from(v.home.1).unwrap_or(0),
+        })
+    }
+
+    /// Den moves (tactics, Alpha 1.7; D-253): with enemy land within 2 × DEN_GUARD cells of its den
+    /// (before contact: a den under move counts twice) or the den pushed, the bot moves it, if it can pay, to the grown inner cell (own land all
+    /// around) farthest from the enemy, when that at least doubles the distance.
+    fn move_den(&self, v: &View) -> Option<Payload> {
+        let (w, n, n2) = (v.w, v.n, v.n * v.n);
+        let pi = usize::from(self.player - 1);
+        let den = w.fauna.dens[pi][0];
+        if !self.lv.tactics || den >= n2 || w.fauna.den_move[pi].is_some() {
+            return None;
+        }
+        if w.economy.bank[pi] < w.economy.den_move {
+            return None;
+        }
+        let enemy: Vec<usize> = (0..n2)
+            .filter(|&k| w.state.owner[k] == 3 - self.player)
+            .collect();
+        let gap = |k: usize| {
+            (enemy.iter())
+                .map(|&e| dist2(e, n, (k / n, k % n)))
+                .min()
+                .unwrap_or(usize::MAX)
+        };
+        let now = gap(den);
+        if now > 4 * DEN_GUARD * DEN_GUARD && v.push[den] <= 0 {
+            return None;
+        }
+        let fl = &w.flora.p;
+        let grown = |k: usize| (0..fl.species()).any(|s| w.state.bio[s * n2 + k] >= fl.est_thr[s]);
+        let to = (0..n2)
+            .filter(|&k| k != den && w.state.owner[k] == self.player && grown(k))
+            .filter(|&k| w.state.ground[k] == sim_core::terrain::LAND)
+            .filter(|&k| neighbours(k, n).all(|m| w.state.owner[m] == self.player))
+            .map(|k| (gap(k), k))
+            .filter(|&(g, _)| g >= 4 * now.max(1)) // squared distances: twice as far
+            .max_by_key(|&(g, k)| (g, Reverse(k)))?
+            .1;
+        Some(Payload::MoveDen {
+            row: u32::try_from(to / n).unwrap_or(0),
+            col: u32::try_from(to % n).unwrap_or(0),
+        })
+    }
+
+    /// The plants of the enemy den, once seen (tactics: layered raids aim at all of them).
+    fn den_plants(&self, v: &View) -> Vec<usize> {
+        let (w, n2) = (v.w, v.n * v.n);
+        let den = w.fauna.dens[usize::from(2 - self.player)][0];
+        if !self.lv.tactics || den >= n2 || !v.vis[den] {
+            return Vec::new();
+        }
+        (0..w.flora.p.species())
+            .filter(|&s| w.state.bio[s * n2 + den] > 0)
+            .collect()
+    }
+
+    /// A raid window (tactics, Alpha 1.7): weather slowing regrowth, or every enemy card that
+    /// kills animals cooling down, so it cannot cull the raid.
+    fn raid_window(&self, v: &View) -> bool {
+        let w = v.w;
+        let wx = &w.weather;
+        let slow = wx.kind.is_some_and(|k| {
+            wx.start <= w.tick && w.tick < wx.end && wx.p.kinds[k].growth < i64::from(ONE)
+        });
+        let c = &w.catastrophes;
+        let e = usize::from(2 - self.player);
+        let culls: Vec<usize> = (0..c.p.names.len())
+            .filter(|&k| c.p.act(k) == Act::Cull)
+            .collect();
+        slow || (!culls.is_empty() && culls.iter().all(|&k| c.ready[e][k] > w.tick))
+    }
+
+    /// Payback unlocks (tactics, Alpha 1.7): among the planned plant cards it can reach, the one
+    /// whose unlock pays back soonest on its own land: price over yield × own cells it would suit
+    /// and does not grow on yet.
+    fn payback_plant(&self, v: &View) -> Option<usize> {
+        let (w, n2) = (v.w, v.n * v.n);
+        let plants = w.flora.p.species();
+        let half = i64::from(ONE) / 2;
+        let own: Vec<usize> = (0..n2)
+            .filter(|&k| w.state.owner[k] == self.player)
+            .collect();
+        let reachable = |i: usize| match w.economy.check_unlock(self.player, i) {
+            Ok(()) => true,
+            Err(e) => e.ends_with("biomass"),
+        };
+        (self.plan(v).into_iter())
+            .filter_map(|name| Bot::sheet(w, name))
+            .filter(|&i| i < plants && reachable(i))
+            .map(|s| {
+                let room = (own.iter())
+                    .filter(|&&k| {
+                        w.state.bio[s * n2 + k] == 0 && w.flora.suitability(&w.state, s, k) >= half
+                    })
+                    .count();
+                let gain = self.yld[s] * i64::try_from(room).unwrap_or(0);
+                (w.economy.unlock_price(s) / gain.max(1), s)
+            })
+            .min()
+            .map(|(_, s)| s)
+    }
+
     /// At the level's raid pace (scaled by the army weight, D-228), with a large enough herd of
     /// units (D-148): own herbivores attack-move to the breach.
     fn raid(&self, v: &View) -> Option<Payload> {
         let (every, herd) = (self.lv.raid_s, self.lv.raid_herd);
+        // Timing (tactics, Alpha 1.7): in a raid window, twice the pace and one unit fewer.
+        let (every, herd) = if self.lv.tactics && self.raid_window(v) {
+            (every / 2, herd.saturating_sub(1).max(2))
+        } else {
+            (every, herd)
+        };
         if !self.every(v, self.paced(every)) {
             return None;
         }
@@ -1601,7 +1774,25 @@ impl Bot {
             .enumerate()
             .map(|(s, &c)| c / usize::try_from(w.fauna.p.group_size(s)).unwrap_or(1).max(1))
             .sum();
-        (units + cards >= herd).then(|| Payload::Order {
+        if units + cards < herd {
+            return None;
+        }
+        // Escort (tactics, Alpha 1.7): the free hunters go with the raid, to strike the defenders.
+        let mut ids = ids;
+        if self.lv.tactics {
+            let fa = &w.fauna.p;
+            ids.extend(
+                (0..a.len())
+                    .filter(|&i| {
+                        a.owner[i] == self.player
+                            && a.order[i] == FREE
+                            && fa.role[usize::from(a.sp[i])] == Role::Predator
+                    })
+                    .map(|i| a.id[i]),
+            );
+            ids.sort_unstable();
+        }
+        Some(Payload::Order {
             ids,
             kind: OrderKind::Attack,
             row: u32::try_from(target / n).unwrap_or(0),
@@ -1624,10 +1815,32 @@ impl Bot {
         if den < n * n && v.vis[den] && enemy(den) {
             return Some(den);
         }
+        // Raid control (tactics, Alpha 1.7): skip front cells that enemy hunters guard.
+        let a = &w.fauna.agents;
+        let guards: Vec<usize> = (0..a.len())
+            .filter(|&j| self.lv.tactics && a.owner[j] == 3 - self.player && v.vis[a.cell(j, n)])
+            .filter(|&j| w.fauna.p.role[usize::from(a.sp[j])] == Role::Predator)
+            .map(|j| a.cell(j, n))
+            .collect();
+        let open = |e: usize| {
+            !guards
+                .iter()
+                .any(|&g| dist2(g, n, (e / n, e % n)) <= RETREAT_CELLS * RETREAT_CELLS)
+        };
+        let front: Vec<usize> = (front
+            .iter()
+            .copied()
+            .filter(|&e| open(e))
+            .collect::<Vec<_>>())
+        .into_iter()
+        .chain(front.iter().copied().filter(|&e| !open(e)))
+        .collect();
+        let unguarded = front.iter().filter(|&&e| open(e)).count();
         let rush = self.weights[ARMY] >= 50;
         let tips = front
             .iter()
             .copied()
+            .take(unguarded.max(1))
             .filter(|&e| v.margin[e] <= 0 && v.margin[e] + Bot::one(v, e) > 0);
         let best = if rush {
             tips.max_by_key(|&e| (v.strength[e], Reverse(e)))
@@ -2383,6 +2596,92 @@ mod tests {
         };
         assert_eq!(spare(Style::Wide), 1_000, "wide plants its unused card");
         assert!(spare(Style::Tall) < 0, "tall saves for the next one");
+    }
+
+    /// Raid control (tactics, Alpha 1.7): raiders with an enemy hunter that eats them close by
+    /// fall back home; without tactics they press on.
+    #[test]
+    fn hard_raiders_fall_back_from_hunters() {
+        let b = balance();
+        let mut w = painted(
+            &b,
+            &|r, _| if r >= 30 { 2 } else { u8::from(r < 8) },
+            &|_, _| vec!["grasses"],
+        );
+        let (rabbits, fox) = (
+            w.fauna.p.index("rabbits").unwrap(),
+            w.fauna.p.index("fox").unwrap(),
+        );
+        w.fauna.place(rabbits, 2, 6 * 38 + 10, 1, 38);
+        w.fauna.place(fox, 1, 6 * 38 + 11, 1, 38);
+        w.fauna.agents.order[0] = sim_core::fauna::ATTACK;
+        let mut hard = Bot::new(2, Level::Hard, Style::Balanced, &b);
+        let v = hard.view(&w);
+        let Some(Payload::Order { ids, kind, .. }) = hard.retreat(&v) else {
+            panic!("no retreat");
+        };
+        assert_eq!((kind, ids), (OrderKind::Move, vec![w.fauna.agents.id[0]]));
+        let mut normal = Bot::new(2, Level::Normal, Style::Balanced, &b);
+        let v = normal.view(&w);
+        assert!(normal.retreat(&v).is_none(), "no tactics, no retreat");
+    }
+
+    /// Den moves (tactics, Alpha 1.7): enemy land next to the den sends it to the grown inner
+    /// cell farthest from the enemy.
+    #[test]
+    fn hard_moves_a_den_the_front_reached() {
+        let b = balance();
+        let mut w = painted(&b, &|r, _| if r >= 20 { 2 } else { 1 }, &|_, _| {
+            vec!["grasses"]
+        });
+        w.fauna.dens[1][0] = 21 * 38 + 19;
+        w.economy.bank[1] = w.economy.den_move * 2;
+        let mut bot = Bot::new(2, Level::Hard, Style::Balanced, &b);
+        let v = bot.view(&w);
+        let Some(Payload::MoveDen { row, .. }) = bot.move_den(&v) else {
+            panic!("the den stays");
+        };
+        assert!(row >= 30, "moved away from the front: row {row}");
+    }
+
+    /// Timing (tactics, Alpha 1.7): every enemy card that kills animals cooling down opens a
+    /// raid window.
+    #[test]
+    fn enemy_culls_on_cooldown_open_a_raid_window() {
+        let b = balance();
+        let mut w = painted(&b, &|r, _| if r >= 30 { 2 } else { 0 }, &|_, _| {
+            vec!["grasses"]
+        });
+        let mut bot = Bot::new(2, Level::Hard, Style::Balanced, &b);
+        let v = bot.view(&w);
+        assert!(!bot.raid_window(&v));
+        for k in 0..w.catastrophes.p.names.len() {
+            if w.catastrophes.p.act(k) == Act::Cull {
+                w.catastrophes.ready[0][k] = w.tick + 600;
+            }
+        }
+        let v = bot.view(&w);
+        assert!(bot.raid_window(&v));
+    }
+
+    /// Payback unlocks (tactics, Alpha 1.7): the planned plant card that pays back soonest on the
+    /// bot's own land.
+    #[test]
+    fn hard_unlocks_the_plant_that_pays_back_soonest() {
+        let b = balance();
+        let w = painted(&b, &|r, _| if r >= 30 { 2 } else { 0 }, &|_, _| {
+            vec!["lichen_and_moss"]
+        });
+        let mut bot = Bot::new(2, Level::Hard, Style::Balanced, &b);
+        let v = bot.view(&w);
+        let s = bot.payback_plant(&v).expect("a plant to unlock");
+        let price = |s: usize| w.economy.unlock_price(s) / bot.yld[s].max(1);
+        let grasses = w.flora.p.index("grasses").unwrap();
+        assert!(
+            price(s) <= price(grasses),
+            "{} pays back no later",
+            w.flora.p.names[s]
+        );
     }
 
     #[test]

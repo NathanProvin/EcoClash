@@ -147,18 +147,14 @@ pub fn tune(b: &Balance, opts: &Opts) -> String {
 
 /// A level as balance.toml lines.
 fn table(lv: &BotLevel) -> String {
-    let mut t = format!(
-        "found_ticks = {}
-",
-        lv.found_ticks
-    );
+    let mut t = format!("found_ticks = {}\n", lv.found_ticks);
     for (k, (name, ..)) in KNOBS.iter().enumerate() {
         let _ = writeln!(t, "{name} = {}", get(lv, k));
     }
     let _ = write!(
         t,
-        "stalkers = {}\nanticipate = {}\ncasts = {}",
-        lv.stalkers, lv.anticipate, lv.casts
+        "stalkers = {}\nanticipate = {}\ncasts = {}\ntactics = {}",
+        lv.stalkers, lv.anticipate, lv.casts, lv.tactics
     );
     t
 }
@@ -188,9 +184,10 @@ mod tests {
         for (k, _) in KNOBS.iter().enumerate() {
             set(&mut back, k, get(&lv, k));
         }
-        (back.stalkers, back.anticipate, back.casts) = (lv.stalkers, lv.anticipate, lv.casts);
+        (back.stalkers, back.anticipate, back.casts, back.tactics) =
+            (lv.stalkers, lv.anticipate, lv.casts, lv.tactics);
         back.found_ticks = lv.found_ticks;
         assert_eq!(back, lv);
-        assert!(table(&lv).contains("period_ticks = 15"));
+        assert!(table(&lv).contains("period_ticks = 15") && table(&lv).ends_with("tactics = true"));
     }
 }

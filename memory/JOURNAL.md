@@ -1316,3 +1316,10 @@
   - matrix wide 39, tall 30, rush 69, balanced 59;
   - roster 24/33;
   - great tit 38 % of calls.
+
+## 2026-10-22 (5) · Food-web audit, land frog, den ring back (D-267)
+- **Audit** of first-rank hunters: insect swarms rely on the great tit; slugs, caterpillars and bark beetles lack land answers; boar, beaver and mallard are weakly hunted.
+- **Frog:** on land (W or L2), grasshoppers first. **Wolf:** boar second.
+- **Decay to 38 min:** no effect on its own; the den decides early matches.
+- **Den ring:** back outside the budgets. Median end 25:45, even seats; tall 19 in the matrix.
+- **World is Clone, a tick about 1 ms native:** look-ahead for a harder bot is feasible (see the ideas given to the user).

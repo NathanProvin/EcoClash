@@ -388,16 +388,17 @@ impl Bot {
         // Threats first (D-191), outside the budgets; then the categories at or below their
         // share, furthest below first (D-228). A category over its share waits: the bot saves
         // for the others rather than spend its money elsewhere.
-        let reactive: [Play; 5] = [
+        let reactive: [Play; 6] = [
             Bot::catastrophe,
             Bot::defend,
             Bot::guard_den,
+            Bot::layer_den,
             Bot::garrison,
             Bot::unlock,
         ];
         let budgets: [&[Play]; 3] = [
             &[Bot::expand],
-            &[Bot::layer_den, Bot::deepen, Bot::decomposers],
+            &[Bot::deepen, Bot::decomposers],
             &[Bot::herbivores, Bot::drop_raiders, Bot::raid],
         ];
         let active = [LAND, DEPTH, ARMY].map(|c| self.active(&view, c));
@@ -1168,8 +1169,8 @@ impl Bot {
             })
     }
 
-    /// The den's ring in layers (Alpha 1.7), from the depth budget: one grazer kind cannot strip
-    /// a layered den bare.
+    /// The den's ring in layers (Alpha 1.7), outside the budgets (D-267: from the depth budget, dens
+    /// fell and matches ended at 24 min): one grazer kind cannot strip a layered den bare.
     fn layer_den(&self, v: &View) -> Option<Payload> {
         self.deepen_where(v, Zone::DenRing)
     }

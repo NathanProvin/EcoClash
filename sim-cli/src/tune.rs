@@ -147,8 +147,11 @@ pub fn tune(b: &Balance, opts: &Opts) -> String {
 
 /// A level as balance.toml lines.
 fn table(lv: &BotLevel) -> String {
-    let mut t = format!("found_ticks = {}
-", lv.found_ticks);
+    let mut t = format!(
+        "found_ticks = {}
+",
+        lv.found_ticks
+    );
     for (k, (name, ..)) in KNOBS.iter().enumerate() {
         let _ = writeln!(t, "{name} = {}", get(lv, k));
     }

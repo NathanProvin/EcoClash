@@ -3154,3 +3154,26 @@ Template:
   - hunter wear (a diet rank lost per recent cards, in unlocks and hunting): no effect at 6 cards; at 2, tits still 40 % and the matrix worse (balanced 30);
   - rabbits ahead of grasshoppers in the plan: tits 40 %, rush 89.
   Logging showed 293 tit calls answering raids against 20 proactive, behind 249 grasshopper calls. Spreading them needs a second first-rank eater of grasshoppers: a diet change (the user's call).
+
+## D-267 · 2026-10-22 · A land frog, boar for the wolf, the den ring outside the budgets, decay to 38 min
+- **Status:** accepted (user: other candidates than the hawk and other gaps in the food web; the decay to 38 min; ideas for harder bots)
+- **Food-web audit** (first-rank hunters per prey, and where they can live):
+  - grasshoppers: one first-rank hunter (great tit); the frog second, in water only;
+  - slugs: first-rank only the frog (water); on dry maps the badger, second rank;
+  - caterpillars: no first-rank hunter;
+  - bark beetles: third-rank hunters only;
+  - wild boar: the wolf at third rank only;
+  - beaver and mallard: second-rank hunters only.
+  - Every insect swarm is answered by the great tit: the other insect eaters are a water animal and an expensive tier 3.
+- **Decision:**
+  - **Frog:** habitat `["W", "L2"]` (wet undergrowth); diet `[grasshoppers, slugs, caterpillars]`. It is the tier-2 insect eater, a better second answer than the hawk, which keeps its superpredator role.
+  - **Wolf:** `[red_deer, wild_boar, bison]` (boar second).
+  - **Den ring** (`layer_den`): back outside the budgets (D-265). From the depth budget (D-266), the median end fell to 24 min.
+  - **Decay:** 50 % now at 38 min (`decay_to_s` 2280). It barely matters: matches end by den or territory before then.
+- **Measure:**
+  - **Normal mirror, 48 seeds:** median end 25:45 (23:47); unfinished 0; wins 23–25; trees on a third of sides; comebacks 7/26.
+  - **Style matrix, 8 seeds per pair:** wide 47, tall 19, rush 68, balanced 63.
+  - **Animals:** 26/33 called; great tit 33 % of calls (38).
+  - **Food chains** (`CAPS=1`): frogs hold on land (34 on 64 grasshoppers and 32 slugs); the full meadow web keeps every species in 8/8 seeds but the eagle-owl (7/8); wolves live on deer and boar.
+  - Tried: decay from 25 to 38 min, with no change (24:04).
+- **Still missed:** tall at 19 % (the reactive den ring weighs on its depth budget); great tit above 25 % of calls.

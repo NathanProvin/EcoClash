@@ -19,7 +19,7 @@ territory_decay = true   # gamerules §11.3, D-143: the threshold decays linearl
 territory_start = 0.80   # ... from this (held until decay_from_s) ...
 territory_end = 0.50     # ... to this at decay_to_s: the larger side wins by then (D-265)
 decay_from_s = 1200      # real seconds: the decay starts at 20 min ...
-decay_to_s = 2100        # ... and ends at 35 min (D-148, D-265)
+decay_to_s = 2280        # ... and ends at 38 min (D-148, D-265, D-267)
 
 # Bot difficulty (D-143): the bots' income factor by level (easy, normal, hard); humans earn 1.
 # With play quality (easy plays at home, hard adds drops and catastrophes) it makes the ladder.

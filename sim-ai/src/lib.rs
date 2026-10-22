@@ -774,8 +774,30 @@ impl Bot {
             }
             _ => 0,
         };
+        // Cards before more cards: no saving for a planned unlock while an unlocked plant that
+        // suits some own cell is planted nowhere yet (its spending would starve forever).
+        let unlock = if v.threats.is_empty() && self.idle_plant(v) {
+            0
+        } else {
+            unlock
+        };
         let keep = |x: i64| if x > reach { 0 } else { x };
         bank - keep(unlock) - keep(army)
+    }
+
+    /// Whether an unlocked plant suits an own cell (half or better) but grows on no own cell.
+    fn idle_plant(&self, v: &View) -> bool {
+        let (w, n2) = (v.w, v.n * v.n);
+        let own: Vec<usize> = (0..n2)
+            .filter(|&k| w.state.owner[k] == self.player)
+            .collect();
+        (0..w.flora.p.species()).any(|s| {
+            w.economy.is_unlocked(self.player, s)
+                && own.iter().all(|&k| w.state.bio[s * n2 + k] == 0)
+                && own
+                    .iter()
+                    .any(|&k| w.flora.suitability(&w.state, s, k) >= i64::from(ONE) / 2)
+        })
     }
 
     /// What a card of animal `s` costs.
@@ -2124,6 +2146,30 @@ mod tests {
 
     /// D-249: the bot reads enemy animals through its fog: a herd far from its land goes unseen
     /// until it comes near.
+    /// Cards before more cards (Alpha 1.7): with an unlocked plant planted nowhere yet, the bot
+    /// spends on it instead of saving every coin for its next unlock.
+    #[test]
+    fn the_bot_plants_its_unused_cards_before_saving_for_more() {
+        let b = balance();
+        let mut w = painted(&b, &|r, _| if r >= 30 { 2 } else { 0 }, &|_, _| {
+            vec!["lichen_and_moss"]
+        });
+        w.economy.sandbox = false;
+        let grasses = w.flora.p.index("grasses").unwrap();
+        let one = i64::from(ONE);
+        w.economy.bank[1] = 10_000 * one;
+        w.economy.unlock(2, grasses).unwrap();
+        w.economy.bank[1] = 1_000 * one; // short of the next card, which is in reach of income
+        w.economy.income[1] = 100 * one;
+        let mut bot = Bot::new(2, Level::Normal, Style::Balanced, &b);
+        let sent = bot.think(&w);
+        assert!(
+            sent.iter()
+                .any(|p| matches!(p, Payload::Plant { species, .. } if species == "grasses")),
+            "plants grasses: {sent:?}"
+        );
+    }
+
     #[test]
     fn the_bot_does_not_see_through_the_fog() {
         let b = balance();

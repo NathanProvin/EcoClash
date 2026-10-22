@@ -3055,3 +3055,26 @@ Template:
 - **Decision:**
   - The title gets a dark bark outline (`--bark-dark`, 3 px stroke painted under the fill, so 1.5 px shows), like the stones' rim.
   - The menu label is "Alpha 1.6". `alpha-1.6` is merged into main and tagged `v1.6-alpha`.
+
+## D-263 · 2026-10-22 · A harmonious food web: prey switching, prey is not a rival, recyclers hunted
+- **Status:** accepted (user: the rule, the woodpecker to the pine marten, fungi to the badger, the heron on roach; the rest to pass the guard test)
+- **Problem** (food-chain reports, `CAPS=1`, 8 seeds, 30 min; JOURNAL 2026-10-22):
+  - In mixed webs, a hunter fed by one plentiful prey hunted a scarce one to extinction: the hawk ate every great tit. The home-hunting surplus was judged over all its prey together.
+  - Hunters counted the species they eat as competitors. Herons starved above plentiful pike, and fast small hunters (weasels) crowded out the big ones (fox, eagle-owl).
+  - Nothing hunted fungi or the black woodpecker.
+- **Decision:**
+  - **Prey switching** (`Fauna::hunt`): an own animal of species j is fair game while the own j in the hunter's sight number at least `own_surplus` × `prey_per` per own hunter of its species there.
+  - **Prey is not a rival** (`FaunaParams::rival`): a hunter never counts a species it eats as a competitor for food (births and home hunting).
+  - **Diets:**
+    - pine marten [red squirrel, black woodpecker, great tit] (weasel dropped);
+    - badger [earthworms, slugs, fungi] (bark beetles dropped);
+    - heron [roach, larvae, pike] (frog dropped);
+    - otter [pike, mallard, frog] (roach dropped);
+    - hawk [bank vole, great tit, bark beetles] (grasshoppers dropped; the tit is no longer its first prey).
+  - **Guard test:** the user's heron pick [frog, roach, larvae] left pike with one eater and roach with three. The guard test (`food_web.rs`, gamerules §4.3) needs 2–3 and 2. The heron and otter swap above passes it, keeps the heron on fish and keeps pike eaten.
+- **Result** (mixed webs, all species released together):
+  - meadow (12 species): all alive in 8/8 seeds, against 7 dead before;
+  - forest: all alive but the eagle-owl, which has no prey there;
+  - water: all alive but the frog, which eats land insects;
+  - the old pyramid (rabbits, fox, eagle-owl) unchanged and its test green.
+- **Measure:** `CHAIN=... CAPS=1 cargo test -p sim-core --release -- --ignored --nocapture pyramid_report` (see the test's doc for the chain syntax).

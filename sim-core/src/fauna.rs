@@ -351,7 +351,11 @@ impl FaunaParams {
             && match self.role[s] {
                 Role::Herbivore => self.eats_flora[s] & self.eats_flora[j] != 0,
                 Role::Decomposer => true,
-                Role::Predator => oj == pl && self.eats_fauna[s] & self.eats_fauna[j] != 0,
+                Role::Predator => {
+                    oj == pl
+                        && self.eats_fauna[s] & self.eats_fauna[j] != 0
+                        && self.eats_fauna[s] >> j & 1 == 0
+                }
             }
     }
 
@@ -1025,29 +1029,35 @@ impl Fauna {
     /// Returns who lives.
     fn hunt(&mut self, st: &mut FloraState, safe: &[bool], rng: &mut Pcg32) -> Vec<bool> {
         let (a, p, n) = (&mut self.agents, &self.p, st.n);
-        // Home hunting takes the surplus only: own prey is fair game while the prey in sight
-        // cover `own_surplus` × `prey_per` per rival hunter, itself included (D-066, D-222), so herds
-        // are not decimated and surplus hunters starve back to the ratio. Counted once, at the
-        // start of the hunt.
-        let hungry = |i: usize| {
-            let s = usize::from(a.sp[i]);
-            p.role[s] == Role::Predator && a.energy[i] < p.body[s] * ONE_I
-        };
-        let windows = if p.own_catch > 0 {
-            Self::windows(a, p, st, safe, (0..a.len()).filter(|&i| hungry(i)))
-        } else {
-            BTreeMap::new()
-        };
-        let surplus: Vec<bool> = (0..a.len())
+        // Home hunting takes the surplus only, per prey species (prey switching, Alpha 1.7): an own
+        // animal of species j is fair game while the own j in the hunter's sight number at least
+        // `own_surplus` × `prey_per` per own hunter of its species there (D-066, D-222). A hunter
+        // fed by one plentiful prey leaves a scarce one alone, and surplus hunters starve back to
+        // the ratio. Counted once, at the start of the hunt.
+        let hungry: Vec<bool> = (0..a.len())
             .map(|i| {
                 let s = usize::from(a.sp[i]);
-                hungry(i)
-                    && windows.get(&(s, a.owner[i])).is_some_and(|(food, load)| {
-                        let (k, r) = (a.cell(i, n), usize::try_from(p.sight[s]).unwrap_or(0));
-                        food.sum(k, r) * ONE_I >= load.sum(k, r) * p.own_surplus
-                    })
+                p.role[s] == Role::Predator && a.energy[i] < p.body[s] * ONE_I
             })
             .collect();
+        let mut heads: BTreeMap<(usize, u8), Vec<i64>> = BTreeMap::new();
+        if p.own_catch > 0 && hungry.contains(&true) {
+            for j in 0..a.len() {
+                let grid = heads
+                    .entry((usize::from(a.sp[j]), a.owner[j]))
+                    .or_insert_with(|| vec![0; n * n]);
+                grid[a.cell(j, n)] += i64::from(!safe[j]);
+            }
+        }
+        let heads: BTreeMap<(usize, u8), Window> = heads
+            .into_iter()
+            .map(|(key, g)| (key, Window::new(&g, n)))
+            .collect();
+        let plenty = |s: usize, pl: u8, k: usize, prey: usize| {
+            let r = usize::try_from(p.sight[s]).unwrap_or(0);
+            let count = |sp: usize| heads.get(&(sp, pl)).map_or(0, |w| w.sum(k, r));
+            count(prey) * ONE_I >= count(s) * p.prey_per[s] * p.own_surplus
+        };
         let mut alive = vec![true; a.len()];
         // Animals by cell, in index order (D-207): a hunter looks at the cells in its reach only.
         let mut start = vec![0usize; n * n + 1];
@@ -1081,7 +1091,8 @@ impl Fauna {
                         let own = a.owner[j] == a.owner[i];
                         if alive[j]
                             && !safe[j]
-                            && (!own || surplus[i])
+                            && (!own
+                                || (hungry[i] && plenty(s, a.owner[i], k, usize::from(a.sp[j]))))
                             && let Some(r) = p.prey_rank(s, usize::from(a.sp[j]))
                             && prey.is_none_or(|q| (own, r, j) < q)
                         {

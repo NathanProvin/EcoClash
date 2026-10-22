@@ -1257,3 +1257,14 @@
   - Fast-breeding small hunters crowd out the big ones: in the meadow, weasels win and fox, hawk, eagle-owl and great tit die.
   - Tried, not kept (awaiting the user): "a hunter does not count the species it eats as a competitor" (`rival`). Fox and eagle-owl then live in the meadow and the weasel is held down. Hawk, badger and great tit still drop out.
   - Diet variants tried: hawk eats black woodpecker instead of great tit; badger eats fungi instead of bark beetles; heron eats roach instead of pike.
+- **Applied (D-263):**
+  - Rules: prey switching (home hunting judged per prey species) and prey is not a rival.
+  - Diets:
+    - recyclers hunted: the pine marten eats the black woodpecker, the badger eats fungi;
+    - water: heron [roach, larvae, pike], otter [pike, mallard, frog];
+    - the hawk [bank vole, great tit, bark beetles].
+  - Results:
+    - meadow web: all 12 species alive in 8/8 seeds;
+    - forest web: only the eagle-owl lost (no prey there);
+    - water web: only the frog lost (it eats land insects).
+  - Checks green: Rust tests, lint, native vs WASM hashes, client tests.

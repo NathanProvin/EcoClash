@@ -143,6 +143,20 @@ In this order:
 - [x] Bot-vs-bot batch runs: `sim-cli bench` (seeds × difficulties → phase markers, match length, win rates, calls; D-142).
 - [ ] One-page report; tune `pace`, `food_reserve`, caps, costs and the victory thresholds (Q-013) with it and the playtest feedback.
 
+## Alpha 1.7 · Species balance, stronger bots, quick match (branch `alpha-1.7`; user, 2026-10-22)
+Plan: species reports → proposals → the user's play tests; then a self-play search for the bot's knobs; a quick-match queue on the Cloudflare relay (no Hetzner server needed).
+- [x] A1. `sim-cli sheet`: every species' costs, income, payback, fill time, breeding, grazer damage, eaters; flags (tier cheaper than the one below, payback and damage outliers, nothing hunts it, no bot plan).
+- [ ] A2. Food-chain pyramids per named chain (`CHAIN=` in `pyramid_report`).
+- [ ] A3. Species use in bot matches (`sim-cli bench` roster).
+- [ ] A4. Report and proposals; the user picks.
+- [ ] A5. Apply; the user's play tests.
+- [ ] B1. Bot knobs into `[bots.easy|normal|hard]` (same values, same bench output).
+- [ ] B2. `sim-cli tune`: (1+1) self-play search on Hard.
+- [ ] B3. Bot logic gaps: moving the den, den defence, the ignored style fingerprint test.
+- [ ] B4. Ship the tuned Hard, ladder kept.
+- [ ] C1–C4. Quick-match queue: `relay/queue.mjs`, a `Queue` Durable Object, the Multiplayer button, the deploy.
+- [ ] Release: "Alpha 1.7", tag `v1.7-alpha`.
+
 ## Alpha 1.6 · Menu, tutorial, balance (branch `alpha-1.6`; user, 2026-10-13)
 - [x] 1. Balance: L3/L4 unlock −15 %, growth and biomass rate +15 %; breeding period −10 %; animal speed −25 % (D-254).
 - [x] 2. Fog vision per species; fish see the water only (D-255).

@@ -194,7 +194,7 @@ const PACE_S: (u64, u64) = (15, 300);
 /// the first grazers and their cheap answers (D-187), undergrowth and shrubs with their eaters,
 /// then trees, the big grazers and the big hunters. Every land card is on it (D-191); counters to
 /// what the enemy shows jump ahead of it.
-const UNLOCKS: &[&str] = &[
+pub const UNLOCKS: &[&str] = &[
     "grasses",
     "wildflowers",
     "ferns",
@@ -233,7 +233,7 @@ const UNLOCKS: &[&str] = &[
 ];
 
 /// On maps with water (D-192), the water cards join the plan, each after the card named first.
-const WATER_PLAN: &[(&str, &str)] = &[
+pub const WATER_PLAN: &[(&str, &str)] = &[
     ("ferns", "algae_and_lilies"),
     ("earthworms", "larvae"),
     ("nettle", "reeds"),

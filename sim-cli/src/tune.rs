@@ -1,10 +1,11 @@
 //! `sim-cli tune` (Alpha 1.7, B2): a (1+1) self-play search over the Hard bot's play
 //! (`[bots.hard]`). Each round nudges one or two knobs of the champion by about 20 % and plays
 //! the challenger against it: both seats, the same income, balanced style. A challenger that wins
-//! WIN_PCT % of the decided matches becomes the champion. Prints one line per round, then the
+//! WIN_PCT % of the decided matches becomes the champion. Fewer than 24 seeds (48 matches) per round
+//! keeps noise: at 8, a challenger kept 11/16 then lost 18/48 to the champion it replaced. Prints one line per round, then the
 //! champion as a `[bots.hard]` table to paste into balance.toml.
 //!
-//! sim-cli tune [--rounds 20] [--seeds 8] [--size 38] [--minutes 45] [--threads K] [--seed 1]
+//! sim-cli tune [--rounds 20] [--seeds 24] [--size 38] [--minutes 45] [--threads K] [--seed 1]
 //!
 //! The champion plays from the Normal slot of a copy of the balance, with Hard's income: the
 //! bench runner seats bots by level, and a level's play is all in its table (B1).

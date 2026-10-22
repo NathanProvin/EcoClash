@@ -3122,3 +3122,35 @@ Template:
   - **Style matrix** (Normal; mean points): balanced 83, rush 56, wide 43, tall 16. Tall lacks land at 10 min (31 % against 45 %).
   - **Great tit:** 42 % of animal calls.
   - **Ladder:** each higher level wins 100 % (target 70–85 %); the next step is the income factors and bot tuning (B1–B4).
+
+## D-266 · 2026-10-22 · Style-aware bots, stronger biodiversity and fertility, a gentler ladder
+- **Status:** accepted (user: saving by style, dynamic garrison, raise biodiversity and fertility, diagnose and spread the great tit calls, lower the income factors if needed, then tune the bot)
+- **Victory threshold** (question answered): the D-265 decay is continuous, from 80 % at 20 min to 50 % at 35 min, recomputed every tick (`World::threshold`).
+- **Bot** (`sim-ai`):
+  - **Saving horizon:** `SAVE_HORIZON_S` × depth share / land share, within 30–360 s. A depth-heavy style tolerates one unplanted card before it stops saving.
+  - **Tall's opening:** a style weighing depth over land spends at least 50 % on land for its first 6 min. Given to every style, it handed the matrix to rush (87).
+  - **Den:**
+    - the ring is layered from the depth budget (`layer_den`);
+    - a pushed den, or one with enemies within 2 × `DEN_GUARD`, is answered outside the budgets;
+    - the garrison holds only while enemies are near, then releases its hunters (Stop).
+  - **Call fatigue:** recent calls per species (fading like spending) divide a species' score in `varied`. Den answers rank prey first and fatigue second.
+  - **Levels in data (B1):** `[bots.easy|normal|hard]`, plus `casts`. The bench output is identical before and after the move.
+- **Balance:**
+  - `[flora] div_gain` 0.5 → 0.75 and `fert_gain` 1.0 → 1.5;
+  - `[bots] income` [0.8, 1.3, 2.0] → [1.1, 1.25, 1.6].
+- **Measure:**
+  - **Style matrix** (Normal, 8 seeds per ordered pair; mean points): from wide 22–27, tall 22, rush 87, balanced 66 (opening for all) to wide 38, tall 37, rush 72, balanced 50.
+  - **Tried for the matrix:** layer multipliers [1, 1.3, 1.6, 2] (tall 44 but wide 27); income biodiversity 0.15 (no change); `graze_damage` 3 (no change); a dearer and later aphid outbreak (no change).
+  - **Ladder** (balanced, 32 matches per pair): Hard > Normal 75 %, Normal > Easy 85 %, Hard > Easy 100 %.
+  - **Final** (committed state):
+    - Normal mirror, 48 seeds: median end 23:47 (D-265: 29:21; the ring now costs the depth budget); shrubs 17:40, trees 25:49 on a fifth of sides; wins 17–31.
+    - Style matrix, 16 seeds per pair: wide 39, tall 30, rush 69, balanced 59; roster 24/33.
+  - **Self-play search** (`sim-cli tune`, 20 rounds, 16 matches each): one change kept (decision period 15 → 18 ticks, 11/16). In a 48-match check the shipped period won 30, so `[bots.hard]` stays as shipped. The knobs are flat for Hard; the tool now defaults to 24 seeds (48 matches) per round.
+- **Great tit diagnosis:** a third of all calls, because:
+  - the commonest raiders (grasshoppers) have two eaters, and the other, the frog, needs water;
+  - the tit is the cheapest hunter (an 800 card), early in the plan;
+  - three hunters eat it, so it dies and is called again.
+  Fatigue left it at 33–39 %. Also tried and dropped:
+  - hunter wear (a diet rank lost per recent cards, in unlocks and hunting): no effect at 6 cards; at 2, tits still 40 % and the matrix worse (balanced 30);
+  - rabbits ahead of grasshoppers in the plan: tits 40 %, rush 89.
+  Logging showed 293 tit calls answering raids against 20 proactive, behind 249 grasshopper calls. Spreading them needs a second first-rank eater of grasshoppers: a diet change (the user's call).

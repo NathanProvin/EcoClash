@@ -1295,3 +1295,24 @@
   - Roster 25/33; great tit 42 % of calls.
 - **Ladder:** 100 % at every step (target 70–85 %): for the bot step (B).
 - **Tests:** `the_bot_layers_its_den_ring`, `the_bot_garrisons_its_den`. A guard computed the distance to a missing den (overflow), fixed before commit.
+
+## 2026-10-22 (4) · Style-aware bots, bonuses, ladder, self-play search (D-266)
+- **Threshold question:** the decay is continuous, every tick (`World::threshold`).
+- **Bot:**
+  - saving horizon by style;
+  - tall's opening (land ≥ 50 % for 6 min; for every style it handed the matrix to rush);
+  - den ring from the depth budget, answered outside it only when pushed or threatened;
+  - dynamic garrison (released by Stop);
+  - call fatigue;
+  - `[bots.*]` levels in data (bench identical), with `casts`.
+  - Tests: `tall_saves_for_cards_and_wide_plants`; den tests updated (ring, hold and release).
+- **Balance:** `div_gain` 0.75, `fert_gain` 1.5; bot income [1.1, 1.25, 1.6] (ladder 75 / 85 / 100).
+- **Great tit:** logging showed 293 raid answers against 20 proactive calls, behind 249 grasshopper calls (the first grazer, a swarm).
+  - Didn't help: fatigue, hunter wear, rabbits ahead in the plan.
+  - Needs a second first-rank eater of grasshoppers: a diet decision for the user.
+- **`sim-cli tune`:** built. Its pick (period 18) lost 18/30 on a 48-match check: noise at 16 matches per round. Default now 24 seeds.
+- **Final:**
+  - median end 23:47;
+  - matrix wide 39, tall 30, rush 69, balanced 59;
+  - roster 24/33;
+  - great tit 38 % of calls.

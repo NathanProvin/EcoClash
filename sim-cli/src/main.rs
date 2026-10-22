@@ -181,7 +181,7 @@ fn tune_cmd(rest: &[String]) -> Result<(), String> {
     let threads = std::thread::available_parallelism().map_or(4, std::num::NonZero::get);
     let t = tune::Opts {
         rounds: number("rounds", "20")?,
-        seeds: number("seeds", "8")?,
+        seeds: number("seeds", "24")?,
         size: usize::try_from(number("size", &b.sim.grid_size.to_string())?)
             .map_err(|e| e.to_string())?,
         minutes: number("minutes", "45")?,

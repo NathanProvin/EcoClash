@@ -3078,3 +3078,24 @@ Template:
   - water: all alive but the frog, which eats land insects;
   - the old pyramid (rabbits, fox, eagle-owl) unchanged and its test green.
 - **Measure:** `CHAIN=... CAPS=1 cargo test -p sim-core --release -- --ignored --nocapture pyramid_report` (see the test's doc for the chain syntax).
+
+## D-264 · 2026-10-22 · Price and damage fixes; fertile home land holds
+- **Status:** accepted (user: rework the woodpecker and bear prices, modulate swarm damage, tune bison, then tune toward the goals)
+- **Decision:**
+  - **Tier order:** black woodpecker `spawn_cost` 400 → 650 (card above fungi's 500); brown bear 5 000 → 8 000 (card above the wolf's 7 000).
+  - **Swarm damage** (`bite`): grasshoppers 25 → 75, slugs 30 → 95, larvae 25 → 75, caterpillars 36 → 130, bark beetles 40 → 150. They go from 0.1–0.2× to 0.5–0.9× the grazer median damage per point (`sim-cli sheet`).
+  - **Bison:** `bite` 1 200 → 800 and `spawn_cost` 3 000 → 3 500: from 2.2× to 1.3× the median damage per point.
+  - **Fertility:** `[flora] fert_gain` 0.25 → 1.0. Developed soil now doubles strength, so old home land holds against fronts on fresh ground.
+- **Bot fix** (`sim-ai`): the bot saves for a planned unlock only once every unlocked plant that suits an own cell grows somewhere. It used to save for every next card and planted nothing but lichen for 10+ minutes.
+- **Measure** (Normal vs Normal, 48 seeds):
+  - median end 20:52 → 23:08;
+  - comebacks 7/29 → 12/33;
+  - income at 20 min 24 → 48 per second.
+  - Tried and dropped (within noise, ±1.3 min at 48 seeds): `smother_rate` 0.10 and 0.08 with or without fertility, `hold_s` 40, `vigor_floor` 0.7, plant `yield` ×1.3, `soil_gain` ×2 and ×3, lower `soil_min_level`.
+- **Still missed:**
+  - matches end by den capture at about 23 min (goal 25–30);
+  - no bot plants trees;
+  - Tall scores 16 % in the style matrix (its depth budget finds nothing to buy);
+  - earthworms are 34 % of animal calls;
+  - 14 of 33 animals are called.
+  - These are bot logic and den rules, not species values (JOURNAL 2026-10-22).

@@ -1268,3 +1268,20 @@
     - forest web: only the eagle-owl lost (no prey there);
     - water web: only the frog lost (it eats land insects).
   - Checks green: Rust tests, lint, native vs WASM hashes, client tests.
+
+## 2026-10-22 (2) · Species fixes, bot starvation fix, fertility (D-264)
+- **Targeted fixes:**
+  - woodpecker and bear cards now cost more than their tier below;
+  - swarm bites ×3–4 (0.5–0.9× the grazer median damage per point);
+  - bison bite down and card up (1.3×).
+- **Found:** bots planted only lichen for 10+ minutes. They saved for each next unlock within 120 s of income, which with cheap cards was always (`savings`). Fixed: no saving while an unlocked plant is unplanted. Test added (fails without the fix).
+- **Front stability:** every match ends by den capture, the den taken by a rolling plant front, not by raids (a traced match ended at 10:28 without a raid).
+  - `fert_gain` 1.0: +2.3 min median, more comebacks. Kept.
+  - Smother rate, hold, vigor floor, yields, soil speed and soil thresholds: within noise. Not kept.
+- **Final** (48 seeds): median end 23:08, comeback 12/33, flips back 51/match, 15/33 animals called.
+- **Style matrix** (Normal, 8 seeds per pair; mean points):
+  - wide 62, tall 16, rush 55, balanced 64;
+  - seat bias −11;
+  - plant cards unlocked somewhere 15/15;
+  - earthworms 34 % of calls.
+- **Open:** den rule or bot den defence for 25–30 min matches; the bot's tall/depth path (tier 3 at 31 min, no trees); earthworm overuse (`decomposers`).

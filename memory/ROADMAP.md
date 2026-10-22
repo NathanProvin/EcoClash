@@ -149,7 +149,7 @@ Plan: species reports → proposals → the user's play tests; then a self-play 
 - [x] A2. Food-chain pyramids per named chain (`CHAIN=` in `pyramid_report`; `SPECIES_FILE=` variants, `CAPS=1` keeps the per-cell ceilings).
 - [ ] A3. Species use in bot matches (`sim-cli bench` roster).
 - [ ] A4. Report and proposals; the user picks.
-- [ ] A5. Apply; the user's play tests.
+- [ ] A5. Apply; the user's play tests. Round 1: D-263 (food web), D-264 (prices, swarm damage, bison, fertility; bot saving fix).
 - [ ] B1. Bot knobs into `[bots.easy|normal|hard]` (same values, same bench output).
 - [ ] B2. `sim-cli tune`: (1+1) self-play search on Hard.
 - [ ] B3. Bot logic gaps: moving the den, den defence, the ignored style fingerprint test.

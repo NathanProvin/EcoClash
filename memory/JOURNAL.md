@@ -1344,3 +1344,7 @@
   - Low preset on touch.
 - **Found:** Vite's watcher missed files edited in place by a script, so the dev server served stale CSS until restarted.
 - **Not verified:** real touch gestures and the portrait card (no touch emulation here); needs the user's phone.
+
+## 2026-10-22 (8) · Long press = hover (D-270)
+- `ui/longpress.ts`: on the HUD, a still touch for 450 ms shows the title bubble and fires the mouse hover handlers; release hides it and swallows the click.
+- Checked with synthetic touch events in the browser (bubble, rich tile info, short tap and drag ignored). Real fingers: the user's phone.

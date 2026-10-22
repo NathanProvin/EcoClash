@@ -66,6 +66,7 @@
   import { shortNotice } from "./game/notices";
   import { plantable } from "./game/planting";
   import { TouchGesture } from "./game/touch";
+  import { installLongPress } from "./ui/longpress";
   import { audio } from "./audio/engine";
   import { ambience, moodOf } from "./audio/ambience";
   import { unlockSound, voiceOf } from "./audio/sounds";
@@ -154,6 +155,8 @@
   let rightDown: { x: number; y: number } | null = null;
   /** The touch gesture on the map (D-269): pan, tap, long-press box or pinch. */
   const gesture = new TouchGesture();
+  /** The long-press tooltip on touch screens (D-270): its text and where the finger is. */
+  let pressTip: { text: string; x: number; y: number } | null = $state(null);
   // Notifications (D-077): toasts, raid pings still showing, and arrows to the off-screen ones.
   const SCAN_MS = 1000; // raid and unlock checks, once a second
   const EDGE = 28; // arrows keep this far from the screen edge (px)
@@ -1529,6 +1532,17 @@
     if (el?.closest("button, label.choice, [role=tab], [role=switch]")) audio.play("ui.click");
   }
 
+  // Long press = hover on touch screens (D-270). Kept on screen: the bubble is up to 260 px wide.
+  const unpress = installLongPress(
+    document.body,
+    (text, x, y) => {
+      const half = Math.min(130, innerWidth / 2);
+      pressTip = { text, x: Math.min(Math.max(x, half), innerWidth - half), y };
+    },
+    () => (pressTip = null),
+  );
+  onDestroy(unpress);
+
   onMount(() => {
     window.addEventListener("pointerdown", wakeAudio, true);
     window.addEventListener("keydown", wakeAudio, true);
@@ -1800,6 +1814,16 @@
       </div>
     {/if}
   {/if}
+  {#if pressTip}
+    <div
+      class="presstip panel"
+      role="tooltip"
+      style:left="{pressTip.x}px"
+      style:top="{pressTip.y}px"
+    >
+      {pressTip.text}
+    </div>
+  {/if}
   <div class="rotate" role="alert">
     <p>Turn your phone sideways to play.</p>
   </div>
@@ -1855,6 +1879,16 @@
   }
   .cards > :global(*) {
     pointer-events: auto;
+  }
+  /* The long-press tooltip (D-270): above the finger, never under it. */
+  .presstip {
+    position: fixed;
+    z-index: 200;
+    transform: translate(-50%, calc(-100% - 28px));
+    max-width: min(260px, 80vw);
+    padding: 6px 10px;
+    font-size: 0.85em;
+    pointer-events: none;
   }
   /* Phones in portrait (D-269): the game is laid out for landscape. */
   .rotate {

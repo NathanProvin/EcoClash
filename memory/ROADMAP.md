@@ -155,7 +155,7 @@ Plan: species reports → proposals → the user's play tests; then a self-play 
 - [x] B3. Bot logic gaps: den defence (D-265, D-266), moving the den and Hard's tactics (D-268). The ignored style fingerprint test stays ignored.
 - [x] B4. Ship the tuned Hard, ladder kept (D-266, D-268: 84 / 85 / 100).
 - [ ] C1–C4. Quick-match queue: `relay/queue.mjs`, a `Queue` Durable Object, the Multiplayer button, the deploy.
-- [x] Phones (D-269, branch `mobile`): touch map controls, touch-safe build bar, order buttons, landscape layout. Awaiting the user's test on Android.
+- [x] Phones (D-269, branch `mobile`): touch map controls, touch-safe build bar, order buttons, landscape layout, long press = hover (D-270). Awaiting the user's test on Android.
 - [ ] Release: "Alpha 1.7", tag `v1.7-alpha`.
 
 ## Alpha 1.6 · Menu, tutorial, balance (branch `alpha-1.6`; user, 2026-10-13)

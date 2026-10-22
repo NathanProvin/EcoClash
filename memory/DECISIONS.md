@@ -3223,3 +3223,18 @@ Template:
 - **Checked:**
   - In an iframe at 915×412 in the desktop browser: the menu, the AI setup (Start reachable), the build bar and flyouts, the cell card, and mouse planting.
   - Not checked: real touch input and the portrait card, which the desktop browser cannot emulate here. The user's Android phone is the test.
+
+## D-270 · 2026-10-22 · Long press = hover on touch screens
+- **Status:** accepted (user)
+- **Problem:** phones have no hover. About 60 `title` tooltips never showed, nor did the hover effects: the strategic icons' unit card, the food-web focus, the card info outside the first-tap rule.
+- **Decision:** `client/src/ui/longpress.ts` is installed once on the page in `App`.
+  - A touch held still for 450 ms (10 px) on anything but the map canvas shows the nearest `title` in a bubble above the finger, kept on screen.
+  - It also sends the element and its ancestors the pointer-enter a mouse would (marked as a mouse event, since hover handlers skip touch, D-269).
+  - Lifting the finger sends the leaves, hides the bubble and swallows the click that follows: a long press only shows.
+  - On the map, a long press still draws the selection box.
+  - Android's long-press context menu is suppressed on the HUD.
+- **Checked** (synthetic touch events in the browser):
+  - the bubble shows "Tech tree (T)" at 600 ms, not at 300 ms; it sits above the finger and is gone on release, and the click is swallowed;
+  - a build-bar tile's info appears on a long press and hides on release;
+  - a short tap or a moving finger shows nothing.
+  - Test: `longpress.test.ts` (the title lookup).

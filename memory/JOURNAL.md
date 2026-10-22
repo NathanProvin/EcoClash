@@ -1310,7 +1310,7 @@
 - **Great tit:** logging showed 293 raid answers against 20 proactive calls, behind 249 grasshopper calls (the first grazer, a swarm).
   - Didn't help: fatigue, hunter wear, rabbits ahead in the plan.
   - Needs a second first-rank eater of grasshoppers: a diet decision for the user.
-- **`sim-cli tune`:** built. Its pick (period 18) lost 18/30 on a 48-match check: noise at 16 matches per round. Default now 24 seeds.
+- **`sim-cli tune`:** built. Its pick (period 18) won only 18 of 48 in a check against the shipped Hard: noise at 16 matches per round. Default now 24 seeds.
 - **Final:**
   - median end 23:47;
   - matrix wide 39, tall 30, rush 69, balanced 59;

@@ -172,4 +172,16 @@
     align-self: flex-start;
     margin-top: 6px;
   }
+  /* Phones (D-271): a narrow, small panel that scrolls rather than covering the map. */
+  @media (pointer: coarse) and (max-height: 500px) {
+    .objectives {
+      top: 74px;
+      left: 8px;
+      width: min(230px, 32vw);
+      max-height: calc(100vh - 150px);
+      overflow-y: auto;
+      padding: 6px 10px 8px;
+      font-size: 0.74em;
+    }
+  }
 </style>

@@ -3238,3 +3238,15 @@ Template:
   - a build-bar tile's info appears on a long press and hides on release;
   - a short tap or a moving finger shows nothing.
   - Test: `longpress.test.ts` (the title lookup).
+
+## D-271 · 2026-10-22 · Phone fit: a scaled build bar, small notices, a menu in a row
+- **Status:** accepted (user's phone test: the bar ran off the screen, so the herbs and catastrophes were out of reach; notices and advice took too much room; the menu should run horizontally, with full screen in reach; phones only)
+- **Decision:** phone rules use one query, `(pointer: coarse) and (max-height: 500px)` (`PHONE` in `ui/fullscreen.ts`). The D-269 layout rules move to it too, so short desktop windows keep the desktop layout.
+  - **Build bar:** the whole dock scales to the screen's width (CSS `zoom`, measured by a ResizeObserver), with its own clamp lifted. Every family and the catastrophe deck stay in reach, and tooltip positions are divided by the scale.
+  - **Notices:** smaller, only the two newest, and narrower (46 % of the width). The same for tips.
+  - **Advice:**
+    - the tutorial objectives panel is a third of the width, smaller and scrolling;
+    - the build hints ("Choose your spawn", armed orders) wrap, smaller, just above the bar.
+  - **Menu:** the stones sit in a row, without the trail. A full-screen button sits in the top-right corner.
+  - The full-screen code is shared between the top bar and the menu (`ui/fullscreen.ts`).
+- **Checked:** type check, lint, tests. The look itself needs the phone: the desktop browser cannot match a touch-screen query here.

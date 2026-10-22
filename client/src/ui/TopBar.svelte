@@ -11,41 +11,18 @@
   import { OVERLAY_RAMPS } from "../render/palette";
   import FamilyIcon from "./FamilyIcon.svelte";
   import Icon from "./Icon.svelte";
+  import { holdFullscreen, toggleFullscreen } from "./fullscreen";
 
-  // Full screen (D-156): the browser's own; the button leaves it. Esc stays with the game
-  // (keyboard lock, Chromium; a long Esc press still leaves, as browsers require).
+  // Full screen (D-156, shared module D-271).
   let fullscreen = $state(!!document.fullscreenElement);
   $effect(() => {
     const sync = () => {
       fullscreen = !!document.fullscreenElement;
-      if (fullscreen) {
-        lockEscape(); // however it was entered
-        lockLandscape();
-      }
+      if (fullscreen) holdFullscreen(); // however it was entered
     };
     document.addEventListener("fullscreenchange", sync);
     return () => document.removeEventListener("fullscreenchange", sync);
   });
-  function toggleFullscreen() {
-    const done = document.fullscreenElement
-      ? document.exitFullscreen()
-      : (lockEscape(), document.documentElement.requestFullscreen().then(() => lockEscape()));
-    done.catch(() => {}); // refused (an iframe without permission): nothing to do
-  }
-  /** Phones (D-269): hold landscape while in full screen, where the browser allows it (Android). */
-  function lockLandscape() {
-    const o = screen.orientation as ScreenOrientation & {
-      lock?: (to: string) => Promise<void>;
-    };
-    o?.lock?.("landscape").catch(() => {});
-  }
-  /** Keep Esc for the game while in full screen, where the browser supports it. */
-  function lockEscape() {
-    const kb = (
-      navigator as Navigator & { keyboard?: { lock?: (keys: string[]) => Promise<void> } }
-    ).keyboard;
-    kb?.lock?.(["Escape"]).catch(() => {});
-  }
 
   let {
     replay,

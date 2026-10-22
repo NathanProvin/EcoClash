@@ -23,6 +23,8 @@
   import type { Quality } from "../render/quality";
   import OptionsMenu from "./OptionsMenu.svelte";
   import FamilyIcon from "./FamilyIcon.svelte";
+  import Icon from "./Icon.svelte";
+  import { isPhone, toggleFullscreen } from "./fullscreen";
   // The title face (D-258): Fraunces, a soft organic serif, self-hosted (latin, about 60 KB).
   import "@fontsource-variable/fraunces/soft.css";
   import { audio } from "../audio/engine";
@@ -62,6 +64,14 @@
   } = $props();
 
   let view: "home" | "modes" | Mode | "options" = $state("home");
+  // Phones (D-271): a full-screen button on the menu, following the browser's state.
+  const phone = isPhone();
+  let fullscreen = $state(!!document.fullscreenElement);
+  $effect(() => {
+    const sync = () => (fullscreen = !!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  });
   let typed = $state(""); // the room code typed to join (D-219)
   const BOT_NAMES: Record<Bot, string> = {
     easy: "Easy",
@@ -166,6 +176,17 @@
 {/snippet}
 
 <div class="menu" onpointerover={hover} role="presentation">
+  {#if phone}
+    <!-- Phones (D-271): full screen from the menu too, before a match starts. -->
+    <button
+      class="fs"
+      onclick={toggleFullscreen}
+      title={fullscreen ? "Leave full screen" : "Full screen"}
+      aria-label={fullscreen ? "Leave full screen" : "Full screen"}
+    >
+      <Icon name={fullscreen ? "shrink" : "expand"} />
+    </button>
+  {/if}
   <!-- The out-of-focus landscape, drifting like a slow camera move (D-164). -->
   <div class="scene" aria-hidden="true">
     <div class="sky"></div>
@@ -795,7 +816,7 @@
     color: rgba(243, 238, 219, 0.85);
   }
   /* Phones in landscape (D-269): the column scrolls and tightens, so setups and Options fit. */
-  @media (max-height: 500px) {
+  @media (pointer: coarse) and (max-height: 500px) {
     .content {
       max-height: 100%;
       overflow-y: auto;
@@ -804,6 +825,41 @@
     }
     h1 {
       font-size: clamp(2.2rem, 6vw, 3rem);
+    }
+    /* Phones (D-271): the stones in a row, not down a path. */
+    .path {
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: min(800px, calc(100vw - 32px));
+      gap: 10px;
+      padding: 4px 0 8px;
+    }
+    .path .trail {
+      display: none;
+    }
+    .path .stone {
+      translate: none;
+      min-width: 0;
+      padding: 9px 18px 10px 16px;
+    }
+    .tagline {
+      margin: 0 0 4px;
+      font-size: 0.85em;
+    }
+    .fs {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: var(--panel);
+      color: var(--ink);
     }
   }
 </style>

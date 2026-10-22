@@ -1908,9 +1908,18 @@
     }
   }
   /* Phones in landscape (D-269): the cards sit above the build bar. */
-  @media (max-height: 500px) {
+  @media (pointer: coarse) and (max-height: 500px) {
     .cards {
       bottom: 76px;
+    }
+    /* Phones (D-271): the build hints, smaller and wrapping, just above the scaled bar. */
+    .hint,
+    .found {
+      bottom: 64px;
+      max-width: 52vw;
+      white-space: normal;
+      font-size: 0.68em;
+      text-align: center;
     }
   }
   canvas.planting {

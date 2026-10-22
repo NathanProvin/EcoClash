@@ -33,6 +33,7 @@
   import FamilyIcon from "./FamilyIcon.svelte";
   import Icon from "./Icon.svelte";
   import SpeciesIcon from "./SpeciesIcon.svelte";
+  import { isPhone } from "./fullscreen";
 
   let {
     replay,
@@ -182,6 +183,28 @@
 
   // The dock is transformed, so the tooltip is placed in the dock's own coordinates.
   let dock: HTMLElement | undefined = $state();
+  // Phones (D-271): the whole dock scales down to the screen's width, so every family and the
+  // catastrophe deck stay in reach; tooltip positions are divided by the scale.
+  let bar: HTMLElement | undefined = $state();
+  let fit = $state(1);
+  $effect(() => {
+    const el = bar;
+    if (!el || !isPhone()) return;
+    let scale = 1;
+    const measure = () => {
+      const natural = el.getBoundingClientRect().width / scale;
+      scale = Math.min(1, (innerWidth - 16) / natural);
+      fit = scale;
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    addEventListener("resize", measure);
+    measure();
+    return () => {
+      ro.disconnect();
+      removeEventListener("resize", measure);
+    };
+  });
   let hover: { s: Species; x: number; y: number; flip: boolean } | null = $state(null);
   /** The tooltip's width (px, its CSS max-width plus padding), to keep it on screen. */
   const TIP_W = 250;
@@ -192,7 +215,7 @@
     // would leave the screen (phones, D-269).
     const flip = r.right + 10 + TIP_W > window.innerWidth;
     const x = flip ? r.left - 10 - d.left : r.right + 10 - d.left;
-    hover = { s, x, y: r.top + r.height / 2 - d.top, flip };
+    hover = { s, x: x / fit, y: (r.top + r.height / 2 - d.top) / fit, flip };
   }
 
   // On touch (D-269) the first tap on a tile shows its info, a second tap on it acts.
@@ -235,8 +258,8 @@
     <button class="x" onclick={onClear} aria-label="Clear selection">✕</button>
   </div>
 {/if}
-<footer class="dock p{player}" bind:this={dock}>
-  <nav class="bar panel" aria-label="Species">
+<footer class="dock p{player}" bind:this={dock} style:zoom={fit < 1 ? fit : null}>
+  <nav class="bar panel" aria-label="Species" bind:this={bar}>
     {#each groups as g, i (g.name)}
       {@const total = g.species.reduce((t, s) => t + count(s), 0)}
       {#if i > 0 && g.section !== groups[i - 1]?.section}<span class="sep" aria-hidden="true"
@@ -734,6 +757,15 @@
       box-shadow:
         0 0 0 2px var(--web),
         0 0 20px var(--web);
+    }
+  }
+  /* Phones (D-271): the dock is scaled to the screen width (`fit`); measure it unclamped. */
+  @media (pointer: coarse) and (max-height: 500px) {
+    .dock {
+      max-width: none;
+    }
+    .bar > * {
+      flex-shrink: 0;
     }
   }
 </style>

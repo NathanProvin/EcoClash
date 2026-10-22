@@ -136,4 +136,22 @@
       transform: translateY(-6px);
     }
   }
+  /* Phones (D-271): small, the two newest only, clear of the map. */
+  @media (pointer: coarse) and (max-height: 500px) {
+    .stack {
+      top: 82px;
+      gap: 4px;
+      max-width: 46vw;
+    }
+    .toast {
+      padding: 3px 10px;
+      font-size: 0.68em;
+    }
+    .toast:nth-last-child(n + 3) {
+      display: none;
+    }
+    .tip {
+      max-width: 46vw;
+    }
+  }
 </style>

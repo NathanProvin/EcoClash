@@ -1348,3 +1348,12 @@
 ## 2026-10-22 (8) · Long press = hover (D-270)
 - `ui/longpress.ts`: on the HUD, a still touch for 450 ms shows the title bubble and fires the mouse hover handlers; release hides it and swallows the click.
 - Checked with synthetic touch events in the browser (bubble, rich tile info, short tap and drag ignored). Real fingers: the user's phone.
+
+## 2026-10-22 (9) · Phone fit (D-271)
+- **User's phone test:** it opens on the phone over Wi-Fi.
+  - Cause of the earlier failure: `npm run client:dev -- --host` never reached Vite. The working command is `npm run dev -w client -- --host --port 5173 --strictPort`, after `npm run wasm:build`.
+- **Fixed for phones only:**
+  - the build bar scales to the screen width;
+  - notices are small, the two newest only;
+  - the tutorial and hint panels are smaller;
+  - the menu runs in a row, with a full-screen button.

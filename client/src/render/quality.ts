@@ -37,14 +37,24 @@ export const QUALITY: Record<
 };
 const KEY = "ecoclash.quality";
 
-/** The stored preset, or "medium" when none is stored, it is unknown, or storage is blocked. */
-export function loadQuality(storage?: Pick<Storage, "getItem">): Quality {
+/** The preset when none is stored: Low on a touch screen (phones, D-269), else Medium. */
+export function defaultQuality(
+  coarse = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches,
+): Quality {
+  return coarse ? "low" : "medium";
+}
+
+/** The stored preset, or `fallback` when none is stored, it is unknown, or storage is blocked. */
+export function loadQuality(
+  storage?: Pick<Storage, "getItem">,
+  fallback: Quality = defaultQuality(),
+): Quality {
   try {
     // Inside the try: reading localStorage itself throws when site data is blocked.
     const v = (storage ?? globalThis.localStorage)?.getItem(KEY);
-    return v && Object.hasOwn(QUALITY, v) ? (v as Quality) : "medium";
+    return v && Object.hasOwn(QUALITY, v) ? (v as Quality) : fallback;
   } catch {
-    return "medium";
+    return fallback;
   }
 }
 

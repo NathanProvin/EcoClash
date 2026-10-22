@@ -1800,6 +1800,9 @@
       </div>
     {/if}
   {/if}
+  <div class="rotate" role="alert">
+    <p>Turn your phone sideways to play.</p>
+  </div>
 </main>
 
 <style>
@@ -1852,6 +1855,29 @@
   }
   .cards > :global(*) {
     pointer-events: auto;
+  }
+  /* Phones in portrait (D-269): the game is laid out for landscape. */
+  .rotate {
+    display: none;
+  }
+  @media (pointer: coarse) and (orientation: portrait) {
+    .rotate {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: #1a221e;
+      font-size: 1.2em;
+      text-align: center;
+    }
+  }
+  /* Phones in landscape (D-269): the cards sit above the build bar. */
+  @media (max-height: 500px) {
+    .cards {
+      bottom: 76px;
+    }
   }
   canvas.planting {
     cursor: crosshair !important;

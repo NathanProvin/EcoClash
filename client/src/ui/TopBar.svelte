@@ -18,7 +18,10 @@
   $effect(() => {
     const sync = () => {
       fullscreen = !!document.fullscreenElement;
-      if (fullscreen) lockEscape(); // however it was entered
+      if (fullscreen) {
+        lockEscape(); // however it was entered
+        lockLandscape();
+      }
     };
     document.addEventListener("fullscreenchange", sync);
     return () => document.removeEventListener("fullscreenchange", sync);
@@ -28,6 +31,13 @@
       ? document.exitFullscreen()
       : (lockEscape(), document.documentElement.requestFullscreen().then(() => lockEscape()));
     done.catch(() => {}); // refused (an iframe without permission): nothing to do
+  }
+  /** Phones (D-269): hold landscape while in full screen, where the browser allows it (Android). */
+  function lockLandscape() {
+    const o = screen.orientation as ScreenOrientation & {
+      lock?: (to: string) => Promise<void>;
+    };
+    o?.lock?.("landscape").catch(() => {});
   }
   /** Keep Esc for the game while in full screen, where the browser supports it. */
   function lockEscape() {

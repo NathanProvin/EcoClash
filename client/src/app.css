@@ -56,6 +56,18 @@ canvas {
   cursor: var(--cursor) !important;
 }
 
+/* Touch (D-269): a long press on the HUD selects no text and opens no callout; inputs still select. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
 html,
 body,
 #app {

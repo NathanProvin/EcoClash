@@ -171,4 +171,12 @@
   .list .name {
     width: 74px;
   }
+  /* Phones in landscape (D-269): narrower, and scrolling inside the space left by the bars. */
+  @media (max-height: 500px) {
+    .unit {
+      width: min(300px, 40vw);
+      max-height: calc(100vh - 150px);
+      overflow-y: auto;
+    }
+  }
 </style>

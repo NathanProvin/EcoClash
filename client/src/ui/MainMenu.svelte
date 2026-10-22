@@ -794,4 +794,16 @@
   .foot a {
     color: rgba(243, 238, 219, 0.85);
   }
+  /* Phones in landscape (D-269): the column scrolls and tightens, so setups and Options fit. */
+  @media (max-height: 500px) {
+    .content {
+      max-height: 100%;
+      overflow-y: auto;
+      gap: 8px;
+      padding: 8px 16px 32px;
+    }
+    h1 {
+      font-size: clamp(2.2rem, 6vw, 3rem);
+    }
+  }
 </style>

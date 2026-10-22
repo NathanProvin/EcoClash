@@ -1642,6 +1642,7 @@
       {suit}
       plantRadius={live?.plantRadius ?? 2}
       onClear={() => select([])}
+      onOrder={(kind) => (kind === "stop" ? order("stop") : (armedOrder = kind))}
       catastrophes={live?.catastrophes ?? []}
       waits={catastropheWaits}
       {castArmed}

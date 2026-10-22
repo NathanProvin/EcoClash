@@ -25,16 +25,29 @@
   let open = $state(false);
   let hover: Catastrophe | null = $state(null);
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const enter = () => {
+  // Hover opens and closes the flyout for a mouse; on touch (D-269) a tap toggles it, and the first
+  // tap on a card shows its info, the second arms it.
+  const enter = (e: PointerEvent) => {
+    if (e.pointerType === "touch") return;
     clearTimeout(timer);
     open = true;
   };
-  const leave = () => {
+  const leave = (e: PointerEvent) => {
+    if (e.pointerType === "touch") return;
     timer = setTimeout(() => {
       open = false;
       hover = null;
     }, 120);
   };
+  let touched = false;
+  function tap(c: Catastrophe) {
+    if (touched && hover !== c) {
+      hover = c;
+      return;
+    }
+    hover = null;
+    onArm(c.name);
+  }
 </script>
 
 {#if cards.length}
@@ -48,7 +61,10 @@
       aria-expanded={open}
       aria-label="Catastrophes"
       title="Catastrophes"
-      onclick={() => (open = !open)}
+      onclick={() => {
+        clearTimeout(timer);
+        open = !open;
+      }}
     >
       <FamilyIcon family="C" size={40} />
     </button>
@@ -67,9 +83,10 @@
               style:grid-row={look.at[0]}
               style:grid-column={look.at[1]}
               disabled={!st.ready}
-              onclick={() => onArm(c.name)}
-              onpointerenter={() => (hover = c)}
-              onpointerleave={() => (hover = null)}
+              onpointerdown={(e) => (touched = e.pointerType === "touch")}
+              onclick={() => tap(c)}
+              onpointerenter={(e) => e.pointerType !== "touch" && (hover = c)}
+              onpointerleave={(e) => e.pointerType !== "touch" && (hover = null)}
               aria-label={label(c.name)}
             >
               <Icon name={look.icon} size={26} />

@@ -1285,3 +1285,13 @@
   - plant cards unlocked somewhere 15/15;
   - earthworms 34 % of calls.
 - **Open:** den rule or bot den defence for 25–30 min matches; the bot's tall/depth path (tier 3 at 31 min, no trees); earthworm overuse (`decomposers`).
+
+## 2026-10-22 (3) · Bot den guard and depth; victory threshold (D-265)
+- **Den losses** (instrumented, then removed): dens fell to raids, 25 grazed bare and 17 taken with raiders on them, of 44.
+  - Didn't help: a garrison alone, a wider guard, halving graze damage.
+  - Helped: layering the den's 3×3 ring first (median end 22:36 → 27:10, trees appear), with a third of matches then stalling at 45 min.
+- **Threshold:** 80 % → 50 % from 20 to 35 min: median 29:21, no match unfinished.
+- **Matrix** (Normal, 8 seeds per pair; mean points): balanced 83, rush 56, wide 43, tall 16.
+  - Roster 25/33; great tit 42 % of calls.
+- **Ladder:** 100 % at every step (target 70–85 %): for the bot step (B).
+- **Tests:** `the_bot_layers_its_den_ring`, `the_bot_garrisons_its_den`. A guard computed the distance to a missing den (overflow), fixed before commit.

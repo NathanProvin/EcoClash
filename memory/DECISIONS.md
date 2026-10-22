@@ -3099,3 +3099,26 @@ Template:
   - earthworms are 34 % of animal calls;
   - 14 of 33 animals are called.
   - These are bot logic and den rules, not species values (JOURNAL 2026-10-22).
+
+## D-265 · 2026-10-22 · The bot guards its den; matches end by 35 min
+- **Status:** accepted (user: the bot defends its den rather than a den rule; fix the bot's depth before more species tuning)
+- **Found:**
+  - After D-264, dens fell to raids: of 44 den losses, 25 were grazed bare and 17 taken with raiders on them.
+  - The bot only deepened pushed cells, so its den usually held one plant layer, which one grazer kind could strip bare.
+  - A wider guard radius, a garrison alone, and halving `graze_damage` each changed the end by less than a minute.
+- **Bot** (`sim-ai`):
+  - **Den ring:** the den and its 3×3 ring are layered first (`guard_den`, outside the budgets), plus pushed cells within `DEN_GUARD`.
+  - **Garrison:** `GARRISON` (2) free hunters nearest the den hold it (not on Easy).
+  - **Saving for cards:** a category keeps its share while one of its cards is still to unlock and only its price holds it back, so the bot saves for it.
+  - **Recyclers:** called at most every 60 s (`DECOMPOSE_S`). They were 34 % of all calls.
+- **Victory threshold:** 80 % until 20 min, then down to 50 % at 35 min (was 25 → 45 min, down to 60 %). With dens holding, a third of matches stalled at 45 min; now the larger side wins by 35 min.
+- **Measure** (Normal vs Normal, 48 seeds; before the den work in brackets):
+  - median end 29:21 (22:36), p25–p75 22:42–33:12;
+  - unfinished 0;
+  - wins 23–25;
+  - shrubs at about 16 min, trees at about 24 min on two thirds of sides (never);
+  - 24 of 33 animals called (13).
+- **Still missed:**
+  - **Style matrix** (Normal; mean points): balanced 83, rush 56, wide 43, tall 16. Tall lacks land at 10 min (31 % against 45 %).
+  - **Great tit:** 42 % of animal calls.
+  - **Ladder:** each higher level wins 100 % (target 70–85 %); the next step is the income factors and bot tuning (B1–B4).

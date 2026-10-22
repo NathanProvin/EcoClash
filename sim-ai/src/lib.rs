@@ -15,7 +15,7 @@ use std::cmp::Reverse;
 
 use sim_core::balance::{Act, Balance};
 use sim_core::commands::{OrderKind, Payload};
-use sim_core::fauna::{FREE, Role};
+use sim_core::fauna::{FREE, HOLD, Role};
 use sim_core::fixed::ONE;
 use sim_core::terrain::SHALLOW;
 use sim_core::world::World;
@@ -252,6 +252,10 @@ pub const WATER_PLAN: &[(&str, &str)] = &[
 /// levels do not waste more. Raids and drops are paced per level (`Level::aggression`, D-148).
 const CALL_S: u64 = 9;
 
+/// Recyclers are called at most this often (s): they die and breed back on their own, and a
+/// faster pace made them a third of all calls (Alpha 1.7).
+const DECOMPOSE_S: u64 = 60;
+
 /// Seconds of income the bot is willing to save for its next unlock (D-142).
 const SAVE_HORIZON_S: i64 = 120;
 
@@ -278,6 +282,8 @@ const DEFEND_CARDS: i64 = 4;
 const STALK_CELLS: usize = 3;
 /// Enemies this close to the bot's den (cells) are its worst threat (D-251).
 const DEN_GUARD: usize = 3;
+/// Hunters the bot keeps holding at its den (Alpha 1.7): most dens fell to raids grazing them bare.
+const GARRISON: usize = 2;
 /// A cull card is worth its price on a cell with at least this many enemy animals (D-252).
 const CULL_HERD: i64 = 4;
 
@@ -402,7 +408,13 @@ impl Bot {
         // Threats first (D-191), outside the budgets; then the categories at or below their
         // share, furthest below first (D-228). A category over its share waits: the bot saves
         // for the others rather than spend its money elsewhere.
-        let reactive: [Play; 3] = [Bot::catastrophe, Bot::defend, Bot::unlock];
+        let reactive: [Play; 5] = [
+            Bot::catastrophe,
+            Bot::defend,
+            Bot::guard_den,
+            Bot::garrison,
+            Bot::unlock,
+        ];
         let budgets: [&[Play]; 3] = [
             &[Bot::expand],
             &[Bot::deepen, Bot::decomposers],
@@ -456,7 +468,15 @@ impl Bot {
                             && neighbours(k, n).any(|m| w.state.owner[m] == self.player)
                     })
             }
-            _ => (0..cards).any(|i| unlocked(i) && category(w, i) == Some(c)),
+            // A card still to unlock, held back only by its price, keeps the category in the shares:
+            // the bot saves for it (a tall bot for its shrubs and trees) instead of spending elsewhere.
+            _ => (0..cards).any(|i| {
+                category(w, i) == Some(c)
+                    && (unlocked(i)
+                        || w.economy
+                            .check_unlock(self.player, i)
+                            .is_err_and(|e| e.ends_with("biomass")))
+            }),
         }
     }
 
@@ -1116,7 +1136,59 @@ impl Bot {
     /// height); at home the tallest or the fastest grower, in turn. Recyclers, called on their own pace,
     /// raise the soil's fertility.
     fn deepen(&self, v: &View) -> Option<Payload> {
+        self.deepen_where(v, false)
+    }
+
+    /// Den guard (Alpha 1.7): losing the den loses the match (D-251), so an enemy front pushing
+    /// within DEN_GUARD cells of it is answered first, outside the budgets: `deepen` on those
+    /// cells only.
+    fn guard_den(&self, v: &View) -> Option<Payload> {
+        self.deepen_where(v, true)
+    }
+
+    /// Den garrison (Alpha 1.7): GARRISON hunters hold the den (D-246 hold: they stay and strike
+    /// raiders within reach), the nearest free ones; the rest hunt and answer raids. Not easy.
+    fn garrison(&self, v: &View) -> Option<Payload> {
+        let (w, n) = (v.w, v.n);
+        let den = w.fauna.dens[usize::from(self.player - 1)][0];
+        if self.level == Level::Easy || den >= n * n {
+            return None;
+        }
+        let (fa, a) = (&w.fauna.p, &w.fauna.agents);
+        let hunter =
+            |i: usize| a.owner[i] == self.player && fa.role[usize::from(a.sp[i])] == Role::Predator;
+        let held = (0..a.len())
+            .filter(|&i| hunter(i) && a.order[i] == HOLD)
+            .count();
+        let mut free: Vec<(usize, u32)> = (0..a.len())
+            .filter(|&i| hunter(i) && a.order[i] == FREE)
+            .map(|i| (dist2(a.cell(i, n), n, (den / n, den % n)), a.id[i]))
+            .collect();
+        free.sort_unstable();
+        let ids: Vec<u32> = free
+            .iter()
+            .take(GARRISON.saturating_sub(held))
+            .map(|&(_, id)| id)
+            .collect();
+        (!ids.is_empty()).then(|| Payload::Order {
+            ids,
+            kind: OrderKind::Hold,
+            row: u32::try_from(den / n).unwrap_or(0),
+            col: u32::try_from(den % n).unwrap_or(0),
+        })
+    }
+
+    fn deepen_where(&self, v: &View, den_only: bool) -> Option<Payload> {
         let (w, n, n2) = (v.w, v.n, v.n * v.n);
+        let den = w.fauna.dens[usize::from(self.player - 1)][0];
+        // The den and its ring always (in layers, one grazer kind cannot strip it bare), and
+        // pushed cells within DEN_GUARD.
+        let guarded = |k: usize| {
+            den < n2 && {
+                let d = dist2(k, n, (den / n, den % n));
+                d <= 2 || (v.push[k] > 0 && d <= DEN_GUARD * DEN_GUARD)
+            }
+        };
         let p = &w.flora.p;
         let half = i64::from(ONE) / 2;
         let plants: Vec<usize> = (0..p.species())
@@ -1137,7 +1209,7 @@ impl Bot {
                 })
         };
         let mut cells: Vec<(u8, i64, usize, usize)> = (0..n2)
-            .filter(|&k| w.state.owner[k] == self.player)
+            .filter(|&k| w.state.owner[k] == self.player && (!den_only || guarded(k)))
             .map(|k| {
                 if v.push[k] > 0 {
                     (0, -v.push[k], dist2(k, n, v.enemy), k)
@@ -1187,7 +1259,7 @@ impl Bot {
 
     /// A card of decomposers on own land, while there are few.
     fn decomposers(&self, v: &View) -> Option<Payload> {
-        if !self.every(v, CALL_S) {
+        if !self.every(v, DECOMPOSE_S) {
             return None; // calls are paced like a player's attention (D-142)
         }
         let at = self.own_near(v, v.home)?;
@@ -2168,6 +2240,59 @@ mod tests {
                 .any(|p| matches!(p, Payload::Plant { species, .. } if species == "grasses")),
             "plants grasses: {sent:?}"
         );
+    }
+
+    /// The den guard (Alpha 1.7): the den's ring is layered first, so one grazer kind cannot
+    /// strip it bare.
+    #[test]
+    fn the_bot_layers_its_den_ring() {
+        let b = balance();
+        let mut w = painted(&b, &|r, _| if r >= 30 { 2 } else { 0 }, &|_, _| {
+            vec!["lichen_and_moss"]
+        });
+        let den = 34 * 38 + 19;
+        w.fauna.dens[1][0] = den;
+        w.economy.bank[1] = 100_000 * i64::from(ONE);
+        let mut bot = Bot::new(2, Level::Normal, Style::Balanced, &b);
+        let v = bot.view(&w);
+        let Some(Payload::Plant { row, col, .. }) = bot.guard_den(&v) else {
+            panic!("no planting at the den");
+        };
+        let k = row as usize * 38 + col as usize;
+        assert!(
+            dist2(k, 38, (den / 38, den % 38)) <= 2,
+            "in the ring: {row},{col}"
+        );
+    }
+
+    /// The den garrison (Alpha 1.7): the free hunters nearest the den hold it, GARRISON of them.
+    #[test]
+    fn the_bot_garrisons_its_den() {
+        let b = balance();
+        let mut w = painted(&b, &|r, _| if r >= 30 { 2 } else { 0 }, &|_, _| {
+            vec!["grasses"]
+        });
+        let den = 34 * 38 + 19;
+        w.fauna.dens[1][0] = den;
+        let fox = w.fauna.p.index("fox").unwrap();
+        for k in [36 * 38 + 19, 31 * 38 + 5, 33 * 38 + 18] {
+            w.fauna.place(fox, 2, k, 1, 38);
+        }
+        let mut bot = Bot::new(2, Level::Normal, Style::Balanced, &b);
+        let v = bot.view(&w);
+        let Some(Payload::Order {
+            ids,
+            kind,
+            row,
+            col,
+        }) = bot.garrison(&v)
+        else {
+            panic!("no garrison order");
+        };
+        assert_eq!((kind, row, col), (OrderKind::Hold, 34, 19));
+        assert_eq!(ids.len(), GARRISON);
+        let far = w.fauna.agents.id[1]; // the fox placed second, far from the den
+        assert!(!ids.contains(&far), "the nearest hunters: {ids:?}");
     }
 
     #[test]

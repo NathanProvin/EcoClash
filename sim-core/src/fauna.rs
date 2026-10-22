@@ -34,7 +34,7 @@ pub const FRAME_BYTES: usize = 12;
 pub const FREE: u8 = 0;
 const MOVE: u8 = 1;
 const ATTACK: u8 = 2;
-const HOLD: u8 = 3;
+pub const HOLD: u8 = 3;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Role {

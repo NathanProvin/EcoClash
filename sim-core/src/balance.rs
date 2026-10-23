@@ -1107,8 +1107,8 @@ mod tests {
         assert!(err.contains("ferns") && err.contains("k_max"), "{err}");
         // D-123: at most three foods, primary first.
         let long = SPECIES.replacen(
-            r#"eats = ["rabbits", "weasel", "earthworms"]"#,
-            r#"eats = ["rabbits", "weasel", "earthworms", "slugs"]"#,
+            r#"eats = ["rabbits", "earthworms", "weasel"]"#,
+            r#"eats = ["rabbits", "earthworms", "weasel", "slugs"]"#,
             1,
         );
         assert!(

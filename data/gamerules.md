@@ -214,7 +214,7 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
 - **Food ranks (D-123):** an animal seeks its primary food in sight first, then the secondary, then the tertiary (an attack-move looks on enemy land the same way). A grazer eats the best-ranked plant in its cell, a hunter the best-ranked prey in reach. A meal gives energy × `[fauna] diet_yield` of its rank: 100 %, 75 %, 50 %.
 - **Habitats:** grazers need their food plants on their owner's land; hunters need a plant family (woods for the lynx, water plants for the pike). Tier-1 insects live one layer below their food (D-126): grasshoppers and slugs on herbs, caterpillars on undergrowth, bark beetles on shrubs, so they can counter a layer before you grow it.
 - **Media (D-084):** fish and larvae swim; frog, beaver, otter, mallard and heron are amphibious; great tit, hawk, eagle-owl and black woodpecker fly; the rest walk.
-- **Frog (D-267):** lives in the water or the undergrowth (habitat W or L2), so insect raids have a second answer on dry maps; it hunts grasshoppers first, then slugs and caterpillars.
+- **Frog (D-267):** lives in the water or the undergrowth (habitat W or L2), so insect raids have a second answer on dry maps; it hunts slugs first, then caterpillars and grasshoppers (D-273).
 - **Black woodpecker (D-092, D-127):** eats standing dead wood first (then litter), so it clears dead trees fastest (§6.2, D-227).
 - **Great tits (D-141)** also eat grasshoppers: a tier-1 answer to grasshopper swarms.
 - **Food-web harmony (D-187):** counters cost about what the raids they answer cost, and tier-1 hunters live on meadows, so defence comes in the same phase as attack.

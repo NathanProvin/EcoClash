@@ -1375,3 +1375,8 @@
   - hover opens the flyout and the info box;
   - click to arm, click to plant.
 - **Phone performance:** paused before the measurement (plan step 1); the user resumes it later.
+
+## 2026-10-23 (3) · Food-web recap and earlier counters (D-273)
+- Recap given to the user (roster, equilibria, locks).
+- **Their changes:** earlier slug, earthworm, squirrel and bark-beetle counters; heron on frogs; lynx in undergrowth. Guard, chains and all tests green.
+- **Next:** harmony proposals (the same patterns across families), for the user to pick.

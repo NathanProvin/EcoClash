@@ -2979,7 +2979,7 @@ mod tests {
         let (f, mut fa, st, mut rng) = setup(12);
         let [fox, rabbit, weasel] = ["fox", "rabbits", "weasel"].map(|n| fa.p.index(n).unwrap());
         assert_eq!(fa.p.prey_rank(fox, rabbit), Some(0));
-        assert_eq!(fa.p.prey_rank(fox, weasel), Some(1));
+        assert_eq!(fa.p.prey_rank(fox, weasel), Some(2));
         fa.agents.push(fox, 1, centre(6), centre(6), ONE_I, 0);
         fa.agents.push(weasel, 2, centre(6), centre(7), ONE_I, 0); // next to it
         fa.agents.push(rabbit, 2, centre(6), centre(9), ONE_I, 0); // three cells away

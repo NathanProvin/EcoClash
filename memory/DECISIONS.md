@@ -3261,3 +3261,21 @@ Template:
   - a production build served with `vite preview --host --port 5173 --strictPort`;
   - on the phone, Chrome flag `unsafely-treat-insecure-origin-as-secure` set to the PC's address, so the page counts as secure and WebGPU can run.
   - USB forwarding failed: the phone read as "Device information is stale" in `chrome://inspect`.
+
+## D-273 · 2026-10-23 · Earlier counters: slugs, earthworms, squirrels, bark beetles; heron on frogs; lynx in undergrowth
+- **Status:** accepted (user: an earlier main counter than the badger for slugs and earthworms, the same for the squirrel hunter and bark beetles; the heron eats frogs instead of larvae; the lynx callable with undergrowth only)
+- **Decision** (diets in rank order):
+  - frog [slugs, caterpillars, grasshoppers]: the first-rank slug hunter at 2 500 (the badger is at 6 000 and needs shrubs);
+  - fox [rabbits, earthworms, weasel]: earthworms second, at 4 000;
+  - wildcat [red squirrel, weasel, hawk]: the first-rank squirrel hunter at 3 500 (the pine marten is at 9 000);
+  - hawk [bank vole, bark beetles, great tit]: bark beetles second, at 1 500;
+  - heron [roach, frog, pike];
+  - otter [pike, mallard, larvae], so larvae keep two hunters;
+  - lynx habitat [L2, L3, L4]: callable with undergrowth, which also opens the wolf's path sooner.
+  - The guard test passes (eater counts by tier). Grasshoppers keep the great tit first and the frog third; caterpillars have the great tit and the frog, both second.
+- **Measure** (`CAPS=1`, 8 seeds, 30 min):
+  - each new counter holds on its prey alone: frogs 21 on 64 slugs, foxes 31 on 96 earthworms, wildcats 79 on 168 squirrels, hawks 21 on 64 bark beetles, lynx 6 on 21 roe deer in undergrowth;
+  - meadow web all alive (eagle-owl 7/8);
+  - wetland web (water and undergrowth) all 8 alive, frog included; herons 49 for 41 pike (79 for 48 before);
+  - forest web: the eagle-owl still finds no prey; hawks thin (2) under wildcats.
+- Two tests updated for the fox's diet order.

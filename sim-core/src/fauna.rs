@@ -33,8 +33,8 @@ pub const FRAME_BYTES: usize = 12;
 /// Standing orders (`Agents::order`): none (the animal acts on its own).
 pub const FREE: u8 = 0;
 const MOVE: u8 = 1;
-const ATTACK: u8 = 2;
-const HOLD: u8 = 3;
+pub const ATTACK: u8 = 2;
+pub const HOLD: u8 = 3;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Role {
@@ -351,7 +351,11 @@ impl FaunaParams {
             && match self.role[s] {
                 Role::Herbivore => self.eats_flora[s] & self.eats_flora[j] != 0,
                 Role::Decomposer => true,
-                Role::Predator => oj == pl && self.eats_fauna[s] & self.eats_fauna[j] != 0,
+                Role::Predator => {
+                    oj == pl
+                        && self.eats_fauna[s] & self.eats_fauna[j] != 0
+                        && self.eats_fauna[s] >> j & 1 == 0
+                }
             }
     }
 
@@ -1025,29 +1029,35 @@ impl Fauna {
     /// Returns who lives.
     fn hunt(&mut self, st: &mut FloraState, safe: &[bool], rng: &mut Pcg32) -> Vec<bool> {
         let (a, p, n) = (&mut self.agents, &self.p, st.n);
-        // Home hunting takes the surplus only: own prey is fair game while the prey in sight
-        // cover `own_surplus` × `prey_per` per rival hunter, itself included (D-066, D-222), so herds
-        // are not decimated and surplus hunters starve back to the ratio. Counted once, at the
-        // start of the hunt.
-        let hungry = |i: usize| {
-            let s = usize::from(a.sp[i]);
-            p.role[s] == Role::Predator && a.energy[i] < p.body[s] * ONE_I
-        };
-        let windows = if p.own_catch > 0 {
-            Self::windows(a, p, st, safe, (0..a.len()).filter(|&i| hungry(i)))
-        } else {
-            BTreeMap::new()
-        };
-        let surplus: Vec<bool> = (0..a.len())
+        // Home hunting takes the surplus only, per prey species (prey switching, Alpha 1.7): an own
+        // animal of species j is fair game while the own j in the hunter's sight number at least
+        // `own_surplus` × `prey_per` per own hunter of its species there (D-066, D-222). A hunter
+        // fed by one plentiful prey leaves a scarce one alone, and surplus hunters starve back to
+        // the ratio. Counted once, at the start of the hunt.
+        let hungry: Vec<bool> = (0..a.len())
             .map(|i| {
                 let s = usize::from(a.sp[i]);
-                hungry(i)
-                    && windows.get(&(s, a.owner[i])).is_some_and(|(food, load)| {
-                        let (k, r) = (a.cell(i, n), usize::try_from(p.sight[s]).unwrap_or(0));
-                        food.sum(k, r) * ONE_I >= load.sum(k, r) * p.own_surplus
-                    })
+                p.role[s] == Role::Predator && a.energy[i] < p.body[s] * ONE_I
             })
             .collect();
+        let mut heads: BTreeMap<(usize, u8), Vec<i64>> = BTreeMap::new();
+        if p.own_catch > 0 && hungry.contains(&true) {
+            for j in 0..a.len() {
+                let grid = heads
+                    .entry((usize::from(a.sp[j]), a.owner[j]))
+                    .or_insert_with(|| vec![0; n * n]);
+                grid[a.cell(j, n)] += i64::from(!safe[j]);
+            }
+        }
+        let heads: BTreeMap<(usize, u8), Window> = heads
+            .into_iter()
+            .map(|(key, g)| (key, Window::new(&g, n)))
+            .collect();
+        let plenty = |s: usize, pl: u8, k: usize, prey: usize| {
+            let r = usize::try_from(p.sight[s]).unwrap_or(0);
+            let count = |sp: usize| heads.get(&(sp, pl)).map_or(0, |w| w.sum(k, r));
+            count(prey) * ONE_I >= count(s) * p.prey_per[s] * p.own_surplus
+        };
         let mut alive = vec![true; a.len()];
         // Animals by cell, in index order (D-207): a hunter looks at the cells in its reach only.
         let mut start = vec![0usize; n * n + 1];
@@ -1081,7 +1091,8 @@ impl Fauna {
                         let own = a.owner[j] == a.owner[i];
                         if alive[j]
                             && !safe[j]
-                            && (!own || surplus[i])
+                            && (!own
+                                || (hungry[i] && plenty(s, a.owner[i], k, usize::from(a.sp[j]))))
                             && let Some(r) = p.prey_rank(s, usize::from(a.sp[j]))
                             && prey.is_none_or(|q| (own, r, j) < q)
                         {
@@ -2597,47 +2608,68 @@ mod tests {
         }
     }
 
-    /// The food pyramid (Alpha 1.2), one player's home chain at 4× the target 32 cells : 16 grazers
-    /// : 4 hunters : 1–2 superpredators: grasses → rabbits → foxes → eagle-owls, on 128 grass
-    /// cells with a few bramble refuges. Runs `minutes` of flora ticks; returns the census of
-    /// [rabbits, foxes, owls] every 30 ecology seconds.
+    /// A food chain on one player's 128-cell home ground (Alpha 1.2; any chain since Alpha 1.7):
+    /// the left half of a 16² map fully grown with `plants` (shallows when one is aquatic; a few
+    /// bramble refuges on land), and `animals` (name, start count) living on it, their food alone
+    /// setting their numbers. Runs `minutes` of flora ticks; returns the census of `animals` every
+    /// 30 ecology seconds.
     #[allow(clippy::float_arithmetic)] // test setup only: tick counts from the balance's dt
-    fn pyramid(seed: u64, minutes: usize, start: [usize; 3]) -> Vec<[i64; 3]> {
-        let (mut fl, mut fa, mut st, _) = setup(16);
-        let mut rng = Pcg32::new(seed, 2);
+    fn chain(
+        b: &Balance,
+        seed: u64,
+        minutes: usize,
+        plants: &[&str],
+        animals: &[(&str, usize)],
+        caps: bool,
+    ) -> Vec<Vec<i64>> {
+        let mut fl = Flora::new(FloraParams::from_balance(b));
+        let mut fa = Fauna::new(FaunaParams::from_balance(b));
         let (n, n2) = (16, 256);
-        let (g, b) = (
-            fl.p.index("grasses").unwrap(),
-            fl.p.index("bramble").unwrap(),
-        );
-        let sp = ["rabbits", "fox", "eagle_owl"].map(|s| fa.p.index(s).unwrap());
+        let mut st = FloraState::new(&fl.p, n);
+        let mut rng = Pcg32::new(seed, 2);
+        let ps: Vec<usize> = plants.iter().map(|p| fl.p.index(p).unwrap()).collect();
+        let water =
+            (b.flora_species.iter()).any(|(m, s)| s.family == "W" && plants.contains(&m.as_str()));
+        let refuge = fl.p.index("bramble").unwrap();
         for k in 0..n2 {
             if k % n >= 8 {
-                continue; // the right half stays bare: 128 cells of meadow
+                continue; // the right half stays bare: 128 cells of home ground
             }
             st.owner[k] = 1;
             st.soil[k] = U16;
-            st.bio[g * n2 + k] = fl.p.kmax[g];
-            st.gauge[g * n2 + k] = ONE_I;
-            if k / n % 5 == 2 && k % n % 5 == 2 {
-                st.bio[b * n2 + k] = fl.p.kmax[b];
-                st.gauge[b * n2 + k] = ONE_I;
+            if water {
+                st.ground[k] = crate::terrain::SHALLOW;
+            }
+            for &g in &ps {
+                st.bio[g * n2 + k] = fl.p.kmax[g];
+                st.gauge[g * n2 + k] = ONE_I;
+            }
+            if !water && k / n % 5 == 2 && k % n % 5 == 2 {
+                st.bio[refuge * n2 + k] = fl.p.kmax[refuge];
+                st.gauge[refuge * n2 + k] = ONE_I;
             }
         }
-        fl.p.cap[b] = ONE_I * 3 / 100; // refuges stay patches
+        fl.p.cap[refuge] = ONE_I * 3 / 100; // refuges stay patches
         fa.p.player_cap = 5000;
+        let home = ps.iter().fold(0, |m, &g| m | 1 << g);
+        let sp: Vec<usize> = animals
+            .iter()
+            .map(|(a, _)| fa.p.index(a).unwrap())
+            .collect();
         for &s in &sp {
-            fa.p.per_cell[s] = ONE_I * 5000; // safety ceilings off: the food decides
-            fa.p.habitat[s] = 1 << g; // every level lives on the meadow (D-246)
+            if !caps {
+                fa.p.per_cell[s] = ONE_I * 5000; // safety ceilings off: the food decides
+            }
+            fa.p.habitat[s] = home; // every level lives on the home ground (D-246)
         }
-        let full = |s: usize| fa.p.body[s] * ONE_I;
-        for (s, count) in sp.into_iter().zip(start) {
+        for (&s, &(_, count)) in sp.iter().zip(animals) {
             for k in 0..count {
                 let (y, x) = (k * 7 % 16, k * 3 % 8);
-                fa.agents.push(s, 1, centre(y), centre(x), full(s) / 2, 0);
+                fa.agents
+                    .push(s, 1, centre(y), centre(x), fa.p.body[s] * ONE_I / 2, 0);
             }
         }
-        let dt = Balance::from_toml(BALANCE, SPECIES).unwrap().flora_dt(); // ecology s per flora tick
+        let dt = b.flora_dt(); // ecology s per flora tick
         let every = (30.0 / dt).round() as usize;
         let ticks = (minutes as f64 * 60.0 / dt).round() as usize;
         let mut out = Vec::new();
@@ -2649,26 +2681,28 @@ mod tests {
             fl.step(&mut st);
             if t % every == 0 {
                 let c = fa.census(1);
-                out.push(sp.map(|s| c[s]));
+                out.push(sp.iter().map(|&s| c[s]).collect());
             }
         }
         out
     }
 
-    /// Per level: mean, min, max and coefficient of variation (%) over the second half of a run.
-    fn pyramid_stats(run: &[[i64; 3]]) -> [[i64; 4]; 3] {
+    /// Per species: mean, min, max and coefficient of variation (%) over the second half of a run.
+    fn chain_stats(run: &[Vec<i64>]) -> Vec<[i64; 4]> {
         let tail = &run[run.len() / 2..];
         let m = i64::try_from(tail.len()).unwrap();
-        [0, 1, 2].map(|l| {
-            let mean = tail.iter().map(|c| c[l]).sum::<i64>() * 100 / m; // ×100
-            let var = tail.iter().map(|c| (c[l] * 100 - mean).pow(2)).sum::<i64>() / m;
-            let sd = (1..).take_while(|r: &i64| r * r <= var).last().unwrap_or(0);
-            let cv = if mean > 0 { sd * 100 / mean } else { 0 };
-            let (lo, hi) = tail
-                .iter()
-                .fold((i64::MAX, 0), |(lo, hi), c| (lo.min(c[l]), hi.max(c[l])));
-            [mean / 100, lo, hi, cv]
-        })
+        (0..run[0].len())
+            .map(|l| {
+                let mean = tail.iter().map(|c| c[l]).sum::<i64>() * 100 / m; // ×100
+                let var = tail.iter().map(|c| (c[l] * 100 - mean).pow(2)).sum::<i64>() / m;
+                let sd = (1..).take_while(|r: &i64| r * r <= var).last().unwrap_or(0);
+                let cv = if mean > 0 { sd * 100 / mean } else { 0 };
+                let (lo, hi) = tail
+                    .iter()
+                    .fold((i64::MAX, 0), |(lo, hi), c| (lo.min(c[l]), hi.max(c[l])));
+                [mean / 100, lo, hi, cv]
+            })
+            .collect()
     }
 
     /// The pyramid holds: in 7 of 8 seeds every level is alive after 30 minutes, and the mean
@@ -2676,10 +2710,12 @@ mod tests {
     /// target 16 : 4 : 1–2 (Alpha 1.2).
     #[test]
     fn the_food_pyramid_holds_without_a_crash() {
+        let b = Balance::from_toml(BALANCE, SPECIES).unwrap();
+        let web = [("rabbits", 64), ("fox", 16), ("eagle_owl", 5)];
         let good = (1..=8)
             .filter(|&seed| {
-                let run = pyramid(seed, 30, [64, 16, 5]);
-                let s = pyramid_stats(&run);
+                let run = chain(&b, seed, 30, &["grasses"], &web, false);
+                let s = chain_stats(&run);
                 let alive = run.last().unwrap().iter().all(|&c| c > 0);
                 let (r, f, o) = (s[0][0], s[1][0], s[2][0]);
                 alive && f > 0 && o > 0 && (3..=6).contains(&(r / f)) && (2..=5).contains(&(f / o))
@@ -2688,29 +2724,50 @@ mod tests {
         assert!(good >= 7, "{good} of 8 seeds hold the pyramid");
     }
 
+    /// Food-web report (Alpha 1.7), 8 seeds per chain, in parallel. `CHAIN` lists chains split by
+    /// `;`, each `plant+plant:animal=start,animal=start`; `SPECIES_FILE` swaps in a variant
+    /// species.toml; `MINUTES` (30); `CAPS=1` keeps the per-cell ceilings. Per species: mean, low, high, CV % (second half, over the
+    /// seeds) and the seeds where it is alive at the end.
     #[test]
-    #[ignore = "report: cargo test -p sim-core --release -- --ignored --nocapture pyramid_report"]
+    #[ignore = "report: CHAIN=.. cargo test -p sim-core --release -- --ignored --nocapture pyramid_report"]
     fn pyramid_report() {
-        // PYRAMID=64,16,0 starts other populations (rabbits, foxes, owls).
-        let start = std::env::var("PYRAMID").map_or([64, 16, 5], |v| {
-            let c: Vec<usize> = v.split(',').map(|x| x.trim().parse().unwrap()).collect();
-            [c[0], c[1], c[2]]
-        });
-        for seed in 1..=8 {
-            let run = pyramid(seed, 30, start);
-            let s = pyramid_stats(&run);
-            let trace: Vec<String> = run
-                .iter()
-                .step_by(6)
-                .map(|c| format!("{}/{}/{}", c[0], c[1], c[2]))
+        let env = |k: &str, d: &str| std::env::var(k).unwrap_or_else(|_| d.to_string());
+        let species = std::env::var("SPECIES_FILE")
+            .map_or(SPECIES.to_string(), |p| std::fs::read_to_string(p).unwrap());
+        let b = Balance::from_toml(BALANCE, &species).unwrap();
+        let minutes: usize = env("MINUTES", "30").parse().unwrap();
+        let caps = env("CAPS", "0") == "1"; // keep the in-game per_cell ceilings
+        for spec in env("CHAIN", "grasses:rabbits=64,fox=16,eagle_owl=5").split(';') {
+            let (plants, animals) = spec.trim().split_once(':').unwrap();
+            let plants: Vec<&str> = plants.split('+').collect();
+            let animals: Vec<(&str, usize)> = (animals.split(','))
+                .map(|a| {
+                    a.split_once('=')
+                        .map(|(n, c)| (n, c.parse().unwrap()))
+                        .unwrap()
+                })
                 .collect();
-            println!(
-                "seed {seed}: rabbits {:?} foxes {:?} owls {:?} (mean lo hi cv%) | {}",
-                s[0],
-                s[1],
-                s[2],
-                trace.join(" ")
-            );
+            let runs: Vec<Vec<Vec<i64>>> = std::thread::scope(|sc| {
+                let hs: Vec<_> = (1..=8)
+                    .map(|seed| {
+                        let (b, plants, animals) = (&b, &plants, &animals);
+                        sc.spawn(move || chain(b, seed, minutes, plants, animals, caps))
+                    })
+                    .collect();
+                hs.into_iter().map(|h| h.join().unwrap()).collect()
+            });
+            println!("{}", spec.trim());
+            for (l, (name, _)) in animals.iter().enumerate() {
+                let s: Vec<[i64; 4]> = runs.iter().map(|r| chain_stats(r)[l]).collect();
+                let alive = runs.iter().filter(|r| r.last().unwrap()[l] > 0).count();
+                println!(
+                    "  {name:<17} mean {:>4} lo {:>4} hi {:>4} cv {:>3}% alive {alive}/8",
+                    s.iter().map(|x| x[0]).sum::<i64>() / 8,
+                    s.iter().map(|x| x[1]).min().unwrap(),
+                    s.iter().map(|x| x[2]).max().unwrap(),
+                    s.iter().map(|x| x[3]).sum::<i64>() / 8,
+                );
+            }
         }
     }
 
@@ -2922,7 +2979,7 @@ mod tests {
         let (f, mut fa, st, mut rng) = setup(12);
         let [fox, rabbit, weasel] = ["fox", "rabbits", "weasel"].map(|n| fa.p.index(n).unwrap());
         assert_eq!(fa.p.prey_rank(fox, rabbit), Some(0));
-        assert_eq!(fa.p.prey_rank(fox, weasel), Some(1));
+        assert_eq!(fa.p.prey_rank(fox, weasel), Some(2));
         fa.agents.push(fox, 1, centre(6), centre(6), ONE_I, 0);
         fa.agents.push(weasel, 2, centre(6), centre(7), ONE_I, 0); // next to it
         fa.agents.push(rabbit, 2, centre(6), centre(9), ONE_I, 0); // three cells away

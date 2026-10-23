@@ -33,6 +33,7 @@
   import FamilyIcon from "./FamilyIcon.svelte";
   import Icon from "./Icon.svelte";
   import SpeciesIcon from "./SpeciesIcon.svelte";
+  import { isPhone } from "./fullscreen";
 
   let {
     replay,
@@ -53,6 +54,7 @@
     focus = null,
     suit = null,
     plantRadius = 2,
+    onOrder,
   }: {
     replay: Source;
     tick: number;
@@ -77,12 +79,16 @@
     suit?: ReadonlyMap<string, number> | null;
     /** The planting disc's radius (D-242): plant costs are shown per full planting. */
     plantRadius?: number;
+    /** Order buttons for touch screens (D-269): arm an attack or a hold, or stop. */
+    onOrder?: (kind: "attack" | "hold" | "stop") => void;
   } = $props();
 
   const TIERS = [1, 2, 3] as const;
   /** Tier medals (D-106): bronze, silver, gold. */
   const MEDAL_NAME = ["Tier 1 · small", "Tier 2 · medium", "Tier 3 · large"] as const;
   const GRACE_MS = 120; // time to cross the gap between an item and its flyout
+  /** A touch screen (D-269): no hover, no keyboard; buttons replace the order keys. */
+  const coarse = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
 
   const species = $derived(replay.meta.species);
   const fauna = $derived(species.filter((s) => s.kind === "fauna"));
@@ -138,13 +144,16 @@
   let open: string | null = $state(null);
   let pinned = $state(false);
   let timer: ReturnType<typeof setTimeout> | undefined;
-  function enter(name: string) {
+  // Hover opens and closes a flyout for a mouse; on touch (D-269) the browser sends a leave right
+  // after each tap, so taps only pin and unpin.
+  function enter(e: PointerEvent, name: string) {
+    if (e.pointerType === "touch") return;
     clearTimeout(timer);
     if (!pinned || open !== name) pinned = false;
     open = name;
   }
-  function leave() {
-    if (pinned) return;
+  function leave(e: PointerEvent) {
+    if (pinned || e.pointerType === "touch") return;
     clearTimeout(timer);
     timer = setTimeout(() => {
       open = null;
@@ -154,9 +163,11 @@
   function close() {
     open = null;
     pinned = false;
+    peek = null;
     hover = null; // its tile is gone: no pointer-leave will come
   }
   function pin(name: string) {
+    clearTimeout(timer);
     if (open === name && pinned) close();
     else [open, pinned] = [name, true];
   }
@@ -172,12 +183,70 @@
 
   // The dock is transformed, so the tooltip is placed in the dock's own coordinates.
   let dock: HTMLElement | undefined = $state();
-  let hover: { s: Species; x: number; y: number } | null = $state(null);
-  function show(e: PointerEvent, s: Species) {
+  // Phones (D-271): the whole dock scales down to the screen's width, so every family and the
+  // catastrophe deck stay in reach; tooltip positions are divided by the scale.
+  let bar: HTMLElement | undefined = $state();
+  let fit = $state(1);
+  $effect(() => {
+    const el = bar;
+    if (!el || !isPhone()) return;
+    let scale = 1;
+    const measure = () => {
+      const natural = el.getBoundingClientRect().width / scale;
+      scale = Math.min(1, (innerWidth - 16) / natural);
+      fit = scale;
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    addEventListener("resize", measure);
+    measure();
+    return () => {
+      ro.disconnect();
+      removeEventListener("resize", measure);
+    };
+  });
+  let hover: { s: Species; x: number; y: number; flip: boolean } | null = $state(null);
+  /** The tooltip's width (px, its CSS max-width plus padding), to keep it on screen. */
+  const TIP_W = 250;
+  function show(e: MouseEvent, s: Species) {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const d = dock?.getBoundingClientRect() ?? { left: 0, top: 0 };
-    // To the right of the tile (D-242), its middle level with the tile's.
-    hover = { s, x: r.right + 10 - d.left, y: r.top + r.height / 2 - d.top };
+    // To the right of the tile (D-242), its middle level with the tile's; to its left when it
+    // would leave the screen (phones, D-269).
+    const flip = r.right + 10 + TIP_W > window.innerWidth;
+    const x = flip ? r.left - 10 - d.left : r.right + 10 - d.left;
+    hover = { s, x: x / fit, y: (r.top + r.height / 2 - d.top) / fit, flip };
+  }
+
+  // On touch (D-269) the first tap on a tile shows its info, a second tap on it acts.
+  let peek: string | null = $state(null);
+  let touched = false;
+  /** The info of a species armed by touch stays open until it is planted or disarmed. */
+  let held = false;
+  $effect(() => {
+    if (!planting && held) {
+      held = false;
+      hover = null;
+    }
+  });
+  function tap(e: MouseEvent, s: Species) {
+    if (touched && live && cardOf(s) === "unlocked") {
+      // Touch (D-272): one tap arms the species and keeps its info open; the next tap on the
+      // map plants it (a second tap on the tile disarms). Cards to buy keep the two taps.
+      click(s);
+      peek = null;
+      held = planting === s.name;
+      if (held) show(e, s);
+      return;
+    }
+    if (touched && peek !== s.name) {
+      show(e, s);
+      peek = s.name;
+      return;
+    }
+    peek = null;
+    hover = null;
+    click(s);
   }
 </script>
 
@@ -195,17 +264,29 @@
         <span class="num">×{n}</span>
       </button>
     {/each}
-    <span class="keys">Right-click move · A attack · S stop · Ctrl 1-9 group</span>
+    {#if coarse && onOrder}
+      <span class="keys">Tap the map to move</span>
+      <button class="ord" onclick={() => onOrder("attack")}>Attack</button>
+      <button class="ord" onclick={() => onOrder("hold")}>Hold</button>
+      <button class="ord" onclick={() => onOrder("stop")}>Stop</button>
+    {:else}
+      <span class="keys">Right-click move · A attack · S stop · Ctrl 1-9 group</span>
+    {/if}
     <button class="x" onclick={onClear} aria-label="Clear selection">✕</button>
   </div>
 {/if}
-<footer class="dock p{player}" bind:this={dock}>
-  <nav class="bar panel" aria-label="Species">
+<footer class="dock p{player}" bind:this={dock} style:zoom={fit < 1 ? fit : null}>
+  <nav class="bar panel" aria-label="Species" bind:this={bar}>
     {#each groups as g, i (g.name)}
       {@const total = g.species.reduce((t, s) => t + count(s), 0)}
       {#if i > 0 && g.section !== groups[i - 1]?.section}<span class="sep" aria-hidden="true"
         ></span>{/if}
-      <div class="group" role="group" onpointerenter={() => enter(g.name)} onpointerleave={leave}>
+      <div
+        class="group"
+        role="group"
+        onpointerenter={(e) => enter(e, g.name)}
+        onpointerleave={leave}
+      >
         <button
           class="item web-{webOf(g.species.map((s) => s.name))}"
           style:filter={tint(g.species.map((s) => s.name))}
@@ -243,9 +324,10 @@
                         class:none={count(s) === 0 && state === "unlocked"}
                         role="menuitem"
                         aria-label={label(s.name)}
-                        onclick={() => click(s)}
-                        onpointerenter={(e) => show(e, s)}
-                        onpointerleave={() => (hover = null)}
+                        onpointerdown={(e) => (touched = e.pointerType === "touch")}
+                        onclick={(e) => tap(e, s)}
+                        onpointerenter={(e) => e.pointerType !== "touch" && show(e, s)}
+                        onpointerleave={(e) => e.pointerType !== "touch" && (hover = null)}
                       >
                         {#if state === "available"}
                           <!-- A gauge (D-119): the icon fills with colour from the bottom as the
@@ -286,7 +368,13 @@
   {#if hover}
     {@const s = hover.s}
     {@const state = cardOf(s)}
-    <div class="tip panel" style:left="{hover.x}px" style:top="{hover.y}px" role="tooltip">
+    <div
+      class="tip panel"
+      style:left="{hover.x}px"
+      style:top="{hover.y}px"
+      class:flip={hover.flip}
+      role="tooltip"
+    >
       <span class="head {MEDAL[s.tier - 1] ?? 'bronze'}">
         <strong>{label(s.name)}</strong>
         <span class="sub">{s.kind === "flora" ? "plant" : roleName(s.role)}</span>
@@ -546,11 +634,24 @@
     font-size: 0.72em;
     color: var(--ink-soft);
   }
+  .ord {
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--well);
+    color: inherit;
+    font: inherit;
+    font-size: 0.8em;
+  }
   .x {
     border: 0;
     background: none;
     color: var(--ink-soft);
     cursor: var(--cursor-pointer);
+  }
+  .tip.flip {
+    transform: translate(-100%, -50%); /* left of the tile, near the screen edge (D-269) */
   }
   .tip {
     position: absolute;
@@ -673,6 +774,15 @@
       box-shadow:
         0 0 0 2px var(--web),
         0 0 20px var(--web);
+    }
+  }
+  /* Phones (D-271): the dock is scaled to the screen width (`fit`); measure it unclamped. */
+  @media (pointer: coarse) and (max-height: 500px) {
+    .dock {
+      max-width: none;
+    }
+    .bar > * {
+      flex-shrink: 0;
     }
   }
 </style>

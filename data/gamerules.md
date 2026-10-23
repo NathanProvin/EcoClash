@@ -214,6 +214,7 @@ A continuous **demarcation line** is drawn wherever cell ownership changes, so t
 - **Food ranks (D-123):** an animal seeks its primary food in sight first, then the secondary, then the tertiary (an attack-move looks on enemy land the same way). A grazer eats the best-ranked plant in its cell, a hunter the best-ranked prey in reach. A meal gives energy × `[fauna] diet_yield` of its rank: 100 %, 75 %, 50 %.
 - **Habitats:** grazers need their food plants on their owner's land; hunters need a plant family (woods for the lynx, water plants for the pike). Tier-1 insects live one layer below their food (D-126): grasshoppers and slugs on herbs, caterpillars on undergrowth, bark beetles on shrubs, so they can counter a layer before you grow it.
 - **Media (D-084):** fish and larvae swim; frog, beaver, otter, mallard and heron are amphibious; great tit, hawk, eagle-owl and black woodpecker fly; the rest walk.
+- **Frog (D-267):** lives in the water or the undergrowth (habitat W or L2), so insect raids have a second answer on dry maps; it hunts slugs first, then caterpillars and grasshoppers (D-273).
 - **Black woodpecker (D-092, D-127):** eats standing dead wood first (then litter), so it clears dead trees fastest (§6.2, D-227).
 - **Great tits (D-141)** also eat grasshoppers: a tier-1 answer to grasshopper swarms.
 - **Food-web harmony (D-187):** counters cost about what the raids they answer cost, and tier-1 hunters live on meadows, so defence comes in the same phase as attack.
@@ -305,7 +306,7 @@ All dead organisms, plants and animals, feed `Dead biomass`.
 ### 6.2 Feeding on agents (predators)
 
 - Predators attack enemy agents whose species is in their diet. Damage reduces health, and a killed agent becomes dead biomass.
-- **Home hunting (D-218):** with no enemy prey in reach, a hungry predator takes its owner's own prey of its diet, at `own_catch`, only from the surplus: while the prey in its sight cover `own_surplus` × `prey_per_predator` per hunter (D-222: 1.25 × 3). Births only need `prey_per_predator`, so hunters breed past what home prey can feed, then starve back: the levels cycle. Each player thus keeps a food pyramid at home (about 32 plant cells : 16 grazers : 4 hunters : 1–2 superpredators) that cycles without crashing. Enemy prey always comes first, sated or not.
+- **Home hunting (D-218):** with no enemy prey in reach, a hungry predator takes its owner's own prey of its diet, at `own_catch`, only from the surplus, species by species (prey switching, D-263): an own prey species is fair game while it numbers, in the hunter's sight, `own_surplus` × `prey_per_predator` per own hunter of the hunter's species (D-222: 1.25 × 3). A hunter fed by a plentiful prey leaves a scarce one alone. A species a hunter eats never counts as its competitor for food (D-263). Births only need `prey_per_predator`, so hunters breed past what home prey can feed, then starve back: the levels cycle. Each player thus keeps a food pyramid at home (about 32 plant cells : 16 grazers : 4 hunters : 1–2 superpredators) that cycles without crashing. Enemy prey always comes first, sated or not.
 - **Meals (D-218):** a kill restores `kill_meal` of the hunter's body (by diet rank), whatever the prey's size.
 - Predators cannot attack species outside their diet. A fox ignores slugs, for example.
 - **Refuge (D-023):** a player's small fauna inside own cells with dense hawthorn & blackthorn or bramble, or in the water dense cattails (D-125), cannot be hunted. Predators are otherwise kept in check by their own predators (§5.2).
@@ -463,7 +464,7 @@ The mechanics below make sure **no position is permanently locked**, and that **
    - *Processionary caterpillars:* targeted area; the trees there are weakened and lose biomass over time.
    - *Storm:* windthrow along a corridor, opening a line of gaps through a forest.
    - *Forest fire* **[Post-V1]**: ignites a target area. Each tick, fire spreads to neighbouring cells with a chance (seeded RNG) that grows with the cell's biomass. Burnt strata become dead biomass and the soil gains nutrients. Fire dies out on bare or low-biomass cells, so meadow strips act as firebreaks. It opens irregular gaps through a forest.
-4. **Decaying territory threshold (adopted, D-143).** The territorial victory threshold holds 80 % until 25 min (D-147, D-148), then decreases linearly to 60 % at 45 min. This rewards whoever leads and ends matches in about 30 min.
+4. **Decaying territory threshold (adopted, D-143).** The territorial victory threshold holds 80 % until 20 min, then decreases linearly to 50 % at 38 min (D-147, D-148, D-265, D-267): by then the larger side wins. This rewards whoever leads and ends matches in about 25–30 min.
 5. **Guaranteed end.** At the time limit, the highest standing biomass (living flora + fauna) wins; if tied, the higher territory share wins; if still tied, the match is a draw.
 
 ### 11.4 Comeback levers for the trailing player

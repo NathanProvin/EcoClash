@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { loadQuality, QUALITY, saveQuality } from "./quality";
+import { defaultQuality, loadQuality, QUALITY, saveQuality } from "./quality";
 
 it("remembers a preset and falls back to medium on anything else", () => {
   const box = new Map<string, string>();
@@ -19,4 +19,11 @@ it("remembers a preset and falls back to medium on anything else", () => {
   };
   expect(loadQuality(blocked)).toBe("medium");
   expect(QUALITY.low.grass).toBeLessThan(QUALITY.high.grass);
+});
+
+it("starts touch screens on Low, others on Medium; a stored choice wins (D-269)", () => {
+  expect(defaultQuality(true)).toBe("low");
+  expect(defaultQuality(false)).toBe("medium");
+  expect(loadQuality({ getItem: () => null }, "low")).toBe("low");
+  expect(loadQuality({ getItem: () => "high" }, "low")).toBe("high");
 });

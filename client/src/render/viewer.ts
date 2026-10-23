@@ -885,6 +885,11 @@ export class Viewer {
     };
   }
 
+  /** Let one finger pan the map, or not while it draws a selection box (touch, D-269). */
+  setPan(on: boolean): void {
+    this.controls.enablePan = on;
+  }
+
   /** Keyboard camera: pan along the ground in the view direction, rotate around the target. */
   moveCamera(keys: CameraKeys, seconds: number): void {
     const dist = this.camera.position.distanceTo(this.controls.target);

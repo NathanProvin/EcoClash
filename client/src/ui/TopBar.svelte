@@ -11,31 +11,18 @@
   import { OVERLAY_RAMPS } from "../render/palette";
   import FamilyIcon from "./FamilyIcon.svelte";
   import Icon from "./Icon.svelte";
+  import { holdFullscreen, toggleFullscreen } from "./fullscreen";
 
-  // Full screen (D-156): the browser's own; the button leaves it. Esc stays with the game
-  // (keyboard lock, Chromium; a long Esc press still leaves, as browsers require).
+  // Full screen (D-156, shared module D-271).
   let fullscreen = $state(!!document.fullscreenElement);
   $effect(() => {
     const sync = () => {
       fullscreen = !!document.fullscreenElement;
-      if (fullscreen) lockEscape(); // however it was entered
+      if (fullscreen) holdFullscreen(); // however it was entered
     };
     document.addEventListener("fullscreenchange", sync);
     return () => document.removeEventListener("fullscreenchange", sync);
   });
-  function toggleFullscreen() {
-    const done = document.fullscreenElement
-      ? document.exitFullscreen()
-      : (lockEscape(), document.documentElement.requestFullscreen().then(() => lockEscape()));
-    done.catch(() => {}); // refused (an iframe without permission): nothing to do
-  }
-  /** Keep Esc for the game while in full screen, where the browser supports it. */
-  function lockEscape() {
-    const kb = (
-      navigator as Navigator & { keyboard?: { lock?: (keys: string[]) => Promise<void> } }
-    ).keyboard;
-    kb?.lock?.(["Escape"]).catch(() => {});
-  }
 
   let {
     replay,
@@ -670,6 +657,16 @@
     55% {
       color: #ff7a66;
       translate: calc(-50% - 2px) 0;
+    }
+  }
+  /* Phones (D-272): the Display menu stops above the build bar, scrolls, and sits over it. */
+  @media (pointer: coarse) and (max-height: 500px) {
+    .drop {
+      z-index: 10;
+      max-height: calc(100vh - 130px);
+      overflow-y: auto;
+      width: 236px;
+      font-size: 0.82em;
     }
   }
 </style>

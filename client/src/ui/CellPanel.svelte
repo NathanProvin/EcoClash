@@ -399,4 +399,12 @@
   .vs .over {
     text-shadow: 0 0 6px currentColor;
   }
+  /* Phones in landscape (D-269): narrower, and scrolling inside the space left by the bars. */
+  @media (pointer: coarse) and (max-height: 500px) {
+    .cell {
+      width: min(300px, 40vw);
+      max-height: calc(100vh - 150px);
+      overflow-y: auto;
+    }
+  }
 </style>

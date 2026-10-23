@@ -14,6 +14,8 @@
 //! player). The command file holds one JSON command per line (`sim_core::commands::Command`).
 
 mod bench;
+mod sheet;
+mod tune;
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -28,7 +30,8 @@ use sim_core::world::World;
 
 const USAGE: &str = "usage: sim-cli run --seed N --ticks T [--commands file.jsonl] [--size N] \
 [--balance data/balance.toml] [--species data/species.toml] [--out metrics.csv] [--hashes hashes.csv] \
-[--sandbox 1] [--terrain 1]";
+[--sandbox 1] [--terrain 1]
+       sim-cli bench ... | sim-cli sheet ... | sim-cli tune [--rounds R] [--seeds N]";
 
 fn main() -> ExitCode {
     match run(std::env::args().skip(1).collect()) {
@@ -46,6 +49,12 @@ fn run(args: Vec<String>) -> Result<(), String> {
     };
     if cmd == "bench" {
         return bench_cmd(rest);
+    }
+    if cmd == "sheet" {
+        return sheet_cmd(rest);
+    }
+    if cmd == "tune" {
+        return tune_cmd(rest);
     }
     if cmd != "run" {
         return Err(format!("unknown command {cmd}"));
@@ -156,6 +165,43 @@ fn bench_cmd(rest: &[String]) -> Result<(), String> {
     let seats = [seat("p1", "normal")?, seat("p2", "hard")?];
     let ms = bench::run(&b, seeds, size, seats, minutes, threads);
     print!("{}", bench::summary(&ms, seats));
+    Ok(())
+}
+
+/// `sim-cli tune`: the (1+1) self-play search over `[bots.hard]` (B2).
+fn tune_cmd(rest: &[String]) -> Result<(), String> {
+    let opts = options(rest)?;
+    let get = |k: &str, d: &str| opts.get(k).map_or(d.to_string(), Clone::clone);
+    let number = |k: &str, d: &str| get(k, d).parse::<u64>().map_err(|e| format!("--{k}: {e}"));
+    let read = |path: String| fs::read_to_string(&path).map_err(|e| format!("{path}: {e}"));
+    let b = Balance::from_toml(
+        &read(get("balance", "data/balance.toml"))?,
+        &read(get("species", "data/species.toml"))?,
+    )?;
+    let threads = std::thread::available_parallelism().map_or(4, std::num::NonZero::get);
+    let t = tune::Opts {
+        rounds: number("rounds", "20")?,
+        seeds: number("seeds", "24")?,
+        size: usize::try_from(number("size", &b.sim.grid_size.to_string())?)
+            .map_err(|e| e.to_string())?,
+        minutes: number("minutes", "45")?,
+        threads: usize::try_from(number("threads", &threads.to_string())?).unwrap_or(4),
+        seed: number("seed", "1")?,
+    };
+    print!("{}", tune::tune(&b, &t));
+    Ok(())
+}
+
+/// `sim-cli sheet [--balance ..] [--species ..]`: every species' stats and derived figures.
+fn sheet_cmd(rest: &[String]) -> Result<(), String> {
+    let opts = options(rest)?;
+    let get = |k: &str, d: &str| opts.get(k).map_or(d.to_string(), Clone::clone);
+    let read = |path: String| fs::read_to_string(&path).map_err(|e| format!("{path}: {e}"));
+    let b = Balance::from_toml(
+        &read(get("balance", "data/balance.toml"))?,
+        &read(get("species", "data/species.toml"))?,
+    )?;
+    print!("{}", sheet::report(&b));
     Ok(())
 }
 

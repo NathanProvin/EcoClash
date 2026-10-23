@@ -17,14 +17,14 @@ victory_territory = 0.80 # §2.3, Q-013, D-094, D-147
 time_limit_s = 36000     # §2.3: 600 min, virtually no limit (D-138; was 60 min, D-094)
 territory_decay = true   # gamerules §11.3, D-143: the threshold decays linearly ...
 territory_start = 0.80   # ... from this (held until decay_from_s) ...
-territory_end = 0.60     # ... to this at decay_to_s, so a lead ends the match (about 30 min)
-decay_from_s = 1500      # real seconds: the decay starts at 25 min ...
-decay_to_s = 2700        # ... and ends at 45 min (D-148)
+territory_end = 0.50     # ... to this at decay_to_s: the larger side wins by then (D-265)
+decay_from_s = 1200      # real seconds: the decay starts at 20 min ...
+decay_to_s = 2280        # ... and ends at 38 min (D-148, D-265, D-267)
 
 # Bot difficulty (D-143): the bots' income factor by level (easy, normal, hard); humans earn 1.
 # With play quality (easy plays at home, hard adds drops and catastrophes) it makes the ladder.
 [bots]
-income = [0.8, 1.3, 2.0]
+income = [1.15, 1.25, 1.5]
 
 # Bot play styles (D-228): % of spending on land (spreading), depth (species per cell, fertility)
 # and army (grazers for raids). Hunters and catastrophes answer threats outside these budgets.
@@ -33,6 +33,61 @@ wide = [60, 20, 20]
 tall = [20, 60, 20]
 rush = [20, 20, 60]
 balanced = [34, 33, 33]
+
+# How each level plays (Alpha 1.7, B1; D-060, D-148, D-191, D-228); seconds unless named ticks, 0 = off.
+# period_ticks between decisions; found_ticks before founding; actions per decision; raid_s between
+# raids of raid_herd units; drop_s between bought raids; grazer_cards kept; reaction_s before a threat
+# is answered; stalkers: answers hunters near its herds; anticipate: answers any enemy species seen;
+# adapt_s between reads of the enemy and adapt_shift points toward its counter; casts: every
+# catastrophe card (else only a rush bot's blights); tactics: layered den raids, raid control, den
+# moves, timing, payback unlocks (Alpha 1.7).
+[bots.easy]
+period_ticks = 60
+found_ticks = 150
+actions = 2
+raid_s = 90
+raid_herd = 8
+drop_s = 0
+grazer_cards = 4
+reaction_s = 60
+stalkers = false
+anticipate = false
+adapt_s = 0
+adapt_shift = 0
+casts = false
+tactics = false
+
+[bots.normal]
+period_ticks = 30
+found_ticks = 100
+actions = 3
+raid_s = 45
+raid_herd = 4
+drop_s = 90
+grazer_cards = 6
+reaction_s = 15
+stalkers = true
+anticipate = false
+adapt_s = 120
+adapt_shift = 12
+casts = false
+tactics = false
+
+[bots.hard]
+period_ticks = 15
+found_ticks = 60
+actions = 4
+raid_s = 30
+raid_herd = 5
+drop_s = 60
+grazer_cards = 8
+reaction_s = 0
+stalkers = true
+anticipate = true
+adapt_s = 60
+adapt_shift = 25
+casts = true
+tactics = true
 
 [agents]
 max_agents = 2000        # §5.4 budget; per player: half
@@ -180,12 +235,12 @@ establish_threshold = 0.3  # a species counts (dominant level, strength) from th
 smother_rate = 0.15        # enemy species lose this fraction of k_max per second, per point of push over strength (D-225)
 # Strength (D-236, D-243) = vigor x layer x fertility x biodiversity. Vigor: the mean fill of the
 # owner's established layers, each weighted by its species' spread rate x cover. No shade.
-fert_gain = 0.25           # x (1 + fert_gain x soil development), soil 0..1 (D-225)
+fert_gain = 1.5            # x (1 + fert_gain x soil development), soil 0..1 (D-225; old fertile home land holds, D-264, D-266)
 layer_mult = [1.0, 1.15, 1.3, 1.5]  # x this, by the cell's highest established layer L1..L4 (D-243)
 bedrock_boost = 0.15       # positive growth x (1 + bedrock_boost) on a plant's favourite bedrock (D-240)
 shallow_seep = 0.15        # in the shallows a plant's moisture response is at least this: land plants seep across slowly (D-084, D-239)
 vigor_floor = 0.5          # vigor = vigor_floor + (1 - vigor_floor) x mean fill: a cell just taken holds
-div_gain = 0.5             # x (1 + div_gain x species: plants established + resident animals) ... (D-243)
+div_gain = 0.75            # x (1 + div_gain x species: plants established + resident animals) ... (D-243, D-266)
 div_cap = 4.0              # ... at most x div_cap (strength only; income has its own, [economy])
 hold_s = 20                # real seconds a conquered cell cannot be pushed by its former owner (D-230)
 litter_fraction = 0.1      # litter per second = this x biomass_rate x biomass (turnover)

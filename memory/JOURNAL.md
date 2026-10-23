@@ -1237,3 +1237,156 @@
 ## 2026-10-13 (5) · Alpha 1.6 released
 - Title outline in bark-dark (D-262); menu label "Alpha 1.6".
 - `alpha-1.6` merged into main, tagged `v1.6-alpha`, pushed; CI deploys Pages and the relay. The whole CI set was run locally before the push.
+
+## 2026-10-22 · Alpha 1.7: species sheet, food-chain reports
+- **Branch** `alpha-1.7` from main. Plan: species reports → proposals → the user's play tests; a self-play search for the bot; a quick-match queue on the Cloudflare relay (no Hetzner server needed).
+- **`sim-cli sheet`:** derived figures per species and flags. Flags today:
+  - black woodpecker card < fungi;
+  - brown bear card < wolf;
+  - swarm grazers deal 0.1–0.2× the grazer median damage per point;
+  - bison 2.2×;
+  - nothing hunts fungi or the black woodpecker.
+- **Food-chain harness:** `pyramid()` became `chain()`, for any plants and animals. The old test is unchanged and still passes.
+- **Single chains** (`CAPS=1`, 8 seeds, 30 min): most hold.
+  - The hawk wipes out the great tits. It eats them first and stays fed on grasshoppers, so home hunting stays open.
+  - The heron starves above plentiful pike. Pike share its larvae, so they count as competitors, and its home-hunting rule (own prey only in surplus) stays shut.
+  - Wolf and bear can't live on bison alone (3/8 and 1/8).
+  - A chain fully grown in hawthorn hides every small prey (hawthorn is a refuge).
+  - Recyclers stay at their cap whichever hunter is added (badger, pine marten, hawk, eagle-owl all live on them): a predator for a recycler is safe.
+- **Mixed webs** (meadow, forest, water; all species together):
+  - Fast-breeding small hunters crowd out the big ones: in the meadow, weasels win and fox, hawk, eagle-owl and great tit die.
+  - Tried, not kept (awaiting the user): "a hunter does not count the species it eats as a competitor" (`rival`). Fox and eagle-owl then live in the meadow and the weasel is held down. Hawk, badger and great tit still drop out.
+  - Diet variants tried: hawk eats black woodpecker instead of great tit; badger eats fungi instead of bark beetles; heron eats roach instead of pike.
+- **Applied (D-263):**
+  - Rules: prey switching (home hunting judged per prey species) and prey is not a rival.
+  - Diets:
+    - recyclers hunted: the pine marten eats the black woodpecker, the badger eats fungi;
+    - water: heron [roach, larvae, pike], otter [pike, mallard, frog];
+    - the hawk [bank vole, great tit, bark beetles].
+  - Results:
+    - meadow web: all 12 species alive in 8/8 seeds;
+    - forest web: only the eagle-owl lost (no prey there);
+    - water web: only the frog lost (it eats land insects).
+  - Checks green: Rust tests, lint, native vs WASM hashes, client tests.
+
+## 2026-10-22 (2) · Species fixes, bot starvation fix, fertility (D-264)
+- **Targeted fixes:**
+  - woodpecker and bear cards now cost more than their tier below;
+  - swarm bites ×3–4 (0.5–0.9× the grazer median damage per point);
+  - bison bite down and card up (1.3×).
+- **Found:** bots planted only lichen for 10+ minutes. They saved for each next unlock within 120 s of income, which with cheap cards was always (`savings`). Fixed: no saving while an unlocked plant is unplanted. Test added (fails without the fix).
+- **Front stability:** every match ends by den capture, the den taken by a rolling plant front, not by raids (a traced match ended at 10:28 without a raid).
+  - `fert_gain` 1.0: +2.3 min median, more comebacks. Kept.
+  - Smother rate, hold, vigor floor, yields, soil speed and soil thresholds: within noise. Not kept.
+- **Final** (48 seeds): median end 23:08, comeback 12/33, flips back 51/match, 15/33 animals called.
+- **Style matrix** (Normal, 8 seeds per pair; mean points):
+  - wide 62, tall 16, rush 55, balanced 64;
+  - seat bias −11;
+  - plant cards unlocked somewhere 15/15;
+  - earthworms 34 % of calls.
+- **Open:** den rule or bot den defence for 25–30 min matches; the bot's tall/depth path (tier 3 at 31 min, no trees); earthworm overuse (`decomposers`).
+
+## 2026-10-22 (3) · Bot den guard and depth; victory threshold (D-265)
+- **Den losses** (instrumented, then removed): dens fell to raids, 25 grazed bare and 17 taken with raiders on them, of 44.
+  - Didn't help: a garrison alone, a wider guard, halving graze damage.
+  - Helped: layering the den's 3×3 ring first (median end 22:36 → 27:10, trees appear), with a third of matches then stalling at 45 min.
+- **Threshold:** 80 % → 50 % from 20 to 35 min: median 29:21, no match unfinished.
+- **Matrix** (Normal, 8 seeds per pair; mean points): balanced 83, rush 56, wide 43, tall 16.
+  - Roster 25/33; great tit 42 % of calls.
+- **Ladder:** 100 % at every step (target 70–85 %): for the bot step (B).
+- **Tests:** `the_bot_layers_its_den_ring`, `the_bot_garrisons_its_den`. A guard computed the distance to a missing den (overflow), fixed before commit.
+
+## 2026-10-22 (4) · Style-aware bots, bonuses, ladder, self-play search (D-266)
+- **Threshold question:** the decay is continuous, every tick (`World::threshold`).
+- **Bot:**
+  - saving horizon by style;
+  - tall's opening (land ≥ 50 % for 6 min; for every style it handed the matrix to rush);
+  - den ring from the depth budget, answered outside it only when pushed or threatened;
+  - dynamic garrison (released by Stop);
+  - call fatigue;
+  - `[bots.*]` levels in data (bench identical), with `casts`.
+  - Tests: `tall_saves_for_cards_and_wide_plants`; den tests updated (ring, hold and release).
+- **Balance:** `div_gain` 0.75, `fert_gain` 1.5; bot income [1.1, 1.25, 1.6] (ladder 75 / 85 / 100).
+- **Great tit:** logging showed 293 raid answers against 20 proactive calls, behind 249 grasshopper calls (the first grazer, a swarm).
+  - Didn't help: fatigue, hunter wear, rabbits ahead in the plan.
+  - Needs a second first-rank eater of grasshoppers: a diet decision for the user.
+- **`sim-cli tune`:** built. Its pick (period 18) won only 18 of 48 in a check against the shipped Hard: noise at 16 matches per round. Default now 24 seeds.
+- **Final:**
+  - median end 23:47;
+  - matrix wide 39, tall 30, rush 69, balanced 59;
+  - roster 24/33;
+  - great tit 38 % of calls.
+
+## 2026-10-22 (5) · Food-web audit, land frog, den ring back (D-267)
+- **Audit** of first-rank hunters: insect swarms rely on the great tit; slugs, caterpillars and bark beetles lack land answers; boar, beaver and mallard are weakly hunted.
+- **Frog:** on land (W or L2), grasshoppers first. **Wolf:** boar second.
+- **Decay to 38 min:** no effect on its own; the den decides early matches.
+- **Den ring:** back outside the budgets. Median end 25:45, even seats; tall 19 in the matrix.
+- **World is Clone, a tick about 1 ms native:** look-ahead for a harder bot is feasible (see the ideas given to the user).
+
+## 2026-10-22 (6) · Hard's tactics (D-268)
+- **Built:** layered den raids, raid control (retreat, guarded cells skipped, escort), den moves, raid timing, payback unlocks; Hard only (`tactics`).
+- **Hard with tactics** against Hard without: 33/48.
+  - Payback unlocks carry the gain (23/48 without).
+  - The others are neutral against bots; den moves fire rarely, so their trigger was widened to 6 cells.
+- **Ladder** re-tuned for the stronger Hard: income [1.15, 1.25, 1.5] → 84 / 85 / 100.
+- **Checks:** Rust, WASM, client tests green; four new bot tests.
+
+## 2026-10-22 (7) · Phones: touch controls and landscape layout (D-269)
+- **Branch** `mobile` from `alpha-1.7`.
+- **Map:** a one-finger drag pans, a tap acts, a long press then a drag boxes, a pinch zooms; with animals selected a tap orders them. Attack, Hold and Stop buttons on touch.
+- **Build bar:** the flyout no longer closes itself after a tap; the first tap on a card shows its info, the second acts. Same fixes in the catastrophe deck.
+- **Layout** at 915×412 (a temporary iframe page, removed):
+  - menu and setup screens now scroll (Start was unreachable);
+  - the cell card fits between the bars;
+  - rotate card in portrait;
+  - landscape lock in full screen;
+  - Low preset on touch.
+- **Found:** Vite's watcher missed files edited in place by a script, so the dev server served stale CSS until restarted.
+- **Not verified:** real touch gestures and the portrait card (no touch emulation here); needs the user's phone.
+
+## 2026-10-22 (8) · Long press = hover (D-270)
+- `ui/longpress.ts`: on the HUD, a still touch for 450 ms shows the title bubble and fires the mouse hover handlers; release hides it and swallows the click.
+- Checked with synthetic touch events in the browser (bubble, rich tile info, short tap and drag ignored). Real fingers: the user's phone.
+
+## 2026-10-22 (9) · Phone fit (D-271)
+- **User's phone test:** it opens on the phone over Wi-Fi.
+  - Cause of the earlier failure: `npm run client:dev -- --host` never reached Vite. The working command is `npm run dev -w client -- --host --port 5173 --strictPort`, after `npm run wasm:build`.
+- **Fixed for phones only:**
+  - the build bar scales to the screen width;
+  - notices are small, the two newest only;
+  - the tutorial and hint panels are smaller;
+  - the menu runs in a row, with a full-screen button.
+
+## 2026-10-23 · Phone: one-tap arming, left notices, Display menu (D-272)
+- **Performance investigation, step 1:** a production build over Wi-Fi, with the phone's Chrome flag treating the address as secure. Waiting for the user's perf readout (fps, worst frame, WebGPU or WebGL).
+- **The user's requests** (phones only):
+  - one tap arms an unlocked species, with its info kept open, and the map tap plants it;
+  - notices at the far left;
+  - the Display menu above the build bar.
+
+## 2026-10-23 (2) · Phone work paused; `mobile` merged into `alpha-1.7`
+- **Desktop check of the branch:** every phone rule needs a touch screen (`pointer: coarse`, plus `max-height: 500px` for the layout). Touch code runs on touch pointers only.
+  - Fixed before merging: the no-text-selection rule applied on desktop too; now touch screens only.
+  - Remaining desktop difference: a species tooltip that would leave the screen at the right edge opens to the left of its card.
+- **Checked in desktop Chrome** (production build):
+  - the menu down the trail, no phone full-screen button;
+  - the HUD unchanged: bar at normal scale, no order buttons, text selectable;
+  - hover opens the flyout and the info box;
+  - click to arm, click to plant.
+- **Phone performance:** paused before the measurement (plan step 1); the user resumes it later.
+
+## 2026-10-23 (3) · Food-web recap and earlier counters (D-273)
+- Recap given to the user (roster, equilibria, locks).
+- **Their changes:** earlier slug, earthworm, squirrel and bark-beetle counters; heron on frogs; lynx in undergrowth. Guard, chains and all tests green.
+- **Next:** harmony proposals (the same patterns across families), for the user to pick.
+
+## 2026-10-23 (4) · Harmony groups B and D (D-274)
+- Family-by-tier grids found the breaks (mallard a tier 2 in price, uneven hunter steps, single-hunter big grazers).
+- The user took B (hunter tiers) and D (diets); A (grazer prices) and C (woodpecker) remain proposals.
+- Bear and wolf densities follow the same tier rule after the forest web showed bears at cap.
+- Bench: median end 26:51, even seats.
+
+## 2026-10-23 (5) · Alpha 1.7 released (D-275)
+- Full CI run locally. Two Python prototype tests still encoded the old threshold and the lynx's old habitat; updated.
+- Menu label "Alpha 1.7"; `alpha-1.7` merged into main, tagged `v1.7-alpha`, pushed.

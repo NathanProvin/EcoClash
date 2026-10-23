@@ -4,7 +4,13 @@
 > One task ≈ one commit. The acceptance criteria are the ones in INSTRUCTIONS §11.
 
 ## Status
-- **Now:** 2026-10-13: **Alpha 1.6** released (tag `v1.6-alpha`), merged to main and pushed (CI deploys Pages and the relay):
+- **Now:** 2026-10-23: **Alpha 1.7** released (tag `v1.7-alpha`), merged to main and pushed (CI deploys Pages and the relay):
+  - the food web: prey switching, prey is not a rival, hunted recyclers, earlier counters, even hunter tiers (D-263, D-267, D-273, D-274);
+  - balance: tier prices, swarm and bison damage, fertile home land, stronger biodiversity, victory threshold 80 % to 50 % from 20 to 38 min (D-264…D-267);
+  - bots: planting before saving, den guard and garrison, style-aware saving, call fatigue, Hard's tactics, levels in data and `sim-cli tune` (D-264…D-268);
+  - phones: touch controls, long press = hover, a fitted layout (D-269…D-272).
+
+  Next: the user's play tests; open: the quick-match queue (C1–C4), phone performance (measure, then a phone profile), harmony groups A and C (D-274), the tall style in the matrix. Before: 2026-10-13: **Alpha 1.6** released (tag `v1.6-alpha`), merged to main and pushed (CI deploys Pages and the relay):
   - the organic main menu (D-256);
   - the tutorial rework (D-257);
   - the balance pass: cheaper and faster woods, quicker breeding, animals 25 % slower (D-254);
@@ -34,7 +40,7 @@
   Next: the user's play tests (the user's own tests are the balance reference); then the bot-balance pass (style fingerprint test ignored, raids, recyclers, trees). Before: 2026-10-08: **Alpha 1.3** released: the gameplay rework (conquest by strength and push D-225, dead trees per owner D-227, bot styles and balance D-228…D-231) and the UI/UX pass (D-232…D-235: clickable strategic icons and food-web focus, strength on the cell card, game feel: income pulse, capture rhythm, combo badge, kills, crumbs, saplings; larger animals, front line on water). Merged to main and pushed (CI deploys Pages and the relay). Next: playtest feedback; Gameplay step 3 targets still partly missed (D-229); M6 leftovers. Herb culling (D-224) merged to main (not pushed). Before: 2026-10-07: **Alpha 1.2** released: the food pyramid with wider cycles and online 1v1 on the Cloudflare relay (D-218…D-222), merged to main and deployed (Pages + relay). Played across two machines by the user. Next: playtest feedback; M6 leftovers (replays, pause, state dumps).
 - **Next:** Gameplay · Three styles (steps 2–6) → UI/UX juice → M7-lite (balance loop) → Content (terrain, biomes, map generator, species) → M5b (art) → M6 (online multiplayer).
 - **Blocked:** none. Fog of war: none for now (D-074).
-- **Last updated:** 2026-10-13
+- **Last updated:** 2026-10-23
 
 ---
 
@@ -147,16 +153,16 @@ In this order:
 Plan: species reports → proposals → the user's play tests; then a self-play search for the bot's knobs; a quick-match queue on the Cloudflare relay (no Hetzner server needed).
 - [x] A1. `sim-cli sheet`: every species' costs, income, payback, fill time, breeding, grazer damage, eaters; flags (tier cheaper than the one below, payback and damage outliers, nothing hunts it, no bot plan).
 - [x] A2. Food-chain pyramids per named chain (`CHAIN=` in `pyramid_report`; `SPECIES_FILE=` variants, `CAPS=1` keeps the per-cell ceilings).
-- [ ] A3. Species use in bot matches (`sim-cli bench` roster).
-- [ ] A4. Report and proposals; the user picks.
-- [ ] A5. Apply; the user's play tests. Round 1: D-263 (food web), D-264 (prices, swarm damage, bison, fertility; bot saving fix).
+- [x] A3. Species use in bot matches (`sim-cli bench` roster).
+- [x] A4. Report and proposals; the user picks (food-web recap, harmony groups, D-273, D-274).
+- [x] A5. Apply; the user's play tests. Round 1: D-263 (food web), D-264 (prices, swarm damage, bison, fertility; bot saving fix); round 2: D-273, D-274.
 - [x] B1. Bot knobs into `[bots.easy|normal|hard]` (same values, same bench output).
 - [x] B2. `sim-cli tune`: (1+1) self-play search on Hard. First run: no gain beyond noise (D-266).
 - [x] B3. Bot logic gaps: den defence (D-265, D-266), moving the den and Hard's tactics (D-268). The ignored style fingerprint test stays ignored.
 - [x] B4. Ship the tuned Hard, ladder kept (D-266, D-268: 84 / 85 / 100).
 - [ ] C1–C4. Quick-match queue: `relay/queue.mjs`, a `Queue` Durable Object, the Multiplayer button, the deploy.
 - [x] Phones (D-269, branch `mobile`): touch map controls, touch-safe build bar, order buttons, landscape layout, long press = hover (D-270), phone fit (D-271). Awaiting the user's test on Android.
-- [ ] Release: "Alpha 1.7", tag `v1.7-alpha`.
+- [x] Release: "Alpha 1.7", tag `v1.7-alpha` (D-275). The quick-match queue (C1–C4) moves to the next release.
 
 ## Alpha 1.6 · Menu, tutorial, balance (branch `alpha-1.6`; user, 2026-10-13)
 - [x] 1. Balance: L3/L4 unlock −15 %, growth and biomass rate +15 %; breeding period −10 %; animal speed −25 % (D-254).

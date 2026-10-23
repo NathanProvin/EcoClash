@@ -25,7 +25,7 @@ def test_start_unlocks_and_tier_path():
 
 def test_animals_need_their_habitat_unlocked_first():
     ec = economy()
-    assert ec.missing(1, "lynx") == ["elder", "lynx"]  # its first habitat plant (D-187)
+    assert ec.missing(1, "lynx") == ["ferns", "lynx"]  # its first habitat plant (D-187, D-273)
 
 
 def test_prepare_buys_one_species_at_a_time_when_affordable():
@@ -68,8 +68,9 @@ def test_victory_rules():
     assert ec.winner(10, terr, even) == (1, "territory")  # fixed 90 % (D-094)
     assert ec.winner(10, {1: 0.5, 2: 0.4}, even) is None  # not yet decided
     limit = ec.time_limit
-    assert ec.winner(limit, {1: 0.5, 2: 0.4}, {1: 1.0, 2: 2.0}) == (2, "biomass")
-    assert ec.winner(limit, {1: 0.5, 2: 0.4}, even) == (1, "territory share")
+    # Below the decayed threshold (50 % since D-265), so the biomass rule decides.
+    assert ec.winner(limit, {1: 0.45, 2: 0.4}, {1: 1.0, 2: 2.0}) == (2, "biomass")
+    assert ec.winner(limit, {1: 0.45, 2: 0.4}, even) == (1, "territory share")
     assert ec.winner(limit, {1: 0.4, 2: 0.4}, even) == (0, "draw")
 
 

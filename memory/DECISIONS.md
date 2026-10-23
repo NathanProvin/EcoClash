@@ -3293,3 +3293,10 @@ Template:
   - every chain holds: mallard to otter 133 : 45; boar to wolf and bear 109 : 18 : 23; the meadow web all alive (eagle-owl 7/8); the wetland web all 8 alive;
   - in the forest web the bear sits at its cap (24 for 128 cells, on 190 beavers at their own cap) and wolves stay at 5 without red deer;
   - **bots** (Normal mirror, 48 seeds): median end 26:51, seats 22–25, trees on 40 % of sides, 21/33 animals called. The great tit is still the most called animal (raid answers to grasshoppers).
+
+## D-275 · 2026-10-23 · Alpha 1.7 released
+- **Status:** accepted (user: merge, push to prod)
+- **Decision:**
+  - The menu label is "Alpha 1.7". `alpha-1.7` (with `mobile`) is merged into main, tagged `v1.7-alpha` and pushed; CI deploys Pages and the relay.
+  - The whole CI set ran locally first. Two prototype tests were updated for D-265 (the threshold now ends at 50 %) and D-273 (the lynx's first habitat plant is ferns).
+  - Not in this release: the quick-match queue (C1–C4), phone performance, harmony groups A and C.

@@ -1386,3 +1386,7 @@
 - The user took B (hunter tiers) and D (diets); A (grazer prices) and C (woodpecker) remain proposals.
 - Bear and wolf densities follow the same tier rule after the forest web showed bears at cap.
 - Bench: median end 26:51, even seats.
+
+## 2026-10-23 (5) · Alpha 1.7 released (D-275)
+- Full CI run locally. Two Python prototype tests still encoded the old threshold and the lynx's old habitat; updated.
+- Menu label "Alpha 1.7"; `alpha-1.7` merged into main, tagged `v1.7-alpha`, pushed.

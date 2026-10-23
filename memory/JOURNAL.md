@@ -1380,3 +1380,9 @@
 - Recap given to the user (roster, equilibria, locks).
 - **Their changes:** earlier slug, earthworm, squirrel and bark-beetle counters; heron on frogs; lynx in undergrowth. Guard, chains and all tests green.
 - **Next:** harmony proposals (the same patterns across families), for the user to pick.
+
+## 2026-10-23 (4) · Harmony groups B and D (D-274)
+- Family-by-tier grids found the breaks (mallard a tier 2 in price, uneven hunter steps, single-hunter big grazers).
+- The user took B (hunter tiers) and D (diets); A (grazer prices) and C (woodpecker) remain proposals.
+- Bear and wolf densities follow the same tier rule after the forest web showed bears at cap.
+- Bench: median end 26:51, even seats.

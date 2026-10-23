@@ -3279,3 +3279,17 @@ Template:
   - wetland web (water and undergrowth) all 8 alive, frog included; herons 49 for 41 pike (79 for 48 before);
   - forest web: the eagle-owl still finds no prey; hawks thin (2) under wildcats.
 - Two tests updated for the fox's diet order.
+
+## D-274 · 2026-10-23 · Harmony: hunter tiers step evenly; big grazers get first-rank hunters
+- **Status:** accepted (user picked groups B and D of the harmony proposal; groups A, grazer prices and sizes, and C, the woodpecker unlock, were not taken)
+- **Pattern:** within every hunter family, cards rise with tier, breeding slows by about 1 : 1.33 : 2, and density drops with tier. Every tier-3 grazer gets a first-rank large-mammal or water hunter.
+- **Decision:**
+  - **Cards:** hawk 800 (400; a superpredator no cheaper than the great tit), frog 1 000 (800), wolf 5 000 (7 000; 2 × 2 500, between the lynx and the bear).
+  - **Breeding:** fox 81 s (108), wolf 189 s (162).
+  - **Density:** frog 2 (2.5), pine marten 0.75 (1), wolf 0.3 (0.4), brown bear 0.2 (0.3). The last two follow the same rule and were added after the forest web showed bears at their cap crowding out wolves.
+  - **Diets:** otter [mallard, pike, larvae] (mallard first); brown bear [bison, wild boar, beaver] (boar gains a second hunter; roe deer stays the lynx's).
+- **Measure:**
+  - guard test green;
+  - every chain holds: mallard to otter 133 : 45; boar to wolf and bear 109 : 18 : 23; the meadow web all alive (eagle-owl 7/8); the wetland web all 8 alive;
+  - in the forest web the bear sits at its cap (24 for 128 cells, on 190 beavers at their own cap) and wolves stay at 5 without red deer;
+  - **bots** (Normal mirror, 48 seeds): median end 26:51, seats 22–25, trees on 40 % of sides, 21/33 animals called. The great tit is still the most called animal (raid answers to grasshoppers).

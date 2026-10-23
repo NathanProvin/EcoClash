@@ -743,10 +743,10 @@ rest = 0.2
 
 [fauna.frog]
 growth = 54
-spawn_cost = 400
+spawn_cost = 500
 unlock_cost = 2500
 yield = 0.06
-per_cell = 2.5
+per_cell = 2
 effect = "Hunts insects on the banks."
 family = "P1"
 tier = 2
@@ -819,7 +819,7 @@ growth = 108
 spawn_cost = 2500
 unlock_cost = 9000
 yield = 0.5
-per_cell = 1
+per_cell = 0.75
 effect = "Agile woodland hunter: squirrels, tits and weasels."
 family = "P2"
 tier = 3
@@ -839,7 +839,7 @@ wobble_keep = 0.9
 rest = 0.3
 
 [fauna.fox]
-growth = 108
+growth = 81
 spawn_cost = 1200
 unlock_cost = 4000
 yield = 0.25
@@ -887,11 +887,11 @@ wobble_keep = 0.9
 rest = 0.5
 
 [fauna.wolf]
-growth = 162
-spawn_cost = 3500
+growth = 189
+spawn_cost = 2500
 unlock_cost = 9000
 yield = 1.0
-per_cell = 0.4
+per_cell = 0.3
 effect = "Pack hunter of large herbivores: red deer, bison, boar."
 family = "P3"
 tier = 2
@@ -915,12 +915,12 @@ growth = 216
 spawn_cost = 8000
 unlock_cost = 14000
 yield = 1.5
-per_cell = 0.3
+per_cell = 0.2
 effect = "Apex omnivore: bison, beavers and roe deer."
 family = "P3"
 tier = 3
 role = "predator"
-eats = ["bison", "beaver", "roe_deer"]
+eats = ["bison", "wild_boar", "beaver"]
 habitat = ["L4"]
 small = false
 swarm = false
@@ -994,7 +994,7 @@ effect = "Top of the river food web."
 family = "PW"
 tier = 3
 role = "predator"
-eats = ["pike", "mallard", "larvae"]
+eats = ["mallard", "pike", "larvae"]
 habitat = ["W"]
 small = false
 swarm = false
@@ -1012,7 +1012,7 @@ rest = 0.4
 # Superpredators (S, D-187, D-197): each eats the hunters below it, so a defence can be answered.
 [fauna.hawk]
 growth = 81
-spawn_cost = 400
+spawn_cost = 800
 unlock_cost = 1500
 yield = 0.08
 per_cell = 1.5

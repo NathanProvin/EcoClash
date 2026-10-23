@@ -1364,3 +1364,14 @@
   - one tap arms an unlocked species, with its info kept open, and the map tap plants it;
   - notices at the far left;
   - the Display menu above the build bar.
+
+## 2026-10-23 (2) · Phone work paused; `mobile` merged into `alpha-1.7`
+- **Desktop check of the branch:** every phone rule needs a touch screen (`pointer: coarse`, plus `max-height: 500px` for the layout). Touch code runs on touch pointers only.
+  - Fixed before merging: the no-text-selection rule applied on desktop too; now touch screens only.
+  - Remaining desktop difference: a species tooltip that would leave the screen at the right edge opens to the left of its card.
+- **Checked in desktop Chrome** (production build):
+  - the menu down the trail, no phone full-screen button;
+  - the HUD unchanged: bar at normal scale, no order buttons, text selectable;
+  - hover opens the flyout and the info box;
+  - click to arm, click to plant.
+- **Phone performance:** paused before the measurement (plan step 1); the user resumes it later.

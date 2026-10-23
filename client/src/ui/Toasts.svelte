@@ -138,10 +138,14 @@
   }
   /* Phones (D-271): small, the two newest only, clear of the map. */
   @media (pointer: coarse) and (max-height: 500px) {
+    /* At the far left, under the clock (D-272), not over the middle of the map. */
     .stack {
       top: 82px;
+      left: 8px;
+      transform: none;
+      align-items: flex-start;
       gap: 4px;
-      max-width: 46vw;
+      max-width: 40vw;
     }
     .toast {
       padding: 3px 10px;

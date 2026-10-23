@@ -221,7 +221,24 @@
   // On touch (D-269) the first tap on a tile shows its info, a second tap on it acts.
   let peek: string | null = $state(null);
   let touched = false;
+  /** The info of a species armed by touch stays open until it is planted or disarmed. */
+  let held = false;
+  $effect(() => {
+    if (!planting && held) {
+      held = false;
+      hover = null;
+    }
+  });
   function tap(e: MouseEvent, s: Species) {
+    if (touched && live && cardOf(s) === "unlocked") {
+      // Touch (D-272): one tap arms the species and keeps its info open; the next tap on the
+      // map plants it (a second tap on the tile disarms). Cards to buy keep the two taps.
+      click(s);
+      peek = null;
+      held = planting === s.name;
+      if (held) show(e, s);
+      return;
+    }
     if (touched && peek !== s.name) {
       show(e, s);
       peek = s.name;

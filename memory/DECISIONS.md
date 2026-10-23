@@ -3250,3 +3250,14 @@ Template:
   - **Menu:** the stones sit in a row, without the trail. A full-screen button sits in the top-right corner.
   - The full-screen code is shared between the top bar and the menu (`ui/fullscreen.ts`).
 - **Checked:** type check, lint, tests. The look itself needs the phone: the desktop browser cannot match a touch-screen query here.
+
+## D-272 · 2026-10-23 · Phone: one-tap arming, notices at the left, a Display menu that fits
+- **Status:** accepted (user's phone test)
+- **Decision** (phones only):
+  - **One-tap arming:** one tap on an unlocked species arms it and keeps its info open; the next tap on the map plants it, and a second tap on the tile disarms. The info closes once it is planted or disarmed. Cards still to buy keep the D-269 two taps (info, then buy), so a stray tap spends nothing. Catastrophe cards too.
+  - **Notices:** at the far left, under the clock, 40 % of the width at most.
+  - **Display menu:** it stops above the build bar, scrolls, and sits over the bar. The Performance switch was out of reach under the bar.
+- **Test setup for phones:**
+  - a production build served with `vite preview --host --port 5173 --strictPort`;
+  - on the phone, Chrome flag `unsafely-treat-insecure-origin-as-secure` set to the PC's address, so the page counts as secure and WebGPU can run.
+  - USB forwarding failed: the phone read as "Device information is stale" in `chrome://inspect`.

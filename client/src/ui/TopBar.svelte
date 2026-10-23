@@ -659,4 +659,14 @@
       translate: calc(-50% - 2px) 0;
     }
   }
+  /* Phones (D-272): the Display menu stops above the build bar, scrolls, and sits over it. */
+  @media (pointer: coarse) and (max-height: 500px) {
+    .drop {
+      z-index: 10;
+      max-height: calc(100vh - 130px);
+      overflow-y: auto;
+      width: 236px;
+      font-size: 0.82em;
+    }
+  }
 </style>

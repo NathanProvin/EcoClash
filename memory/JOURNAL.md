@@ -1357,3 +1357,10 @@
   - notices are small, the two newest only;
   - the tutorial and hint panels are smaller;
   - the menu runs in a row, with a full-screen button.
+
+## 2026-10-23 · Phone: one-tap arming, left notices, Display menu (D-272)
+- **Performance investigation, step 1:** a production build over Wi-Fi, with the phone's Chrome flag treating the address as secure. Waiting for the user's perf readout (fps, worst frame, WebGPU or WebGL).
+- **The user's requests** (phones only):
+  - one tap arms an unlocked species, with its info kept open, and the map tap plants it;
+  - notices at the far left;
+  - the Display menu above the build bar.
